@@ -17,6 +17,8 @@
 
 """Tests for the various custom Count implementation examples."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 

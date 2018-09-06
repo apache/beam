@@ -17,12 +17,13 @@
 
 """Test for the juliaset example."""
 
+from __future__ import absolute_import
+
 import logging
 import os
 import re
 import tempfile
 import unittest
-
 
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.testing.util import open_shards

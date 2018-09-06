@@ -26,9 +26,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 
-/**
- * Factory methods for creating the {@link StateNamespace StateNamespaces}.
- */
+/** Factory methods for creating the {@link StateNamespace StateNamespaces}. */
 public class StateNamespaces {
 
   private enum Namespace {
@@ -45,16 +43,14 @@ public class StateNamespaces {
     return new WindowNamespace<>(windowCoder, window);
   }
 
-  public static <W extends BoundedWindow>
-  StateNamespace windowAndTrigger(Coder<W> windowCoder, W window, int triggerIdx) {
+  public static <W extends BoundedWindow> StateNamespace windowAndTrigger(
+      Coder<W> windowCoder, W window, int triggerIdx) {
     return new WindowAndTriggerNamespace<>(windowCoder, window, triggerIdx);
   }
 
   private StateNamespaces() {}
 
-  /**
-   * {@link StateNamespace} that is global to the current key being processed.
-   */
+  /** {@link StateNamespace} that is global to the current key being processed. */
   public static class GlobalNamespace implements StateNamespace {
 
     private static final String GLOBAL_STRING = "/";
@@ -90,9 +86,7 @@ public class StateNamespaces {
     }
   }
 
-  /**
-   * {@link StateNamespace} that is scoped to a specific window.
-   */
+  /** {@link StateNamespace} that is scoped to a specific window. */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
     private static final String WINDOW_FORMAT = "/%s/";
@@ -123,9 +117,7 @@ public class StateNamespaces {
       sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window)).append('/');
     }
 
-    /**
-     * State in the same window will all be evicted together.
-     */
+    /** State in the same window will all be evicted together. */
     @Override
     public Object getCacheKey() {
       return window;
@@ -142,8 +134,7 @@ public class StateNamespaces {
       }
 
       WindowNamespace<?> that = (WindowNamespace<?>) obj;
-      return Objects.equals(
-          this.windowStructuralValue(), that.windowStructuralValue());
+      return Objects.equals(this.windowStructuralValue(), that.windowStructuralValue());
     }
 
     private Object windowStructuralValue() {
@@ -161,11 +152,8 @@ public class StateNamespaces {
     }
   }
 
-  /**
-   * {@link StateNamespace} that is scoped to a particular window and trigger index.
-   */
-  public static class WindowAndTriggerNamespace<W extends BoundedWindow>
-      implements StateNamespace {
+  /** {@link StateNamespace} that is scoped to a particular window and trigger index. */
+  public static class WindowAndTriggerNamespace<W extends BoundedWindow> implements StateNamespace {
 
     private static final String WINDOW_AND_TRIGGER_FORMAT = "/%s/%s/";
 
@@ -191,7 +179,8 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(WINDOW_AND_TRIGGER_FORMAT,
+        return String.format(
+            WINDOW_AND_TRIGGER_FORMAT,
             CoderUtils.encodeToBase64(windowCoder, window),
             // Use base 36 so that can address 36 triggers in a single byte and still be human
             // readable.
@@ -208,9 +197,7 @@ public class StateNamespaces {
       sb.append('/');
     }
 
-    /**
-     * State in the same window will all be evicted together.
-     */
+    /** State in the same window will all be evicted together. */
     @Override
     public Object getCacheKey() {
       return window;
@@ -249,9 +236,8 @@ public class StateNamespaces {
   private static final Splitter SLASH_SPLITTER = Splitter.on('/');
 
   /**
-   * Convert a {@code stringKey} produced using {@link StateNamespace#stringKey}
-   * on one of the namespaces produced by this class into the original
-   * {@link StateNamespace}.
+   * Convert a {@code stringKey} produced using {@link StateNamespace#stringKey} on one of the
+   * namespaces produced by this class into the original {@link StateNamespace}.
    */
   public static <W extends BoundedWindow> StateNamespace fromString(
       String stringKey, Coder<W> windowCoder) {
@@ -280,7 +266,7 @@ public class StateNamespaces {
       } else {
         return window(windowCoder, window);
       }
-    } catch (Exception  e) {
+    } catch (Exception e) {
       throw new RuntimeException("Invalid namespace string: '" + stringKey + "'", e);
     }
   }

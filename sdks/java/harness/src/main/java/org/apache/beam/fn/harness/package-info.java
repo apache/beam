@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Top level package for Beam Java Fn Harness.
- */
+/** Top level package for Beam Java Fn Harness. */
 package org.apache.beam.fn.harness;

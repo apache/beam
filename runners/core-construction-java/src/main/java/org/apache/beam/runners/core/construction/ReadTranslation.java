@@ -22,21 +22,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.IsBounded;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ReadPayload;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -44,66 +41,59 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
- * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded}
- * {@link PTransform PTransformTranslation} into {@link ReadPayload} protos.
+ * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded} {@link PTransform
+ * PTransformTranslation} into {@link ReadPayload} protos.
  */
 public class ReadTranslation {
   private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "urn:beam:java:boundedsource:v1";
   private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "urn:beam:java:unboundedsource:v1";
 
-  public static ReadPayload toProto(Read.Bounded<?> read) {
+  public static ReadPayload toProto(Read.Bounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()
-        .setIsBounded(IsBounded.BOUNDED)
-        .setSource(toProto(read.getSource()))
+        .setIsBounded(IsBounded.Enum.BOUNDED)
+        .setSource(toProto(read.getSource(), components))
         .build();
   }
 
-  public static ReadPayload toProto(Read.Unbounded<?> read) {
+  public static ReadPayload toProto(Unbounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()
-        .setIsBounded(IsBounded.UNBOUNDED)
-        .setSource(toProto(read.getSource()))
+        .setIsBounded(IsBounded.Enum.UNBOUNDED)
+        .setSource(toProto(read.getSource(), components))
         .build();
   }
 
-  public static SdkFunctionSpec toProto(Source<?> source) {
+  public static SdkFunctionSpec toProto(Source<?> source, SdkComponents components) {
     if (source instanceof BoundedSource) {
-      return toProto((BoundedSource) source);
+      return toProto((BoundedSource) source, components);
     } else if (source instanceof UnboundedSource) {
-      return toProto((UnboundedSource<?, ?>) source);
+      return toProto((UnboundedSource<?, ?>) source, components);
     } else {
       throw new IllegalArgumentException(
           String.format("Unknown %s type %s", Source.class.getSimpleName(), source.getClass()));
     }
   }
 
-  private static SdkFunctionSpec toProto(BoundedSource<?> source) {
+  private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
-                            .build())))
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
+                .build())
         .build();
   }
 
   public static BoundedSource<?> boundedSourceFromProto(ReadPayload payload)
       throws InvalidProtocolBufferException {
-    checkArgument(payload.getIsBounded().equals(IsBounded.BOUNDED));
-    return (BoundedSource<?>) SerializableUtils.deserializeFromByteArray(
-        payload
-            .getSource()
-            .getSpec()
-            .getParameter()
-            .unpack(BytesValue.class)
-            .getValue()
-            .toByteArray(),
-        "BoundedSource");
+    checkArgument(payload.getIsBounded().equals(IsBounded.Enum.BOUNDED));
+    return (BoundedSource<?>)
+        SerializableUtils.deserializeFromByteArray(
+            payload.getSource().getSpec().getPayload().toByteArray(), "BoundedSource");
   }
 
   public static <T> BoundedSource<T> boundedSourceFromTransform(
@@ -122,60 +112,47 @@ public class ReadTranslation {
   private static <T> ReadPayload getReadPayload(
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
-    return PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
-        .getSpec()
-        .getParameter()
-        .unpack(ReadPayload.class);
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
+    return ReadPayload.parseFrom(
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
+            .getSpec()
+            .getPayload());
   }
 
-  private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source) {
+  private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
-                            .build())))
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
+                .build())
         .build();
   }
 
   public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload)
       throws InvalidProtocolBufferException {
-    checkArgument(payload.getIsBounded().equals(IsBounded.UNBOUNDED));
-    return (UnboundedSource<?, ?>) SerializableUtils.deserializeFromByteArray(
-        payload
-            .getSource()
-            .getSpec()
-            .getParameter()
-            .unpack(BytesValue.class)
-            .getValue()
-            .toByteArray(),
-        "BoundedSource");
+    checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
+    return (UnboundedSource<?, ?>)
+        SerializableUtils.deserializeFromByteArray(
+            payload.getSource().getSpec().getPayload().toByteArray(), "UnboundedSource");
   }
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
     try {
+      SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
       return PCollectionTranslation.fromProto(
-          PTransformTranslation.toProto(
-                  transform,
-                  Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-                  SdkComponents.create())
-              .getSpec()
-              .getParameter()
-              .unpack(ReadPayload.class)
+          ReadPayload.parseFrom(
+                  PTransformTranslation.toProto(transform, Collections.emptyList(), components)
+                      .getSpec()
+                      .getPayload())
               .getIsBounded());
     } catch (IOException e) {
       throw new RuntimeException("Internal error determining boundedness of Read", e);
     }
   }
 
-  /**
-   * A {@link TransformPayloadTranslator} for {@link Read.Unbounded}.
-   */
+  /** A {@link TransformPayloadTranslator} for {@link Read.Unbounded}. */
   public static class UnboundedReadPayloadTranslator
       implements PTransformTranslation.TransformPayloadTranslator<Read.Unbounded<?>> {
     public static TransformPayloadTranslator create() {
@@ -192,17 +169,15 @@ public class ReadTranslation {
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Read.Unbounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform());
+      ReadPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(payload))
+          .setPayload(payload.toByteString())
           .build();
     }
   }
 
-  /**
-   * A {@link TransformPayloadTranslator} for {@link Read.Bounded}.
-   */
+  /** A {@link TransformPayloadTranslator} for {@link Read.Bounded}. */
   public static class BoundedReadPayloadTranslator
       implements PTransformTranslation.TransformPayloadTranslator<Read.Bounded<?>> {
     public static TransformPayloadTranslator create() {
@@ -219,10 +194,10 @@ public class ReadTranslation {
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Read.Bounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform());
+      ReadPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(payload))
+          .setPayload(payload.toByteString())
           .build();
     }
   }

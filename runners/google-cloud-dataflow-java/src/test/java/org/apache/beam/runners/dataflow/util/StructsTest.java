@@ -46,9 +46,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Structs.
- */
+/** Tests for Structs. */
 @RunWith(JUnit4.class)
 public class StructsTest {
   private List<Map<String, Object>> makeCloudObjects() {
@@ -68,13 +66,13 @@ public class StructsTest {
 
   private Map<String, Object> makeCloudDictionary() {
     Map<String, Object> o = new HashMap<>();
-    addList(o, "emptyKey", Collections.<Map<String, Object>>emptyList());
+    addList(o, "emptyKey", Collections.emptyList());
     addNull(o, "noStringsKey");
     addString(o, "singletonStringKey", "stringValue");
     addStringList(o, "multipleStringsKey", Arrays.asList("hi", "there", "bob"));
     addLongs(o, "multipleLongsKey", 47L, 1L << 42, -5L);
     addLong(o, "singletonLongKey", 42L);
-    addDouble(o, "singletonDoubleKey", 3.14);
+    addDouble(o, "singletonDoubleKey", Math.PI);
     addBoolean(o, "singletonBooleanKey", true);
     addNull(o, "noObjectsKey");
     addList(o, "multipleObjectsKey", makeCloudObjects());
@@ -85,53 +83,42 @@ public class StructsTest {
   public void testGetStringParameter() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(
-        "stringValue",
-        getString(o, "singletonStringKey"));
-    Assert.assertEquals(
-        "stringValue",
-        getString(o, "singletonStringKey", "defaultValue"));
-    Assert.assertEquals(
-        "defaultValue",
-        getString(o, "missingKey", "defaultValue"));
+    Assert.assertEquals("stringValue", getString(o, "singletonStringKey"));
+    Assert.assertEquals("stringValue", getString(o, "singletonStringKey", "defaultValue"));
+    Assert.assertEquals("defaultValue", getString(o, "missingKey", "defaultValue"));
 
     try {
       getString(o, "missingKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString(
-                            "didn't find required parameter missingKey"));
+      Assert.assertThat(
+          exn.toString(), Matchers.containsString("didn't find required parameter missingKey"));
     }
 
     try {
       getString(o, "noStringsKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a string"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
 
-    Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.<String>emptyIterable());
-    Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.<String>emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.<String>emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(),
-        Matchers.<String>emptyIterable());
+    Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.emptyIterable());
+    Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(), Matchers.emptyIterable());
 
     try {
       getString(o, "multipleStringsKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a string"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
 
     try {
       getString(o, "emptyKey");
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a string"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a string"));
     }
   }
 
@@ -139,19 +126,14 @@ public class StructsTest {
   public void testGetBooleanParameter() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(
-        true,
-        getBoolean(o, "singletonBooleanKey", false));
-    Assert.assertEquals(
-        false,
-        getBoolean(o, "missingKey", false));
+    Assert.assertEquals(true, getBoolean(o, "singletonBooleanKey", false));
+    Assert.assertEquals(false, getBoolean(o, "missingKey", false));
 
     try {
       getBoolean(o, "emptyKey", false);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a boolean"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a boolean"));
     }
   }
 
@@ -159,29 +141,21 @@ public class StructsTest {
   public void testGetLongParameter() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(
-        (Long) 42L,
-        getLong(o, "singletonLongKey", 666L));
-    Assert.assertEquals(
-        (Integer) 42,
-        getInt(o, "singletonLongKey", 666));
-    Assert.assertEquals(
-        (Long) 666L,
-        getLong(o, "missingKey", 666L));
+    Assert.assertEquals((Long) 42L, getLong(o, "singletonLongKey", 666L));
+    Assert.assertEquals((Integer) 42, getInt(o, "singletonLongKey", 666));
+    Assert.assertEquals((Long) 666L, getLong(o, "missingKey", 666L));
 
     try {
       getLong(o, "emptyKey", 666L);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a long"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a long"));
     }
     try {
       getInt(o, "emptyKey", 666);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not an int"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not an int"));
     }
   }
 
@@ -189,16 +163,13 @@ public class StructsTest {
   public void testGetListOfMaps() throws Exception {
     Map<String, Object> o = makeCloudDictionary();
 
-    Assert.assertEquals(
-        makeCloudObjects(),
-        getListOfMaps(o, "multipleObjectsKey", null));
+    Assert.assertEquals(makeCloudObjects(), getListOfMaps(o, "multipleObjectsKey", null));
 
     try {
       getListOfMaps(o, "singletonLongKey", null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        Matchers.containsString("not a list"));
+      Assert.assertThat(exn.toString(), Matchers.containsString("not a list"));
     }
   }
 

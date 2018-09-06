@@ -16,16 +16,20 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
-import inspect
-import unittest
 
+from __future__ import absolute_import
+
+import inspect
+import typing
+import unittest
 
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.options.pipeline_options import OptionsContext
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
 
 # These test often construct a pipeline as value | PTransform to test side
@@ -59,8 +63,8 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float, long])
-    @typehints.with_output_types(basestring)
+    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
     result = [1, 2, 3] | beam.Map(format_number)
@@ -96,6 +100,34 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
+
+
+class NativeTypesTest(unittest.TestCase):
+
+  def test_good_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, int])
+    def munge(s_i):
+      (s, i) = s_i
+      return (s + 's', i * 2)
+    result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
+    self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
+
+  def test_bad_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, str])
+    def munge(s_i):
+      (s, i) = s_i
+      return (s + 's', i * 2)
+    with self.assertRaises(typehints.TypeCheckError):
+      [('apple', 5), ('pear', 3)] | beam.Map(munge)
+
+  def test_bad_main_output(self):
+    @typehints.with_input_types(typing.Tuple[int, int])
+    @typehints.with_output_types(typing.Tuple[str, str])
+    def munge(a_b):
+      (a, b) = a_b
+      return (str(a), str(b))
+    with self.assertRaises(typehints.TypeCheckError):
+      [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)
 
 
 class SideInputTest(unittest.TestCase):

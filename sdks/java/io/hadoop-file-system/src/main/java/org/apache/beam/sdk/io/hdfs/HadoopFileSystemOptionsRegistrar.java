@@ -22,14 +22,12 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
-/**
- * {@link AutoService} registrar for {@link HadoopFileSystemOptions}.
- */
+/** {@link AutoService} registrar for {@link HadoopFileSystemOptions}. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class HadoopFileSystemOptionsRegistrar implements PipelineOptionsRegistrar {
 
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>of(HadoopFileSystemOptions.class);
+    return ImmutableList.of(HadoopFileSystemOptions.class);
   }
 }

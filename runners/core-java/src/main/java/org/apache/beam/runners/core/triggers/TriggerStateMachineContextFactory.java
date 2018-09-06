@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -44,8 +43,8 @@ import org.joda.time.Instant;
 /**
  * Factory for creating instances of the various {@link TriggerStateMachine} contexts.
  *
- * <p>These contexts are highly interdependent and share many fields; it is inadvisable
- * to create them via any means other than this factory class.
+ * <p>These contexts are highly interdependent and share many fields; it is inadvisable to create
+ * them via any means other than this factory class.
  */
 public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
@@ -61,19 +60,28 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     this.windowCoder = windowFn.windowCoder();
   }
 
-  public TriggerStateMachine.TriggerContext base(W window, Timers timers,
-      ExecutableTriggerStateMachine rootTrigger, FinishedTriggers finishedSet) {
+  public TriggerStateMachine.TriggerContext base(
+      W window,
+      Timers timers,
+      ExecutableTriggerStateMachine rootTrigger,
+      FinishedTriggers finishedSet) {
     return new TriggerContextImpl(window, timers, rootTrigger, finishedSet);
   }
 
   public TriggerStateMachine.OnElementContext createOnElementContext(
-      W window, Timers timers, Instant elementTimestamp,
-      ExecutableTriggerStateMachine rootTrigger, FinishedTriggers finishedSet) {
+      W window,
+      Timers timers,
+      Instant elementTimestamp,
+      ExecutableTriggerStateMachine rootTrigger,
+      FinishedTriggers finishedSet) {
     return new OnElementContextImpl(window, timers, rootTrigger, finishedSet, elementTimestamp);
   }
 
-  public TriggerStateMachine.OnMergeContext createOnMergeContext(W window, Timers timers,
-      ExecutableTriggerStateMachine rootTrigger, FinishedTriggers finishedSet,
+  public TriggerStateMachine.OnMergeContext createOnMergeContext(
+      W window,
+      Timers timers,
+      ExecutableTriggerStateMachine rootTrigger,
+      FinishedTriggers finishedSet,
       Map<W, FinishedTriggers> finishedSets) {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
@@ -93,7 +101,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     protected final FinishedTriggers finishedSet;
     private final TriggerStateMachine.TriggerContext context;
 
-    public TriggerInfoImpl(ExecutableTriggerStateMachine trigger, FinishedTriggers finishedSet,
+    public TriggerInfoImpl(
+        ExecutableTriggerStateMachine trigger,
+        FinishedTriggers finishedSet,
         TriggerStateMachine.TriggerContext context) {
       this.trigger = trigger;
       this.finishedSet = finishedSet;
@@ -132,18 +142,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public Iterable<ExecutableTriggerStateMachine> unfinishedSubTriggers() {
-      return FluentIterable
-          .from(trigger.subTriggers())
-          .filter(new Predicate<ExecutableTriggerStateMachine>() {
-            @Override
-            public boolean apply(ExecutableTriggerStateMachine trigger) {
-              return !finishedSet.isFinished(trigger);
-            }
-          });
+      return FluentIterable.from(trigger.subTriggers())
+          .filter(trigger -> !finishedSet.isFinished(trigger));
     }
 
     @Override
-    public ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
+    public @Nullable ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
       for (ExecutableTriggerStateMachine subTrigger : trigger.subTriggers()) {
         if (!finishedSet.isFinished(subTrigger)) {
           return subTrigger;
@@ -186,8 +190,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
-      if (timeDomain == TimeDomain.EVENT_TIME
-          && timestamp.equals(window.maxTimestamp())) {
+      if (timeDomain == TimeDomain.EVENT_TIME && timestamp.equals(window.maxTimestamp())) {
         // Don't allow triggers to unset the at-max-timestamp timer. This is necessary for on-time
         // state transitions.
         return;
@@ -212,8 +215,8 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class MergingTriggerInfoImpl
-      extends TriggerInfoImpl implements TriggerStateMachine.MergingTriggerInfo {
+  private class MergingTriggerInfoImpl extends TriggerInfoImpl
+      implements TriggerStateMachine.MergingTriggerInfo {
 
     private final Map<W, FinishedTriggers> finishedSets;
 
@@ -251,9 +254,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     protected final int triggerIndex;
     protected final StateNamespace windowNamespace;
 
-    public StateAccessorImpl(
-        W window,
-        ExecutableTriggerStateMachine trigger) {
+    public StateAccessorImpl(W window, ExecutableTriggerStateMachine trigger) {
       this.triggerIndex = trigger.getTriggerIndex();
       this.windowNamespace = namespaceFor(window);
     }
@@ -269,7 +270,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
   }
 
   private class MergingStateAccessorImpl extends StateAccessorImpl
-  implements MergingStateAccessor<Object, W> {
+      implements MergingStateAccessor<Object, W> {
     private final Collection<W> activeToBeMerged;
 
     public MergingStateAccessorImpl(
@@ -279,8 +280,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public <StateT extends State> StateT access(
-        StateTag<StateT> address) {
+    public <StateT extends State> StateT access(StateTag<StateT> address) {
       return stateInternals.state(windowNamespace, address);
     }
 
@@ -308,7 +308,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         Timers timers,
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet) {
-      trigger.getSpec().super();
       this.window = window;
       this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
@@ -372,14 +371,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet,
         Instant eventTimestamp) {
-      trigger.getSpec().super();
       this.window = window;
       this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
       this.eventTimestamp = eventTimestamp;
     }
-
 
     @Override
     public Instant eventTimestamp() {
@@ -411,7 +408,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     public void setTimer(Instant timestamp, TimeDomain domain) {
       timers.setTimer(timestamp, domain);
     }
-
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain domain) {
@@ -449,7 +445,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
         ExecutableTriggerStateMachine trigger,
         FinishedTriggers finishedSet,
         Map<W, FinishedTriggers> finishedSets) {
-      trigger.getSpec().super();
       this.mergingWindows = finishedSets.keySet();
       this.window = window;
       this.state = new MergingStateAccessorImpl(trigger, mergingWindows, window);
@@ -486,7 +481,6 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain domain) {
       timers.setTimer(timestamp, domain);
-
     }
 
     @Override

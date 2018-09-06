@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * An {@link IterableCoder} encodes any {@link Iterable} in the format
- * of {@link IterableLikeCoder}.
+ * An {@link IterableCoder} encodes any {@link Iterable} in the format of {@link IterableLikeCoder}.
  *
  * @param <T> the type of the elements of the iterables being transcoded
  */
@@ -31,6 +31,15 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
 
   public static <T> IterableCoder<T> of(Coder<T> elemCoder) {
     return new IterableCoder<>(elemCoder);
+  }
+
+  @Override
+  public Object structuralValue(Iterable<T> value) {
+    ArrayList<Object> result = new ArrayList<>();
+    for (T elem : value) {
+      result.add(getElemCoder().structuralValue(elem));
+    }
+    return result;
   }
 
   /////////////////////////////////////////////////////////////////////////////

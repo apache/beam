@@ -25,14 +25,12 @@ cdef type Timestamp
 cdef class WindowedValue(object):
   cdef public object value
   cdef public object windows
+  cdef public object pane_info
   cdef public int64_t timestamp_micros
   cdef object timestamp_object
 
   cpdef WindowedValue with_value(self, new_value)
 
-  @staticmethod
-  cdef inline bint _typed_eq(WindowedValue left, WindowedValue right) except? -2
-
 @cython.locals(wv=WindowedValue)
 cpdef WindowedValue create(
-  object value, int64_t timestamp_micros, object windows)
+  object value, int64_t timestamp_micros, object windows, object pane_info=*)

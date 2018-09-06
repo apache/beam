@@ -1,0 +1,103 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Nexmark"
+
+// When running via Gradle, this property can be used to pass commandline arguments
+// to the nexmark launch
+def nexmarkArgsProperty = "nexmark.args"
+def nexmarkArgs = project.hasProperty(nexmarkArgsProperty) ?
+    project.getProperty(nexmarkArgsProperty).split() : []
+
+// When running via Gradle, this property sets the runner dependency
+def nexmarkRunnerProperty = "nexmark.runner"
+def nexmarkRunnerDependency = (project.hasProperty(nexmarkRunnerProperty)
+        ? project.getProperty(nexmarkRunnerProperty)
+        : ":beam-runners-direct-java")
+def shouldProvideSpark = ":beam-runners-spark".equals(nexmarkRunnerDependency)
+
+configurations {
+  // A configuration for running the Nexmark launcher directly from Gradle, which
+  // uses Gradle to put the appropriate dependencies on the Classpath rather than
+  // bundling them into a fat jar
+  gradleRun
+}
+
+dependencies {
+  compile library.java.guava
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  shadow library.java.google_api_services_bigquery
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
+  shadow library.java.avro
+  shadow library.java.joda_time
+  shadow library.java.slf4j_api
+  shadow library.java.commons_lang3
+  shadow library.java.kafka_clients
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadow library.java.slf4j_jdk14
+  provided library.java.junit
+  provided library.java.hamcrest_core
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+
+  gradleRun project(path: project.path, configuration: "shadow")
+  gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")
+
+  // The Spark runner requires the user to provide a Spark dependency. For self-contained
+  // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
+  // to not hardcode any runner other than :beam-runners-direct-java
+  if (shouldProvideSpark) {
+    gradleRun library.java.spark_streaming
+    gradleRun library.java.spark_core, {
+      exclude group:"org.slf4j", module:"jul-to-slf4j"
+    }
+  }
+}
+
+if (shouldProvideSpark) {
+  configurations.gradleRun {
+    // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+    exclude group: "org.slf4j", module: "slf4j-jdk14"
+  }
+}
+
+// Execute the Nexmark queries or suites via Gradle.
+//
+// Parameters:
+//   -Pnexmark.runner
+//       Specify a runner subproject, such as ":beam-runners-spark" or ":beam-runners-flink"
+//       Defaults to ":beam-runners-direct-java"
+//
+//   -Pnexmark.args
+//       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
+task run(type: JavaExec) {
+  main = "org.apache.beam.sdk.nexmark.Main"
+  classpath = configurations.gradleRun
+  args nexmarkArgs
+}

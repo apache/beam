@@ -21,32 +21,34 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link BigQuerySourceBase} for reading BigQuery tables.
- */
+/** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
-class BigQueryTableSource extends BigQuerySourceBase {
+class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
-  static BigQueryTableSource create(
+  static <T> BigQueryTableSource<T> create(
       String stepUuid,
       ValueProvider<TableReference> table,
-      BigQueryServices bqServices) {
-    return new BigQueryTableSource(stepUuid, table, bqServices);
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryTableSource<>(stepUuid, table, bqServices, coder, parseFn);
   }
 
   private final ValueProvider<String> jsonTable;
@@ -55,15 +57,16 @@ class BigQueryTableSource extends BigQuerySourceBase {
   private BigQueryTableSource(
       String stepUuid,
       ValueProvider<TableReference> table,
-      BigQueryServices bqServices) {
-    super(stepUuid, bqServices);
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    super(stepUuid, bqServices, coder, parseFn);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
   }
 
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions) throws IOException {
-    checkState(jsonTable.isAccessible());
     TableReference tableReference =
         BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
     return setDefaultProjectIfAbsent(bqOptions, tableReference);
@@ -92,22 +95,20 @@ class BigQueryTableSource extends BigQuerySourceBase {
   }
 
   @Override
-  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    checkState(jsonTable.isAccessible());
-    TableReference tableRef = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
-        TableReference.class);
-    return new BigQueryReader(this, bqServices.getReaderFromTable(bqOptions, tableRef));
-  }
-
-  @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
-          BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
+      TableReference table =
+          setDefaultProjectIfAbsent(
+              options.as(BigQueryOptions.class),
+              BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
-      Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-          .getTable(table).getNumBytes();
+      Table tableRef =
+          bqServices.getDatasetService(options.as(BigQueryOptions.class)).getTable(table);
+      Long numBytes = tableRef.getNumBytes();
+      if (tableRef.getStreamingBuffer() != null) {
+        numBytes += tableRef.getStreamingBuffer().getEstimatedBytes().longValue();
+      }
+
       tableSizeBytes.compareAndSet(null, numBytes);
     }
     return tableSizeBytes.get();

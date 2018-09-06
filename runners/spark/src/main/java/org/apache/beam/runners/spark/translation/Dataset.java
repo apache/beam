@@ -19,14 +19,12 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.Coder;
 
-
-/**
- * Holder for Spark RDD/DStream.
- */
+/** Holder for Spark RDD/DStream. */
 public interface Dataset extends Serializable {
 
-  void cache(String storageLevel);
+  void cache(String storageLevel, Coder<?> coder);
 
   void action();
 

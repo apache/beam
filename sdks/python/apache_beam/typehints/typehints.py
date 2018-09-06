@@ -63,16 +63,21 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+from __future__ import absolute_import
+
 import collections
 import copy
+import sys
 import types
+from builtins import next
+from builtins import zip
 
+from future.utils import with_metaclass
 
 __all__ = [
     'Any',
     'Union',
     'Optional',
-    'Tuple',
     'Tuple',
     'List',
     'KV',
@@ -109,9 +114,10 @@ class TypeConstraint(object):
 
   """The base-class for all created type-constraints defined below.
 
-  A TypeConstraint is the result of parameterizing a CompositeTypeHint with
-  with one of the allowed Python types or another CompositeTypeHint. It
-  binds and enforces a specific version of a generalized TypeHint.
+  A :class:`TypeConstraint` is the result of parameterizing a
+  :class:`CompositeTypeHint` with with one of the allowed Python types or
+  another :class:`CompositeTypeHint`. It binds and enforces a specific
+  version of a generalized TypeHint.
   """
 
   def _consistent_with_check_(self, sub):
@@ -135,12 +141,14 @@ class TypeConstraint(object):
       instance: An instance of a Python object.
 
     Raises:
-      TypeError: The passed 'instance' doesn't satisfy this TypeConstraint.
-        Subclasses of TypeConstraint are free to raise any of the subclasses of
-        TypeError defined above, depending on the manner of the type hint error.
+      :class:`~exceptions.TypeError`: The passed **instance** doesn't satisfy
+        this :class:`TypeConstraint`. Subclasses of
+        :class:`TypeConstraint` are free to raise any of the subclasses of
+        :class:`~exceptions.TypeError` defined above, depending on
+        the manner of the type hint error.
 
-    All TypeConstraint sub-classes must define this method in other for the
-    class object to be created.
+    All :class:`TypeConstraint` sub-classes must define this method in other
+    for the class object to be created.
     """
     raise NotImplementedError
 
@@ -183,7 +191,21 @@ def bind_type_variables(type_constraint, bindings):
   return type_constraint
 
 
-class SequenceTypeConstraint(TypeConstraint):
+class IndexableTypeConstraint(TypeConstraint):
+  """An internal common base-class for all type constraints with indexing.
+  E.G. SequenceTypeConstraint + Tuple's of fixed size.
+  """
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index. This is used to allow type inference
+    to determine the correct type for a specific index. On lists this will also
+    be the same, however for tuples the value will depend on the position. This
+    was added as part of the futurize changes since more of the expressions now
+    index into tuples."""
+    raise NotImplementedError
+
+
+class SequenceTypeConstraint(IndexableTypeConstraint):
   """A common base-class for all sequence related type-constraint classes.
 
   A sequence is defined as an arbitrary length homogeneous container type. Type
@@ -212,6 +234,10 @@ class SequenceTypeConstraint(TypeConstraint):
 
   def _inner_types(self):
     yield self.inner_type
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index."""
+    return self.inner_type
 
   def _consistent_with_check_(self, sub):
     return (isinstance(sub, self.__class__)
@@ -296,23 +322,28 @@ class CompositeTypeHint(object):
 
 
 def validate_composite_type_param(type_param, error_msg_prefix):
-  """Determines if an object is a valid type parameter to a CompositeTypeHint.
+  """Determines if an object is a valid type parameter to a
+  :class:`CompositeTypeHint`.
 
-  Implements sanity checking to disallow things like:
-    * List[1, 2, 3] or Dict[5].
+  Implements sanity checking to disallow things like::
+
+    List[1, 2, 3] or Dict[5].
 
   Args:
     type_param: An object instance.
-    error_msg_prefix: A string prefix used to format an error message in the
-      case of an exception.
+    error_msg_prefix (:class:`str`): A string prefix used to format an error
+      message in the case of an exception.
 
   Raises:
-    TypeError: If the passed 'type_param' is not a valid type parameter for a
-      CompositeTypeHint.
+    ~exceptions.TypeError: If the passed **type_param** is not a valid type
+      parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
+  possible_classes = [type, TypeConstraint]
+  if sys.version_info[0] == 2:
+    possible_classes.append(types.ClassType)
   is_not_type_constraint = (
-      not isinstance(type_param, (type, types.ClassType, TypeConstraint))
+      not isinstance(type_param, tuple(possible_classes))
       and type_param is not None)
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
@@ -337,7 +368,7 @@ def _unified_repr(o):
     A qualified name for the passed Python object fit for string formatting.
   """
   return repr(o) if isinstance(
-      o, (TypeConstraint, types.NoneType)) else o.__name__
+      o, (TypeConstraint, type(None))) else o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -378,9 +409,15 @@ class AnyTypeConstraint(TypeConstraint):
   function arguments or return types. All other TypeConstraint's are equivalent
   to 'Any', and its 'type_check' method is a no-op.
   """
+  def __eq__(self, other):
+    return type(self) == type(other)
 
   def __repr__(self):
     return 'Any'
+
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
 
   def type_check(self, instance):
     pass
@@ -390,6 +427,13 @@ class TypeVariable(AnyTypeConstraint):
 
   def __init__(self, name):
     self.name = name
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.name == other.name
+
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
 
   def __repr__(self):
     return 'TypeVariable[%s]' % self.name
@@ -488,7 +532,7 @@ class UnionHint(CompositeTypeHint):
     if Any in params:
       return Any
     elif len(params) == 1:
-      return iter(params).next()
+      return next(iter(params))
     return self.UnionConstraint(params)
 
 
@@ -498,7 +542,7 @@ UnionConstraint = UnionHint.UnionConstraint
 class OptionalHint(UnionHint):
   """An Option type-hint. Optional[X] accepts instances of X or None.
 
-  The Optional[X] factory function proxies to Union[X, None]
+  The Optional[X] factory function proxies to Union[X, type(None)]
   """
 
   def __getitem__(self, py_type):
@@ -507,7 +551,7 @@ class OptionalHint(UnionHint):
       raise TypeError('An Option type-hint only accepts a single type '
                       'parameter.')
 
-    return Union[py_type, None]
+    return Union[py_type, type(None)]
 
 
 class TupleHint(CompositeTypeHint):
@@ -543,7 +587,7 @@ class TupleHint(CompositeTypeHint):
                    for elem in sub.tuple_types)
       return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
 
-  class TupleConstraint(TypeConstraint):
+  class TupleConstraint(IndexableTypeConstraint):
 
     def __init__(self, type_params):
       self.tuple_types = tuple(type_params)
@@ -562,6 +606,10 @@ class TupleHint(CompositeTypeHint):
     def _inner_types(self):
       for t in self.tuple_types:
         yield t
+
+    def _constraint_for_index(self, idx):
+      """Returns the type at the given index."""
+      return self.tuple_types[idx]
 
     def _consistent_with_check_(self, sub):
       return (isinstance(sub, self.__class__)
@@ -773,7 +821,7 @@ class DictHint(CompositeTypeHint):
             'type dict. %s is of type %s.'
             % (dict_instance, dict_instance.__class__.__name__))
 
-      for key, value in dict_instance.iteritems():
+      for key, value in dict_instance.items():
         try:
           check_constraint(self.key_type, key)
         except CompositeTypeHintError as e:
@@ -956,7 +1004,8 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+                                            TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -964,7 +1013,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type
@@ -1062,3 +1110,35 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
+
+
+def coerce_to_kv_type(element_type, label=None):
+  """Attempts to coerce element_type to a compatible kv type.
+
+  Raises an error on failure.
+  """
+  # If element_type is not specified, then treat it as `Any`.
+  if not element_type:
+    return KV[Any, Any]
+  elif isinstance(element_type, TupleHint.TupleConstraint):
+    if len(element_type.tuple_types) == 2:
+      return element_type
+    else:
+      raise ValueError(
+          "Tuple input to %r must be have two components. "
+          "Found %s." % (label, element_type))
+  elif isinstance(element_type, AnyTypeConstraint):
+    # `Any` type needs to be replaced with a KV[Any, Any] to
+    # satisfy the KV form.
+    return KV[Any, Any]
+  elif isinstance(element_type, UnionConstraint):
+    union_types = [
+        coerce_to_kv_type(t) for t in element_type.union_types]
+    return KV[
+        Union[tuple(t.tuple_types[0] for t in union_types)],
+        Union[tuple(t.tuple_types[1] for t in union_types)]]
+  else:
+    # TODO: Possibly handle other valid types.
+    raise ValueError(
+        "Input to %r must be compatible with KV[Any, Any]. "
+        "Found %s." % (label, element_type))

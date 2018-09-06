@@ -39,8 +39,7 @@ class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstEle
   }
 
   private AfterSynchronizedProcessingTimeStateMachine() {
-    super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
-        Collections.<SerializableFunction<Instant, Instant>>emptyList());
+    super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, Collections.emptyList());
   }
 
   @Override
@@ -59,10 +58,9 @@ class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstEle
   }
 
   @Override
-  protected AfterSynchronizedProcessingTimeStateMachine
-      newWith(List<SerializableFunction<Instant, Instant>> transforms) {
+  protected AfterSynchronizedProcessingTimeStateMachine newWith(
+      List<SerializableFunction<Instant, Instant>> transforms) {
     // ignore transforms
     return this;
   }
-
 }

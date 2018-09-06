@@ -24,10 +24,15 @@ and displayed as part of their pipeline execution.
 - Metrics - This class lets pipeline and transform writers create and access
     metric objects such as counters, distributions, etc.
 """
+from __future__ import absolute_import
+
 import inspect
+from builtins import object
 
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.metricbase import Counter, Distribution
+from apache_beam.metrics.metricbase import Counter
+from apache_beam.metrics.metricbase import Distribution
+from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = ['Metrics', 'MetricsFilter']
@@ -74,8 +79,27 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
 
+  @staticmethod
+  def gauge(namespace, name):
+    """Obtains or creates a Gauge metric.
+
+    Gauge metrics are restricted to integer-only values.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A Distribution object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingGauge(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
+    """Metrics Counter that Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name):
+      super(Metrics.DelegatingCounter, self).__init__()
       self.metric_name = metric_name
 
     def inc(self, n=1):
@@ -84,7 +108,10 @@ class Metrics(object):
         container.get_counter(self.metric_name).inc(n)
 
   class DelegatingDistribution(Distribution):
+    """Metrics Distribution Delegates functionality to MetricsEnvironment."""
+
     def __init__(self, metric_name):
+      super(Metrics.DelegatingDistribution, self).__init__()
       self.metric_name = metric_name
 
     def update(self, value):
@@ -92,8 +119,23 @@ class Metrics(object):
       if container is not None:
         container.get_distribution(self.metric_name).update(value)
 
+  class DelegatingGauge(Gauge):
+    """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
+
+    def __init__(self, metric_name):
+      super(Metrics.DelegatingGauge, self).__init__()
+      self.metric_name = metric_name
+
+    def set(self, value):
+      container = MetricsEnvironment.current_container()
+      if container is not None:
+        container.get_gauge(self.metric_name).set(value)
+
 
 class MetricResults(object):
+  COUNTERS = "counters"
+  DISTRIBUTIONS = "distributions"
+  GAUGES = "gauges"
 
   @staticmethod
   def _matches_name(filter, metric_key):
@@ -142,6 +184,20 @@ class MetricResults(object):
     return False
 
   def query(self, filter=None):
+    """Queries the runner for existing user metrics that match the filter.
+
+    It should return a dictionary, with lists of each kind of metric, and
+    each list contains the corresponding kind of MetricResult. Like so:
+
+        {
+          "counters": [MetricResult(counter_key, committed, attempted), ...],
+          "distributions": [MetricResult(dist_key, committed, attempted), ...],
+          "gauges": []  // Empty list if nothing matched the filter.
+        }
+
+    The committed / attempted values are DistributionResult / GaugeResult / int
+    objects.
+    """
     raise NotImplementedError
 
 

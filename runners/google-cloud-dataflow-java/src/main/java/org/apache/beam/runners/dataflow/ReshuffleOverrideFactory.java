@@ -50,8 +50,7 @@ class ReshuffleOverrideFactory<K, V>
           AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>>
               transform) {
     return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        new ReshuffleWithOnlyTrigger<K, V>());
+        PTransformReplacements.getSingletonMainInput(transform), new ReshuffleWithOnlyTrigger<>());
   }
 
   private static class ReshuffleWithOnlyTrigger<K, V>
@@ -64,27 +63,29 @@ class ReshuffleOverrideFactory<K, V>
       // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
       Window<KV<K, V>> rewindow =
           Window.<KV<K, V>>into(
-              new IdentityWindowFn<>(
-                  originalStrategy.getWindowFn().windowCoder()))
+                  new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
               .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
-      return input.apply(rewindow)
-          .apply(GroupByKey.<K, V>create())
+      return input
+          .apply(rewindow)
+          .apply(GroupByKey.create())
           // Set the windowing strategy directly, so that it doesn't get counted as the user having
           // set allowed lateness.
           .setWindowingStrategyInternal(originalStrategy)
-          .apply("ExpandIterable", ParDo.of(
-              new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  K key = c.element().getKey();
-                  for (V value : c.element().getValue()) {
-                    c.output(KV.of(key, value));
-                  }
-                }
-              }));
+          .apply(
+              "ExpandIterable",
+              ParDo.of(
+                  new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      K key = c.element().getKey();
+                      for (V value : c.element().getValue()) {
+                        c.output(KV.of(key, value));
+                      }
+                    }
+                  }));
     }
   }
 }

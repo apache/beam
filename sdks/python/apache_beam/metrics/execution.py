@@ -29,10 +29,18 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
-from collections import defaultdict
-import threading
 
-from apache_beam.metrics.cells import CounterCell, DistributionCell
+from __future__ import absolute_import
+
+import threading
+from builtins import object
+from collections import defaultdict
+
+from apache_beam.metrics.cells import CounterCell
+from apache_beam.metrics.cells import DistributionCell
+from apache_beam.metrics.cells import GaugeCell
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
 
 
 class MetricKey(object):
@@ -55,7 +63,10 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
-  def __str__(self):
+  def __hash__(self):
+    return hash((self.step, self.metric))
+
+  def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
         self.step, self.metric)
 
@@ -74,9 +85,9 @@ class MetricResult(object):
   Attributes:
     key: A ``MetricKey`` that identifies the metric and bundle of this result.
     committed: The committed updates of the metric. This attribute's type is
-      that of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
     attempted: The logical updates of the metric. This attribute's type is that
-      of the underlying cell data (e.g. int, DistributionData).
+      of metric type result (e.g. int, DistributionResult, GaugeResult).
   """
   def __init__(self, key, committed, attempted):
     """Initializes ``MetricResult``.
@@ -94,7 +105,10 @@ class MetricResult(object):
             self.committed == other.committed and
             self.attempted == other.attempted)
 
-  def __str__(self):
+  def __hash__(self):
+    return hash((self.key, self.committed, self.attempted))
+
+  def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
 
@@ -108,36 +122,17 @@ class _MetricsEnvironment(object):
   def __init__(self):
     self.METRICS_SUPPORTED = False
     self._METRICS_SUPPORTED_LOCK = threading.Lock()
-    self.PER_THREAD = threading.local()
-    self.set_container_stack()
-
-  def set_container_stack(self):
-    if not hasattr(self.PER_THREAD, 'container'):
-      self.PER_THREAD.container = []
-
-  def container_stack(self):
-    self.set_container_stack()
-    return self.PER_THREAD.container
 
   def set_metrics_supported(self, supported):
-    self.set_container_stack()
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
 
   def current_container(self):
-    self.set_container_stack()
-    index = len(self.PER_THREAD.container) - 1
-    if index < 0:
+    """Returns the current MetricsContainer."""
+    sampler = statesampler.get_current_tracker()
+    if sampler is None:
       return None
-    return self.PER_THREAD.container[index]
-
-  def set_current_container(self, container):
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
+    return sampler.current_state().metrics_container
 
 
 MetricsEnvironment = _MetricsEnvironment()
@@ -149,12 +144,16 @@ class MetricsContainer(object):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
     self.distributions = defaultdict(lambda: DistributionCell())
+    self.gauges = defaultdict(lambda: GaugeCell())
 
   def get_counter(self, metric_name):
     return self.counters[metric_name]
 
   def get_distribution(self, metric_name):
     return self.distributions[metric_name]
+
+  def get_gauge(self, metric_name):
+    return self.gauges[metric_name]
 
   def _get_updates(self, filter=None):
     """Return cumulative values of metrics filtered according to a lambda.
@@ -173,7 +172,11 @@ class MetricsContainer(object):
                      for k, v in self.distributions.items()
                      if filter(v)}
 
-    return MetricUpdates(counters, distributions)
+    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
+              for k, v in self.gauges.items()
+              if filter(v)}
+
+    return MetricUpdates(counters, distributions, gauges)
 
   def get_updates(self):
     """Return cumulative values of metrics that changed since the last commit.
@@ -191,24 +194,22 @@ class MetricsContainer(object):
     """
     return self._get_updates()
 
-
-class ScopedMetricsContainer(object):
-
-  def __init__(self, container=None):
-    self._stack = MetricsEnvironment.container_stack()
-    self._container = container
-
-  def enter(self):
-    self._stack.append(self._container)
-
-  def exit(self):
-    self._stack.pop()
-
-  def __enter__(self):
-    self.enter()
-
-  def __exit__(self, type, value, traceback):
-    self.exit()
+  def to_runner_api(self):
+    return (
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=k.to_runner_api(),
+            counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
+                value=v.get_cumulative()))
+         for k, v in self.counters.items()] +
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=k.to_runner_api(),
+            distribution_data=v.get_cumulative().to_runner_api())
+         for k, v in self.distributions.items()] +
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=k.to_runner_api(),
+            gauge_data=v.get_cumulative().to_runner_api())
+         for k, v in self.gauges.items()]
+    )
 
 
 class MetricUpdates(object):
@@ -218,12 +219,14 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
-  def __init__(self, counters=None, distributions=None):
+  def __init__(self, counters=None, distributions=None, gauges=None):
     """Create a MetricUpdates object.
 
     Args:
       counters: Dictionary of MetricKey:MetricUpdate updates.
       distributions: Dictionary of MetricKey:MetricUpdate objects.
+      gauges: Dictionary of MetricKey:MetricUpdate objects.
     """
     self.counters = counters or {}
     self.distributions = distributions or {}
+    self.gauges = gauges or {}

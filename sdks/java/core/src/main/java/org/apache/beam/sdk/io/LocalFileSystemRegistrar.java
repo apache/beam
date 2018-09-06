@@ -24,14 +24,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * {@link AutoService} registrar for the {@link LocalFileSystem}.
- */
+/** {@link AutoService} registrar for the {@link LocalFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
   @Override
   public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
-    return ImmutableList.<FileSystem>of(new LocalFileSystem());
+    return ImmutableList.of(new LocalFileSystem());
   }
 }

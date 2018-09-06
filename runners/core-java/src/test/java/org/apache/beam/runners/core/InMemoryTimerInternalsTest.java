@@ -28,9 +28,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link InMemoryTimerInternals}.
- */
+/** Tests for {@link InMemoryTimerInternals}. */
 @RunWith(JUnit4.class)
 public class InMemoryTimerInternalsTest {
 
@@ -140,12 +138,12 @@ public class InMemoryTimerInternalsTest {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
-    TimerData synchronizedProcessingTime1 = TimerData.of(
-        NS1, new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    TimerData synchronizedProcessingTime1 =
+        TimerData.of(NS1, new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     TimerData eventTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.EVENT_TIME);
     TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
-    TimerData synchronizedProcessingTime2 = TimerData.of(
-        NS1, new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    TimerData synchronizedProcessingTime2 =
+        TimerData.of(NS1, new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(eventTime1);

@@ -25,12 +25,17 @@ import logging
 import sys
 import threading
 import unittest
-
 from concurrent import futures
+
 import grpc
+from future import standard_library
+from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
+
+standard_library.install_aliases()
 
 
 def timeout(timeout_secs):
@@ -49,7 +54,7 @@ def timeout(timeout_secs):
       thread.join(timeout_secs)
       if exc_info:
         t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        raise t, v, tb
+        raise_(t, v, tb)
       assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
     return wrapper
   return decorate
@@ -62,12 +67,12 @@ class DataChannelTest(unittest.TestCase):
     data_channel_service = data_plane.GrpcServerDataChannel()
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
-    beam_fn_api_pb2.add_BeamFnDataServicer_to_server(
+    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         data_channel_service, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
-    data_channel_stub = beam_fn_api_pb2.BeamFnDataStub(
+    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(
         grpc.insecure_channel('localhost:%s' % test_port))
     data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 

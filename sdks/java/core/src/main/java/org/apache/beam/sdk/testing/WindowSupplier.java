@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -29,14 +30,15 @@ import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * A {@link Supplier} that returns a static set of {@link BoundedWindow BoundedWindows}. The
- * supplier is {@link Serializable}, and handles encoding and decoding the windows with a
- * {@link Coder} provided for the windows.
+ * supplier is {@link Serializable}, and handles encoding and decoding the windows with a {@link
+ * Coder} provided for the windows.
  */
 final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Serializable {
   private final Coder<? extends BoundedWindow> coder;
   private final Collection<byte[]> encodedWindows;
 
-  private transient Collection<BoundedWindow> windows;
+  /** Access via {@link #get()}. */
+  @Nullable private transient Collection<BoundedWindow> windows;
 
   public static <W extends BoundedWindow> WindowSupplier of(Coder<W> coder, Iterable<W> windows) {
     ImmutableSet.Builder<byte[]> windowsBuilder = ImmutableSet.builder();

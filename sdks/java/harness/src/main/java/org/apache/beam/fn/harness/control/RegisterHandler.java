@@ -18,24 +18,23 @@
 
 package org.apache.beam.fn.harness.control;
 
-import com.google.protobuf.Message;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A handler and datastore for types that be can be registered via the Fn API.
  *
- * <p>Allows for {@link org.apache.beam.fn.v1.BeamFnApi.RegisterRequest}s to occur in parallel with
- * subsequent requests that may lookup registered values by blocking lookups until registration
- * occurs.
+ * <p>Allows for {@link BeamFnApi.RegisterRequest}s to occur in parallel with subsequent requests
+ * that may lookup registered values by blocking lookups until registration occurs.
  */
 public class RegisterHandler {
   private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
@@ -45,11 +44,11 @@ public class RegisterHandler {
     idToObject = new ConcurrentHashMap<>();
   }
 
-  public <T extends Message> T getById(String id) {
+  public Message getById(String id) {
     try {
       LOG.debug("Attempting to find {}", id);
       @SuppressWarnings("unchecked")
-      CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
+      CompletableFuture<Message> returnValue = computeIfAbsent(id);
       /*
        * TODO: Even though the register request instruction occurs before the process bundle
        * instruction in the control stream, the instructions are being processed in parallel
@@ -68,21 +67,21 @@ public class RegisterHandler {
   }
 
   public BeamFnApi.InstructionResponse.Builder register(BeamFnApi.InstructionRequest request) {
-    BeamFnApi.InstructionResponse.Builder response = BeamFnApi.InstructionResponse.newBuilder()
-        .setRegister(RegisterResponse.getDefaultInstance());
+    BeamFnApi.InstructionResponse.Builder response =
+        BeamFnApi.InstructionResponse.newBuilder()
+            .setRegister(RegisterResponse.getDefaultInstance());
 
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
-    for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor
-        : registerRequest.getProcessBundleDescriptorList()) {
-      LOG.debug("Registering {} with type {}",
+    for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
+        registerRequest.getProcessBundleDescriptorList()) {
+      LOG.debug(
+          "Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
-      for (Map.Entry<String, RunnerApi.Coder> entry
-          : processBundleDescriptor.getCodersyyyMap().entrySet()) {
-        LOG.debug("Registering {} with type {}",
-            entry.getKey(),
-            entry.getValue().getClass());
+      for (Map.Entry<String, RunnerApi.Coder> entry :
+          processBundleDescriptor.getCodersMap().entrySet()) {
+        LOG.debug("Registering {} with type {}", entry.getKey(), entry.getValue().getClass());
         computeIfAbsent(entry.getKey()).complete(entry.getValue());
       }
     }

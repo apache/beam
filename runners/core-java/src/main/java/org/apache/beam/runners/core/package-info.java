@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-/**
- * Provides utilities for Beam runner authors.
- */
+/** Provides utilities for Beam runner authors. */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

@@ -37,9 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -49,9 +47,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DoFnTester}.
- */
+/** Tests for {@link DoFnTester}. */
 @RunWith(JUnit4.class)
 public class DoFnTesterTest {
 
@@ -290,7 +286,7 @@ public class DoFnTesterTest {
               TimestampedValue.of("2", new Instant(2000L))));
       assertThat(
           tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
-          Matchers.<TimestampedValue<String>>emptyIterable());
+          Matchers.emptyIterable());
     }
   }
 
@@ -298,8 +294,7 @@ public class DoFnTesterTest {
   public void fnWithSideInputDefault() throws Exception {
     PCollection<Integer> pCollection = p.apply(Create.empty(VarIntCoder.of()));
     final PCollectionView<Integer> value =
-        PCollectionViews.singletonView(
-            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+        pCollection.apply(View.<Integer>asSingleton().withDefaultValue(0));
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.processElement(1);
@@ -314,8 +309,7 @@ public class DoFnTesterTest {
   public void fnWithSideInputExplicit() throws Exception {
     PCollection<Integer> pCollection = p.apply(Create.of(-2));
     final PCollectionView<Integer> value =
-        PCollectionViews.singletonView(
-            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+        pCollection.apply(View.<Integer>asSingleton().withDefaultValue(0));
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
@@ -348,8 +342,7 @@ public class DoFnTesterTest {
               TimestampedValue.of(KV.of(2, firstWindow), now)));
       assertThat(
           tester.peekOutputElementsInWindow(secondWindow),
-          containsInAnyOrder(
-              TimestampedValue.of(KV.of(3, secondWindow), now)));
+          containsInAnyOrder(TimestampedValue.of(KV.of(3, secondWindow), now)));
     }
   }
 
@@ -406,8 +399,8 @@ public class DoFnTesterTest {
   }
 
   /**
-   * A {@link DoFn} that adds values to a user metric and converts input to String in
-   * {@link DoFn.ProcessElement @ProcessElement}.
+   * A {@link DoFn} that adds values to a user metric and converts input to String in {@link
+   * DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {
     Counter agg = Metrics.counter(CounterDoFn.class, "ctr");
@@ -420,6 +413,7 @@ public class DoFnTesterTest {
       INSIDE_BUNDLE,
       TORN_DOWN
     }
+
     private LifecycleState state = LifecycleState.UNINITIALIZED;
 
     @Setup

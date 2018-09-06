@@ -38,27 +38,32 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import itertools
 import operator
 import os
 import sys
+import threading
+from builtins import hex
+from builtins import object
+from builtins import zip
+from functools import reduce
 
-from google.protobuf import wrappers_pb2
+from google.protobuf import message
 
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
-from apache_beam.transforms.display import HasDisplayData
+from apache_beam.portability import python_urns
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-
 
 __all__ = [
     'PTransform',
@@ -74,65 +79,158 @@ class _PValueishTransform(object):
 
   This visits a PValueish, contstructing a (possibly mutated) copy.
   """
-  def visit(self, node, *args):
-    return getattr(
-        self,
-        'visit_' + node.__class__.__name__,
-        lambda x, *args: x)(node, *args)
-
-  def visit_list(self, node, *args):
-    return [self.visit(x, *args) for x in node]
-
-  def visit_tuple(self, node, *args):
-    return tuple(self.visit(x, *args) for x in node)
-
-  def visit_dict(self, node, *args):
-    return {key: self.visit(value, *args) for (key, value) in node.items()}
+  def visit_nested(self, node, *args):
+    if isinstance(node, (tuple, list)):
+      args = [self.visit(x, *args) for x in node]
+      if isinstance(node, tuple) and hasattr(node.__class__, '_make'):
+        # namedtuples require unpacked arguments in their constructor
+        return node.__class__(*args)
+      else:
+        return node.__class__(args)
+    elif isinstance(node, dict):
+      return node.__class__(
+          {key: self.visit(value, *args) for (key, value) in node.items()})
+    else:
+      return node
 
 
 class _SetInputPValues(_PValueishTransform):
   def visit(self, node, replacements):
     if id(node) in replacements:
       return replacements[id(node)]
-    return super(_SetInputPValues, self).visit(node, replacements)
+    else:
+      return self.visit_nested(node, replacements)
+
+
+# Caches to allow for materialization of values when executing a pipeline
+# in-process, in eager mode.  This cache allows the same _MaterializedResult
+# object to be accessed and used despite Runner API round-trip serialization.
+_pipeline_materialization_cache = {}
+_pipeline_materialization_lock = threading.Lock()
+
+
+def _allocate_materialized_pipeline(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    _pipeline_materialization_cache[(pid, pipeline_id)] = {}
+
+
+def _allocate_materialized_result(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
+      raise ValueError('Materialized pipeline is not allocated for result '
+                       'cache.')
+    result_id = len(_pipeline_materialization_cache[(pid, pipeline_id)])
+    result = _MaterializedResult(pipeline_id, result_id)
+    _pipeline_materialization_cache[(pid, pipeline_id)][result_id] = result
+    return result
+
+
+def _get_materialized_result(pipeline_id, result_id):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
+      raise Exception(
+          'Materialization in out-of-process and remote runners is not yet '
+          'supported.')
+    return _pipeline_materialization_cache[(pid, pipeline_id)][result_id]
+
+
+def _release_materialized_pipeline(pipeline):
+  pid = os.getpid()
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    del _pipeline_materialization_cache[(pid, pipeline_id)]
+
+
+class _MaterializedResult(object):
+  def __init__(self, pipeline_id, result_id):
+    self._pipeline_id = pipeline_id
+    self._result_id = result_id
+    self.elements = []
+
+  def __reduce__(self):
+    # When unpickled (during Runner API roundtrip serailization), get the
+    # _MaterializedResult object from the cache so that values are written
+    # to the original _MaterializedResult when run in eager mode.
+    return (_get_materialized_result, (self._pipeline_id, self._result_id))
 
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
-  def __init__(self, deferred, pvalue_cache):
+  def __init__(self, deferred, results_by_tag):
     super(_MaterializedDoOutputsTuple, self).__init__(
         None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
-    self._pvalue_cache = pvalue_cache
+    self._results_by_tag = results_by_tag
 
   def __getitem__(self, tag):
-    return self._pvalue_cache.get_unwindowed_pvalue(self._deferred[tag])
+    if tag not in self._results_by_tag:
+      raise KeyError(
+          'Tag %r is not a a defined output tag of %s.' % (
+              tag, self._deferred))
+    return self._results_by_tag[tag].elements
 
 
-class _MaterializePValues(_PValueishTransform):
-  def __init__(self, pvalue_cache):
-    self._pvalue_cache = pvalue_cache
+class _AddMaterializationTransforms(_PValueishTransform):
+
+  def _materialize_transform(self, pipeline):
+    result = _allocate_materialized_result(pipeline)
+
+    # Need to define _MaterializeValuesDoFn here to avoid circular
+    # dependencies.
+    from apache_beam import DoFn
+    from apache_beam import ParDo
+
+    class _MaterializeValuesDoFn(DoFn):
+      def process(self, element):
+        result.elements.append(element)
+
+    materialization_label = '_MaterializeValues%d' % result._result_id
+    return (materialization_label >> ParDo(_MaterializeValuesDoFn()),
+            result)
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
-      return self._pvalue_cache.get_unwindowed_pvalue(node)
+      transform, result = self._materialize_transform(node.pipeline)
+      node | transform
+      return result
     elif isinstance(node, pvalue.DoOutputsTuple):
-      return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
-    return super(_MaterializePValues, self).visit(node)
+      results_by_tag = {}
+      for tag in itertools.chain([node._main_tag], node._tags):
+        results_by_tag[tag] = self.visit(node[tag])
+      return _MaterializedDoOutputsTuple(node, results_by_tag)
+    else:
+      return self.visit_nested(node)
 
 
-class GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues=None):
-    if pvalues is None:
-      pvalues = []
-      self.visit(node, pvalues)
-      return pvalues
-    elif isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
+class _FinalizeMaterialization(_PValueishTransform):
+  def visit(self, node):
+    if isinstance(node, _MaterializedResult):
+      return node.elements
+    elif isinstance(node, _MaterializedDoOutputsTuple):
+      return node
+    else:
+      return self.visit_nested(node)
+
+
+class _GetPValues(_PValueishTransform):
+  def visit(self, node, pvalues):
+    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pvalues.append(node)
     else:
-      super(GetPValues, self).visit(node, pvalues)
+      self.visit_nested(node, pvalues)
 
 
-class _ZipPValues(_PValueishTransform):
+def get_nested_pvalues(pvalueish):
+  pvalues = []
+  _GetPValues().visit(pvalueish, pvalues)
+  return pvalues
+
+
+class _ZipPValues(object):
   """Pairs each PValue in a pvalueish with a value in a parallel out sibling.
 
   Sibling should have the same nested structure as pvalueish.  Leaves in
@@ -154,10 +252,12 @@ class _ZipPValues(_PValueishTransform):
       return pairs
     elif isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pairs.append((context, pvalueish, sibling))
-    else:
-      super(_ZipPValues, self).visit(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, (list, tuple)):
+      self.visit_sequence(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, dict):
+      self.visit_dict(pvalueish, sibling, pairs, context)
 
-  def visit_list(self, pvalueish, sibling, pairs, context):
+  def visit_sequence(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, (list, tuple)):
       for ix, (p, s) in enumerate(zip(
           pvalueish, list(sibling) + [None] * len(pvalueish))):
@@ -165,9 +265,6 @@ class _ZipPValues(_PValueishTransform):
     else:
       for p in pvalueish:
         self.visit(p, sibling, pairs, context)
-
-  def visit_tuple(self, pvalueish, sibling, pairs, context):
-    self.visit_list(pvalueish, sibling, pairs, context)
 
   def visit_dict(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, dict):
@@ -214,38 +311,44 @@ class PTransform(WithTypeHints, HasDisplayData):
     return self.__class__.__name__
 
   def with_input_types(self, input_type_hint):
-    """Annotates the input type of a PTransform with a type-hint.
+    """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
-      input_type_hint: An instance of an allowed built-in type, a custom class,
-        or an instance of a typehints.TypeConstraint.
+      input_type_hint (type): An instance of an allowed built-in type, a custom
+        class, or an instance of a
+        :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **input_type_hint** is not a valid type-hint.
+        See
+        :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
-    """Annotates the output type of a PTransform with a type-hint.
+    """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
-      type_hint: An instance of an allowed built-in type, a custom class, or a
-        typehints.TypeConstraint.
+      type_hint (type): An instance of an allowed built-in type, a custom class,
+        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **type_hint** is not a valid type-hint. See
+        :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
@@ -388,11 +491,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     result = p.apply(self, pvalueish, label)
     if deferred:
       return result
-    # Get a reference to the runners internal cache, otherwise runner may
-    # clean it after run.
-    cache = p.runner.cache
+    _allocate_materialized_pipeline(p)
+    materialized_result = _AddMaterializationTransforms().visit(result)
     p.run().wait_until_finish()
-    return _MaterializePValues(cache).visit(result)
+    _release_materialized_pipeline(p)
+    return _FinalizeMaterialization().visit(materialized_result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.
@@ -426,15 +529,28 @@ class PTransform(WithTypeHints, HasDisplayData):
   _known_urns = {}
 
   @classmethod
-  def register_urn(cls, urn, parameter_type, constructor):
-    cls._known_urns[urn] = parameter_type, constructor
+  def register_urn(cls, urn, parameter_type, constructor=None):
+    def register(constructor):
+      cls._known_urns[urn] = parameter_type, constructor
+      return staticmethod(constructor)
+    if constructor:
+      # Used as a statement.
+      register(constructor)
+    else:
+      # Used as a decorator.
+      return register
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, context, has_parts=False):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
+    if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
+      # TODO(BEAM-3812): Remove this fallback.
+      urn, typed_param = self.to_runner_api_pickled(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        parameter=proto_utils.pack_Any(typed_param))
+        payload=typed_param.SerializeToString()
+        if isinstance(typed_param, message.Message)
+        else typed_param)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -442,22 +558,29 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
     return constructor(
-        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
-  def to_runner_api_parameter(self, context):
-    return (urns.PICKLED_TRANSFORM,
-            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
+  def to_runner_api_parameter(self, unused_context):
+    # The payload here is just to ease debugging.
+    return (python_urns.GENERIC_COMPOSITE_TRANSFORM,
+            getattr(self, '_fn_api_payload', str(self)))
 
-  @staticmethod
-  def from_runner_api_parameter(spec_parameter, unused_context):
-    return pickler.loads(spec_parameter.value)
+  def to_runner_api_pickled(self, unused_context):
+    return (python_urns.PICKLED_TRANSFORM,
+            pickler.dumps(self))
 
 
-PTransform.register_urn(
-    urns.PICKLED_TRANSFORM,
-    wrappers_pb2.BytesValue,
-    PTransform.from_runner_api_parameter)
+@PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
+def _create_transform(payload, unused_context):
+  empty_transform = PTransform()
+  empty_transform._fn_api_payload = payload
+  return empty_transform
+
+
+@PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
+def _unpickle_transform(pickled_bytes, unused_context):
+  return pickler.loads(pickled_bytes)
 
 
 class _ChainedPTransform(PTransform):
@@ -481,13 +604,16 @@ class _ChainedPTransform(PTransform):
 
 
 class PTransformWithSideInputs(PTransform):
-  """A superclass for any PTransform (e.g. FlatMap or Combine)
+  """A superclass for any :class:`PTransform` (e.g.
+  :func:`~apache_beam.transforms.core.FlatMap` or
+  :class:`~apache_beam.transforms.core.CombineFn`)
   invoking user code.
 
-  PTransforms like FlatMap invoke user-supplied code in some kind of
-  package (e.g. a DoFn) and optionally provide arguments and side inputs
-  to that code. This internal-use-only class contains common functionality
-  for PTransforms that fit this model.
+  :class:`PTransform` s like :func:`~apache_beam.transforms.core.FlatMap`
+  invoke user-supplied code in some kind of package (e.g. a
+  :class:`~apache_beam.transforms.core.DoFn`) and optionally provide arguments
+  and side inputs to that code. This internal-use-only class contains common
+  functionality for :class:`PTransform` s that fit this model.
   """
 
   def __init__(self, fn, *args, **kwargs):
@@ -499,7 +625,7 @@ class PTransformWithSideInputs(PTransform):
     super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
+        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
@@ -533,16 +659,20 @@ class PTransformWithSideInputs(PTransform):
         of an allowed built-in type, a custom class, or a
         typehints.TypeConstraint.
 
-    Example of annotating the types of side-inputs:
+    Example of annotating the types of side-inputs::
+
       FlatMap().with_input_types(int, int, bool)
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      :class:`~exceptions.TypeError`: If **type_hint** is not a valid type-hint.
+        See
+        :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      :class:`PTransform`: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
 
@@ -571,7 +701,7 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
       for arg, hint in hints.items():
-        if arg.startswith('%unknown%'):
+        if arg.startswith('__unknown__'):
           continue
         if hint is None:
           continue
@@ -595,31 +725,22 @@ class PTransformWithSideInputs(PTransform):
     return '%s(%s)' % (self.__class__.__name__, self.fn.default_label())
 
 
-class CallablePTransform(PTransform):
+class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
 
-  def __init__(self, fn):
-    # pylint: disable=super-init-not-called
-    # This  is a helper class for a function decorator. Only when the class
-    # is called (and __call__ invoked) we will have all the information
-    # needed to initialize the super class.
-    self.fn = fn
-    self._args = ()
-    self._kwargs = {}
+  def __init__(self, fn, *args, **kwargs):
+    super(_PTransformFnPTransform, self).__init__()
+    self._fn = fn
+    self._args = args
+    self._kwargs = kwargs
 
   def display_data(self):
-    res = {'fn': (self.fn.__name__
-                  if hasattr(self.fn, '__name__')
-                  else self.fn.__class__),
+    res = {'fn': (self._fn.__name__
+                  if hasattr(self._fn, '__name__')
+                  else self._fn.__class__),
            'args': DisplayDataItem(str(self._args)).drop_if_default('()'),
            'kwargs': DisplayDataItem(str(self._kwargs)).drop_if_default('{}')}
     return res
-
-  def __call__(self, *args, **kwargs):
-    super(CallablePTransform, self).__init__()
-    self._args = args
-    self._kwargs = kwargs
-    return self
 
   def expand(self, pcoll):
     # Since the PTransform will be implemented entirely as a function
@@ -629,18 +750,18 @@ class CallablePTransform(PTransform):
     kwargs = dict(self._kwargs)
     args = tuple(self._args)
     try:
-      if 'type_hints' in inspect.getargspec(self.fn).args:
+      if 'type_hints' in inspect.getargspec(self._fn).args:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
       pass
-    return self.fn(pcoll, *args, **kwargs)
+    return self._fn(pcoll, *args, **kwargs)
 
   def default_label(self):
     if self._args:
       return '%s(%s)' % (
-          label_from_callable(self.fn), label_from_callable(self._args[0]))
-    return label_from_callable(self.fn)
+          label_from_callable(self._fn), label_from_callable(self._args[0]))
+    return label_from_callable(self._fn)
 
 
 def ptransform_fn(fn):
@@ -684,7 +805,11 @@ def ptransform_fn(fn):
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
   """
-  return CallablePTransform(fn)
+  # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
+
+  def callable_ptransform_factory(*args, **kwargs):
+    return _PTransformFnPTransform(fn, *args, **kwargs)
+  return callable_ptransform_factory
 
 
 def label_from_callable(fn):
@@ -693,8 +818,8 @@ def label_from_callable(fn):
   elif hasattr(fn, '__name__'):
     if fn.__name__ == '<lambda>':
       return '<lambda at %s:%s>' % (
-          os.path.basename(fn.func_code.co_filename),
-          fn.func_code.co_firstlineno)
+          os.path.basename(fn.__code__.co_filename),
+          fn.__code__.co_firstlineno)
     return fn.__name__
   return str(fn)
 

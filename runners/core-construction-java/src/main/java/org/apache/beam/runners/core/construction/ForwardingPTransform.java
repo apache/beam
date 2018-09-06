@@ -17,19 +17,21 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.util.Map;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A base class for implementing {@link PTransform} overrides, which behave identically to the
- * delegate transform but with overridden methods. Implementors are required to implement
- * {@link #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
+ * delegate transform but with overridden methods. Implementors are required to implement {@link
+ * #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
  */
 public abstract class ForwardingPTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
@@ -37,7 +39,21 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
 
   @Override
   public OutputT expand(InputT input) {
-    return delegate().expand(input);
+    OutputT res = delegate().expand(input);
+    if (res instanceof PCollection) {
+      PCollection pc = (PCollection) res;
+      try {
+        pc.setCoder(delegate().getDefaultOutputCoder(input, pc));
+      } catch (CannotProvideCoderException e) {
+        // Let coder inference happen later.
+      }
+    }
+    return res;
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    return delegate().getAdditionalInputs();
   }
 
   @Override
@@ -48,12 +64,6 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
   @Override
   public String getName() {
     return delegate().getName();
-  }
-
-  @Override
-  public <T> Coder<T> getDefaultOutputCoder(InputT input, PCollection<T> output)
-      throws CannotProvideCoderException {
-    return delegate().getDefaultOutputCoder(input, output);
   }
 
   @Override

@@ -43,15 +43,15 @@ python juliaset_main.py \
   --staging_location gs://YOUR-BUCKET/juliaset/staging \
   --temp_location gs://YOUR-BUCKET/juliaset/temp \
   --coordinate_output gs://YOUR-BUCKET/juliaset/out \
-  --grid_size 20 \
+  --grid_size 20
 
 """
 
+from __future__ import absolute_import
+
 import logging
 
-
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

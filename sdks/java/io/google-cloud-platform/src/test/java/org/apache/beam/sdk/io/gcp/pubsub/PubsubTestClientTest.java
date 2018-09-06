@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
@@ -36,9 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PubsubTestClient.
- */
+/** Tests for PubsubTestClient. */
 @RunWith(JUnit4.class)
 public class PubsubTestClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
@@ -54,17 +53,18 @@ public class PubsubTestClientTest {
   @Test
   public void pullOneMessage() throws IOException {
     final AtomicLong now = new AtomicLong();
-    Clock clock = new Clock() {
-      @Override
-      public long currentTimeMillis() {
-        return now.get();
-      }
-    };
+    Clock clock = now::get;
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(DATA.getBytes(), null, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+        new IncomingMessage(
+            DATA.getBytes(StandardCharsets.UTF_8),
+            null,
+            MESSAGE_TIME,
+            REQ_TIME,
+            ACK_ID,
+            MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
-                                                   Lists.newArrayList(expectedIncomingMessage))) {
+        PubsubTestClient.createFactoryForPull(
+            clock, SUBSCRIPTION, ACK_TIMEOUT_S, Lists.newArrayList(expectedIncomingMessage))) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         now.set(REQ_TIME);
         client.advance();
@@ -100,12 +100,10 @@ public class PubsubTestClientTest {
   @Test
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
-        new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, MESSAGE_ID);
+        new OutgoingMessage(DATA.getBytes(StandardCharsets.UTF_8), null, MESSAGE_TIME, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(
-                 TOPIC,
-                 Sets.newHashSet(expectedOutgoingMessage),
-                 ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(
+            TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
       }

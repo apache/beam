@@ -46,8 +46,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility methods for working with sharded files. For internal use only; many parameters
- * are just hardcoded to allow existing uses to work OK.
+ * Utility methods for working with sharded files. For internal use only; many parameters are just
+ * hardcoded to allow existing uses to work OK.
  */
 public class NumberedShardedFile implements ShardedFile {
 
@@ -79,15 +79,15 @@ public class NumberedShardedFile implements ShardedFile {
    * Constructor.
    *
    * @param filePattern path or glob of files to include
-   * @param shardTemplate template of shard name to parse out the total number of shards
-   *                      which is used in I/O retry to avoid inconsistency of filesystem.
-   *                      Customized template should assign name "numshards" to capturing
-   *                      group - total shard number.
+   * @param shardTemplate template of shard name to parse out the total number of shards which is
+   *     used in I/O retry to avoid inconsistency of filesystem. Customized template should assign
+   *     name "numshards" to capturing group - total shard number.
    */
   public NumberedShardedFile(String filePattern, Pattern shardTemplate) {
     checkArgument(
         !Strings.isNullOrEmpty(filePattern),
-        "Expected valid file path, but received %s", filePattern);
+        "Expected valid file path, but received %s",
+        filePattern);
     checkNotNull(
         shardTemplate,
         "Expected non-null shard pattern. "
@@ -105,8 +105,8 @@ public class NumberedShardedFile implements ShardedFile {
   /**
    * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
    *
-   * <p>Because of eventual consistency, reads may discover no files or fewer files than
-   * the shard template implies. In this case, the read is considered to have failed.
+   * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
+   * template implies. In this case, the read is considered to have failed.
    */
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
@@ -116,8 +116,9 @@ public class NumberedShardedFile implements ShardedFile {
     do {
       try {
         // Match inputPath which may contains glob
-        Collection<Metadata> files = Iterables.getOnlyElement(
-            FileSystems.match(Collections.singletonList(filePattern))).metadata();
+        Collection<Metadata> files =
+            Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(filePattern)))
+                .metadata();
 
         LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePattern);
 
@@ -132,7 +133,7 @@ public class NumberedShardedFile implements ShardedFile {
         lastException = e;
         LOG.warn("Error in file reading. Ignore and retry.");
       }
-    } while(BackOffUtils.next(sleeper, backOff));
+    } while (BackOffUtils.next(sleeper, backOff));
     // Failed after max retries
     throw new IOException(
         String.format("Unable to read file(s) after retrying %d times", MAX_READ_RETRIES),
@@ -142,11 +143,10 @@ public class NumberedShardedFile implements ShardedFile {
   /**
    * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
    *
-   * <p>Because of eventual consistency, reads may discover no files or fewer files than
-   * the shard template implies. In this case, the read is considered to have failed.
+   * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
+   * template implies. In this case, the read is considered to have failed.
    */
-  public List<String> readFilesWithRetries()
-      throws IOException, InterruptedException {
+  public List<String> readFilesWithRetries() throws IOException, InterruptedException {
     return readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
   }
 
@@ -167,12 +167,10 @@ public class NumberedShardedFile implements ShardedFile {
     int i = 1;
     for (Metadata file : files) {
       try (Reader reader =
-               Channels.newReader(FileSystems.open(file.resourceId()),
-                   StandardCharsets.UTF_8.name())) {
+          Channels.newReader(FileSystems.open(file.resourceId()), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
-        LOG.debug(
-            "[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);
+        LOG.debug("[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);
       }
       i++;
     }
@@ -180,13 +178,12 @@ public class NumberedShardedFile implements ShardedFile {
   }
 
   /**
-   * Check if total number of files is correct by comparing with the number that
-   * is parsed from shard name using a name template. If no template is specified,
-   * "SSSS-of-NNNN" will be used as default, and "NNNN" will be the expected total
-   * number of files.
+   * Check if total number of files is correct by comparing with the number that is parsed from
+   * shard name using a name template. If no template is specified, "SSSS-of-NNNN" will be used as
+   * default, and "NNNN" will be the expected total number of files.
    *
-   * @return {@code true} if at least one shard name matches template and total number
-   * of given files equals the number that is parsed from shard name.
+   * @return {@code true} if at least one shard name matches template and total number of given
+   *     files equals the number that is parsed from shard name.
    */
   @VisibleForTesting
   boolean checkTotalNumOfFiles(Collection<Metadata> files) {

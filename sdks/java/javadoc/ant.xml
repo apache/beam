@@ -30,6 +30,7 @@
       <fileset dir="..">
         <include name="**/src/main/java/**/*.java"/>
         <exclude name="**/maven-archetypes/**"/>
+        <exclude name="**/nexmark/**"/>
       </fileset>
       <!-- For each pathname, turn X/src/main/java/Y to Y. This
            results in one Java source tree. -->
@@ -51,7 +52,7 @@
       classpath="${compile_classpath}"
       Overview="overview.html"
     >
-      <!-- Get some Java8 options set up by Maven. -->
+      <!-- Get some Javadoc options set up by Maven. -->
       <arg line="${beam.javadoc_opts}"/>
       <!-- Setup offline links for some packages. -->
       <link href="http://avro.apache.org/docs/1.7.7/api/java/"

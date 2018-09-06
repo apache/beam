@@ -23,9 +23,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
-/**
- * Matchers for {@link MetricResults}.
- */
+/** Matchers for {@link MetricResults}. */
 public class MetricResultsMatchers {
 
   /**
@@ -51,40 +49,49 @@ public class MetricResultsMatchers {
    * the given value for either committed or attempted (based on {@code isCommitted}) metrics.
    */
   public static <T> Matcher<MetricResult<T>> metricsResult(
-      final String namespace, final String name, final String step, final T value,
+      final String namespace,
+      final String name,
+      final String step,
+      final T value,
       final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";
     return new TypeSafeMatcher<MetricResult<T>>() {
       @Override
       protected boolean matchesSafely(MetricResult<T> item) {
-        final T metricValue = isCommitted ? item.committed() : item.attempted();
-        return Objects.equals(namespace, item.name().namespace())
-            && Objects.equals(name, item.name().name())
-            && item.step().contains(step)
+        final T metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
+        return Objects.equals(namespace, item.getName().getNamespace())
+            && Objects.equals(name, item.getName().getName())
+            && item.getStep().contains(step)
             && metricResultsEqual(value, metricValue);
       }
 
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricResult{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(String.format(", %s=", metricState)).appendValue(value)
+            .appendText("MetricResult{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(String.format(", %s=", metricState))
+            .appendValue(value)
             .appendText("}");
       }
 
       @Override
       protected void describeMismatchSafely(MetricResult<T> item, Description mismatchDescription) {
         mismatchDescription.appendText("MetricResult{");
-        final T metricValue = isCommitted ? item.committed() : item.attempted();
+        final T metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
 
         describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
 
         if (!Objects.equals(value, metricValue)) {
           mismatchDescription
-              .appendText(String.format("%s: ", metricState)).appendValue(value)
-              .appendText(" != ").appendValue(metricValue);
+              .appendText(String.format("%s: ", metricState))
+              .appendValue(value)
+              .appendText(" != ")
+              .appendValue(metricValue);
         }
 
         mismatchDescription.appendText("}");
@@ -94,68 +101,87 @@ public class MetricResultsMatchers {
 
   private static <T> boolean metricResultsEqual(T result1, T result2) {
     if (result1 instanceof GaugeResult) {
-      return (((GaugeResult) result1).value()) == (((GaugeResult) result2).value());
+      return (((GaugeResult) result1).getValue()) == (((GaugeResult) result2).getValue());
     } else {
-      return result1.equals(result2);
+      return Objects.equals(result1, result2);
     }
   }
 
   static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(
-      final String namespace, final String name, final String step,
-      final Long attemptedMin, final Long attemptedMax) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long attemptedMin,
+      final Long attemptedMax) {
     return distributionMinMax(namespace, name, step, attemptedMin, attemptedMax, false);
   }
 
   static Matcher<MetricResult<DistributionResult>> distributionCommittedMinMax(
-      final String namespace, final String name, final String step,
-      final Long committedMin, final Long committedMax) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long committedMin,
+      final Long committedMax) {
     return distributionMinMax(namespace, name, step, committedMin, committedMax, true);
   }
 
   public static Matcher<MetricResult<DistributionResult>> distributionMinMax(
-      final String namespace, final String name, final String step,
-      final Long min, final Long max, final boolean isCommitted) {
+      final String namespace,
+      final String name,
+      final String step,
+      final Long min,
+      final Long max,
+      final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";
     return new TypeSafeMatcher<MetricResult<DistributionResult>>() {
       @Override
       protected boolean matchesSafely(MetricResult<DistributionResult> item) {
-        DistributionResult metricValue = isCommitted ? item.committed() : item.attempted();
-        return Objects.equals(namespace, item.name().namespace())
-            && Objects.equals(name, item.name().name())
-            && item.step().contains(step)
-            && Objects.equals(min, metricValue.min())
-            && Objects.equals(max, metricValue.max());
+        DistributionResult metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
+        return Objects.equals(namespace, item.getName().getNamespace())
+            && Objects.equals(name, item.getName().getName())
+            && item.getStep().contains(step)
+            && Objects.equals(min, metricValue.getMin())
+            && Objects.equals(max, metricValue.getMax());
       }
 
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricResult{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(String.format(", %sMin=", metricState)).appendValue(min)
-            .appendText(String.format(", %sMax=", metricState)).appendValue(max)
+            .appendText("MetricResult{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(String.format(", %sMin=", metricState))
+            .appendValue(min)
+            .appendText(String.format(", %sMax=", metricState))
+            .appendValue(max)
             .appendText("}");
       }
 
       @Override
-      protected void describeMismatchSafely(MetricResult<DistributionResult> item,
-          Description mismatchDescription) {
+      protected void describeMismatchSafely(
+          MetricResult<DistributionResult> item, Description mismatchDescription) {
         mismatchDescription.appendText("MetricResult{");
 
         describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
-        DistributionResult metricValue = isCommitted ? item.committed() : item.attempted();
+        DistributionResult metricValue = isCommitted ? item.getCommitted() : item.getAttempted();
 
-        if (!Objects.equals(min, metricValue.min())) {
+        if (!Objects.equals(min, metricValue.getMin())) {
           mismatchDescription
-              .appendText(String.format("%sMin: ", metricState)).appendValue(min)
-              .appendText(" != ").appendValue(metricValue.min());
+              .appendText(String.format("%sMin: ", metricState))
+              .appendValue(min)
+              .appendText(" != ")
+              .appendValue(metricValue.getMin());
         }
 
-        if (!Objects.equals(max, metricValue.max())) {
+        if (!Objects.equals(max, metricValue.getMax())) {
           mismatchDescription
-              .appendText(String.format("%sMax: ", metricState)).appendValue(max)
-              .appendText(" != ").appendValue(metricValue.max());
+              .appendText(String.format("%sMax: ", metricState))
+              .appendValue(max)
+              .appendText(" != ")
+              .appendValue(metricValue.getMax());
         }
 
         mismatchDescription.appendText("}");
@@ -169,22 +195,28 @@ public class MetricResultsMatchers {
       String namespace,
       String name,
       String step) {
-    if (!Objects.equals(namespace, item.name().namespace())) {
+    if (!Objects.equals(namespace, item.getName().getNamespace())) {
       mismatchDescription
-          .appendText("inNamespace: ").appendValue(namespace)
-          .appendText(" != ").appendValue(item.name().namespace());
+          .appendText("inNamespace: ")
+          .appendValue(namespace)
+          .appendText(" != ")
+          .appendValue(item.getName().getNamespace());
     }
 
-    if (!Objects.equals(name, item.name().name())) {
+    if (!Objects.equals(name, item.getName().getName())) {
       mismatchDescription
-          .appendText("name: ").appendValue(name)
-          .appendText(" != ").appendValue(item.name().name());
+          .appendText("name: ")
+          .appendValue(name)
+          .appendText(" != ")
+          .appendValue(item.getName().getName());
     }
 
-    if (!item.step().contains(step)) {
+    if (!item.getStep().contains(step)) {
       mismatchDescription
-          .appendText("step: ").appendValue(step)
-          .appendText(" != ").appendValue(item.step());
+          .appendText("step: ")
+          .appendValue(step)
+          .appendText(" != ")
+          .appendValue(item.getStep());
     }
   }
 }

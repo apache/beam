@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
@@ -127,7 +126,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
         numElements > 0,
         "Number of elements in withRate must be positive, but was: %s",
         numElements);
-    checkNotNull(periodLength, "periodLength in withRate must be non-null");
+    checkArgument(periodLength != null, "periodLength can not be null");
     return toBuilder().setElementsPerPeriod(numElements).setPeriod(periodLength).build();
   }
 

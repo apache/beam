@@ -17,24 +17,29 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.transforms.Contextful;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
- * A utility class containing the Java primitives for
- * {@link TypeDescriptor} equivalents. Also, has methods
- * for classes that wrap Java primitives like {@link KV},
- * {@link Set}, {@link List}, and {@link Iterable}.
+ * A utility class for creating {@link TypeDescriptor} objects for different types, such as Java
+ * primitive types, containers and {@link KV KVs} of other {@link TypeDescriptor} objects, and
+ * extracting type variables of parameterized types (e.g. extracting the {@code OutputT} type
+ * variable of a {@code DoFn<InputT, OutputT>}).
  */
 public class TypeDescriptors {
   /**
-   * The {@link TypeDescriptor} for Boolean.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Boolean. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Boolean&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Boolean
    */
   public static TypeDescriptor<Boolean> booleans() {
@@ -42,11 +47,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Double.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Double. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Double&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Double
    */
   public static TypeDescriptor<Double> doubles() {
@@ -54,11 +60,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Float.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Float. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Float&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Float
    */
   public static TypeDescriptor<Float> floats() {
@@ -66,11 +73,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Integer.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Integer. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Integer&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Integer
    */
   public static TypeDescriptor<Integer> integers() {
@@ -78,11 +86,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Long.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Long. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Long&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Long
    */
   public static TypeDescriptor<Long> longs() {
@@ -90,11 +99,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Short.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Short. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Short&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Short
    */
   public static TypeDescriptor<Short> shorts() {
@@ -102,11 +112,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for BigDecimal.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for BigDecimal. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;BigDecimal&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for BigDecimal
    */
   public static TypeDescriptor<BigDecimal> bigdecimals() {
@@ -114,11 +125,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for BigInteger.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for BigInteger. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;BigInteger&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for BigInteger
    */
   public static TypeDescriptor<BigInteger> bigintegers() {
@@ -126,11 +138,25 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for String.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for {@link Row}. This is the equivalent of:
+   *
+   * <pre>
+   * new TypeDescriptor&lt;Row&gt;() {};
+   * </pre>
+   *
+   * @return A {@link TypeDescriptor} for Row
+   */
+  public static TypeDescriptor<Row> rows() {
+    return new TypeDescriptor<Row>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for String. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;String&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for String
    */
   public static TypeDescriptor<String> strings() {
@@ -138,11 +164,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Character.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Character. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Character&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Character
    */
   public static TypeDescriptor<Character> characters() {
@@ -150,11 +177,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for Byte.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for Byte. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Byte&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for Byte
    */
   public static TypeDescriptor<Byte> bytes() {
@@ -162,11 +190,12 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for nulls/Void.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for nulls/Void. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Void&gt;() {};
    * </pre>
+   *
    * @return A {@link TypeDescriptor} for nulls/Void
    */
   public static TypeDescriptor<Void> nulls() {
@@ -174,116 +203,228 @@ public class TypeDescriptors {
   }
 
   /**
-   * The {@link TypeDescriptor} for {@link KV}.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for {@link KV}. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;KV&lt;K,V&gt;&gt;() {};
    * </pre>
    *
    * <p>Example of use:
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<KV<String, String>> words = words.apply(FlatMapElements
    *         .into(TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.strings()))
    *         .via(...));
-   * }
-   * </pre>
+   * }</pre>
+   *
    * @param key The {@link TypeDescriptor} for the key
    * @param value The {@link TypeDescriptor} for the value
    * @return A {@link TypeDescriptor} for {@link KV}
    */
-  public static <K, V> TypeDescriptor<KV<K, V>>
-    kvs(TypeDescriptor<K> key, TypeDescriptor<V> value) {
+  public static <K, V> TypeDescriptor<KV<K, V>> kvs(
+      TypeDescriptor<K> key, TypeDescriptor<V> value) {
     TypeDescriptor<KV<K, V>> typeDescriptor =
-        new TypeDescriptor<KV<K, V>>() {}
-      .<K> where(new TypeParameter<K>() {}, key)
-      .<V> where(new TypeParameter<V>() {}, value);
+        new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+            .where(new TypeParameter<V>() {}, value);
 
     return typeDescriptor;
   }
 
   /**
-   * The {@link TypeDescriptor} for {@link Set}.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for {@link Set}. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Set&lt;E&gt;&gt;() {};
    * </pre>
    *
    * <p>Example of use:
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<Set<String>> words = words.apply(FlatMapElements
    *         .into(TypeDescriptors.sets(TypeDescriptors.strings()))
    *         .via(...));
-   * }
-   * </pre>
+   * }</pre>
+   *
    * @param element The {@link TypeDescriptor} for the set
    * @return A {@link TypeDescriptor} for {@link Set}
    */
-  public static <T> TypeDescriptor<Set<T>>
-    sets(TypeDescriptor<T> element) {
+  public static <T> TypeDescriptor<Set<T>> sets(TypeDescriptor<T> element) {
     TypeDescriptor<Set<T>> typeDescriptor =
-        new TypeDescriptor<Set<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, element);
+        new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
 
     return typeDescriptor;
   }
 
   /**
-   * The {@link TypeDescriptor} for {@link List}.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for {@link List}. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;List&lt;E&gt;&gt;() {};
    * </pre>
    *
    * <p>Example of use:
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<List<String>> words = words.apply(FlatMapElements
    *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
    *         .via(...));
-   * }
-   * </pre>
+   * }</pre>
+   *
    * @param element The {@link TypeDescriptor} for the list
    * @return A {@link TypeDescriptor} for {@link List}
    */
-  public static <T> TypeDescriptor<List<T>>
-    lists(TypeDescriptor<T> element) {
+  public static <T> TypeDescriptor<List<T>> lists(TypeDescriptor<T> element) {
     TypeDescriptor<List<T>> typeDescriptor =
-        new TypeDescriptor<List<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, element);
+        new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
 
     return typeDescriptor;
   }
 
   /**
-   * The {@link TypeDescriptor} for {@link Iterable}.
-   * This is the equivalent of:
+   * The {@link TypeDescriptor} for {@link Iterable}. This is the equivalent of:
+   *
    * <pre>
    * new TypeDescriptor&lt;Iterable&lt;E&gt;&gt;() {};
    * </pre>
    *
    * <p>Example of use:
-   * <pre>
-   * {@code
+   *
+   * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<Iterable<String>> words = words.apply(FlatMapElements
    *         .into(TypeDescriptors.iterables(TypeDescriptors.strings()))
    *         .via(...));
-   * }
-   * </pre>
+   * }</pre>
+   *
    * @param iterable The {@link TypeDescriptor} for the iterable
    * @return A {@link TypeDescriptor} for {@link Iterable}
    */
-  public static <T> TypeDescriptor<Iterable<T>>
-    iterables(TypeDescriptor<T> iterable) {
+  public static <T> TypeDescriptor<Iterable<T>> iterables(TypeDescriptor<T> iterable) {
     TypeDescriptor<Iterable<T>> typeDescriptor =
-        new TypeDescriptor<Iterable<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, iterable);
+        new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
 
     return typeDescriptor;
+  }
+
+  public static TypeDescriptor<Void> voids() {
+    return new TypeDescriptor<Void>() {};
+  }
+
+  /**
+   * A helper interface for use with {@link #extractFromTypeParameters(Object, Class,
+   * TypeVariableExtractor)}.
+   */
+  public interface TypeVariableExtractor<InputT, OutputT> {}
+
+  /**
+   * Extracts a type from the actual type parameters of a parameterized class, subject to Java type
+   * erasure. The type to extract is specified in a way that is safe w.r.t. changing the type
+   * signature of the parameterized class, as opposed to specifying the name or index of a type
+   * variable.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * class Foo<BarT> {
+   *   private SerializableFunction<BarT, String> fn;
+   *
+   *   TypeDescriptor<BarT> inferBarTypeDescriptorFromFn() {
+   *     return TypeDescriptors.extractFromTypeParameters(
+   *       fn,
+   *       SerializableFunction.class,
+   *       // The actual type of "fn" is matched against the input type of the extractor,
+   *       // and the obtained values of type variables of the superclass are substituted
+   *       // into the output type of the extractor.
+   *       new TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>() {});
+   *   }
+   * }
+   * }</pre>
+   *
+   * @param instance The object being analyzed
+   * @param supertype Parameterized superclass of interest
+   * @param extractor A class for specifying the type to extract from the supertype
+   * @return A {@link TypeDescriptor} for the actual value of the result type of the extractor,
+   *     potentially containing unresolved type variables if the type was erased.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
+      T instance, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
+    return extractFromTypeParameters(
+        (TypeDescriptor<T>) TypeDescriptor.of(instance.getClass()), supertype, extractor);
+  }
+
+  /**
+   * Like {@link #extractFromTypeParameters(Object, Class, TypeVariableExtractor)}, but takes a
+   * {@link TypeDescriptor} of the instance being analyzed rather than the instance itself.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
+      TypeDescriptor<T> type, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
+    // Get the type signature of the extractor, e.g.
+    // TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>
+    TypeDescriptor<TypeVariableExtractor<T, V>> extractorSupertype =
+        (TypeDescriptor<TypeVariableExtractor<T, V>>)
+            TypeDescriptor.of(extractor.getClass()).getSupertype(TypeVariableExtractor.class);
+
+    // Get the actual type argument, e.g. SerializableFunction<BarT, String>
+    Type inputT = ((ParameterizedType) extractorSupertype.getType()).getActualTypeArguments()[0];
+
+    // Get the actual supertype of the type being analyzed, hopefully with all type parameters
+    // resolved, e.g. SerializableFunction<Integer, String>
+    TypeDescriptor supertypeDescriptor = type.getSupertype(supertype);
+
+    // Substitute actual supertype into the extractor, e.g.
+    // TypeVariableExtractor<SerializableFunction<Integer, String>, Integer>
+    TypeDescriptor<TypeVariableExtractor<T, V>> extractorT =
+        extractorSupertype.where(inputT, supertypeDescriptor.getType());
+
+    // Get output of the extractor.
+    Type outputT = ((ParameterizedType) extractorT.getType()).getActualTypeArguments()[1];
+    return (TypeDescriptor<V>) TypeDescriptor.of(outputT);
+  }
+
+  /**
+   * Returns a type descriptor for the input of the given {@link SerializableFunction}, subject to
+   * Java type erasure: may contain unresolved type variables if the type was erased.
+   */
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return extractFromTypeParameters(
+        fn,
+        SerializableFunction.class,
+        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, InputT>() {});
+  }
+
+  /**
+   * Returns a type descriptor for the output of the given {@link SerializableFunction}, subject to
+   * Java type erasure: may contain unresolved type variables if the type was erased.
+   */
+  public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return extractFromTypeParameters(
+        fn,
+        SerializableFunction.class,
+        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, OutputT>() {});
+  }
+
+  /** Like {@link #inputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      Contextful.Fn<InputT, OutputT> fn) {
+    return TypeDescriptors.extractFromTypeParameters(
+        fn,
+        Contextful.Fn.class,
+        new TypeDescriptors.TypeVariableExtractor<Contextful.Fn<InputT, OutputT>, InputT>() {});
+  }
+
+  /** Like {@link #outputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
+  public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
+      Contextful.Fn<InputT, OutputT> fn) {
+    return TypeDescriptors.extractFromTypeParameters(
+        fn,
+        Contextful.Fn.class,
+        new TypeDescriptors.TypeVariableExtractor<Contextful.Fn<InputT, OutputT>, OutputT>() {});
   }
 }

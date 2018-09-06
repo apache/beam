@@ -19,10 +19,12 @@
 and dynamically provided values.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
 from functools import wraps
 
 from apache_beam import error
-
 
 __all__ = [
     'ValueProvider',
@@ -58,9 +60,22 @@ class StaticValueProvider(ValueProvider):
   def __str__(self):
     return str(self.value)
 
+  def __eq__(self, other):
+    if self.value == other:
+      return True
+    if isinstance(other, StaticValueProvider):
+      if (self.value_type == other.value_type and
+          self.value == other.value):
+        return True
+    return False
+
+  def __hash__(self):
+    return hash((type(self), self.value_type, self.value))
+
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
+  experiments = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name
@@ -70,21 +85,31 @@ class RuntimeValueProvider(ValueProvider):
   def is_accessible(self):
     return RuntimeValueProvider.runtime_options is not None
 
+  @classmethod
+  def get_value(cls, option_name, value_type, default_value):
+    if not RuntimeValueProvider.runtime_options:
+      return default_value
+
+    candidate = RuntimeValueProvider.runtime_options.get(option_name)
+    if candidate:
+      return value_type(candidate)
+    else:
+      return default_value
+
   def get(self):
     if RuntimeValueProvider.runtime_options is None:
       raise error.RuntimeValueProviderError(
           '%s.get() not called from a runtime context' % self)
 
-    candidate = RuntimeValueProvider.runtime_options.get(self.option_name)
-    if candidate:
-      value = self.value_type(candidate)
-    else:
-      value = self.default_value
-    return value
+    return RuntimeValueProvider.get_value(self.option_name,
+                                          self.value_type,
+                                          self.default_value)
 
   @classmethod
   def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
+    RuntimeValueProvider.experiments = RuntimeValueProvider.get_value(
+        'experiments', set, set())
 
   def __str__(self):
     return '%s(option: %s, type: %s, default_value: %s)' % (

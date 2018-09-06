@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -27,48 +28,51 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * {@code PTransform}s for taking samples of the elements in a
- * {@code PCollection}, or samples of the values associated with each
- * key in a {@code PCollection} of {@code KV}s.
+ * {@code PTransform}s for taking samples of the elements in a {@code PCollection}, or samples of
+ * the values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * <p>{@link #combineFn} can also be used manually, in combination with state and with the
- * {@link Combine} transform.
+ * <p>{@link #fixedSizeGlobally(int)} and {@link #fixedSizePerKey(int)} compute uniformly random
+ * samples. {@link #any(long)} is faster, but provides no uniformity guarantees.
+ *
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
+ * Combine} transform.
  */
 public class Sample {
 
-  /** Returns a {@link CombineFn} that computes a fixed-sized sample of its inputs. */
+  /** Returns a {@link CombineFn} that computes a fixed-sized uniform sample of its inputs. */
   public static <T> CombineFn<T, ?, Iterable<T>> combineFn(int sampleSize) {
     return new FixedSizedSampleFn<>(sampleSize);
   }
 
   /**
-   * {@code Sample#any(long)} takes a {@code PCollection<T>} and a limit, and
-   * produces a new {@code PCollection<T>} containing up to limit
-   * elements of the input {@code PCollection}.
+   * Returns a {@link CombineFn} that computes a fixed-sized potentially non-uniform sample of its
+   * inputs.
+   */
+  public static <T> CombineFn<T, ?, Iterable<T>> anyCombineFn(int sampleSize) {
+    return new SampleAnyCombineFn<>(sampleSize);
+  }
+
+  /**
+   * {@code Sample#any(long)} takes a {@code PCollection<T>} and a limit, and produces a new {@code
+   * PCollection<T>} containing up to limit elements of the input {@code PCollection}.
    *
-   * <p>If limit is greater than or equal to the size of the input
-   * {@code PCollection}, then all the input's elements will be selected.
-   *
-   * <p>All of the elements of the output {@code PCollection} should fit into
-   * main memory of a single worker machine.  This operation does not
-   * run in parallel.
+   * <p>If limit is greater than or equal to the size of the input {@code PCollection}, then all the
+   * input's elements will be selected.
    *
    * <p>Example of use:
-   * <pre> {@code
+   *
+   * <pre>{@code
    * PCollection<String> input = ...;
    * PCollection<String> output = input.apply(Sample.<String>any(100));
-   * } </pre>
+   * }</pre>
    *
-   * @param <T> the type of the elements of the input and output
-   * {@code PCollection}s
+   * @param <T> the type of the elements of the input and output {@code PCollection}s
    * @param limit the number of elements to take from the input
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> any(long limit) {
@@ -81,9 +85,8 @@ public class Sample {
    * selected elements. If the input {@code PCollection} has fewer than {@code sampleSize} elements,
    * then the output {@code Iterable<T>} will be all the input's elements.
    *
-   * <p>All of the elements of the output {@code PCollection} should fit into
-   * main memory of a single worker machine.  This operation does not
-   * run in parallel.
+   * <p>All of the elements of the output {@code PCollection} should fit into main memory of a
+   * single worker machine. This operation does not run in parallel.
    *
    * <p>Example of use:
    *
@@ -91,8 +94,7 @@ public class Sample {
    * PCollection<String> pc = ...;
    * PCollection<Iterable<String>> sampleOfSize10 =
    *     pc.apply(Sample.fixedSizeGlobally(10));
-   * }
-   * </pre>
+   * }</pre>
    *
    * @param sampleSize the number of elements to select; must be {@code >= 0}
    * @param <T> the type of the elements
@@ -117,8 +119,7 @@ public class Sample {
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> sampleOfSize10PerKey =
    *     pc.apply(Sample.<String, Integer>fixedSizePerKey());
-   * }
-   * </pre>
+   * }</pre>
    *
    * @param sampleSize the number of values to select for each distinct key; must be {@code >= 0}
    * @param <K> the type of the keys
@@ -130,7 +131,6 @@ public class Sample {
     return new FixedSizePerKey<>(sampleSize);
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
   /** Implementation of {@link #any(long)}. */
@@ -138,9 +138,8 @@ public class Sample {
     private final long limit;
 
     /**
-     * Constructs a {@code SampleAny<T>} PTransform that, when applied,
-     * produces a new PCollection containing up to {@code limit}
-     * elements of its input {@code PCollection}.
+     * Constructs a {@code SampleAny<T>} PTransform that, when applied, produces a new PCollection
+     * containing up to {@code limit} elements of its input {@code PCollection}.
      */
     private Any(long limit) {
       checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
@@ -149,18 +148,14 @@ public class Sample {
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
-      return in.getPipeline()
-          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo.of(new SampleAnyDoFn<>(limit, iterableView)).withSideInputs(iterableView))
-          .setCoder(in.getCoder());
+      return in.apply(Combine.globally(new SampleAnyCombineFn<T>(limit)).withoutDefaults())
+          .apply(Flatten.iterables());
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("sampleSize", limit)
-        .withLabel("Sample Size"));
+      builder.add(DisplayData.item("sampleSize", limit).withLabel("Sample Size"));
     }
   }
 
@@ -175,14 +170,13 @@ public class Sample {
 
     @Override
     public PCollection<Iterable<T>> expand(PCollection<T> input) {
-      return input.apply(Combine.globally(new FixedSizedSampleFn<T>(sampleSize)));
+      return input.apply(Combine.globally(new FixedSizedSampleFn<>(sampleSize)));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("sampleSize", sampleSize)
-          .withLabel("Sample Size"));
+      builder.add(DisplayData.item("sampleSize", sampleSize).withLabel("Sample Size"));
     }
   }
 
@@ -197,50 +191,69 @@ public class Sample {
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(Combine.<K, V, Iterable<V>>perKey(new FixedSizedSampleFn<V>(sampleSize)));
+      return input.apply(Combine.perKey(new FixedSizedSampleFn<>(sampleSize)));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("sampleSize", sampleSize)
-          .withLabel("Sample Size"));
+      builder.add(DisplayData.item("sampleSize", sampleSize).withLabel("Sample Size"));
     }
   }
 
-  /**
-   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
-   */
-  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
-    long limit;
-    final PCollectionView<Iterable<T>> iterableView;
+  /** A {@link CombineFn} that combines into a {@link List} of up to limit elements. */
+  private static class SampleAnyCombineFn<T> extends CombineFn<T, List<T>, Iterable<T>> {
+    private final long limit;
 
-    public SampleAnyDoFn(long limit, PCollectionView<Iterable<T>> iterableView) {
+    private SampleAnyCombineFn(long limit) {
       this.limit = limit;
-      this.iterableView = iterableView;
     }
 
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      for (T i : c.sideInput(iterableView)) {
-        if (limit-- <= 0) {
-          break;
-        }
-        c.output(i);
+    @Override
+    public List<T> createAccumulator() {
+      return new ArrayList<>((int) limit);
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      if (accumulator.size() < limit) {
+        accumulator.add(input);
       }
+      return accumulator;
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      Iterator<List<T>> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      }
+      List<T> res = iter.next();
+      while (iter.hasNext()) {
+        for (T t : iter.next()) {
+          if (res.size() >= limit) {
+            return res;
+          }
+          res.add(t);
+        }
+      }
+      return res;
+    }
+
+    @Override
+    public Iterable<T> extractOutput(List<T> accumulator) {
+      return accumulator;
     }
   }
 
   /**
-   * {@code CombineFn} that computes a fixed-size sample of a
-   * collection of values.
+   * {@code CombineFn} that computes a fixed-size sample of a collection of values.
    *
    * @param <T> the type of the elements
    */
   public static class FixedSizedSampleFn<T>
-      extends CombineFn<T,
-          Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>,
-          Iterable<T>> {
+      extends CombineFn<
+          T, Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>, Iterable<T>> {
     private final int sampleSize;
     private final Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
         topCombineFn;
@@ -252,8 +265,7 @@ public class Sample {
       }
 
       this.sampleSize = sampleSize;
-      topCombineFn = new Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>(
-          sampleSize, new KV.OrderByKey<Integer, T>());
+      topCombineFn = new Top.TopCombineFn<>(sampleSize, new KV.OrderByKey<>());
     }
 
     @Override
@@ -274,7 +286,7 @@ public class Sample {
     public Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
         mergeAccumulators(
             Iterable<Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>>
-            accumulators) {
+                accumulators) {
       return topCombineFn.mergeAccumulators(accumulators);
     }
 
@@ -296,16 +308,14 @@ public class Sample {
     }
 
     @Override
-    public Coder<Iterable<T>> getDefaultOutputCoder(
-        CoderRegistry registry, Coder<T> inputCoder) {
+    public Coder<Iterable<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return IterableCoder.of(inputCoder);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("sampleSize", sampleSize)
-        .withLabel("Sample Size"));
+      builder.add(DisplayData.item("sampleSize", sampleSize).withLabel("Sample Size"));
     }
   }
 }

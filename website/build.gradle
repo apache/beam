@@ -1,0 +1,101 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Define common lifecycle tasks and artifact types
+apply plugin: "base"
+
+def dockerImageTag = 'beam-website'
+def dockerWorkDir = "/repo"
+def buildDir = "$project.rootDir/build/website"
+
+task buildDockerImage(type: Exec) {
+  inputs.files 'Gemfile', 'Gemfile.lock'
+  commandLine 'docker', 'build', '-t', dockerImageTag, '.'
+}
+
+task createDockerContainer(type: Exec) {
+  dependsOn buildDockerImage
+  standardOutput = new ByteArrayOutputStream()
+  ext.containerId = {
+    return standardOutput.toString().trim()
+  }
+  commandLine '/bin/bash', '-c',
+    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $dockerImageTag"
+}
+
+task startDockerContainer(type: Exec) {
+  dependsOn createDockerContainer
+  ext.containerId = {
+    return createDockerContainer.containerId()
+  }
+  commandLine 'docker', 'start',
+    "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
+}
+
+task stopAndRemoveDockerContainer(type: Exec) {
+  commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
+}
+
+task setupBuildDir(type: Copy) {
+  from('.') {
+    include 'Gemfile*'
+    include 'Rakefile'
+  }
+  into buildDir
+}
+
+task cleanWebsite(type: Delete) {
+  delete buildDir
+}
+clean.dependsOn cleanWebsite
+
+task buildWebsite(type: Exec) {
+  dependsOn startDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
+  inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.dir 'src'
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir "$buildDir/content"
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll build \
+      --config $dockerWorkDir/website/_config.yml \
+      --incremental \
+      --source $dockerWorkDir/website/src
+      """
+}
+build.dependsOn buildWebsite
+
+task testWebsite(type: Exec) {
+  dependsOn startDockerContainer, buildWebsite
+  finalizedBy stopAndRemoveDockerContainer
+
+  inputs.files "$buildDir/Rakefile"
+  inputs.dir "$buildDir/content"
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec rake test"""
+}
+
+check.dependsOn testWebsite
+
+task preCommit {
+  dependsOn testWebsite
+}

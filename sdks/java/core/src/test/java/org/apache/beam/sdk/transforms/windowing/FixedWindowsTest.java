@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -43,9 +42,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for FixedWindows WindowFn.
- */
+/** Tests for FixedWindows WindowFn. */
 @RunWith(JUnit4.class)
 public class FixedWindowsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -59,8 +56,7 @@ public class FixedWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            FixedWindows.of(new Duration(10)),
-            Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
+            FixedWindows.of(new Duration(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
 
   @Test
@@ -101,10 +97,21 @@ public class FixedWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.<BoundedWindow>equalTo(
+        equalTo(
             new IntervalWindow(
                 new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
+  }
+
+  /** Tests that the last hour of the universe in fact ends at the end of time. */
+  @Test
+  public void testEndOfTime() {
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(1));
+
+    IntervalWindow truncatedWindow = windowFn.assignWindow(endOfGlobalWindow.minus(1));
+
+    assertThat(truncatedWindow.maxTimestamp(), equalTo(endOfGlobalWindow));
   }
 
   @Test
@@ -121,7 +128,8 @@ public class FixedWindowsTest {
       FixedWindows.of(Duration.standardSeconds(size)).withOffset(Duration.standardSeconds(offset));
       fail("should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.toString(),
+      assertThat(
+          e.toString(),
           containsString("FixedWindows WindowingStrategies must have 0 <= offset < size"));
     }
   }
@@ -136,16 +144,11 @@ public class FixedWindowsTest {
   @Test
   public void testEquality() {
     assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
-    assertTrue(
-        FixedWindows.of(new Duration(10)).isCompatible(
-            FixedWindows.of(new Duration(10))));
-    assertTrue(
-        FixedWindows.of(new Duration(10)).isCompatible(
-            FixedWindows.of(new Duration(10))));
+    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
+    assertTrue(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(10))));
 
     assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
-    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(
-        FixedWindows.of(new Duration(20))));
+    assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
   }
 
   @Test
@@ -158,8 +161,7 @@ public class FixedWindowsTest {
   @Test
   public void testValidOutputTimes() throws Exception {
     for (long timestamp : Arrays.asList(200, 800, 700)) {
-      WindowFnTestUtils.validateGetOutputTimestamp(
-          FixedWindows.of(new Duration(500)), timestamp);
+      WindowFnTestUtils.validateGetOutputTimestamp(FixedWindows.of(new Duration(500)), timestamp);
     }
   }
 

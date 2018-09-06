@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.ByteArrayOutputStream;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
@@ -35,8 +32,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.
  *   <li>{@link #getEncodedElementByteSize} and {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
- *       expensive. The default element byte size observer uses the value returned by
- *       {@link #getEncodedElementByteSize}.
+ *       expensive. The default element byte size observer uses the value returned by {@link
+ *       #getEncodedElementByteSize}.
  * </ul>
  */
 public abstract class StructuredCoder<T> extends Coder<T> {
@@ -48,19 +45,14 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
   public List<? extends Coder<?>> getComponents() {
-    List<? extends Coder<?>> coderArguments = getCoderArguments();
-    if (coderArguments == null) {
-      return Collections.emptyList();
-    } else {
-      return coderArguments;
-    }
+    return getCoderArguments();
   }
 
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} if the two {@link StructuredCoder} instances have the
-   * same class and equal components.
+   * @return {@code true} if the two {@link StructuredCoder} instances have the same class and equal
+   *     components.
    */
   @Override
   public boolean equals(Object o) {
@@ -97,38 +89,5 @@ public abstract class StructuredCoder<T> extends Coder<T> {
       builder.append(')');
     }
     return builder.toString();
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @return {@code false} for {@link StructuredCoder} unless overridden.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return false;
-  }
-
-  @Override
-  public Object structuralValue(T value) {
-    if (value != null && consistentWithEquals()) {
-      return value;
-    } else {
-      try {
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        encode(value, os, Context.OUTER);
-        return new StructuralByteArray(os.toByteArray());
-      } catch (Exception exn) {
-        throw new IllegalArgumentException(
-            "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
-      }
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public TypeDescriptor<T> getEncodedTypeDescriptor() {
-    return (TypeDescriptor<T>)
-        TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());
   }
 }

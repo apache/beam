@@ -19,9 +19,7 @@ package org.apache.beam.runners.core.triggers;
 
 import java.util.BitSet;
 
-/**
- * A {@link FinishedTriggers} implementation based on an underlying {@link BitSet}.
- */
+/** A {@link FinishedTriggers} implementation based on an underlying {@link BitSet}. */
 public class FinishedTriggersBitSet implements FinishedTriggers {
 
   private final BitSet bitSet;
@@ -38,9 +36,7 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
     return new FinishedTriggersBitSet(bitSet);
   }
 
-  /**
-   * Returns the underlying {@link BitSet} for this {@link FinishedTriggersBitSet}.
-   */
+  /** Returns the underlying {@link BitSet} for this {@link FinishedTriggersBitSet}. */
   public BitSet getBitSet() {
     return bitSet;
   }

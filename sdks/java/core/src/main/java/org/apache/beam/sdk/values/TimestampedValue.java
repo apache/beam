@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -35,24 +36,22 @@ import org.joda.time.Instant;
 /**
  * An immutable pair of a value and a timestamp.
  *
- * <p>The timestamp of a value determines many properties, such as its assignment to
- * windows and whether the value is late (with respect to the watermark of a {@link PCollection}).
+ * <p>The timestamp of a value determines many properties, such as its assignment to windows and
+ * whether the value is late (with respect to the watermark of a {@link PCollection}).
  *
  * @param <V> the type of the value
  */
 public class TimestampedValue<V> {
   /**
-   * Returns a new {@link TimestampedValue} with the
-   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE minimum timestamp}.
+   * Returns a new {@link TimestampedValue} with the {@link BoundedWindow#TIMESTAMP_MIN_VALUE
+   * minimum timestamp}.
    */
-  public static <V> TimestampedValue<V> atMinimumTimestamp(V value) {
+  public static <V> TimestampedValue<V> atMinimumTimestamp(@Nullable V value) {
     return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
   }
 
-  /**
-   * Returns a new {@code TimestampedValue} with the given value and timestamp.
-   */
-  public static <V> TimestampedValue<V> of(V value, Instant timestamp) {
+  /** Returns a new {@code TimestampedValue} with the given value and timestamp. */
+  public static <V> TimestampedValue<V> of(@Nullable V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
   }
 
@@ -94,23 +93,26 @@ public class TimestampedValue<V> {
       return new TimestampedValueCoder<>(valueCoder);
     }
 
+    @Override
+    public Object structuralValue(TimestampedValue<T> value) {
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
+    }
+
     @SuppressWarnings("unchecked")
     TimestampedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
     }
 
     @Override
-    public void encode(TimestampedValue<T> windowedElem,
-                       OutputStream outStream)
+    public void encode(TimestampedValue<T> windowedElem, OutputStream outStream)
         throws IOException {
       valueCoder.encode(windowedElem.getValue(), outStream);
-      InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream);
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
     }
 
     @Override
-    public TimestampedValue<T> decode(InputStream inStream)
-        throws IOException {
+    public TimestampedValue<T> decode(InputStream inStream) throws IOException {
       T value = valueCoder.decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream);
       return TimestampedValue.of(value, timestamp);
@@ -145,10 +147,10 @@ public class TimestampedValue<V> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private final V value;
+  private final @Nullable V value;
   private final Instant timestamp;
 
-  protected TimestampedValue(V value, Instant timestamp) {
+  protected TimestampedValue(@Nullable V value, Instant timestamp) {
     checkNotNull(timestamp, "timestamp must be non-null");
 
     this.value = value;

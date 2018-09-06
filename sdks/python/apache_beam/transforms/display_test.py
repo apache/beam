@@ -19,17 +19,21 @@
 
 from __future__ import absolute_import
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
+# pylint: disable=ungrouped-imports
 import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
+from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam.transforms.display import HasDisplayData
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.display import HasDisplayData
+
+# pylint: enable=ungrouped-imports
 
 
 class DisplayDataItemMatcher(BaseMatcher):

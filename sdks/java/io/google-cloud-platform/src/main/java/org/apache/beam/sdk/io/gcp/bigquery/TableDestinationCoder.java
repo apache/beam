@@ -33,13 +33,14 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
   private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
 
+  private TableDestinationCoder() {}
+
   public static TableDestinationCoder of() {
     return INSTANCE;
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream)
-      throws IOException {
+  public void encode(TableDestination value, OutputStream outStream) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }

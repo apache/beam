@@ -27,13 +27,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link BucketingFunction}.
- */
+/** Tests {@link BucketingFunction}. */
 @RunWith(JUnit4.class)
 public class BucketingFunctionTest {
 
-  private static final long BUCKET_WIDTH = 10;
+  private static final int BUCKET_WIDTH = 10;
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 
@@ -51,9 +49,9 @@ public class BucketingFunctionTest {
       };
 
   private BucketingFunction newFunc() {
-    return new
-        BucketingFunction(BUCKET_WIDTH, SIGNIFICANT_BUCKETS,
-                          SIGNIFICANT_SAMPLES, SUM);
+    return new BucketingFunction(
+        BUCKET_WIDTH, SIGNIFICANT_BUCKETS,
+        SIGNIFICANT_SAMPLES, SUM);
   }
 
   @Test

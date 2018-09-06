@@ -167,7 +167,7 @@ cdef class InputStream(object):
     # unsigned char here.
     return <long>(<unsigned char> self.allc[self.pos - 1])
 
-  cpdef size_t size(self) except? -1:
+  cpdef ssize_t size(self) except? -1:
     return len(self.all) - self.pos
 
   cpdef bytes read_all(self, bint nested=False):

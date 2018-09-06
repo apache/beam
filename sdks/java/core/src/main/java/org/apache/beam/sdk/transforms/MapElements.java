@@ -18,38 +18,35 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
-/**
- * {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}.
- */
+/** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
 public class MapElements<InputT, OutputT>
-extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  /**
-   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
-   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
-   * if constructed using {@link #via(SimpleFunction)} directly.
-   */
+    extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+  @Nullable private final transient TypeDescriptor<InputT> inputType;
   @Nullable private final transient TypeDescriptor<OutputT> outputType;
-
-  /**
-   * Non-null on a fully specified transform - is null only when constructed using {@link
-   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
-   */
-  @Nullable private final SimpleFunction<InputT, OutputT> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+  @Nullable private final transient Object originalFnForDisplayData;
+  @Nullable private final Contextful<Fn<InputT, OutputT>> fn;
 
   private MapElements(
-      @Nullable SimpleFunction<InputT, OutputT> fn,
-      @Nullable TypeDescriptor<OutputT> outputType,
-      @Nullable Class<?> fnClass) {
+      @Nullable Contextful<Fn<InputT, OutputT>> fn,
+      @Nullable Object originalFnForDisplayData,
+      @Nullable TypeDescriptor<InputT> inputType,
+      TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
+    this.originalFnForDisplayData = originalFnForDisplayData;
+    this.inputType = inputType;
     this.outputType = outputType;
-    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
   }
 
   /**
@@ -57,10 +54,11 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    * takes an input {@code PCollection<InputT>} and returns a {@code PCollection<OutputT>}
    * containing {@code fn.apply(v)} for every element {@code v} in the input.
    *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload
-   * {@link #via(SerializableFunction)} supports use of lambda for greater concision.
+   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload {@link
+   * #via(SerializableFunction)} supports use of lambda for greater concision.
    *
    * <p>Example of use in Java 7:
+   *
    * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<Integer> wordsPerLine = words.apply(MapElements.via(
@@ -73,16 +71,16 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT> via(
       final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, null, fn.getClass());
+    return new MapElements<>(
+        Contextful.fn(fn), fn, fn.getInputTypeDescriptor(), fn.getOutputTypeDescriptor());
   }
 
   /**
-   * Returns a new {@link MapElements} transform with the given type descriptor for the output
-   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
+   * Returns a new {@link MapElements} transform with the given type descriptor for the output type,
+   * but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
    */
-  public static <OutputT> MapElements<?, OutputT>
-  into(final TypeDescriptor<OutputT> outputType) {
-    return new MapElements<>(null, outputType, null);
+  public static <OutputT> MapElements<?, OutputT> into(final TypeDescriptor<OutputT> outputType) {
+    return new MapElements<>(null, null, null, outputType);
   }
 
   /**
@@ -104,10 +102,16 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public <NewInputT> MapElements<NewInputT, OutputT> via(
       SerializableFunction<NewInputT, OutputT> fn) {
+    return new MapElements<>(Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);
+  }
+
+  /**
+   * Like {@link #via(SerializableFunction)}, but supports access to context, such as side inputs.
+   */
+  @Experimental(Kind.CONTEXTFUL)
+  public <NewInputT> MapElements<NewInputT, OutputT> via(Contextful<Fn<NewInputT, OutputT>> fn) {
     return new MapElements<>(
-        SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType),
-        null,
-        fn.getClass());
+        fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
   @Override
@@ -116,34 +120,46 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     return input.apply(
         "Map",
         ParDo.of(
-            new DoFn<InputT, OutputT>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(fn.apply(c.element()));
-              }
+                new DoFn<InputT, OutputT>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element InputT element, OutputReceiver<OutputT> receiver, ProcessContext c)
+                      throws Exception {
+                    receiver.output(
+                        fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c)));
+                  }
 
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.delegate(MapElements.this);
-              }
+                  @Override
+                  public void populateDisplayData(DisplayData.Builder builder) {
+                    builder.delegate(MapElements.this);
+                  }
 
-              @Override
-              public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                return fn.getInputTypeDescriptor();
-              }
+                  @Override
+                  public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                    return inputType;
+                  }
 
-              @Override
-              public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                return fn.getOutputTypeDescriptor();
-              }
-            }));
+                  @Override
+                  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                    checkState(
+                        outputType != null,
+                        "%s output type descriptor was null; "
+                            + "this probably means that getOutputTypeDescriptor() was called after "
+                            + "serialization/deserialization, but it is only available prior to "
+                            + "serialization, for constructing a pipeline and inferring coders",
+                        MapElements.class.getSimpleName());
+                    return outputType;
+                  }
+                })
+            .withSideInputs(fn.getRequirements().getSideInputs()));
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder
-        .include("mapFn", fn)
-        .add(fnClassDisplayData);
+    builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
+    if (originalFnForDisplayData instanceof HasDisplayData) {
+      builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+    }
   }
 }

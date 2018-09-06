@@ -38,17 +38,13 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for the Apex runner.
- */
+/** Tests for the Apex runner. */
 public class ApexRunnerTest {
 
   @Test
   public void testConfigProperties() throws Exception {
-
     String operName = "testProperties";
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
 
     // default configuration from class path
     Pipeline p = Pipeline.create();
@@ -58,7 +54,7 @@ public class ApexRunnerTest {
     DAG dag = TestApexRunner.translate(p, options);
     OperatorMeta t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
-    Assert.assertEquals(new Integer(32), t1Meta.getValue(OperatorContext.MEMORY_MB));
+    Assert.assertEquals(Integer.valueOf(32), t1Meta.getValue(OperatorContext.MEMORY_MB));
 
     File tmp = File.createTempFile("beam-runners-apex-", ".properties");
     tmp.deleteOnExit();
@@ -73,8 +69,7 @@ public class ApexRunnerTest {
 
     t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
-    Assert.assertEquals(new Integer(64), t1Meta.getValue(OperatorContext.MEMORY_MB));
-
+    Assert.assertEquals(Integer.valueOf(64), t1Meta.getValue(OperatorContext.MEMORY_MB));
   }
 
   @Test
@@ -82,26 +77,25 @@ public class ApexRunnerTest {
     Pipeline p = Pipeline.create();
     long numElements = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
-    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(numElements);
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numElements);
 
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     DAG dag = TestApexRunner.translate(p, options);
 
-    String[] expectedThreadLocal = { "/CreateActual/FilterActuals/Window.Assign" };
+    String[] expectedThreadLocal = {"/CreateActual/FilterActuals/Window.Assign"};
     Set<String> actualThreadLocal = Sets.newHashSet();
     for (DAG.StreamMeta sm : dag.getAllStreamsMeta()) {
       DAG.OutputPortMeta opm = sm.getSource();
       if (sm.getLocality() == Locality.THREAD_LOCAL) {
-         String name = opm.getOperatorMeta().getName();
-         String prefix = "PAssert$";
-         if (name.startsWith(prefix)) {
-           // remove indeterministic prefix
-           name = name.substring(prefix.length() + 1);
-         }
-         actualThreadLocal.add(name);
+        String name = opm.getOperatorMeta().getName();
+        String prefix = "PAssert$";
+        if (name.startsWith(prefix)) {
+          // remove indeterministic prefix
+          name = name.substring(prefix.length() + 1);
+        }
+        actualThreadLocal.add(name);
       }
     }
     Assert.assertThat(actualThreadLocal, Matchers.hasItems(expectedThreadLocal));
   }
-
 }

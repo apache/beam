@@ -18,12 +18,10 @@
 package org.apache.beam.sdk.util;
 
 /**
- * Sleeper interface to use for requesting the current thread to sleep as specified in
- * {@link Thread#sleep(long)}.
+ * Sleeper interface to use for requesting the current thread to sleep as specified in {@link
+ * Thread#sleep(long)}.
  *
- * <p>
- * The default implementation can be accessed at {@link #DEFAULT}. Primarily used for testing.
- * </p>
+ * <p>The default implementation can be accessed at {@link #DEFAULT}. Primarily used for testing.
  *
  * <p><b>Note</b>: This interface is copied from Google API client library to avoid its dependency.
  */
@@ -39,10 +37,5 @@ public interface Sleeper {
   void sleep(long millis) throws InterruptedException;
 
   /** Provides the default implementation based on {@link Thread#sleep(long)}. */
-  Sleeper DEFAULT = new Sleeper() {
-
-    public void sleep(long millis) throws InterruptedException {
-      Thread.sleep(millis);
-    }
-  };
+  Sleeper DEFAULT = Thread::sleep;
 }

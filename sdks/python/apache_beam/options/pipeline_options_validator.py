@@ -19,7 +19,10 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
+
 import re
+from builtins import object
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -99,7 +102,7 @@ class PipelineOptionsValidator(object):
     """
     errors = []
     for cls in self.OPTIONS:
-      if 'validate' in cls.__dict__:
+      if 'validate' in cls.__dict__ and callable(cls.__dict__['validate']):
         errors.extend(self.options.view_as(cls).validate(self))
     return errors
 

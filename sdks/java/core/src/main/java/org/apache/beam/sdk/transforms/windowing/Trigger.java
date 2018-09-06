@@ -23,16 +23,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.joda.time.Instant;
 
 /**
- * {@link Trigger Triggers} control when the elements for a specific key and window are output. As
- * elements arrive, they are put into one or more windows by a {@link Window} transform and its
- * associated {@link WindowFn}, and then passed to the associated {@link Trigger} to determine if
- * the {@link BoundedWindow Window's} contents should be output.
+ * Triggers control when the elements for a specific key and window are output. As elements arrive,
+ * they are put into one or more windows by a {@link Window} transform and its associated {@link
+ * WindowFn}, and then passed to the associated {@link Trigger} to determine if the {@link
+ * BoundedWindow Window's} contents should be output.
  *
  * <p>See {@link GroupByKey} and {@link Window} for more information about how grouping with windows
  * works.
@@ -43,42 +44,42 @@ import org.joda.time.Instant;
  * output. When the root trigger finishes (indicating it will never fire again), the window is
  * closed and any new elements assigned to that window are discarded.
  *
- * <p>Several predefined {@link Trigger Triggers} are provided:
+ * <p>Several predefined triggers are provided:
  *
  * <ul>
- * <li> {@link AfterWatermark} for firing when the watermark passes a timestamp determined from
- *     either the end of the window or the arrival of the first element in a pane.
- * <li> {@link AfterProcessingTime} for firing after some amount of processing time has elapsed
- *     (typically since the first element in a pane).
- * <li> {@link AfterPane} for firing off a property of the elements in the current pane, such as the
- *     number of elements that have been assigned to the current pane.
+ *   <li>{@link AfterWatermark} for firing when the watermark passes a timestamp determined from
+ *       either the end of the window or the arrival of the first element in a pane.
+ *   <li>{@link AfterProcessingTime} for firing after some amount of processing time has elapsed
+ *       (typically since the first element in a pane).
+ *   <li>{@link AfterPane} for firing off a property of the elements in the current pane, such as
+ *       the number of elements that have been assigned to the current pane.
  * </ul>
  *
- * <p>In addition, {@code Trigger}s can be combined in a variety of ways:
+ * <p>In addition, triggers can be combined in a variety of ways:
  *
  * <ul>
- * <li> {@link Repeatedly#forever} to create a trigger that executes forever. Any time its argument
- *     finishes it gets reset and starts over. Can be combined with {@link Trigger#orFinally} to
- *     specify a condition that causes the repetition to stop.
- * <li> {@link AfterEach#inOrder} to execute each trigger in sequence, firing each (and every) time
- *     that a trigger fires, and advancing to the next trigger in the sequence when it finishes.
- * <li> {@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
- *     fires. An {@link AfterFirst} trigger finishes after it fires once.
- * <li> {@link AfterAll#of} to create a trigger that fires after all least one of its arguments have
- *     fired at least once. An {@link AfterAll} trigger finishes after it fires once.
+ *   <li>{@link Repeatedly#forever} to create a trigger that executes forever. Any time its argument
+ *       finishes it gets reset and starts over. Can be combined with {@link Trigger#orFinally} to
+ *       specify a condition that causes the repetition to stop.
+ *   <li>{@link AfterEach#inOrder} to execute each trigger in sequence, firing each (and every) time
+ *       that a trigger fires, and advancing to the next trigger in the sequence when it finishes.
+ *   <li>{@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
+ *       fires. An {@link AfterFirst} trigger finishes after it fires once.
+ *   <li>{@link AfterAll#of} to create a trigger that fires after all least one of its arguments
+ *       have fired at least once. An {@link AfterAll} trigger finishes after it fires once.
  * </ul>
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class Trigger implements Serializable {
 
-  protected final List<Trigger> subTriggers;
+  @Nullable protected final List<Trigger> subTriggers;
 
-  protected Trigger(List<Trigger> subTriggers) {
+  protected Trigger(@Nullable List<Trigger> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
   protected Trigger() {
-    this(Collections.EMPTY_LIST);
+    this(Collections.emptyList());
   }
 
   public List<Trigger> subTriggers() {
@@ -107,15 +108,16 @@ public abstract class Trigger implements Serializable {
   }
 
   /**
-   * Subclasses should override this to return the {@link #getContinuationTrigger} of this
-   * {@link Trigger}. For convenience, this is provided the continuation trigger of each of the
+   * Subclasses should override this to return the {@link #getContinuationTrigger} of this {@link
+   * Trigger}. For convenience, this is provided the continuation trigger of each of the
    * sub-triggers in the same order as {@link #subTriggers}.
    *
-   * @param continuationTriggers null if {@link #subTriggers} is null, otherwise contains the
-   *                             result of {@link #getContinuationTrigger()} on each of the
-   *                             subTriggers in the same order.
+   * @param continuationTriggers {@code null} if {@link #subTriggers} is {@code null}, otherwise
+   *     contains the result of {@link #getContinuationTrigger()} on each of the subTriggers in the
+   *     same order.
    */
-  protected abstract Trigger getContinuationTrigger(List<Trigger> continuationTriggers);
+  @Nullable
+  protected abstract Trigger getContinuationTrigger(@Nullable List<Trigger> continuationTriggers);
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -166,7 +168,7 @@ public abstract class Trigger implements Serializable {
     if (getClass().getEnclosingClass() != null) {
       simpleName = getClass().getEnclosingClass().getSimpleName() + "." + simpleName;
     }
-    if (subTriggers == null || subTriggers.size() == 0) {
+    if (subTriggers == null || subTriggers.isEmpty()) {
       return simpleName;
     } else {
       return simpleName + "(" + Joiner.on(", ").join(subTriggers) + ")";
@@ -206,8 +208,7 @@ public abstract class Trigger implements Serializable {
    * <pre>{@code
    * Repeatedly.forever(AfterPane.elementCountAtLeast(2))
    *     .orFinally(AfterPane.elementCountAtLeast(5))
-   * }
-   * </pre>
+   * }</pre>
    *
    * <p>Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same as
    * {@code AfterFirst.of(t1, t2)}.
@@ -219,12 +220,12 @@ public abstract class Trigger implements Serializable {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * {@link Trigger Triggers} that are guaranteed to fire at most once should extend {@link
-   * OnceTrigger} rather than the general {@link Trigger} class to indicate that behavior.
+   * <p>Triggers that are guaranteed to fire at most once should extend {@link OnceTrigger} rather
+   * than the general {@link Trigger} class to indicate that behavior.
    */
   @Internal
   public abstract static class OnceTrigger extends Trigger {
-    protected OnceTrigger(List<Trigger> subTriggers) {
+    protected OnceTrigger(@Nullable List<Trigger> subTriggers) {
       super(subTriggers);
     }
 

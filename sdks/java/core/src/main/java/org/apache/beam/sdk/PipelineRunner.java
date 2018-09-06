@@ -21,8 +21,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.PBegin;
 
 /**
  * A {@link PipelineRunner} runs a {@link Pipeline}.
@@ -46,11 +49,20 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =
         InstanceBuilder.ofType(PipelineRunner.class)
-        .fromClass(options.getRunner())
-        .fromFactoryMethod("fromOptions")
-        .withArg(PipelineOptions.class, options)
-        .build();
+            .fromClass(options.getRunner())
+            .fromFactoryMethod("fromOptions")
+            .withArg(PipelineOptions.class, options)
+            .build();
     return result;
+  }
+
+  /**
+   * Creates a runner from the default app {@link PipelineOptions}.
+   *
+   * @return The newly created runner.
+   */
+  public static PipelineRunner<? extends PipelineResult> create() {
+    return fromOptions(PipelineOptionsFactory.create());
   }
 
   /**
@@ -58,4 +70,18 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    * type of result.
    */
   public abstract ResultT run(Pipeline pipeline);
+
+  /** Creates a {@link Pipeline} out of a single {@link PTransform} step, and executes it. */
+  public ResultT run(PTransform<PBegin, ?> pTransform, PipelineOptions options) {
+    Pipeline p = Pipeline.create(options);
+    p.apply(pTransform);
+    return run(p);
+  }
+
+  /**
+   * Overloaded {@link PTransform} runner that runs with the default app {@link PipelineOptions}.
+   */
+  public ResultT run(PTransform<PBegin, ?> pTransform) {
+    return run(pTransform, PipelineOptionsFactory.create());
+  }
 }

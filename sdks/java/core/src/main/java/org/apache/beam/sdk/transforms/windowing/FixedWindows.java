@@ -27,37 +27,32 @@ import org.joda.time.Instant;
  * A {@link WindowFn} that windows values into fixed-size timestamp-based windows.
  *
  * <p>For example, in order to partition the data into 10 minute windows:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<Integer> items = ...;
  * PCollection<Integer> windowedItems = items.apply(
  *   Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(10))));
- * } </pre>
+ * }</pre>
  */
 public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
-  /**
-   * Size of this window.
-   */
+  /** Size of this window. */
   private final Duration size;
 
-  /**
-   * Offset of this window.  Windows start at time
-   * N * size + offset, where 0 is the epoch.
-   */
+  /** Offset of this window. Windows start at time N * size + offset, where 0 is the epoch. */
   private final Duration offset;
 
   /**
-   * Partitions the timestamp space into half-open intervals of the form
-   * [N * size, (N + 1) * size), where 0 is the epoch.
+   * Partitions the timestamp space into half-open intervals of the form [N * size, (N + 1) * size),
+   * where 0 is the epoch.
    */
   public static FixedWindows of(Duration size) {
     return new FixedWindows(size, Duration.ZERO);
   }
 
   /**
-   * Partitions the timestamp space into half-open intervals of the form
-   * [N * size + offset, (N + 1) * size + offset),
-   * where 0 is the epoch.
+   * Partitions the timestamp space into half-open intervals of the form [N * size + offset, (N + 1)
+   * * size + offset), where 0 is the epoch.
    *
    * @throws IllegalArgumentException if offset is not in [0, size)
    */
@@ -76,19 +71,35 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   @Override
   public IntervalWindow assignWindow(Instant timestamp) {
-    long start = timestamp.getMillis()
-        - timestamp.plus(size).minus(offset).getMillis() % size.getMillis();
-    return new IntervalWindow(new Instant(start), size);
+    Instant start =
+        new Instant(
+            timestamp.getMillis()
+                - timestamp.plus(size).minus(offset).getMillis() % size.getMillis());
+
+    // The global window is inclusive of max timestamp, while interval window excludes its
+    // upper bound
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(1);
+
+    // The end of the window is either start + size if that is within the allowable range, otherwise
+    // the end of the global window. Truncating the window drives many other
+    // areas of this system in the appropriate way automatically.
+    //
+    // Though it is curious that the very last representable fixed window is shorter than the rest,
+    // when we are processing data in the year 294247, we'll probably have technology that can
+    // account for this.
+    Instant end =
+        start.isAfter(endOfGlobalWindow.minus(size)) ? endOfGlobalWindow : start.plus(size);
+
+    return new IntervalWindow(start, end);
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .add(DisplayData.item("size", size)
-          .withLabel("Window Duration"))
-        .addIfNotDefault(DisplayData.item("offset", offset)
-          .withLabel("Window Start Offset"), Duration.ZERO);
+        .add(DisplayData.item("size", size).withLabel("Window Duration"))
+        .addIfNotDefault(
+            DisplayData.item("offset", offset).withLabel("Window Start Offset"), Duration.ZERO);
   }
 
   @Override
@@ -126,8 +137,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
       return false;
     }
     FixedWindows other = (FixedWindows) object;
-    return getOffset().equals(other.getOffset())
-        && getSize().equals(other.getSize());
+    return getOffset().equals(other.getOffset()) && getSize().equals(other.getSize());
   }
 
   @Override

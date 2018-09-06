@@ -15,18 +15,22 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
 
 import logging
 import unittest
-
+from builtins import range
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import log_handler
 
 
-class BeamFnLoggingServicer(beam_fn_api_pb2.BeamFnLoggingServicer):
+class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
   def __init__(self):
     self.log_records_received = []
@@ -44,12 +48,12 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
     self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    beam_fn_api_pb2.add_BeamFnLoggingServicer_to_server(
+    beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         self.test_logging_service, self.server)
     self.test_port = self.server.add_insecure_port('[::]:0')
     self.server.start()
 
-    self.logging_service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
+    self.logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     self.logging_service_descriptor.url = 'localhost:%s' % self.test_port
     self.fn_log_handler = log_handler.FnApiLogRecordHandler(
         self.logging_service_descriptor)
@@ -73,13 +77,14 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.INFO, log_entry.severity)
+        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
+                         log_entry.severity)
         self.assertEqual('%s: %s' % (msg, num_received_log_entries),
                          log_entry.message)
         self.assertEqual(u'log_handler_test._verify_fn_log_handler',
                          log_entry.log_location)
         self.assertGreater(log_entry.timestamp.seconds, 0)
-        self.assertGreater(log_entry.timestamp.nanos, 0)
+        self.assertGreaterEqual(log_entry.timestamp.nanos, 0)
         num_received_log_entries += 1
 
     self.assertEqual(num_received_log_entries, num_log_entries)
@@ -98,8 +103,9 @@ def _create_test(name, num_logs):
           lambda self: self._verify_fn_log_handler(num_logs))
 
 
-if __name__ == '__main__':
-  for test_name, num_logs_entries in data.iteritems():
-    _create_test(test_name, num_logs_entries)
+for test_name, num_logs_entries in data.items():
+  _create_test(test_name, num_logs_entries)
 
+
+if __name__ == '__main__':
   unittest.main()

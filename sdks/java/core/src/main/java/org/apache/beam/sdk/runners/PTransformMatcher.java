@@ -32,4 +32,23 @@ import org.apache.beam.sdk.transforms.PTransform;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformMatcher {
   boolean matches(AppliedPTransform<?, ?, ?> application);
+
+  /**
+   * An {@link AppliedPTransform} matched by a {@link PTransformMatcher} will be replaced during
+   * pipeline surgery, and is often expected to be gone the new pipeline. For the {@link
+   * AppliedPTransform} that is expected to remain in the pipeline after surgery, the corresponding
+   * {@link PTransformMatcher} should override this method, such that it will not be matched during
+   * the validation.
+   */
+  default boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+    return matches(application);
+  }
+
+  default PTransformMatcher and(PTransformMatcher matcher) {
+    return application -> this.matches(application) && matcher.matches(application);
+  }
+
+  default PTransformMatcher or(PTransformMatcher matcher) {
+    return application -> this.matches(application) || matcher.matches(application);
+  }
 }

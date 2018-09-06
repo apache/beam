@@ -16,12 +16,14 @@
 #
 
 """Unit tests for the sources framework."""
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import unittest
+from builtins import range
 
 import apache_beam as beam
-
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils
@@ -32,6 +34,8 @@ from apache_beam.testing.util import equal_to
 
 
 class RangeSource(iobase.BoundedSource):
+
+  __hash__ = None
 
   def __init__(self, start, end, split_freq=1):
     assert start <= end
@@ -74,7 +78,9 @@ class RangeSource(iobase.BoundedSource):
   # For testing
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._start == other._start and self._end == other._end)
+            and self._start == other._start
+            and self._end == other._end
+            and self._split_freq == other._split_freq)
 
   def __ne__(self, other):
     return not self == other
@@ -92,10 +98,10 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(12, 16),
                           ])
     self.assertEqual(list(source.read(source.get_range_tracker())),
-                     range(16))
+                     list(range(16)))
     self.assertEqual(list(source.read(source.get_range_tracker((1, None),
                                                                (2, 10)))),
-                     range(4, 10))
+                     list(range(4, 10)))
     range_tracker = source.get_range_tracker(None, None)
     self.assertEqual(range_tracker.position_at_fraction(0), (0, 0))
     self.assertEqual(range_tracker.position_at_fraction(.5), (2, 8))
@@ -177,10 +183,11 @@ class ConcatSourceTest(unittest.TestCase):
     read_all = source_test_utils.read_from_source
 
     range10 = RangeSource(0, 10)
-    self.assertEquals(read_all(ConcatSource([range10])), range(10))
-    self.assertEquals(read_all(ConcatSource([range10]), (0, 5)), range(5, 10))
+    self.assertEquals(read_all(ConcatSource([range10])), list(range(10)))
+    self.assertEquals(read_all(ConcatSource([range10]), (0, 5)),
+                      list(range(5, 10)))
     self.assertEquals(read_all(ConcatSource([range10]), None, (0, 5)),
-                      range(5))
+                      list(range(5)))
 
   def test_source_with_empty_ranges(self):
     read_all = source_test_utils.read_from_source
@@ -190,11 +197,11 @@ class ConcatSourceTest(unittest.TestCase):
 
     range10 = RangeSource(0, 10)
     self.assertEquals(read_all(ConcatSource([empty, empty, range10])),
-                      range(10))
+                      list(range(10)))
     self.assertEquals(read_all(ConcatSource([empty, range10, empty])),
-                      range(10))
+                      list(range(10)))
     self.assertEquals(read_all(ConcatSource([range10, empty, range10, empty])),
-                      range(10) + range(10))
+                      list(range(10)) + list(range(10)))
 
   def test_source_with_empty_ranges_exhastive(self):
     empty = RangeSource(0, 0)
@@ -215,7 +222,7 @@ class ConcatSourceTest(unittest.TestCase):
                           ])
     pipeline = TestPipeline()
     pcoll = pipeline | beam.io.Read(source)
-    assert_that(pcoll, equal_to(range(1000)))
+    assert_that(pcoll, equal_to(list(range(1000))))
 
     pipeline.run()
 

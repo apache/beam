@@ -21,6 +21,9 @@ import com.google.api.services.dataflow.Dataflow;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -33,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -50,11 +52,9 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link View} for a {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
 public class DataflowViewTest {
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  @Mock
-  private Dataflow dataflow;
+  @Mock private Dataflow dataflow;
 
   @Before
   public void setUp() {
@@ -94,11 +94,11 @@ public class DataflowViewTest {
             new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
               @Override
               public PCollection<KV<String, Integer>> expand(PBegin input) {
-                return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
-                        input.getPipeline(),
-                        WindowingStrategy.globalDefault(),
-                        PCollection.IsBounded.UNBOUNDED)
-                    .setTypeDescriptor(new TypeDescriptor<KV<String, Integer>>() {});
+                return PCollection.createPrimitiveOutputInternal(
+                    input.getPipeline(),
+                    WindowingStrategy.globalDefault(),
+                    PCollection.IsBounded.UNBOUNDED,
+                    KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
               }
             })
         .apply(view);
@@ -111,109 +111,112 @@ public class DataflowViewTest {
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
         ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline.apply(Create.<KV<String, Integer>>of(KV.of("hello", 5)))
-        .apply(Window.<KV<String, Integer>>into(new InvalidWindows<>(
-            "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
+    pipeline
+        .apply(Create.of(KV.of("hello", 5)))
+        .apply(
+            Window.into(
+                new InvalidWindows<>(
+                    "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
         .apply(view);
   }
 
   @Test
   public void testViewUnboundedAsSingletonBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewUnbounded(createTestBatchRunner(), View.asSingleton());
   }
 
   @Test
   public void testViewUnboundedAsSingletonStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewUnbounded(createTestStreamingRunner(), View.asSingleton());
   }
 
   @Test
   public void testViewUnboundedAsIterableBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asIterable());
+    testViewUnbounded(createTestBatchRunner(), View.asIterable());
   }
 
   @Test
   public void testViewUnboundedAsIterableStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asIterable());
+    testViewUnbounded(createTestStreamingRunner(), View.asIterable());
   }
 
   @Test
   public void testViewUnboundedAsListBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asList());
+    testViewUnbounded(createTestBatchRunner(), View.asList());
   }
 
   @Test
   public void testViewUnboundedAsListStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asList());
+    testViewUnbounded(createTestStreamingRunner(), View.asList());
   }
 
   @Test
   public void testViewUnboundedAsMapBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<String, Integer>asMap());
+    testViewUnbounded(createTestBatchRunner(), View.asMap());
   }
 
   @Test
   public void testViewUnboundedAsMapStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<String, Integer>asMap());
+    testViewUnbounded(createTestStreamingRunner(), View.asMap());
   }
 
   @Test
   public void testViewUnboundedAsMultimapBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<String, Integer>asMultimap());
+    testViewUnbounded(createTestBatchRunner(), View.asMultimap());
   }
 
   @Test
   public void testViewUnboundedAsMultimapStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<String, Integer>asMultimap());
+    testViewUnbounded(createTestStreamingRunner(), View.asMultimap());
   }
 
   @Test
   public void testViewNonmergingAsSingletonBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewNonmerging(createTestBatchRunner(), View.asSingleton());
   }
 
   @Test
   public void testViewNonmergingAsSingletonStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewNonmerging(createTestStreamingRunner(), View.asSingleton());
   }
 
   @Test
   public void testViewNonmergingAsIterableBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asIterable());
+    testViewNonmerging(createTestBatchRunner(), View.asIterable());
   }
 
   @Test
   public void testViewNonmergingAsIterableStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asIterable());
+    testViewNonmerging(createTestStreamingRunner(), View.asIterable());
   }
 
   @Test
   public void testViewNonmergingAsListBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asList());
+    testViewNonmerging(createTestBatchRunner(), View.asList());
   }
 
   @Test
   public void testViewNonmergingAsListStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asList());
+    testViewNonmerging(createTestStreamingRunner(), View.asList());
   }
 
   @Test
   public void testViewNonmergingAsMapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<String, Integer>asMap());
+    testViewNonmerging(createTestBatchRunner(), View.asMap());
   }
 
   @Test
   public void testViewNonmergingAsMapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<String, Integer>asMap());
+    testViewNonmerging(createTestStreamingRunner(), View.asMap());
   }
 
   @Test
   public void testViewNonmergingAsMultimapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<String, Integer>asMultimap());
+    testViewNonmerging(createTestBatchRunner(), View.asMultimap());
   }
 
   @Test
   public void testViewNonmergingAsMultimapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<String, Integer>asMultimap());
+    testViewNonmerging(createTestStreamingRunner(), View.asMultimap());
   }
 }

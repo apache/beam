@@ -18,13 +18,12 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -32,6 +31,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -47,7 +48,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * <pre>{@code
  * events.apply(BigQueryIO.<UserEvent>write()
  *  .to(new DynamicDestinations<UserEvent, String>() {
- *        public String getDestination(ValueInSingleWindow<String> element) {
+ *        public String getDestination(ValueInSingleWindow<UserEvent> element) {
  *          return element.getValue().getUserId();
  *        }
  *        public TableDestination getTable(String user) {
@@ -65,8 +66,8 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * }</pre>
  *
  * <p>An instance of {@link DynamicDestinations} can also use side inputs using {@link
- * #sideInput(PCollectionView)}. The side inputs must be present in {@link #getSideInputs()}.
- * Side inputs are accessed in the global window, so they must be globally windowed.
+ * #sideInput(PCollectionView)}. The side inputs must be present in {@link #getSideInputs()}. Side
+ * inputs are accessed in the global window, so they must be globally windowed.
  *
  * <p>{@code DestinationT} is expected to provide proper hash and equality members. Ideally it will
  * be a compact type with an efficient coder, as these objects may be used as a key in a {@link
@@ -77,7 +78,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
   }
 
-  private SideInputAccessor sideInputAccessor;
+  @Nullable private transient SideInputAccessor sideInputAccessor;
 
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -103,8 +104,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   /**
    * Returns the value of a given side input. The view must be present in {@link #getSideInputs()}.
    */
-  protected <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-    checkArgument(
+  protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+    checkState(
         getSideInputs().contains(view),
         "View %s not declared in getSideInputs() (%s)",
         view,
@@ -112,11 +113,11 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     return sideInputAccessor.sideInput(view);
   }
 
-  void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
+  final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
     this.sideInputAccessor = sideInputAccessor;
   }
 
-  void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+  final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
   }
 
@@ -127,26 +128,21 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
 
   /**
-   * Returns the coder for {@link DestinationT}. If this is not overridden, then
-   * {@link BigQueryIO} will look in the coder registry for a suitable coder. This must be a
-   * deterministic coder, as {@link DestinationT} will be used as a key type in a
-   * {@link org.apache.beam.sdk.transforms.GroupByKey}.
+   * Returns the coder for {@link DestinationT}. If this is not overridden, then {@link BigQueryIO}
+   * will look in the coder registry for a suitable coder. This must be a deterministic coder, as
+   * {@link DestinationT} will be used as a key type in a {@link
+   * org.apache.beam.sdk.transforms.GroupByKey}.
    */
   @Nullable
   public Coder<DestinationT> getDestinationCoder() {
     return null;
   }
 
-  /**
-   * Returns a {@link TableDestination} object for the destination. May not return null.
-   */
+  /** Returns a {@link TableDestination} object for the destination. May not return null. */
   public abstract TableDestination getTable(DestinationT destination);
 
-  /**
-   * Returns the table schema for the destination. May not return null.
-   */
+  /** Returns the table schema for the destination. May not return null. */
   public abstract TableSchema getSchema(DestinationT destination);
-
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.
@@ -157,22 +153,20 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
       return destinationCoder;
     }
     // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-    // We must first use reflection to figure out what the type parameter is.
-    for (Type superclass = getClass().getGenericSuperclass();
-        superclass != null;
-        superclass = ((Class) superclass).getGenericSuperclass()) {
-      if (superclass instanceof ParameterizedType) {
-        ParameterizedType parameterized = (ParameterizedType) superclass;
-        if (parameterized.getRawType() == DynamicDestinations.class) {
-          // DestinationT is the second parameter.
-          Type parameter = parameterized.getActualTypeArguments()[1];
-          @SuppressWarnings("unchecked")
-          Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
-          return registry.getCoder(parameterClass);
-        }
-      }
+    TypeDescriptor<DestinationT> descriptor =
+        extractFromTypeParameters(
+            this,
+            DynamicDestinations.class,
+            new TypeDescriptors.TypeVariableExtractor<
+                DynamicDestinations<T, DestinationT>, DestinationT>() {});
+    try {
+      return registry.getCoder(descriptor);
+    } catch (CannotProvideCoderException e) {
+      throw new CannotProvideCoderException(
+          "Failed to infer coder for DestinationT from type "
+              + descriptor
+              + ", please provide it explicitly by overriding getDestinationCoder()",
+          e);
     }
-    throw new AssertionError(
-        "Couldn't find the DynamicDestinations superclass of " + this.getClass());
   }
 }

@@ -21,12 +21,11 @@ package org.apache.beam.runners.spark.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -42,23 +41,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Number of shards test.
- */
+/** Number of shards test. */
 public class NumShardsTest {
 
   private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob",
-      "hi sue", "", "bob hi"};
+    "hi there", "hi", "hi sue bob",
+    "hi sue", "", "bob hi"
+  };
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
   private File outputDir;
 
-  @Rule
-  public final TemporaryFolder tmpDir = new TemporaryFolder();
+  @Rule public final TemporaryFolder tmpDir = new TemporaryFolder();
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
   @Before
   public void setUp() throws IOException {
@@ -69,26 +65,24 @@ public class NumShardsTest {
   @Test
   public void testText() throws Exception {
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
-    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    PCollection<String> output =
+        inputWords
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
     output.apply(
         TextIO.write().to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
     p.run().waitUntilFinish();
 
     int count = 0;
     Set<String> expected = Sets.newHashSet("hi: 5", "there: 1", "sue: 2", "bob: 2");
-    for (File f : tmpDir.getRoot().listFiles(new FileFilter() {
-      @Override public boolean accept(File pathname) {
-        return pathname.getName().matches("out-.*\\.txt");
-      }
-    })) {
+    for (File f :
+        tmpDir.getRoot().listFiles(pathname -> pathname.getName().matches("out-.*\\.txt"))) {
       count++;
-      for (String line : Files.readLines(f, Charsets.UTF_8)) {
+      for (String line : Files.readLines(f, StandardCharsets.UTF_8)) {
         assertTrue(line + " not found", expected.remove(line));
       }
     }
     assertEquals(3, count);
     assertTrue(expected.isEmpty());
   }
-
 }

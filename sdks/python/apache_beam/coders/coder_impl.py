@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -24,30 +26,42 @@ encode many elements with minimal overhead.
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
+Py2/3 porting: Native range is used on both python versions instead of
+future.builtins.range to avoid performance regression in Cython compiled code.
+
 For internal use only; no backwards-compatibility guarantees.
 """
-from types import NoneType
+from __future__ import absolute_import
+from __future__ import division
+
+from builtins import chr
+from builtins import object
+
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
-from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import InputStream as create_InputStream
-  from stream import OutputStream as create_OutputStream
-  from stream import ByteCountingOutputStream
-  from stream import get_varint_size
+  from .stream import InputStream as create_InputStream
+  from .stream import OutputStream as create_OutputStream
+  from .stream import ByteCountingOutputStream
+  from .stream import get_varint_size
+  # Make it possible to import create_InputStream and other cdef-classes
+  # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
 except ImportError:
-  from slow_stream import InputStream as create_InputStream
-  from slow_stream import OutputStream as create_OutputStream
-  from slow_stream import ByteCountingOutputStream
-  from slow_stream import get_varint_size
+  from .slow_stream import InputStream as create_InputStream
+  from .slow_stream import OutputStream as create_OutputStream
+  from .slow_stream import ByteCountingOutputStream
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -70,9 +84,19 @@ class CoderImpl(object):
     """Decodes an object to an unnested string."""
     raise NotImplementedError
 
+  def encode_nested(self, value):
+    out = create_OutputStream()
+    self.encode_to_stream(value, out, True)
+    return out.get()
+
+  def decode_nested(self, encoded):
+    return self.decode_from_stream(create_InputStream(encoded), True)
+
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
-    return self._get_nested_size(len(self.encode(value)), nested)
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count()
 
   def _get_nested_size(self, inner_size, nested):
     if not nested:
@@ -182,7 +206,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (str, unicode, long, int, float)):
+    if isinstance(value, (bytes, unicode, long, int, float)):
       pass
     elif value is None:
       pass
@@ -236,7 +260,7 @@ UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1
 FLOAT_TYPE = 2
-STR_TYPE = 3
+BYTES_TYPE = 3
 UNICODE_TYPE = 4
 BOOL_TYPE = 9
 LIST_TYPE = 5
@@ -262,7 +286,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
       stream.write_byte(INT_TYPE)
@@ -270,13 +294,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
-    elif t is str:
-      stream.write_byte(STR_TYPE)
+    elif t is bytes:
+      stream.write_byte(BYTES_TYPE)
       stream.write(value, nested)
     elif t is unicode:
-      unicode_value = value  # for typing
+      text_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
-      stream.write(unicode_value.encode('utf-8'), nested)
+      stream.write(text_value.encode('utf-8'), nested)
     elif t is list or t is tuple or t is set:
       stream.write_byte(
           LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
@@ -287,7 +311,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      for k, v in dict_value.iteritems():
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
     elif t is bool:
@@ -305,7 +329,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return stream.read_var_int64()
     elif t == FLOAT_TYPE:
       return stream.read_bigendian_double()
-    elif t == STR_TYPE:
+    elif t == BYTES_TYPE:
       return stream.read_all(nested)
     elif t == UNICODE_TYPE:
       return stream.read_all(nested).decode('utf-8')
@@ -377,8 +401,9 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros
-    out.write_bigendian_uint64(self._from_normal_time(value.end.micros / 1000))
-    out.write_var_int64(span_micros / 1000)
+    out.write_bigendian_uint64(
+        self._from_normal_time(value.end.micros // 1000))
+    out.write_var_int64(span_micros // 1000)
 
   def decode_from_stream(self, in_, nested):
     end_millis = self._to_normal_time(in_.read_bigendian_uint64())
@@ -392,7 +417,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(span / 1000)
+    return 8 + get_varint_size(span // 1000)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
@@ -410,7 +435,7 @@ class TimestampCoderImpl(StreamCoderImpl):
     return 8
 
 
-small_ints = [chr(_) for _ in range(128)]
+small_ints = [chr(_).encode('latin-1') for _ in range(128)]
 
 
 class VarIntCoderImpl(StreamCoderImpl):
@@ -457,7 +482,7 @@ class SingletonCoderImpl(CoderImpl):
     return self._value
 
   def encode(self, value):
-    b = ''  # avoid byte vs str vs unicode error
+    b = b''  # avoid byte vs str vs unicode error
     return b
 
   def decode(self, encoded):
@@ -655,6 +680,82 @@ class IterableCoderImpl(SequenceCoderImpl):
     return components
 
 
+class PaneInfoEncoding(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Encoding used to describe a PaneInfo descriptor.  A PaneInfo descriptor
+  can be encoded in three different ways: with a single byte (FIRST), with a
+  single byte followed by a varint describing a single index (ONE_INDEX) or
+  with a single byte followed by two varints describing two separate indices:
+  the index and nonspeculative index.
+  """
+
+  FIRST = 0
+  ONE_INDEX = 1
+  TWO_INDICES = 2
+
+
+class PaneInfoCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder for a PaneInfo descriptor."""
+
+  def _choose_encoding(self, value):
+    if ((value.index == 0 and value.nonspeculative_index == 0) or
+        value.timing == windowed_value.PaneInfoTiming.UNKNOWN):
+      return PaneInfoEncoding.FIRST
+    elif (value.index == value.nonspeculative_index or
+          value.timing == windowed_value.PaneInfoTiming.EARLY):
+      return PaneInfoEncoding.ONE_INDEX
+    else:
+      return PaneInfoEncoding.TWO_INDICES
+
+  def encode_to_stream(self, value, out, nested):
+    encoding_type = self._choose_encoding(value)
+    out.write_byte(value.encoded_byte | (encoding_type << 4))
+    if encoding_type == PaneInfoEncoding.FIRST:
+      return
+    elif encoding_type == PaneInfoEncoding.ONE_INDEX:
+      out.write_var_int64(value.index)
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      out.write_var_int64(value.index)
+      out.write_var_int64(value.nonspeculative_index)
+    else:
+      raise NotImplementedError('Invalid PaneInfoEncoding: %s' % encoding_type)
+
+  def decode_from_stream(self, in_stream, nested):
+    encoded_first_byte = in_stream.read_byte()
+    base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
+    assert base is not None
+    encoding_type = encoded_first_byte >> 4
+    if encoding_type == PaneInfoEncoding.FIRST:
+      return base
+    elif encoding_type == PaneInfoEncoding.ONE_INDEX:
+      index = in_stream.read_var_int64()
+      if base.timing == windowed_value.PaneInfoTiming.EARLY:
+        nonspeculative_index = -1
+      else:
+        nonspeculative_index = index
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      index = in_stream.read_var_int64()
+      nonspeculative_index = in_stream.read_var_int64()
+    else:
+      raise NotImplementedError('Invalid PaneInfoEncoding: %s' % encoding_type)
+    return windowed_value.PaneInfo(
+        base.is_first, base.is_last, base.timing, index, nonspeculative_index)
+
+  def estimate_size(self, value, nested=False):
+    """Estimates the encoded size of the given value, in bytes."""
+    size = 1
+    encoding_type = self._choose_encoding(value)
+    if encoding_type == PaneInfoEncoding.ONE_INDEX:
+      size += get_varint_size(value.index)
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      size += get_varint_size(value.index)
+      size += get_varint_size(value.nonspeculative_index)
+    return size
+
+
 class WindowedValueCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -677,6 +778,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
+    self._pane_info_coder = PaneInfoCoderImpl()
 
   def encode_to_stream(self, value, out, nested):
     wv = value  # type cast
@@ -689,11 +791,10 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) / 1000)))
+            restore_sign * (abs(wv.timestamp_micros) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
-    # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
-    out.write_byte(0xF)
+    self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
     self._value_coder.encode_to_stream(wv.value, out, nested)
 
   def decode_from_stream(self, in_stream, nested):
@@ -704,9 +805,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros / 1000):
+    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000
@@ -717,15 +818,14 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.
-    # TODO(BEAM-1522): Ignored for now but should be converted to pane info once
-    # it is supported.
-    in_stream.read_byte()
+    pane_info = self._pane_info_coder.decode_from_stream(in_stream, True)
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
         value,
         # Avoid creation of Timestamp object.
         timestamp,
-        windows)
+        windows,
+        pane_info)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
@@ -744,8 +844,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         self._timestamp_coder.estimate_size(value.timestamp, nested=True))
     estimated_size += (
         self._windows_coder.estimate_size(value.windows, nested=True))
-    # for pane info
-    estimated_size += 1
+    estimated_size += (
+        self._pane_info_coder.estimate_size(value.pane_info, nested=True))
     return estimated_size, observables
 
 

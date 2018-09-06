@@ -41,16 +41,16 @@ import org.apache.beam.sdk.state.TimeDomain;
  * than that watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics
  * can often be quite accurate, but the chance of seeing late data for any given window is non-zero.
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
- * using a trigger that accounts for late data. The default trigger,
- * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires
- * once when the watermark passes the end of the window and then immediately therafter when any
- * late data arrives, is one such example.
+ * using a trigger that accounts for late data. The default trigger, {@code
+ * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires once when the watermark passes
+ * the end of the window and then immediately therafter when any late data arrives, is one such
+ * example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * <p>Additionaly firings before or after the watermark can be requested by calling
- * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
- * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
+ * <p>Additionaly firings before or after the watermark can be requested by calling {@code
+ * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
+ * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermarkStateMachine {
@@ -60,32 +60,27 @@ public class AfterWatermarkStateMachine {
   // Static factory class.
   private AfterWatermarkStateMachine() {}
 
-  /**
-   * Creates a trigger that fires when the watermark passes the end of the window.
-   */
+  /** Creates a trigger that fires when the watermark passes the end of the window. */
   public static FromEndOfWindow pastEndOfWindow() {
     return new FromEndOfWindow();
   }
 
-  /**
-   * @see AfterWatermarkStateMachine
-   */
+  /** @see AfterWatermarkStateMachine */
   public static class AfterWatermarkEarlyAndLate extends TriggerStateMachine {
 
     private static final int EARLY_INDEX = 0;
     private static final int LATE_INDEX = 1;
 
     private final TriggerStateMachine earlyTrigger;
-    @Nullable
-    private final TriggerStateMachine lateTrigger;
+    @Nullable private final TriggerStateMachine lateTrigger;
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(
         TriggerStateMachine earlyTrigger, TriggerStateMachine lateTrigger) {
       super(
           lateTrigger == null
-              ? ImmutableList.<TriggerStateMachine>of(earlyTrigger)
-              : ImmutableList.<TriggerStateMachine>of(earlyTrigger, lateTrigger));
+              ? ImmutableList.of(earlyTrigger)
+              : ImmutableList.of(earlyTrigger, lateTrigger));
       this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }
@@ -100,6 +95,10 @@ public class AfterWatermarkStateMachine {
 
     @Override
     public void onElement(OnElementContext c) throws Exception {
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
+
       if (!c.trigger().isMerging()) {
         // If merges can never happen, we just run the unfinished subtrigger
         c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
@@ -180,17 +179,11 @@ public class AfterWatermarkStateMachine {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
       if (!(earlyTrigger instanceof NeverStateMachine)) {
-        builder
-            .append(".withEarlyFirings(")
-            .append(earlyTrigger)
-            .append(")");
+        builder.append(".withEarlyFirings(").append(earlyTrigger).append(")");
       }
 
       if (lateTrigger != null && !(lateTrigger instanceof NeverStateMachine)) {
-        builder
-            .append(".withLateFirings(")
-            .append(lateTrigger)
-            .append(")");
+        builder.append(".withLateFirings(").append(lateTrigger).append(")");
       }
 
       return builder.toString();
@@ -225,7 +218,6 @@ public class AfterWatermarkStateMachine {
           context.trigger().subTrigger(LATE_INDEX).invokeClear(context);
         }
       }
-
     }
 
     private void onLateFiring(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -238,9 +230,7 @@ public class AfterWatermarkStateMachine {
     }
   }
 
-  /**
-   * A watermark trigger targeted relative to the end of the window.
-   */
+  /** A watermark trigger targeted relative to the end of the window. */
   public static class FromEndOfWindow extends TriggerStateMachine {
 
     private FromEndOfWindow() {
@@ -248,8 +238,8 @@ public class AfterWatermarkStateMachine {
     }
 
     /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires before the watermark has passed the end of the window.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever the
+     * given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withEarlyFirings(TriggerStateMachine earlyFirings) {
       checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
@@ -257,8 +247,8 @@ public class AfterWatermarkStateMachine {
     }
 
     /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires after the watermark has passed the end of the window.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever the
+     * given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withLateFirings(TriggerStateMachine lateFirings) {
       checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
@@ -270,7 +260,9 @@ public class AfterWatermarkStateMachine {
       // We're interested in knowing when the input watermark passes the end of the window.
       // (It is possible this has already happened, in which case the timer will be fired
       // almost immediately).
-      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
     }
 
     @Override

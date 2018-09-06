@@ -16,19 +16,23 @@
 #
 
 """Unit tests for the windowing classes."""
+from __future__ import absolute_import
+from __future__ import division
 
 import unittest
+from builtins import range
 
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import CombinePerKey
-from apache_beam.transforms import combiners
-from apache_beam.transforms import core
 from apache_beam.transforms import Create
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms import combiners
+from apache_beam.transforms import core
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
@@ -36,9 +40,9 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
@@ -50,7 +54,7 @@ def context(element, timestamp):
   return WindowFn.AssignContext(timestamp, element)
 
 
-sort_values = Map(lambda (k, vs): (k, sorted(vs)))
+sort_values = Map(lambda k_vs: (k_vs[0], sorted(k_vs[1])))
 
 
 class ReifyWindowsFn(core.DoFn):
@@ -76,6 +80,7 @@ class WindowTest(unittest.TestCase):
                         IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
     self.assertNotEqual(IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
                         GlobalWindow())
+    self.assertTrue(GlobalWindow().max_timestamp() < MAX_TIMESTAMP)
 
   def test_fixed_windows(self):
     # Test windows with offset: 2, 7, 12, 17, ...
@@ -194,7 +199,7 @@ class WindowTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (p
                 | 'start' >> Create([(k, k) for k in range(10)])
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t: TimestampedValue(x_t[0], x_t[1]))
                 | 'w' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
                 | GroupByKey())
@@ -205,7 +210,7 @@ class WindowTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (p
                 | Create([(k, k) for k in range(10)])
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t1: TimestampedValue(x_t1[0], x_t1[1]))
                 | 'window' >> WindowInto(SlidingWindows(period=2, size=6))
                 # Per the model, each element is now duplicated across
                 # three windows. Rewindowing must preserve this duplication.
@@ -231,11 +236,11 @@ class WindowTest(unittest.TestCase):
                 # Now there are values 5 ms apart and since Map propagates the
                 # windowing function from input to output the output PCollection
                 # will have elements falling into different 5ms windows.
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t2: TimestampedValue(x_t2[0], x_t2[1]))
                 # We add a 'key' to each value representing the index of the
                 # window. This is important since there is no guarantee of
                 # order for the elements of a PCollection.
-                | Map(lambda v: (v / 5, v)))
+                | Map(lambda v: (v // 5, v)))
       # Sum all elements associated with a key and window. Although it
       # is called CombinePerKey it is really CombinePerKeyAndWindow the
       # same way GroupByKey is really GroupByKeyAndWindow.

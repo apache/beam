@@ -50,6 +50,8 @@ import argparse
 import logging
 import re
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -106,7 +108,11 @@ def run(argv=None):
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
     # Format the counts into a PCollection of strings.
-    output = counts | 'Format' >> beam.Map(lambda (w, c): '%s: %s' % (w, c))
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
+
+    output = counts | 'Format' >> beam.Map(format_result)
 
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned

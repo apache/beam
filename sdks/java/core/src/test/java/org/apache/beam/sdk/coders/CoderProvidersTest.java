@@ -29,29 +29,28 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CoderProviders}.
- */
+/** Tests for {@link CoderProviders}. */
 @RunWith(JUnit4.class)
 public class CoderProvidersTest {
   @Test
   public void testCoderProvidersFromStaticMethodsForParameterlessTypes() throws Exception {
     CoderProvider factory = CoderProviders.fromStaticMethods(String.class, StringUtf8Coder.class);
-    assertEquals(StringUtf8Coder.of(),
-        factory.coderFor(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
+    assertEquals(
+        StringUtf8Coder.of(), factory.coderFor(TypeDescriptors.strings(), Collections.emptyList()));
 
     factory = CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class);
-    assertEquals(DoubleCoder.of(),
-        factory.coderFor(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
+    assertEquals(
+        DoubleCoder.of(), factory.coderFor(TypeDescriptors.doubles(), Collections.emptyList()));
 
     factory = CoderProviders.fromStaticMethods(byte[].class, ByteArrayCoder.class);
-    assertEquals(ByteArrayCoder.of(),
-        factory.coderFor(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
+    assertEquals(
+        ByteArrayCoder.of(),
+        factory.coderFor(TypeDescriptor.of(byte[].class), Collections.emptyList()));
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link KvCoder KvCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link KvCoder KvCoder.class}.
    */
   @Test
   public void testKvCoderProvider() throws Exception {
@@ -64,8 +63,8 @@ public class CoderProvidersTest {
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link ListCoder ListCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link ListCoder ListCoder.class}.
    */
   @Test
   public void testListCoderProvider() throws Exception {
@@ -78,8 +77,8 @@ public class CoderProvidersTest {
   }
 
   /**
-   * Checks that {#link CoderProviders.fromStaticMethods} successfully
-   * builds a working {@link CoderProvider} from {@link IterableCoder IterableCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully builds a working {@link
+   * CoderProvider} from {@link IterableCoder IterableCoder.class}.
    */
   @Test
   public void testIterableCoderProvider() throws Exception {

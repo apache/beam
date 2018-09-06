@@ -20,15 +20,15 @@ cimport cython
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
 cdef WindowedValue _globally_windowed_value
 cdef type _global_window_type
 
+
 cdef class ConsumerSet(Receiver):
   cdef list consumers
-  cdef opcounters.OperationCounters opcounter
+  cdef readonly opcounters.OperationCounters opcounter
   cdef public step_name
   cdef public output_index
   cdef public coder
@@ -39,12 +39,12 @@ cdef class ConsumerSet(Receiver):
 
 
 cdef class Operation(object):
+  cdef readonly name_context
   cdef readonly operation_name
   cdef readonly spec
   cdef object consumers
   cdef readonly counter_factory
   cdef public metrics_container
-  cdef public ScopedMetricsContainer scoped_metrics_container
   # Public for access by Fn harness operations.
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
@@ -61,22 +61,25 @@ cdef class Operation(object):
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
-
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
+  cpdef progress_metrics(self)
+
 
 cdef class ReadOperation(Operation):
   @cython.locals(windowed_value=WindowedValue)
   cpdef start(self)
 
+
 cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
+  cdef object tagged_receivers
+  cdef object side_input_maps
+
 
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn
 
-cdef class FlattenOperation(Operation):
-  pass
 
 cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
@@ -87,3 +90,6 @@ cdef class PGBKCVOperation(Operation):
 
   cpdef output_key(self, tuple wkey, value)
 
+
+cdef class FlattenOperation(Operation):
+  pass

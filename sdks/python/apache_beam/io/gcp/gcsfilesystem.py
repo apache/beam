@@ -18,12 +18,15 @@
 
 from __future__ import absolute_import
 
+from builtins import zip
+
+from future.utils import iteritems
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-from apache_beam.io.filesystem import MatchResult
 from apache_beam.io.gcp import gcsio
 
 __all__ = ['GCSFileSystem']
@@ -52,7 +55,7 @@ class GCSFileSystem(FileSystem):
     Returns: full path after combining all the passed components
     """
     if not basepath.startswith(GCSFileSystem.GCS_PREFIX):
-      raise ValueError('Basepath %r must be GCS path.', basepath)
+      raise ValueError('Basepath %r must be GCS path.' % basepath)
     path = basepath
     for p in paths:
       path = path.rstrip('/') + '/' + p.lstrip('/')
@@ -73,7 +76,7 @@ class GCSFileSystem(FileSystem):
     """
     path = path.strip()
     if not path.startswith(GCSFileSystem.GCS_PREFIX):
-      raise ValueError('Path %r must be GCS path.', path)
+      raise ValueError('Path %r must be GCS path.' % path)
 
     prefix_len = len(GCSFileSystem.GCS_PREFIX)
     last_sep = path[prefix_len:].rfind('/')
@@ -85,7 +88,7 @@ class GCSFileSystem(FileSystem):
     elif last_sep < 0:
       return (path, '')
     else:
-      raise ValueError('Invalid path: %s', path)
+      raise ValueError('Invalid path: %s' % path)
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
@@ -98,45 +101,30 @@ class GCSFileSystem(FileSystem):
     """
     pass
 
-  def match(self, patterns, limits=None):
-    """Find all matching paths to the pattern provided.
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    return False
+
+  def _list(self, dir_or_prefix):
+    """List files in a location.
+
+    Listing is non-recursive, for filesystems that support directories.
 
     Args:
-      pattern: string for the file path pattern to match against
-      limit: Maximum number of responses that need to be fetched
+      dir_or_prefix: (string) A directory or location prefix (for filesystems
+        that don't have directories).
 
-    Returns: list of ``MatchResult`` objects.
+    Returns:
+      Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if any of the pattern match operations fail
+      ``BeamIOError`` if listing fails, but not if no files were found.
     """
-    if limits is None:
-      limits = [None] * len(patterns)
-    else:
-      err_msg = "Patterns and limits should be equal in length"
-      assert len(patterns) == len(limits), err_msg
-
-    def _match(pattern, limit):
-      """Find all matching paths to the pattern provided.
-      """
-      if pattern.endswith('/'):
-        pattern += '*'
-      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern, limit)
-      metadata_list = [FileMetadata(path, size)
-                       for path, size in file_sizes.iteritems()]
-      return MatchResult(pattern, metadata_list)
-
-    exceptions = {}
-    result = []
-    for pattern, limit in zip(patterns, limits):
-      try:
-        result.append(_match(pattern, limit))
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[pattern] = e
-
-    if exceptions:
-      raise BeamIOError("Match operation failed", exceptions)
-    return result
+    try:
+      for path, size in iteritems(gcsio.GcsIO().list_prefix(dir_or_prefix)):
+        yield FileMetadata(path, size)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _path_open(self, path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
@@ -193,7 +181,7 @@ class GCSFileSystem(FileSystem):
       """Recursively copy the file tree from the source to the destination
       """
       if not destination.startswith(GCSFileSystem.GCS_PREFIX):
-        raise ValueError('Destination %r must be GCS path.', destination)
+        raise ValueError('Destination %r must be GCS path.' % destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):
         gcsio.GcsIO().copytree(source, destination)
@@ -264,6 +252,49 @@ class GCSFileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     return gcsio.GcsIO().exists(path)
+
+  def size(self, path):
+    """Get size of path on the FileSystem.
+
+    Args:
+      path: string path in question.
+
+    Returns: int size of path according to the FileSystem.
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    return gcsio.GcsIO().size(path)
+
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    return gcsio.GcsIO().last_updated(path)
+
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    try:
+      return gcsio.GcsIO().checksum(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Checksum operation failed", {path: e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

@@ -44,32 +44,27 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Integration test for {@link FlattenPCollectionTranslator}.
- */
+/** Integration test for {@link FlattenPCollectionTranslator}. */
 public class FlattenPCollectionTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(FlattenPCollectionTranslatorTest.class);
 
   @Test
   public void test() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-    options.setApplicationName("FlattenPCollection");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    String[][] collections = {
-        {"1"}, {"2"}, {"3"}, {"4"}, {"5"}
-    };
+    String[][] collections = {{"1"}, {"2"}, {"3"}, {"4"}, {"5"}};
 
     Set<String> expected = Sets.newHashSet();
-    List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
+    List<PCollection<String>> pcList = new ArrayList<>();
     for (String[] collection : collections) {
       pcList.add(
           p.apply(Create.of(ImmutableList.copyOf(collection)).withCoder(StringUtf8Coder.of())));
       expected.addAll(Arrays.asList(collection));
     }
 
-    PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.<String>pCollections());
+    PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.pCollections());
     actual.apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
@@ -100,11 +95,11 @@ public class FlattenPCollectionTranslatorTest {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     Pipeline p = Pipeline.create();
     PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
-    PCollectionList.of(single).apply(Flatten.<String>pCollections())
-      .apply(ParDo.of(new EmbeddedCollector()));
+    PCollectionList.of(single)
+        .apply(Flatten.pCollections())
+        .apply(ParDo.of(new EmbeddedCollector()));
     DAG dag = TestApexRunner.translate(p, options);
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
-
 }

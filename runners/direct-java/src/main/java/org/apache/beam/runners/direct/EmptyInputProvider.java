@@ -24,7 +24,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-/** A {@link RootInputProvider} that provides a singleton empty bundle. */
+/** A {@link RootInputProvider} that provides no input bundles. */
 class EmptyInputProvider<T> implements RootInputProvider<T, Void, PCollectionList<T>> {
   EmptyInputProvider() {}
 

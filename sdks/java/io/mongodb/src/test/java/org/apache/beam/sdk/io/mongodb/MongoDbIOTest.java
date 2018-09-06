@@ -40,13 +40,12 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,9 +59,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Test on the MongoDbIO.
- */
+/** Test on the MongoDbIO. */
 public class MongoDbIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
@@ -78,12 +75,9 @@ public class MongoDbIOTest implements Serializable {
 
   private static int port;
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  /**
-   * Looking for an available network port.
-   */
+  /** Looking for an available network port. */
   @BeforeClass
   public static void availablePort() throws Exception {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
@@ -100,18 +94,20 @@ public class MongoDbIOTest implements Serializable {
 
     }
     new File(MONGODB_LOCATION).mkdirs();
-    IMongodConfig mongodConfig = new MongodConfigBuilder()
-        .version(Version.Main.PRODUCTION)
-        .configServer(false)
-        .replication(new Storage(MONGODB_LOCATION, null, 0))
-        .net(new Net("localhost", port, Network.localhostIsIPv6()))
-        .cmdOptions(new MongoCmdOptionsBuilder()
-            .syncDelay(10)
-            .useNoPrealloc(true)
-            .useSmallFiles(true)
-            .useNoJournal(true)
-            .build())
-        .build();
+    IMongodConfig mongodConfig =
+        new MongodConfigBuilder()
+            .version(Version.Main.PRODUCTION)
+            .configServer(false)
+            .replication(new Storage(MONGODB_LOCATION, null, 0))
+            .net(new Net("localhost", port, Network.localhostIsIPv6()))
+            .cmdOptions(
+                new MongoCmdOptionsBuilder()
+                    .syncDelay(10)
+                    .useNoPrealloc(true)
+                    .useSmallFiles(true)
+                    .useNoJournal(true)
+                    .build())
+            .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
@@ -122,8 +118,18 @@ public class MongoDbIOTest implements Serializable {
 
     MongoCollection collection = database.getCollection(COLLECTION);
 
-    String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
-        "Newton", "Bohr", "Galilei", "Maxwell"};
+    String[] scientists = {
+      "Einstein",
+      "Darwin",
+      "Copernicus",
+      "Pasteur",
+      "Curie",
+      "Faraday",
+      "Newton",
+      "Bohr",
+      "Galilei",
+      "Maxwell"
+    };
     for (int i = 1; i <= 1000; i++) {
       int index = i % scientists.length;
       Document document = new Document();
@@ -131,7 +137,6 @@ public class MongoDbIOTest implements Serializable {
       document.append("scientist", scientists[index]);
       collection.insertOne(document);
     }
-
   }
 
   @After
@@ -150,77 +155,83 @@ public class MongoDbIOTest implements Serializable {
     List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, null);
     assertEquals(4, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
-    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\"),$lte:ObjectId(\"109\")}} ]}",
-        filters.get(1));
-    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"109\"),$lte:ObjectId(\"256\")}} ]}",
-        filters.get(2));
+    assertEquals(
+        "{ $and: [ {\"_id\":{$gt:ObjectId(\"56\"),$lte:ObjectId(\"109\")}} ]}", filters.get(1));
+    assertEquals(
+        "{ $and: [ {\"_id\":{$gt:ObjectId(\"109\"),$lte:ObjectId(\"256\")}} ]}", filters.get(2));
     assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"256\")}} ]}", filters.get(3));
   }
 
   @Test
   public void testFullRead() throws Exception {
 
-    PCollection<Document> output = pipeline.apply(
-        MongoDbIO.read()
-          .withUri("mongodb://localhost:" + port)
-          .withDatabase(DATABASE)
-          .withCollection(COLLECTION));
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION));
 
-    PAssert.thatSingleton(output.apply("Count All", Count.<Document>globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
 
-    PAssert.that(output
-        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
-          public KV<String, Void> apply(Document input) {
-            return KV.of(input.getString("scientist"), null);
-          }
-        }))
-        .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-      @Override
-      public Void apply(Iterable<KV<String, Long>> input) {
-        for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
-        }
-        return null;
-      }
-    });
+    PAssert.that(
+            output
+                .apply(
+                    "Map Scientist",
+                    MapElements.via(
+                        new SimpleFunction<Document, KV<String, Void>>() {
+                          @Override
+                          public KV<String, Void> apply(Document input) {
+                            return KV.of(input.getString("scientist"), null);
+                          }
+                        }))
+                .apply("Count Scientist", Count.perKey()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(100L, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
 
   @Test
   public void testReadWithCustomConnectionOptions() throws Exception {
-    MongoDbIO.Read read = MongoDbIO.read()
-        .withUri("mongodb://localhost:" + port)
-        .withKeepAlive(false)
-        .withMaxConnectionIdleTime(10)
-        .withDatabase(DATABASE)
-        .withCollection(COLLECTION);
+    MongoDbIO.Read read =
+        MongoDbIO.read()
+            .withUri("mongodb://localhost:" + port)
+            .withKeepAlive(false)
+            .withMaxConnectionIdleTime(10)
+            .withDatabase(DATABASE)
+            .withCollection(COLLECTION);
     assertFalse(read.keepAlive());
     assertEquals(10, read.maxConnectionIdleTime());
 
     PCollection<Document> documents = pipeline.apply(read);
 
-    PAssert.thatSingleton(documents.apply("Count All", Count.<Document>globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(documents.apply("Count All", Count.globally())).isEqualTo(1000L);
 
-    PAssert.that(documents
-        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
-          public KV<String, Void> apply(Document input) {
-            return KV.of(input.getString("scientist"), null);
-          }
-        }))
-        .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-      @Override
-      public Void apply(Iterable<KV<String, Long>> input) {
-        for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
-        }
-        return null;
-      }
-    });
+    PAssert.that(
+            documents
+                .apply(
+                    "Map Scientist",
+                    MapElements.via(
+                        new SimpleFunction<Document, KV<String, Void>>() {
+                          @Override
+                          public KV<String, Void> apply(Document input) {
+                            return KV.of(input.getString("scientist"), null);
+                          }
+                        }))
+                .apply("Count Scientist", Count.perKey()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(100L, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -228,15 +239,15 @@ public class MongoDbIOTest implements Serializable {
   @Test
   public void testReadWithFilter() throws Exception {
 
-    PCollection<Document> output = pipeline.apply(
-        MongoDbIO.read()
-        .withUri("mongodb://localhost:" + port)
-        .withDatabase(DATABASE)
-        .withCollection(COLLECTION)
-        .withFilter("{\"scientist\":\"Einstein\"}"));
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withFilter("{\"scientist\":\"Einstein\"}"));
 
-    PAssert.thatSingleton(output.apply("Count", Count.<Document>globally()))
-        .isEqualTo(100L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
 
     pipeline.run();
   }
@@ -248,9 +259,13 @@ public class MongoDbIOTest implements Serializable {
     for (int i = 0; i < 10000; i++) {
       data.add(Document.parse(String.format("{\"scientist\":\"Test %s\"}", i)));
     }
-    pipeline.apply(Create.of(data))
-        .apply(MongoDbIO.write().withUri("mongodb://localhost:" + port).withDatabase("test")
-            .withCollection("test"));
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            MongoDbIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase("test")
+                .withCollection("test"));
 
     pipeline.run();
 
@@ -266,8 +281,28 @@ public class MongoDbIOTest implements Serializable {
       cursor.next();
     }
 
-    Assert.assertEquals(10000, count);
-
+    assertEquals(10000, count);
   }
 
+  @Test
+  public void testWriteEmptyCollection() throws Exception {
+    final String emptyCollection = "empty";
+
+    final PCollection<Document> emptyInput =
+        pipeline.apply(Create.empty(SerializableCoder.of(Document.class)));
+
+    emptyInput.apply(
+        MongoDbIO.write()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE)
+            .withCollection(emptyCollection));
+
+    pipeline.run();
+
+    final MongoClient client = new MongoClient("localhost", port);
+    final MongoDatabase database = client.getDatabase(DATABASE);
+    final MongoCollection collection = database.getCollection(emptyCollection);
+
+    Assert.assertEquals(0, collection.count());
+  }
 }

@@ -29,14 +29,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.ReadableInstant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LateDataUtils}.
- */
+/** Tests for {@link LateDataUtils}. */
 @RunWith(JUnit4.class)
 public class LateDataUtilsTest {
   @Test
@@ -57,14 +54,10 @@ public class LateDataUtilsTest {
   @Test
   public void garbageCollectionTimeAfterEndOfGlobalWindow() {
     FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(5));
-    WindowingStrategy<?, ?> strategy =
-        WindowingStrategy.globalDefault()
-            .withWindowFn(windowFn);
+    WindowingStrategy<?, ?> strategy = WindowingStrategy.globalDefault().withWindowFn(windowFn);
 
     IntervalWindow window = windowFn.assignWindow(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertThat(
-        window.maxTimestamp(),
-        Matchers.<ReadableInstant>greaterThan(GlobalWindow.INSTANCE.maxTimestamp()));
+    assertThat(window.maxTimestamp(), equalTo(GlobalWindow.INSTANCE.maxTimestamp()));
     assertThat(
         LateDataUtils.garbageCollectionTime(window, strategy),
         equalTo(GlobalWindow.INSTANCE.maxTimestamp()));
@@ -82,7 +75,7 @@ public class LateDataUtilsTest {
     IntervalWindow window = windowFn.assignWindow(new Instant(-100));
     assertThat(
         window.maxTimestamp().plus(allowedLateness),
-        Matchers.<ReadableInstant>greaterThan(GlobalWindow.INSTANCE.maxTimestamp()));
+        Matchers.greaterThan(GlobalWindow.INSTANCE.maxTimestamp()));
     assertThat(
         LateDataUtils.garbageCollectionTime(window, strategy),
         equalTo(GlobalWindow.INSTANCE.maxTimestamp()));

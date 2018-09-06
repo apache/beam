@@ -425,16 +425,18 @@ public class Regex {
       this.group = group;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.matches()) {
-                    c.output(m.group(group));
+                    r.output(m.group(group));
                   }
                 }
               }));
@@ -467,16 +469,18 @@ public class Regex {
       this.groupName = groupName;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.matches()) {
-                    c.output(m.group(groupName));
+                    r.output(m.group(groupName));
                   }
                 }
               }));
@@ -485,9 +489,8 @@ public class Regex {
 
   /**
    * {@code Regex.MatchesName<String>} takes a {@code PCollection<String>} and returns a {@code
-   * PCollection<List<String>>} representing the value extracted from all the
-   * Regex groups of the input
-   * {@code PCollection} to the number of times that element occurs in the input.
+   * PCollection<List<String>>} representing the value extracted from all the Regex groups of the
+   * input {@code PCollection} to the number of times that element occurs in the input.
    *
    * <p>This transform runs a Regex on the entire input line. If the entire line does not match the
    * Regex, the line will not be output. If it does match the entire line, the groups in the Regex
@@ -509,13 +512,15 @@ public class Regex {
       this.pattern = pattern;
     }
 
+    @Override
     public PCollection<List<String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, List<String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<List<String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.matches()) {
                     ArrayList list = new ArrayList(m.groupCount());
@@ -525,7 +530,7 @@ public class Regex {
                       list.add(m.group(i));
                     }
 
-                    c.output(list);
+                    r.output(list);
                   }
                 }
               }));
@@ -561,16 +566,19 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(
+                    @Element String element, OutputReceiver<KV<String, String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                    r.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
                   }
                 }
               }));
@@ -607,16 +615,19 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(
+                    @Element String element, OutputReceiver<KV<String, String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
+                    r.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -649,16 +660,18 @@ public class Regex {
       this.group = group;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(m.group(group));
+                    r.output(m.group(group));
                   }
                 }
               }));
@@ -691,16 +704,18 @@ public class Regex {
       this.groupName = groupName;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(m.group(groupName));
+                    r.output(m.group(groupName));
                   }
                 }
               }));
@@ -709,9 +724,8 @@ public class Regex {
 
   /**
    * {@code Regex.Find<String>} takes a {@code PCollection<String>} and returns a {@code
-   * PCollection<List<String>>} representing the value extracted from the
-   * Regex groups of the input {@code
-   * PCollection} to the number of times that element occurs in the input.
+   * PCollection<List<String>>} representing the value extracted from the Regex groups of the input
+   * {@code PCollection} to the number of times that element occurs in the input.
    *
    * <p>This transform runs a Regex on the entire input line. If a portion of the line does not
    * match the Regex, the line will not be output. If it does match a portion of the line, the
@@ -732,13 +746,15 @@ public class Regex {
       this.pattern = pattern;
     }
 
+    @Override
     public PCollection<List<String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, List<String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(@Element String element, OutputReceiver<List<String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
                     ArrayList list = new ArrayList(m.groupCount());
@@ -748,7 +764,7 @@ public class Regex {
                       list.add(m.group(i));
                     }
 
-                    c.output(list);
+                    r.output(list);
                   }
                 }
               }));
@@ -785,16 +801,19 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(
+                    @Element String element, OutputReceiver<KV<String, String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                    r.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
                   }
                 }
               }));
@@ -832,16 +851,19 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
+    @Override
     public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
+                public void processElement(
+                    @Element String element, OutputReceiver<KV<String, String>> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
 
                   if (m.find()) {
-                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
+                    r.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -874,14 +896,16 @@ public class Regex {
       this.replacement = replacement;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
-                  c.output(m.replaceAll(replacement));
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
+                  r.output(m.replaceAll(replacement));
                 }
               }));
     }
@@ -913,14 +937,16 @@ public class Regex {
       this.replacement = replacement;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher(c.element());
-                  c.output(m.replaceFirst(replacement));
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  Matcher m = pattern.matcher(element);
+                  r.output(m.replaceFirst(replacement));
                 }
               }));
     }
@@ -954,17 +980,19 @@ public class Regex {
       this.outputEmpty = outputEmpty;
     }
 
+    @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) throws Exception {
-                  String[] items = pattern.split(c.element());
+                public void processElement(@Element String element, OutputReceiver<String> r)
+                    throws Exception {
+                  String[] items = pattern.split(element);
 
                   for (String item : items) {
                     if (outputEmpty || !item.isEmpty()) {
-                      c.output(item);
+                      r.output(item);
                     }
                   }
                 }

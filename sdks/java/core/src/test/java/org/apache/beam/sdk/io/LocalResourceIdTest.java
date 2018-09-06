@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -48,10 +49,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class LocalResourceIdTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void testResolveInUnix() throws Exception {
@@ -62,8 +61,7 @@ public class LocalResourceIdTest {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/aa"),
-        toResourceIdentifier("/root/tmp/")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+        toResourceIdentifier("/root/tmp/").resolve("aa", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("/root/tmp/aa/bb/cc/"),
         toResourceIdentifier("/root/tmp/")
@@ -80,8 +78,7 @@ public class LocalResourceIdTest {
     // Tests empty authority and path.
     assertEquals(
         toResourceIdentifier("file:/aa"),
-        toResourceIdentifier("file:///")
-            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
+        toResourceIdentifier("file:///").resolve("aa", StandardResolveOptions.RESOLVE_FILE));
   }
 
   @Test
@@ -148,8 +145,7 @@ public class LocalResourceIdTest {
     }
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
-        toResourceIdentifier("/root/")
-            .resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
+        toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
   }
 
   @Test
@@ -161,8 +157,8 @@ public class LocalResourceIdTest {
 
   @Test
   public void testResolveInvalidNotDirectory() throws Exception {
-    ResourceId tmp = toResourceIdentifier("/root/")
-        .resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId tmp =
+        toResourceIdentifier("/root/").resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Expected the path is a directory, but had [/root/tmp].");
     tmp.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
@@ -199,14 +195,10 @@ public class LocalResourceIdTest {
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
         toResourceIdentifier("/root/tmp/").getCurrentDirectory());
-    assertEquals(
-        toResourceIdentifier("/"),
-        toResourceIdentifier("/").getCurrentDirectory());
+    assertEquals(toResourceIdentifier("/"), toResourceIdentifier("/").getCurrentDirectory());
 
     // Tests path without parent.
-    assertEquals(
-        toResourceIdentifier("./"),
-        toResourceIdentifier("output").getCurrentDirectory());
+    assertEquals(toResourceIdentifier("./"), toResourceIdentifier("output").getCurrentDirectory());
   }
 
   @Test
@@ -217,13 +209,9 @@ public class LocalResourceIdTest {
 
   @Test
   public void testEquals() throws Exception {
-    assertEquals(
-        toResourceIdentifier("/root/tmp/"),
-        toResourceIdentifier("/root/tmp/"));
+    assertEquals(toResourceIdentifier("/root/tmp/"), toResourceIdentifier("/root/tmp/"));
 
-    assertNotEquals(
-        toResourceIdentifier("/root/tmp"),
-        toResourceIdentifier("/root/tmp/"));
+    assertNotEquals(toResourceIdentifier("/root/tmp"), toResourceIdentifier("/root/tmp/"));
   }
 
   @Test
@@ -251,16 +239,14 @@ public class LocalResourceIdTest {
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("/").getFilename(), null);
-    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
-        "tmp");
-    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
-        "xyz.txt");
+    assertEquals(null, toResourceIdentifier("/").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp").getFilename());
+    assertEquals("tmp", toResourceIdentifier("/root/tmp/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/root/tmp/xyz.txt").getFilename());
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4110")
   public void testResourceIdTester() throws Exception {
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }

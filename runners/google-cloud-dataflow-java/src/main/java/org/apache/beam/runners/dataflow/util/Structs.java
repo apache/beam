@@ -105,7 +105,7 @@ public final class Structs {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as a list of strings,
       // this is an empty list.
-      return Collections.<String>emptyList();
+      return Collections.emptyList();
     }
     @Nullable String singletonString = decodeValue(value, String.class);
     if (singletonString != null) {
@@ -153,7 +153,7 @@ public final class Structs {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as an object, this is an
       // empty map.
-      return Collections.<String, Object>emptyMap();
+      return Collections.emptyMap();
     }
     if (!(value instanceof Map)) {
       throw new IncorrectTypeException(name, map, "an object (not a map)");
@@ -180,7 +180,7 @@ public final class Structs {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as a list,
       // this is an empty list.
-      return Collections.<Map<String, Object>>emptyList();
+      return Collections.emptyList();
     }
 
     if (!(value instanceof List)) {
@@ -207,7 +207,7 @@ public final class Structs {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as a dictionary, this is
       // an empty map.
-      return Collections.<String, Object>emptyMap();
+      return Collections.emptyMap();
     }
     if (!(value instanceof Map)) {
       throw new IncorrectTypeException(name, map, "a dictionary");
@@ -230,7 +230,7 @@ public final class Structs {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as a dictionary, this is
       // an empty map.
-      return Collections.<String, Object>emptyMap();
+      return Collections.emptyMap();
     }
     if (!(value instanceof Map)) {
       throw new IncorrectTypeException(name, map, "a dictionary");

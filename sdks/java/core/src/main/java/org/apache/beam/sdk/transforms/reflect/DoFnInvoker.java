@@ -17,19 +17,26 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.Row;
+import org.joda.time.Instant;
 
 /**
  * Interface for invoking the {@code DoFn} processing methods.
@@ -50,12 +57,15 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
 
+  /** Invoke the {@link DoFn.OnWindowExpiration} method on the bound {@link DoFn}. */
+  void invokeOnWindowExpiration(ArgumentProvider<InputT, OutputT> arguments);
+
   /**
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
-   * @return {@code null} - see <a href="https://issues.apache.org/jira/browse/BEAM-1904">JIRA</a>
-   *     tracking the complete removal of {@link DoFn.ProcessContinuation}.
+   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
+   *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
   DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
@@ -63,6 +73,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
 
   /**
@@ -78,7 +89,8 @@ public interface DoFnInvoker<InputT, OutputT> {
       DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -103,12 +115,13 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     BoundedWindow window();
 
+    /** Provides a {@link PaneInfo}. */
+    PaneInfo paneInfo(DoFn<InputT, OutputT> doFn);
+
     /** Provide {@link PipelineOptions}. */
     PipelineOptions pipelineOptions();
 
-    /**
-     * Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}.
-     */
+    /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.FinishBundleContext} to use with the given {@link DoFn}. */
@@ -120,11 +133,35 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a link to the input element. */
+    InputT element(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a link to the input element timestamp. */
+    Instant timestamp(DoFn<InputT, OutputT> doFn);
+
+    /**
+     * Provides a link to the input element converted to a {@link Row} object. The input collection
+     * must have a schema registered for this to be called.
+     */
+    Row asRow(@Nullable String id);
+
+    /** Provide a link to the time domain for a timer firing. */
+    TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link OutputReceiver} for outputting to the default output. */
+    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
+    OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
+    MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
+
     /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    RestrictionTracker<?> restrictionTracker();
+    RestrictionTracker<?, ?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -133,51 +170,146 @@ public interface DoFnInvoker<InputT, OutputT> {
     Timer timer(String timerId);
   }
 
-  /** For testing only, this {@link ArgumentProvider} returns {@code null} for all parameters. */
+  /**
+   * For testing only, this {@link ArgumentProvider} throws {@link UnsupportedOperationException}
+   * for all parameters.
+   */
   class FakeArgumentProvider<InputT, OutputT> implements ArgumentProvider<InputT, OutputT> {
     @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public Row asRow(@Nullable String id) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public BoundedWindow window() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public PipelineOptions pipelineOptions() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public State state(String stateId) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public Timer timer(String timerId) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
-    public RestrictionTracker<?> restrictionTracker() {
-      return null;
+    @Override
+    public RestrictionTracker<?, ?> restrictionTracker() {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
   }
 }

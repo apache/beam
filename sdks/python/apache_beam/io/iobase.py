@@ -29,24 +29,33 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
-from collections import namedtuple
+from __future__ import absolute_import
 
 import logging
+import math
 import random
 import uuid
+from builtins import object
+from builtins import range
+from collections import namedtuple
 
-from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam import pvalue
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
-from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
-__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
+__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
+           'Sink', 'Write', 'Writer']
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -70,7 +79,13 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(HasDisplayData):
+class SourceBase(HasDisplayData, urns.RunnerApiFn):
+  """Base class for all sources that can be passed to beam.io.Read(...).
+  """
+  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
+
+
+class BoundedSource(SourceBase):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -188,6 +203,9 @@ class BoundedSource(HasDisplayData):
     more efficiently than pickling.
     """
     return coders.registry.get_coder(object)
+
+  def is_bounded(self):
+    return True
 
 
 class RangeTracker(object):
@@ -601,10 +619,13 @@ class Sink(HasDisplayData):
 
   **Execution of the Write transform**
 
-  ``initialize_write()`` and ``finalize_write()`` are conceptually called once:
-  at the beginning and end of a ``Write`` transform. However, implementors must
+  ``initialize_write()``, ``pre_finalize()``, and ``finalize_write()`` are
+  conceptually called once. However, implementors must
   ensure that these methods are *idempotent*, as they may be called multiple
-  times on different machines in the case of failure/retry or for redundancy.
+  times on different machines in the case of failure/retry. A method may be
+  called more than once concurrently, in which case it's okay to have a
+  transient failure (such as due to a race condition). This failure should not
+  prevent subsequent retries from succeeding.
 
   ``initialize_write()`` should perform any initialization that needs to be done
   prior to writing to the sink. ``initialize_write()`` may return a result
@@ -628,9 +649,8 @@ class Sink(HasDisplayData):
   encoding of the unique bundle id. For example, if each bundle is written to a
   unique temporary file, ``close()`` method may return an object that contains
   the temporary file name. After writing of all bundles is complete, execution
-  engine will invoke ``finalize_write()`` implementation. As parameters to this
-  invocation execution engine will provide ``init_result`` as well as an
-  iterable of ``write_result``.
+  engine will invoke ``pre_finalize()`` and then ``finalize_write()``
+  implementation.
 
   The execution of a write transform can be illustrated using following pseudo
   code (assume that the outer for loop happens in parallel across many
@@ -643,7 +663,8 @@ class Sink(HasDisplayData):
       for elem in bundle:
         writer.write(elem)
       write_results.append(writer.close())
-    sink.finalize_write(init_result, write_results)
+    pre_finalize_result = sink.pre_finalize(init_result, write_results)
+    sink.finalize_write(init_result, write_results, pre_finalize_result)
 
 
   **init_result**
@@ -724,7 +745,27 @@ class Sink(HasDisplayData):
     """
     raise NotImplementedError
 
-  def finalize_write(self, init_result, writer_results):
+  def pre_finalize(self, init_result, writer_results):
+    """Pre-finalization stage for sink.
+
+    Called after all bundle writes are complete and before finalize_write.
+    Used to setup and verify filesystem and sink states.
+
+    Args:
+      init_result: the result of ``initialize_write()`` invocation.
+      writer_results: an iterable containing results of ``Writer.close()``
+        invocations. This will only contain results of successful writes, and
+        will only contain the result of a single successful write for a given
+        bundle.
+
+    Returns:
+      An object that contains any sink specific state generated.
+      This object will be passed to finalize_write().
+    """
+    raise NotImplementedError
+
+  def finalize_write(self, init_result, writer_results,
+                     pre_finalize_result):
     """Finalizes the sink after all data is written to it.
 
     Given the result of initialization and an iterable of results from bundle
@@ -756,6 +797,7 @@ class Sink(HasDisplayData):
         invocations. This will only contain results of successful writes, and
         will only contain the result of a single successful write for a given
         bundle.
+      pre_finalize_result: the result of ``pre_finalize()`` invocation.
     """
     raise NotImplementedError
 
@@ -802,9 +844,36 @@ class Read(ptransform.PTransform):
     self.source = source
 
   def expand(self, pbegin):
+    from apache_beam.options.pipeline_options import DebugOptions
+    from apache_beam.transforms import util
+
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline)
+
+    debug_options = self.pipeline._options.view_as(DebugOptions)
+    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
+      source = self.source
+
+      def split_source(unused_impulse):
+        total_size = source.estimate_size()
+        if total_size:
+          # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
+          chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
+        else:
+          chunk_size = 64 << 20  # 64mb
+        return source.split(chunk_size)
+
+      return (
+          pbegin
+          | core.Impulse()
+          | 'Split' >> core.FlatMap(split_source)
+          | util.Reshuffle()
+          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
+              split.source.get_range_tracker(
+                  split.start_position, split.stop_position))))
+    else:
+      # Treat Read itself as a primitive.
+      return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -819,6 +888,24 @@ class Read(ptransform.PTransform):
     return {'source': DisplayDataItem(self.source.__class__,
                                       label='Read Source'),
             'source_dd': self.source}
+
+  def to_runner_api_parameter(self, context):
+    return (common_urns.deprecated_primitives.READ.urn,
+            beam_runner_api_pb2.ReadPayload(
+                source=self.source.to_runner_api(context),
+                is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+                if self.source.is_bounded()
+                else beam_runner_api_pb2.IsBounded.UNBOUNDED))
+
+  @staticmethod
+  def from_runner_api_parameter(parameter, context):
+    return Read(SourceBase.from_runner_api(parameter.source, context))
+
+
+ptransform.PTransform.register_urn(
+    common_urns.deprecated_primitives.READ.urn,
+    beam_runner_api_pb2.ReadPayload,
+    Read.from_runner_api_parameter)
 
 
 class Write(ptransform.PTransform):
@@ -875,7 +962,7 @@ class Write(ptransform.PTransform):
       return pcoll | self.sink
     else:
       raise ValueError('A sink must inherit iobase.Sink, iobase.NativeSink, '
-                       'or be a PTransform. Received : %r', self.sink)
+                       'or be a PTransform. Received : %r' % self.sink)
 
 
 class WriteImpl(ptransform.PTransform):
@@ -911,12 +998,20 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
+    # PreFinalize should run before FinalizeWrite, and the two should not be
+    # fused.
+    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
+        _pre_finalize,
+        self.sink,
+        AsSingleton(init_result_coll),
+        AsIter(write_result_coll))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
         AsIter(write_result_coll),
-        min_shards)
+        min_shards,
+        AsSingleton(pre_finalize_coll))
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -933,12 +1028,14 @@ class _WriteBundleDoFn(core.DoFn):
 
   def process(self, element, init_result):
     if self.writer is None:
+      # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
 
   def finish_bundle(self):
     if self.writer is not None:
-      yield WindowedValue(self.writer.close(), window.MAX_TIMESTAMP,
+      yield WindowedValue(self.writer.close(),
+                          window.GlobalWindow().max_timestamp(),
                           [window.GlobalWindow()])
 
 
@@ -958,7 +1055,12 @@ class _WriteKeyedBundleDoFn(core.DoFn):
     return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 
-def _finalize_write(_, sink, init_result, write_results, min_shards):
+def _pre_finalize(unused_element, sink, init_result, write_results):
+  return sink.pre_finalize(init_result, write_results)
+
+
+def _finalize_write(unused_element, sink, init_result, write_results,
+                    min_shards, pre_finalize_results):
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
@@ -967,7 +1069,8 @@ def _finalize_write(_, sink, init_result, write_results, min_shards):
     for _ in range(min_shards - len(write_results)):
       writer = sink.open_writer(init_result, str(uuid.uuid4()))
       extra_shards.append(writer.close())
-  outputs = sink.finalize_write(init_result, write_results + extra_shards)
+  outputs = sink.finalize_write(init_result, write_results + extra_shards,
+                                pre_finalize_results)
   if outputs:
     return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
@@ -985,3 +1088,78 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, element
+
+
+class RestrictionTracker(object):
+  """Manages concurrent access to a restriction.
+
+  Experimental; no backwards-compatibility guarantees.
+
+  Keeps track of the restrictions claimed part for a Splittable DoFn.
+
+  See following documents for more details.
+  * https://s.apache.org/splittable-do-fn
+  * https://s.apache.org/splittable-do-fn-python-sdk
+  """
+
+  def current_restriction(self):
+    """Returns the current restriction.
+
+    Returns a restriction accurately describing the full range of work the
+    current ``DoFn.process()`` call will do, including already completed work.
+
+    The current restriction returned by method may be updated dynamically due
+    to due to concurrent invocation of other methods of the
+    ``RestrictionTracker``, For example, ``checkpoint()``.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+    """
+    raise NotImplementedError
+
+  def checkpoint(self):
+    """Performs a checkpoint of the current restriction.
+
+    Signals that the current ``DoFn.process()`` call should terminate as soon as
+    possible. After this method returns, the tracker MUST refuse all future
+    claim calls, and ``RestrictionTracker.check_done()`` MUST succeed.
+
+    This invocation modifies the value returned by ``current_restriction()``
+    invocation and returns a restriction representing the rest of the work. The
+    old value of ``current_restriction()`` is equivalent to the new value of
+    ``current_restriction()`` and the return value of this method invocation
+    combined.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+    """
+
+    raise NotImplementedError
+
+  def check_done(self):
+    """Checks whether the restriction has been fully processed.
+
+    Called by the runner after iterator returned by ``DoFn.process()`` has been
+    fully read.
+
+    This method must raise a `ValueError` if there is still any unclaimed work
+    remaining in the restriction when this method is invoked. Exception raised
+    must have an informative error message.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+
+    Returns: ``True`` if current restriction has been fully processed.
+    Raises:
+      ~exceptions.ValueError: if there is still any unclaimed work remaining.
+    """
+    raise NotImplementedError

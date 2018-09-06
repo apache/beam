@@ -15,21 +15,29 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import collections
 import itertools
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.internal.util import ArgumentPlaceholder
+from apache_beam.transforms.combiners import _CurriedFn
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
   def __init__(self, combine_fn, args, kwargs):
+    args_to_check = itertools.chain(args, kwargs.values())
+    if isinstance(combine_fn, _CurriedFn):
+      args_to_check = itertools.chain(args_to_check,
+                                      combine_fn.args,
+                                      combine_fn.kwargs.values())
     if any(isinstance(arg, ArgumentPlaceholder)
-           for arg in itertools.chain(args, kwargs.values())):
+           for arg in args_to_check):
       # This isn't implemented in dataflow either...
       raise NotImplementedError('Deferred CombineFn side inputs.')
     self._combine_fn = beam.transforms.combiners.curry_combine_fn(

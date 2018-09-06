@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import com.google.common.collect.Iterators;
 import java.util.Collections;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -31,7 +32,6 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
@@ -42,15 +42,13 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 
 /**
- * {@link StateInternals} that uses a Flink {@link OperatorStateBackend}
- * to manage the split-distribute state.
+ * {@link StateInternals} that uses a Flink {@link OperatorStateBackend} to manage the
+ * split-distribute state.
  *
- * <p>Elements in ListState will be redistributed in round robin fashion
- * to operators when restarting with a different parallelism.
+ * <p>Elements in ListState will be redistributed in round robin fashion to operators when
+ * restarting with a different parallelism.
  *
- *  <p>Note:
- *  Ignore index of key and namespace.
- *  Just implement BagState.
+ * <p>Note: Ignore index of key and namespace. Just implement BagState.
  */
 public class FlinkSplitStateInternals<K> implements StateInternals {
 
@@ -61,44 +59,32 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
   }
 
   @Override
+  @Nullable
   public K getKey() {
     return null;
   }
 
   @Override
   public <T extends State> T state(
-      final StateNamespace namespace,
-      StateTag<T> address) {
-
-    return state(namespace, address, StateContexts.nullContext());
-  }
-
-  @Override
-  public <T extends State> T state(
-      final StateNamespace namespace,
-      StateTag<T> address,
-      final StateContext<?> context) {
+      final StateNamespace namespace, StateTag<T> address, final StateContext<?> context) {
 
     return address.bind(
         new StateTag.StateBinder() {
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", ValueState.class.getSimpleName()));
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T2> BagState<T2> bindBag(StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkSplitBagState<>(stateBackend, address, namespace, elemCoder);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T2> SetState<T2> bindSet(StateTag<SetState<T2>> address, Coder<T2> elemCoder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", SetState.class.getSimpleName()));
           }
@@ -133,8 +119,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
 
           @Override
           public WatermarkHoldState bindWatermark(
-              StateTag<WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+              StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", CombiningState.class.getSimpleName()));
           }
@@ -157,17 +142,17 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
       this.namespace = namespace;
       this.address = address;
 
-      CoderTypeInformation<T> typeInfo =
-          new CoderTypeInformation<>(coder);
+      CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(coder);
 
-      descriptor = new ListStateDescriptor<>(address.getId(),
-          typeInfo.createSerializer(new ExecutionConfig()));
+      descriptor =
+          new ListStateDescriptor<>(
+              address.getId(), typeInfo.createSerializer(new ExecutionConfig()));
     }
 
     @Override
     public void add(T input) {
       try {
-        flinkStateBackend.getOperatorState(descriptor).add(input);
+        flinkStateBackend.getListState(descriptor).add(input);
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
       }
@@ -181,8 +166,8 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     @Override
     public Iterable<T> read() {
       try {
-        Iterable<T> result = flinkStateBackend.getOperatorState(descriptor).get();
-        return result != null ? result : Collections.<T>emptyList();
+        Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
+        return result != null ? result : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
       }
@@ -194,14 +179,13 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
         @Override
         public Boolean read() {
           try {
-            Iterable<T> result = flinkStateBackend.getOperatorState(descriptor).get();
+            Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
             // PartitionableListState.get() return empty collection When there is no element,
             // KeyedListState different. (return null)
             return result == null || Iterators.size(result.iterator()) == 0;
           } catch (Exception e) {
             throw new RuntimeException("Error reading state.", e);
           }
-
         }
 
         @Override
@@ -214,7 +198,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     @Override
     public void clear() {
       try {
-        flinkStateBackend.getOperatorState(descriptor).clear();
+        flinkStateBackend.getListState(descriptor).clear();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -232,7 +216,6 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
       FlinkSplitBagState<?, ?> that = (FlinkSplitBagState<?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
-
     }
 
     @Override
@@ -242,5 +225,4 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
       return result;
     }
   }
-
 }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.WindowIntoTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,8 +31,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link Window.Assign} primitive {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Window.Assign}
+ * primitive {@link PTransform}.
  */
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -42,9 +43,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle
- )
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
       throws Exception {
     return createTransformEvaluator((AppliedPTransform) application);
   }
@@ -52,7 +51,9 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
           transform) {
-    WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
+
+    WindowFn<? super InputT, ?> fn = (WindowFn) WindowIntoTranslation.getWindowFn(transform);
+
     UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(
             (PCollection<InputT>) Iterables.getOnlyElement(transform.getOutputs().values()));
@@ -88,7 +89,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
       for (WindowedValue<InputT> element : compressedElement.explodeWindows()) {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
-            WindowedValue.<InputT>of(
+            WindowedValue.of(
                 element.getValue(), element.getTimestamp(), windows, element.getPane()));
       }
     }
@@ -96,16 +97,14 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     private <W extends BoundedWindow> Collection<? extends BoundedWindow> assignWindows(
         WindowFn<InputT, W> windowFn, WindowedValue<InputT> element) throws Exception {
       WindowFn<InputT, W>.AssignContext assignContext =
-          new DirectAssignContext<>(windowFn, element);
+          new DirectAssignContext<InputT, W>(windowFn, element);
       Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);
       return windows;
     }
 
     @Override
     public TransformResult<InputT> finishBundle() throws Exception {
-      return StepTransformResult.<InputT>withoutHold(transform)
-          .addOutput(outputBundle)
-          .build();
+      return StepTransformResult.<InputT>withoutHold(transform).addOutput(outputBundle).build();
     }
   }
 
@@ -132,6 +131,5 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     public BoundedWindow window() {
       return Iterables.getOnlyElement(value.getWindows());
     }
-
   }
 }

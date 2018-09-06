@@ -28,9 +28,9 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link Coder} that encodes {@link Long Longs} using between 1 and 10 bytes. Negative
- * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
- * longs that are known to often be large or negative.
+ * A {@link Coder} that encodes {@link Long Longs} using between 1 and 10 bytes. Negative numbers
+ * always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for longs that are known to
+ * often be large or negative.
  */
 public class VarLongCoder extends StructuredCoder<Long> {
   public static VarLongCoder of() {
@@ -45,17 +45,15 @@ public class VarLongCoder extends StructuredCoder<Long> {
   private VarLongCoder() {}
 
   @Override
-  public void encode(Long value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Long value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    VarInt.encode(value.longValue(), outStream);
+    VarInt.encode(value, outStream);
   }
 
   @Override
-  public Long decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Long decode(InputStream inStream) throws IOException, CoderException {
     try {
       return VarInt.decodeLong(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
@@ -99,11 +97,10 @@ public class VarLongCoder extends StructuredCoder<Long> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Long value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Long value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    return VarInt.getLength(value.longValue());
+    return VarInt.getLength(value);
   }
 }

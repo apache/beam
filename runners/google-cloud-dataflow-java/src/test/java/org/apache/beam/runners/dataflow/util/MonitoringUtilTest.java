@@ -43,12 +43,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for MonitoringUtil.
- */
+/** Tests for MonitoringUtil. */
 @RunWith(JUnit4.class)
 public class MonitoringUtilTest {
   private static final String PROJECT_ID = "someProject";
+  private static final String REGION_ID = "thatRegion";
   private static final String JOB_ID = "1234";
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(LoggingHandler.class);
@@ -59,8 +58,8 @@ public class MonitoringUtilTest {
     DataflowClient dataflowClient = mock(DataflowClient.class);
 
     ListJobMessagesResponse firstResponse = new ListJobMessagesResponse();
-    firstResponse.setJobMessages(new ArrayList<JobMessage>());
-    for (int i = 0; i < 100; ++i) {
+    firstResponse.setJobMessages(new ArrayList<>());
+    for (long i = 0; i < 100; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));
@@ -70,8 +69,8 @@ public class MonitoringUtilTest {
     firstResponse.setNextPageToken(pageToken);
 
     ListJobMessagesResponse secondResponse = new ListJobMessagesResponse();
-    secondResponse.setJobMessages(new ArrayList<JobMessage>());
-    for (int i = 100; i < 150; ++i) {
+    secondResponse.setJobMessages(new ArrayList<>());
+    for (long i = 100; i < 150; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));
@@ -119,9 +118,12 @@ public class MonitoringUtilTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
-    assertEquals("gcloud beta dataflow jobs --project=someProject cancel 1234", cancelCommand);
+    assertEquals(
+        "gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
+        cancelCommand);
   }
 
   @Test
@@ -129,13 +131,14 @@ public class MonitoringUtilTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     String stagingDataflowEndpoint = "v0neverExisted";
     options.setDataflowEndpoint(stagingDataflowEndpoint);
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
     assertEquals(
         "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://dataflow.googleapis.com/v0neverExisted/ "
-        + "gcloud beta dataflow jobs --project=someProject cancel 1234",
+            + "gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
         cancelCommand);
   }
 
@@ -175,8 +178,15 @@ public class MonitoringUtilTest {
     emptyJobMessage.setMessageImportance("JOB_MESSAGE_EMPTY");
     emptyJobMessage.setTime(TimeUtil.toCloudTime(unknownTime));
 
-    new LoggingHandler().process(Arrays.asList(errorJobMessage, warningJobMessage, basicJobMessage,
-        detailedJobMessage, debugJobMessage, unknownJobMessage));
+    new LoggingHandler()
+        .process(
+            Arrays.asList(
+                errorJobMessage,
+                warningJobMessage,
+                basicJobMessage,
+                detailedJobMessage,
+                debugJobMessage,
+                unknownJobMessage));
 
     expectedLogs.verifyError("ERRORERROR");
     expectedLogs.verifyError(errorTime.toString());

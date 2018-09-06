@@ -23,9 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link ReleaseInfo}.
- */
+/** Tests for {@link ReleaseInfo}. */
 public class ReleaseInfoTest {
 
   @Test
@@ -39,7 +37,6 @@ public class ReleaseInfoTest {
     String version = info.getVersion();
     String pattern = "\\d+\\.\\d+\\.\\d+.*";
     assertTrue(
-        String.format("%s does not match pattern %s", version, pattern),
-        version.matches(pattern));
+        String.format("%s does not match pattern %s", version, pattern), version.matches(pattern));
   }
 }

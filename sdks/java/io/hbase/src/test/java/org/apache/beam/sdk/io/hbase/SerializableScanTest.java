@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hbase;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hadoop.hbase.client.Scan;
 import org.junit.Rule;
@@ -28,22 +29,20 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for SerializableScan.
- */
+/** Tests for SerializableScan. */
 @RunWith(JUnit4.class)
 public class SerializableScanTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   private static final SerializableScan DEFAULT_SERIALIZABLE_SCAN =
-          new SerializableScan(new Scan());
+      new SerializableScan(new Scan());
 
   @Test
-  public void testSerializationDeserialization() throws Exception {
-    Scan scan = new Scan().setStartRow("1".getBytes("UTF-8"));
+  public void testSerializationDeserialization() {
+    Scan scan = new Scan().setStartRow("1".getBytes(StandardCharsets.UTF_8));
     byte[] object = SerializationUtils.serialize(new SerializableScan(scan));
     SerializableScan serScan = SerializationUtils.deserialize(object);
     assertNotNull(serScan);
-    assertEquals(new String(serScan.get().getStartRow(), "UTF-8"), "1");
+    assertEquals("1", new String(serScan.get().getStartRow(), StandardCharsets.UTF_8));
   }
 
   @Test

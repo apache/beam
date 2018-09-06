@@ -26,3 +26,30 @@ spec:
   selector:
     name: postgres
   type: LoadBalancer
+
+---
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    name: postgres
+  template:
+    metadata:
+      name: postgres
+      labels:
+        name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres
+          env:
+            - name: POSTGRES_PASSWORD
+              value: uuinkks
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432

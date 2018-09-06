@@ -23,13 +23,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TupleTag}.
- */
+/** Tests for {@link TupleTag}. */
 @RunWith(JUnit4.class)
 public class TupleTagTest {
 
@@ -48,6 +48,7 @@ public class TupleTagTest {
 
   private static class AnotherClass {
     private static TupleTag<Object> anotherTag = new TupleTag<>();
+
     private TupleTag<Object> createAnotherTag() {
       return new TupleTag<>();
     }
@@ -60,29 +61,32 @@ public class TupleTagTest {
     assertEquals("org.apache.beam.sdk.values.TupleTagTest#1", staticMethodTag.getId());
     assertEquals("org.apache.beam.sdk.values.TupleTagTest#2", instanceMethodTag.getId());
     assertEquals(
-        "org.apache.beam.sdk.values.TupleTagTest$AnotherClass#0",
-        AnotherClass.anotherTag.getId());
+        "org.apache.beam.sdk.values.TupleTagTest$AnotherClass#0", AnotherClass.anotherTag.getId());
   }
 
   private TupleTag<Object> createNonstaticTupleTag() {
-    return new TupleTag<Object>();
+    return new TupleTag<>();
   }
 
   @Test
   public void testNonstaticTupleTag() {
-    assertNotEquals(new TupleTag<Object>().getId(), new TupleTag<Object>().getId());
+    assertNotEquals(new TupleTag<>().getId(), new TupleTag<>().getId());
     assertNotEquals(createNonstaticTupleTag(), createNonstaticTupleTag());
 
     TupleTag<Object> tag = createNonstaticTupleTag();
 
     // Check that the name is derived from the method it is created in.
-    assertThat(tag.getId().split("#")[0],
+    assertThat(
+        Iterables.get(Splitter.on('#').split(tag.getId()), 0),
         startsWith("org.apache.beam.sdk.values.TupleTagTest.createNonstaticTupleTag"));
 
     // Check that after the name there is a ':' followed by a line number, and just make
     // sure the line number is big enough to be reasonable, so superficial changes don't break
     // the test.
-    assertThat(Integer.parseInt(tag.getId().split("#")[0].split(":")[1]),
+    assertThat(
+        Integer.parseInt(
+            Iterables.get(
+                Splitter.on(':').split(Iterables.get(Splitter.on('#').split(tag.getId()), 0)), 1)),
         greaterThan(15));
   }
 }

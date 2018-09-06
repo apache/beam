@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -240,8 +240,7 @@ public class TriggerStateMachinesTest {
                     .setFinally(subtrigger2))
             .build();
     OrFinallyStateMachine machine =
-        (OrFinallyStateMachine)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
+        (OrFinallyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(submachine1.orFinally(submachine2)));
   }
@@ -250,12 +249,10 @@ public class TriggerStateMachinesTest {
   public void testRepeatedlyTranslation() {
     RunnerApi.Trigger trigger =
         RunnerApi.Trigger.newBuilder()
-            .setRepeat(
-                RunnerApi.Trigger.Repeat.newBuilder()
-                    .setSubtrigger(subtrigger1)).build();
+            .setRepeat(RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(subtrigger1))
+            .build();
     RepeatedlyStateMachine machine =
-        (RepeatedlyStateMachine)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
+        (RepeatedlyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(RepeatedlyStateMachine.forever(submachine1)));
   }

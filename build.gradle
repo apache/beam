@@ -1,0 +1,258 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// See build_rules.gradle for documentation on default build tasks
+// and properties that are enabled in addition to natures
+// that can be applied to configure a project for certain common
+// tasks.
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+
+// Add performanceTest task to this build.gradle file
+// so that running Performance tests using PerfKitBenchmarker is possible.
+createPerformanceTestHarness()
+
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
+buildscript {
+  repositories {
+    maven { url offlineRepositoryRoot }
+
+    // To run gradle in offline mode, one must first invoke
+    // 'updateOfflineRepository' to create an offline repo
+    // inside the root project directory. See the application
+    // of the offline repo plugin within build_rules.gradle
+    // for further details.
+    if (gradle.startParameter.isOffline()) {
+      return
+    }
+
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
+  }
+  dependencies {
+    classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
+    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
+    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
+    classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
+    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
+    classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
+    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
+
+    // Plugins which require online access should not be enabled when running in offline mode.
+    if (!gradle.startParameter.isOffline()) {
+      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
+    }
+  }
+}
+
+/*************************************************************************************************/
+// Configure the root project
+
+apply plugin: "base"
+
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.build-scan"
+}
+
+// Apply a task dependency visualization plugin which creates a ".dot" file containing the
+// task dependencies for the current build. This command can help create a visual representation:
+//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
+//
+// See https://github.com/mmalohlava/gradle-visteg for further details.
+apply plugin: "cz.malohlava.visteg"
+
+// This plugin provides a task to determine which dependencies have updates.
+// Additionally, the plugin checks for updates to Gradle itself.
+//
+// See https://github.com/ben-manes/gradle-versions-plugin for further details.
+apply plugin: 'com.github.ben-manes.versions'
+
+// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
+def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
+if (isCIBuild) {
+  buildScan {
+    // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
+    // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
+    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+    termsOfServiceAgree = 'yes'
+    publishAlways()
+  }
+}
+
+// Apply one top level rat plugin to perform any required license enforcement analysis
+apply plugin: "org.nosphere.apache.rat"
+
+rat {
+  // Set input directory to that of the root project instead of the CWD. This
+  // makes .gitignore rules (added below) work properly.
+  inputDir = project.rootDir
+
+  def exclusions = [
+    // Ignore files we track but do not distribute
+    ".github/**/*",
+
+    "**/package-list",
+    "**/user.avsc",
+    "**/test/resources/**/*.txt",
+    "**/test/**/.placeholder",
+
+    // Default eclipse excludes neglect subprojects
+
+    // Proto/grpc generated wrappers
+    "**/apache_beam/portability/api/*_pb2*.py",
+    "**/go/pkg/beam/**/*.pb.go",
+
+    // Ignore Go test data files
+    "**/go/data/**",
+
+    // VCF test files
+    "**/apache_beam/testing/data/vcf/*",
+
+    // JDBC package config files
+    "**/META-INF/services/java.sql.Driver",
+
+    // Ruby build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/.htaccess",
+    "website/src/_sass/_bootstrap.scss",
+    "website/src/_sass/bootstrap/**/*",
+    "website/src/js/bootstrap*.js",
+    "website/src/js/bootstrap/**/*",
+
+    // Ignore ownership files
+    "ownership/**/*",
+    "**/OWNERS",
+  ]
+
+  // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
+  // of the Apache Maven Rat plugin since the Apache Ant Rat plugin doesn't do this
+  // automatically.
+  def gitIgnore = project(':').file('.gitignore')
+  if (gitIgnore.exists()) {
+    def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
+    exclusions.addAll(gitIgnoreExcludes)
+  }
+
+  // Combining verbose with only XML output has each failing license logged.
+  // See https://github.com/eskatos/creadur-rat-gradle/issues/8 for further details.
+  verbose = true
+  plainOutput = false
+  xmlOutput = true
+  htmlOutput = false
+  failOnError = true
+  excludes = exclusions
+}
+check.dependsOn rat
+
+// Define root pre/post commit tasks simplifying what is needed
+// to be specified on the commandline when executing locally.
+// This indirection also makes Jenkins use the branch of the PR
+// for the test definitions.
+task javaPreCommit() {
+  dependsOn ":rat"
+  // We need to list the model/* builds since sdks/java/core doesn't
+  // depend on any of the model.
+  dependsOn ":beam-model-pipeline:build"
+  dependsOn ":beam-model-job-management:build"
+  dependsOn ":beam-model-fn-execution:build"
+  dependsOn ":beam-sdks-java-core:buildNeeded"
+  dependsOn ":beam-sdks-java-core:buildDependents"
+  dependsOn ":beam-examples-java:preCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
+  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
+}
+
+task javaPostCommit() {
+  dependsOn ":javaPreCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
+}
+
+task goPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-sdks-go:test"
+
+  dependsOn ":beam-sdks-go-examples:build"
+  dependsOn ":beam-sdks-go-test:build"
+
+  // Ensure all container Go boot code builds as well.
+  dependsOn ":beam-sdks-java-container:build"
+  dependsOn ":beam-sdks-python-container:build"
+  dependsOn ":beam-sdks-go-container:build"
+  dependsOn ":beam-runners-gcp-gcemd:build"
+  dependsOn ":beam-runners-gcp-gcsproxy:build"
+}
+
+task goPostCommit() {
+  dependsOn ":goPreCommit"
+  dependsOn ":goIntegrationTests"
+}
+
+task goIntegrationTests() {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', './sdks/go/test/run_integration_tests.sh'
+    }
+  }
+  dependsOn ":beam-sdks-go-test:build"
+}
+
+task pythonPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-sdks-python:preCommit"
+}
+
+task pythonPostCommit() {
+  dependsOn ":beam-sdks-python:postCommit"
+}
+
+task websitePreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-website:preCommit"
+}
+
+
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependencyUpdates"
+}
+
+apply plugin: 'net.researchgate.release'
+release {
+  revertOnFail = true
+  tagTemplate = 'v${version}'
+  git {
+    requireBranch = 'release-.*|master'
+  }
+}

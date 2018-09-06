@@ -28,39 +28,35 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-
-/***
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class RecordFilterTest {
-    @Mock
-    private ShardCheckpoint checkpoint;
-    @Mock
-    private KinesisRecord record1, record2, record3, record4, record5;
 
-    @Test
-    public void shouldFilterOutRecordsBeforeOrAtCheckpoint() {
-        given(checkpoint.isBeforeOrAt(record1)).willReturn(false);
-        given(checkpoint.isBeforeOrAt(record2)).willReturn(true);
-        given(checkpoint.isBeforeOrAt(record3)).willReturn(true);
-        given(checkpoint.isBeforeOrAt(record4)).willReturn(false);
-        given(checkpoint.isBeforeOrAt(record5)).willReturn(true);
-        List<KinesisRecord> records = Lists.newArrayList(record1, record2,
-                record3, record4, record5);
-        RecordFilter underTest = new RecordFilter();
+  @Mock private ShardCheckpoint checkpoint;
+  @Mock private KinesisRecord record1, record2, record3, record4, record5;
 
-        List<KinesisRecord> retainedRecords = underTest.apply(records, checkpoint);
+  @Test
+  public void shouldFilterOutRecordsBeforeOrAtCheckpoint() {
+    given(checkpoint.isBeforeOrAt(record1)).willReturn(false);
+    given(checkpoint.isBeforeOrAt(record2)).willReturn(true);
+    given(checkpoint.isBeforeOrAt(record3)).willReturn(true);
+    given(checkpoint.isBeforeOrAt(record4)).willReturn(false);
+    given(checkpoint.isBeforeOrAt(record5)).willReturn(true);
+    List<KinesisRecord> records = Lists.newArrayList(record1, record2, record3, record4, record5);
+    RecordFilter underTest = new RecordFilter();
 
-        Assertions.assertThat(retainedRecords).containsOnly(record2, record3, record5);
-    }
+    List<KinesisRecord> retainedRecords = underTest.apply(records, checkpoint);
 
-    @Test
-    public void shouldNotFailOnEmptyList() {
-        List<KinesisRecord> records = Collections.emptyList();
-        RecordFilter underTest = new RecordFilter();
+    Assertions.assertThat(retainedRecords).containsOnly(record2, record3, record5);
+  }
 
-        List<KinesisRecord> retainedRecords = underTest.apply(records, checkpoint);
+  @Test
+  public void shouldNotFailOnEmptyList() {
+    List<KinesisRecord> records = Collections.emptyList();
+    RecordFilter underTest = new RecordFilter();
 
-        Assertions.assertThat(retainedRecords).isEmpty();
-    }
+    List<KinesisRecord> retainedRecords = underTest.apply(records, checkpoint);
+
+    Assertions.assertThat(retainedRecords).isEmpty();
+  }
 }

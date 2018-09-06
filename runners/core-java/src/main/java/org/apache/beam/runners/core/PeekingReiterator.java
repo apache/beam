@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.Reiterator;
 
 /**
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.util.common.Reiterator;
  * @param <T> the type of elements returned by this iterator
  */
 public final class PeekingReiterator<T> implements Reiterator<T> {
-  private T nextElement;
+  private @Nullable T nextElement;
   private boolean nextElementComputed;
   private final Reiterator<T> iterator;
 
@@ -59,13 +60,12 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
   /**
    * {@inheritDoc}
    *
-   * <p>If {@link #peek} is called, {@code remove} is disallowed until
-   * {@link #next} has been subsequently called.
+   * <p>If {@link #peek} is called, {@code remove} is disallowed until {@link #next} has been
+   * subsequently called.
    */
   @Override
   public void remove() {
-    checkState(!nextElementComputed,
-        "After peek(), remove() is disallowed until next() is called");
+    checkState(!nextElementComputed, "After peek(), remove() is disallowed until next() is called");
     iterator.remove();
   }
 
@@ -75,8 +75,9 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
   }
 
   /**
-   * Returns the element that would be returned by {@link #next}, without
-   * actually consuming the element.
+   * Returns the element that would be returned by {@link #next}, without actually consuming the
+   * element.
+   *
    * @throws NoSuchElementException if there is no next element
    */
   public T peek() {

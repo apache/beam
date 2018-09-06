@@ -26,16 +26,13 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.UserCodeException;
 
-/**
- * Test Flink runner.
- */
+/** Test Flink runner. */
 public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private FlinkRunner delegate;
 
   private TestFlinkRunner(FlinkPipelineOptions options) {
-    // We use [auto] for testing since this will make it pick up the Testing ExecutionEnvironment
-    options.setFlinkMaster("[auto]");
+    options.setShutdownSourcesOnFinalWatermark(true);
     this.delegate = FlinkRunner.fromOptions(options);
   }
 
@@ -80,5 +77,3 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     return delegate.getPipelineOptions();
   }
 }
-
-

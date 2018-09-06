@@ -43,9 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests for Datastore DatastoreV1.Read.
- */
+/** End-to-end tests for Datastore DatastoreV1.Read. */
 @RunWith(JUnit4.class)
 public class V1ReadIT {
   private V1TestOptions options;
@@ -71,26 +69,25 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withQuery(Query)}
    *
-   * <p>Write some test entities to datastore and then run a pipeline that
-   * reads and counts the total number of entities. Verify that the count matches the
-   * number of entities written.
+   * <p>Write some test entities to datastore and then run a pipeline that reads and counts the
+   * total number of entities. Verify that the count matches the number of entities written.
    */
   @Test
   public void testE2EV1Read() throws Exception {
     // Read from datastore
-    Query query = V1TestUtil.makeAncestorKindQuery(
-        options.getKind(), options.getNamespace(), ancestor);
+    Query query =
+        V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(project)
-        .withQuery(query)
-        .withNamespace(options.getNamespace());
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(project)
+            .withQuery(query)
+            .withNamespace(options.getNamespace());
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(read)
-        .apply(Count.<Entity>globally());
+    PCollection<Long> count = p.apply(read).apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(numEntities);
     p.run();
@@ -109,14 +106,14 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withLiteralGqlQuery(String)}.
    *
-   * <p>Write some test entities to datastore and then run a pipeline that
-   * reads and counts the total number of entities. Verify that the count matches
-   * the number of entities written.
+   * <p>Write some test entities to datastore and then run a pipeline that reads and counts the
+   * total number of entities. Verify that the count matches the number of entities written.
    */
   private void testE2EV1ReadWithGQLQuery(long limit) throws Exception {
-    String gqlQuery = String.format(
-        "SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s')",
-        options.getKind(), options.getKind(), ancestor);
+    String gqlQuery =
+        String.format(
+            "SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s')",
+            options.getKind(), options.getKind(), ancestor);
 
     long expectedNumEntities = numEntities;
     if (limit > 0) {
@@ -124,24 +121,24 @@ public class V1ReadIT {
       expectedNumEntities = limit;
     }
 
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(project)
-        .withLiteralGqlQuery(gqlQuery)
-        .withNamespace(options.getNamespace());
+    DatastoreV1.Read read =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(project)
+            .withLiteralGqlQuery(gqlQuery)
+            .withNamespace(options.getNamespace());
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(read)
-        .apply(Count.<Entity>globally());
+    PCollection<Long> count = p.apply(read).apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(expectedNumEntities);
     p.run();
   }
 
   // Creates entities and write them to datastore
-  private static void writeEntitiesToDatastore(V1TestOptions options, String project,
-      String ancestor, long numEntities) throws Exception {
+  private static void writeEntitiesToDatastore(
+      V1TestOptions options, String project, String ancestor, long numEntities) throws Exception {
     Datastore datastore = getDatastore(options, project);
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());

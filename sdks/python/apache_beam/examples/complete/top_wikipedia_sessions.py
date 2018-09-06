@@ -49,12 +49,11 @@ import apache_beam as beam
 from apache_beam import combiners
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS

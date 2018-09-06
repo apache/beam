@@ -18,6 +18,11 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.cloud.ByteArray;
+import com.google.cloud.Date;
+import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Key;
+import com.google.cloud.spanner.KeyRange;
+import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 
@@ -29,6 +34,9 @@ class MutationSizeEstimator {
 
   /** Estimates a size of mutation in bytes. */
   static long sizeOf(Mutation m) {
+    if (m.getOperation() == Mutation.Op.DELETE) {
+      return sizeOf(m.getKeySet());
+    }
     long result = 0;
     for (Value v : m.getValues()) {
       switch (v.getType().getCode()) {
@@ -39,6 +47,46 @@ class MutationSizeEstimator {
           throw new IllegalArgumentException("Structs are not supported in mutation.");
         default:
           result += estimatePrimitiveValue(v);
+      }
+    }
+    return result;
+  }
+
+  private static long sizeOf(KeySet keySet) {
+    long result = 0;
+    for (Key k : keySet.getKeys()) {
+      result += sizeOf(k);
+    }
+    for (KeyRange kr : keySet.getRanges()) {
+      result += sizeOf(kr);
+    }
+    return result;
+  }
+
+  private static long sizeOf(KeyRange kr) {
+    return sizeOf(kr.getStart()) + sizeOf(kr.getEnd());
+  }
+
+  private static long sizeOf(Key k) {
+    long result = 0;
+    for (Object part : k.getParts()) {
+      if (part == null) {
+        continue;
+      }
+      if (part instanceof Boolean) {
+        result += 1;
+      } else if (part instanceof Long) {
+        result += 8;
+      } else if (part instanceof Double) {
+        result += 8;
+      } else if (part instanceof String) {
+        result += ((String) part).length();
+      } else if (part instanceof ByteArray) {
+        result += ((ByteArray) part).length();
+      } else if (part instanceof Timestamp) {
+        result += 12;
+      } else if (part instanceof Date) {
+        result += 12;
       }
     }
     return result;
@@ -67,18 +115,22 @@ class MutationSizeEstimator {
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
         return v.isNull() ? 0 : v.getBytes().length();
+      default:
+        throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
-    throw new IllegalArgumentException("Unsupported type " + v.getType());
   }
 
   private static long estimateArrayValue(Value v) {
+    if (v.isNull()) {
+      return 0;
+    }
     switch (v.getType().getArrayElementType().getCode()) {
       case BOOL:
         return v.getBoolArray().size();
       case INT64:
-        return 8 * v.getInt64Array().size();
+        return 8L * v.getInt64Array().size();
       case FLOAT64:
-        return 8 * v.getFloat64Array().size();
+        return 8L * v.getFloat64Array().size();
       case STRING:
         long totalLength = 0;
         for (String s : v.getStringArray()) {
@@ -98,10 +150,11 @@ class MutationSizeEstimator {
         }
         return totalLength;
       case DATE:
-        return 12 * v.getDateArray().size();
+        return 12L * v.getDateArray().size();
       case TIMESTAMP:
-        return 12 * v.getTimestampArray().size();
+        return 12L * v.getTimestampArray().size();
+      default:
+        throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
-    throw new IllegalArgumentException("Unsupported type " + v.getType());
   }
 }

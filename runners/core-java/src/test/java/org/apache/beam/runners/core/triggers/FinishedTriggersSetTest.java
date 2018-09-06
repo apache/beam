@@ -26,18 +26,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FinishedTriggersSet}.
- */
+/** Tests for {@link FinishedTriggersSet}. */
 @RunWith(JUnit4.class)
 public class FinishedTriggersSetTest {
-  /**
-   * Tests that after a trigger is set to finished, it reads back as finished.
-   */
+  /** Tests that after a trigger is set to finished, it reads back as finished. */
   @Test
   public void testSetGet() {
-    FinishedTriggersProperties.verifyGetAfterSet(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>()));
+    FinishedTriggersProperties.verifyGetAfterSet(FinishedTriggersSet.fromSet(new HashSet<>()));
   }
 
   /**
@@ -46,15 +41,14 @@ public class FinishedTriggersSetTest {
    */
   @Test
   public void testClearRecursively() {
-    FinishedTriggersProperties.verifyClearRecursively(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>()));
+    FinishedTriggersProperties.verifyClearRecursively(FinishedTriggersSet.fromSet(new HashSet<>()));
   }
 
   @Test
   public void testCopy() throws Exception {
-    FinishedTriggersSet finishedSet =
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>());
-    assertThat(finishedSet.copy().getFinishedTriggers(),
+    FinishedTriggersSet finishedSet = FinishedTriggersSet.fromSet(new HashSet<>());
+    assertThat(
+        finishedSet.copy().getFinishedTriggers(),
         not(theInstance(finishedSet.getFinishedTriggers())));
   }
 }

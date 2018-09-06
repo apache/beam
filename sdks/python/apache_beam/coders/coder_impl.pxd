@@ -39,6 +39,8 @@ cdef class CoderImpl(object):
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef bytes encode(self, value)
   cpdef decode(self, bytes encoded)
+  cpdef bytes encode_nested(self, value)
+  cpdef decode_nested(self, bytes encoded)
   cpdef estimate_size(self, value, bint nested=?)
   @cython.locals(varint_size=int, bits=libc.stdint.uint64_t)
   @cython.overflowcheck(False)
@@ -68,11 +70,11 @@ cdef class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
 cdef object NoneType
 cdef char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE, BOOL_TYPE
-cdef char STR_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE, SET_TYPE
+cdef char BYTES_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE, SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
-  @cython.locals(unicode_value=unicode, dict_value=dict)
+  @cython.locals(dict_value=dict)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
@@ -130,11 +132,16 @@ cdef class IterableCoderImpl(SequenceCoderImpl):
   pass
 
 
+cdef class PaneInfoCoderImpl(StreamCoderImpl):
+  cdef int _choose_encoding(self, value)
+
+
 cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
   cdef CoderImpl _value_coder
   cdef CoderImpl _timestamp_coder
   cdef CoderImpl _windows_coder
+  cdef CoderImpl _pane_info_coder
 
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)

@@ -15,16 +15,21 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import unittest
+from builtins import object
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
 
 class NameTest(unittest.TestCase):
@@ -98,30 +103,52 @@ class MetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       Metrics.get_namespace(object())
 
+  def test_counter_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("namespace", "")
+
+  def test_counter_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("", "names")
+
+  def test_distribution_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("namespace", "")
+
+  def test_distribution_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("", "names")
+
   def test_create_counter_distribution(self):
-    MetricsEnvironment.set_current_container(MetricsContainer('mystep'))
-    counter_ns = 'aCounterNamespace'
-    distro_ns = 'aDistributionNamespace'
-    name = 'a_name'
-    counter = Metrics.counter(counter_ns, name)
-    distro = Metrics.distribution(distro_ns, name)
-    counter.inc(10)
-    counter.dec(3)
-    distro.update(10)
-    distro.update(2)
-    self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
-    self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state('mystep', 'myState',
+                                  metrics_container=MetricsContainer('mystep'))
+    sampler.start()
+    with state1:
+      counter_ns = 'aCounterNamespace'
+      distro_ns = 'aDistributionNamespace'
+      name = 'a_name'
+      counter = Metrics.counter(counter_ns, name)
+      distro = Metrics.distribution(distro_ns, name)
+      counter.inc(10)
+      counter.dec(3)
+      distro.update(10)
+      distro.update(2)
+      self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
+      self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
 
-    del distro
-    del counter
+      del distro
+      del counter
 
-    container = MetricsEnvironment.current_container()
-    self.assertEqual(
-        container.counters[MetricName(counter_ns, name)].get_cumulative(),
-        7)
-    self.assertEqual(
-        container.distributions[MetricName(distro_ns, name)].get_cumulative(),
-        DistributionData(12, 2, 2, 10))
+      container = MetricsEnvironment.current_container()
+      self.assertEqual(
+          container.counters[MetricName(counter_ns, name)].get_cumulative(),
+          7)
+      self.assertEqual(
+          container.distributions[MetricName(distro_ns, name)].get_cumulative(),
+          DistributionData(12, 2, 2, 10))
+    sampler.stop()
 
 
 if __name__ == '__main__':

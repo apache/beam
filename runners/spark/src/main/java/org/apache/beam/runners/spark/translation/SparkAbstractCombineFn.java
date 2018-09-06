@@ -25,11 +25,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -42,22 +42,20 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-
 /**
- * An abstract for the SparkRunner implementation of
- * {@link org.apache.beam.sdk.transforms.Combine.CombineFn}.
+ * An abstract for the SparkRunner implementation of {@link
+ * org.apache.beam.sdk.transforms.Combine.CombineFn}.
  */
 public class SparkAbstractCombineFn implements Serializable {
-  protected final SparkRuntimeContext runtimeContext;
+  protected final SerializablePipelineOptions options;
   protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   protected final WindowingStrategy<?, BoundedWindow> windowingStrategy;
 
-
   public SparkAbstractCombineFn(
-      SparkRuntimeContext runtimeContext,
-      Map<TupleTag<?>,  KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      SerializablePipelineOptions options,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-    this.runtimeContext = runtimeContext;
+    this.options = options;
     this.sideInputs = sideInputs;
     this.windowingStrategy = (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
   }
@@ -69,23 +67,17 @@ public class SparkAbstractCombineFn implements Serializable {
   // in the same JVM (Executor). **
   // ** DO NOT use combineContext directly inside this class, use ctxtForInput instead. **
   private transient SparkCombineContext combineContext;
+
   protected SparkCombineContext ctxtForInput(WindowedValue<?> input) {
     if (combineContext == null) {
-      combineContext = new SparkCombineContext(runtimeContext.getPipelineOptions(),
-          new SparkSideInputReader(sideInputs));
+      combineContext = new SparkCombineContext(options.get(), new SparkSideInputReader(sideInputs));
     }
     return combineContext.forInput(input);
   }
 
   protected static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
     List<WindowedValue<T>> sorted = Lists.newArrayList(iter);
-    Collections.sort(sorted, new Comparator<WindowedValue<T>>() {
-      @Override
-      public int compare(WindowedValue<T> o1, WindowedValue<T> o2) {
-        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp().compareTo(
-            Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
-      }
-    });
+    sorted.sort(Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
     return sorted;
   }
 
@@ -97,9 +89,7 @@ public class SparkAbstractCombineFn implements Serializable {
     return union == null ? window : union.span(window);
   }
 
-  /**
-   * An implementation of {@link CombineWithContext.Context} for the SparkRunner.
-   */
+  /** An implementation of {@link CombineWithContext.Context} for the SparkRunner. */
   private static class SparkCombineContext extends CombineWithContext.Context {
     private final PipelineOptions pipelineOptions;
     private final SideInputReader sideInputReader;
@@ -126,8 +116,9 @@ public class SparkAbstractCombineFn implements Serializable {
       checkNotNull(input, "Input in SparkCombineContext must not be null!");
       //validate element window.
       final Collection<? extends BoundedWindow> elementWindows = input.getWindows();
-      checkState(elementWindows.size() == 1, "sideInput can only be called when the main "
-          + "input element is in exactly one window");
+      checkState(
+          elementWindows.size() == 1,
+          "sideInput can only be called when the main " + "input element is in exactly one window");
       return sideInputReader.get(view, elementWindows.iterator().next());
     }
   }

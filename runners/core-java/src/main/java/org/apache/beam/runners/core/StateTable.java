@@ -17,30 +17,40 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.base.Equivalence;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 
 /**
  * Table mapping {@code StateNamespace} and {@code StateTag<?>} to a {@code State} instance.
+ *
+ * <p>Two {@link StateTag StateTags} with the same ID are considered equivalent. The remaining
+ * information carried by the {@link StateTag} is used to configure an empty state cell if it is not
+ * yet initialized.
  */
 public abstract class StateTable {
 
-  private final Table<StateNamespace, StateTag<?>, State> stateTable =
+  private final Table<StateNamespace, Equivalence.Wrapper<StateTag>, State> stateTable =
       HashBasedTable.create();
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
-   * StateTag}, binding it using the {@link #binderForNamespace} if it is not
-   * already present in this {@link StateTable}.
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
-    State storage = stateTable.get(namespace, tag);
+
+    Equivalence.Wrapper<StateTag> tagById = StateTags.ID_EQUIVALENCE.wrap((StateTag) tag);
+
+    @Nullable State storage = getOrNull(namespace, tagById, c);
     if (storage != null) {
       @SuppressWarnings("unchecked")
       StateT typedStorage = (StateT) storage;
@@ -48,8 +58,18 @@ public abstract class StateTable {
     }
 
     StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
-    stateTable.put(namespace, tag, typedStorage);
+    stateTable.put(namespace, tagById, typedStorage);
     return typedStorage;
+  }
+
+  /**
+   * Gets the {@link State} in the specified {@link StateNamespace} with the specified identifier or
+   * {@code null} if it is not yet present.
+   */
+  @Nullable
+  public State getOrNull(
+      StateNamespace namespace, Equivalence.Wrapper<StateTag> tag, StateContext<?> c) {
+    return stateTable.get(namespace, tag);
   }
 
   public void clearNamespace(StateNamespace namespace) {
@@ -68,8 +88,18 @@ public abstract class StateTable {
     return stateTable.containsRow(namespace);
   }
 
-  public Map<StateTag<?>, State> getTagsInUse(StateNamespace namespace) {
-    return stateTable.row(namespace);
+  public Map<StateTag, State> getTagsInUse(StateNamespace namespace) {
+    // Because of shading, Equivalence.Wrapper cannot be on the API surface; it won't work.
+    // If runners-core ceases to shade Guava then it can (all runners should shade runners-core
+    // anyhow)
+    Map<Equivalence.Wrapper<StateTag>, State> row = stateTable.row(namespace);
+    HashMap<StateTag, State> result = new HashMap<>();
+
+    for (Map.Entry<Equivalence.Wrapper<StateTag>, State> entry : row.entrySet()) {
+      result.put(entry.getKey().get(), entry.getValue());
+    }
+
+    return result;
   }
 
   public Set<StateNamespace> getNamespacesInUse() {
@@ -77,8 +107,8 @@ public abstract class StateTable {
   }
 
   /**
-   * Provide the {@code StateBinder} to use for creating {@code Storage} instances
-   * in the specified {@code namespace}.
+   * Provide the {@code StateBinder} to use for creating {@code Storage} instances in the specified
+   * {@code namespace}.
    */
   protected abstract StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c);
 }

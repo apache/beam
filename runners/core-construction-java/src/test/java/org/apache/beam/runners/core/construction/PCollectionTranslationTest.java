@@ -28,12 +28,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -63,9 +63,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link PCollectionTranslation}.
- */
+/** Tests for {@link PCollectionTranslation}. */
 @RunWith(Parameterized.class)
 public class PCollectionTranslationTest {
   // Each spec activates tests of all subsets of its fields
@@ -76,36 +74,33 @@ public class PCollectionTranslationTest {
     PCollection<Long> longs = pipeline.apply("unbounded longs", GenerateSequence.from(0));
     PCollection<Long> windowedLongs =
         longs.apply(
-            "into fixed windows",
-            Window.<Long>into(FixedWindows.of(Duration.standardMinutes(10L))));
+            "into fixed windows", Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
     PCollection<KV<String, Iterable<String>>> groupedStrings =
         pipeline
             .apply(
                 "kvs", Create.of(KV.of("foo", "spam"), KV.of("bar", "ham"), KV.of("baz", "eggs")))
-            .apply("group", GroupByKey.<String, String>create());
+            .apply("group", GroupByKey.create());
     PCollection<Long> coderLongs =
         pipeline
             .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
-    PCollection<Integer> allCustomInts =
-        pipeline
-            .apply(
-                "intsWithCustomCoder",
-                Create.of(1, 2)
-                    .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
-            .apply(
-                "into custom windows",
-                Window.<Integer>into(new CustomWindows())
-                    .triggering(
-                        AfterWatermark.pastEndOfWindow()
-                            .withEarlyFirings(
-                                AfterFirst.of(
-                                    AfterPane.elementCountAtLeast(5),
-                                    AfterProcessingTime.pastFirstElementInPane()
-                                        .plusDelayOf(Duration.millis(227L)))))
-                    .accumulatingFiredPanes()
-                    .withAllowedLateness(Duration.standardMinutes(12L)));
-    return ImmutableList.<PCollection<?>>of(ints, longs, windowedLongs, coderLongs, groupedStrings);
+    pipeline
+        .apply(
+            "intsWithCustomCoder",
+            Create.of(1, 2).withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
+        .apply(
+            "into custom windows",
+            Window.into(new CustomWindows())
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(
+                            AfterFirst.of(
+                                AfterPane.elementCountAtLeast(5),
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.millis(227L)))))
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(12L)));
+    return ImmutableList.of(ints, longs, windowedLongs, coderLongs, groupedStrings);
   }
 
   @Parameter(0)
@@ -113,20 +108,42 @@ public class PCollectionTranslationTest {
 
   @Test
   public void testEncodeDecodeCycle() throws Exception {
+    // Encode
     SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PCollection protoCollection = PCollectionTranslation
-        .toProto(testCollection, sdkComponents);
-    RunnerApi.Components protoComponents = sdkComponents.toComponents();
-    Coder<?> decodedCoder = PCollectionTranslation.getCoder(protoCollection, protoComponents);
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    RunnerApi.PCollection protoCollection =
+        PCollectionTranslation.toProto(testCollection, sdkComponents);
+    RehydratedComponents protoComponents =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
+
+    // Decode
+    Pipeline pipeline = Pipeline.create();
+    PCollection<?> decodedCollection =
+        PCollectionTranslation.fromProto(protoCollection, pipeline, protoComponents);
+
+    // Verify
+    assertThat(decodedCollection.getCoder(), equalTo(testCollection.getCoder()));
+    assertThat(
+        decodedCollection.getWindowingStrategy(),
+        equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
+  }
+
+  @Test
+  public void testEncodeDecodeFields() throws Exception {
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    RunnerApi.PCollection protoCollection =
+        PCollectionTranslation.toProto(testCollection, sdkComponents);
+    RehydratedComponents protoComponents =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
+    Coder<?> decodedCoder = protoComponents.getCoder(protoCollection.getCoderId());
     WindowingStrategy<?, ?> decodedStrategy =
-        PCollectionTranslation.getWindowingStrategy(protoCollection, protoComponents);
+        protoComponents.getWindowingStrategy(protoCollection.getWindowingStrategyId());
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
-    assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
-    assertThat(
-        decodedStrategy,
-        Matchers.<WindowingStrategy<?, ?>>equalTo(
-            testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(decodedCoder, equalTo(testCollection.getCoder()));
+    assertThat(decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 
@@ -146,7 +163,7 @@ public class PCollectionTranslationTest {
   private static class CustomWindows extends NonMergingWindowFn<Integer, BoundedWindow> {
     @Override
     public Collection<BoundedWindow> assignWindows(final AssignContext c) throws Exception {
-      return Collections.<BoundedWindow>singleton(
+      return Collections.singleton(
           new BoundedWindow() {
             @Override
             public Instant maxTimestamp() {
@@ -174,11 +191,11 @@ public class PCollectionTranslationTest {
     @Override
     public Coder<BoundedWindow> windowCoder() {
       return new AtomicCoder<BoundedWindow>() {
-        @Override public void verifyDeterministic() {}
+        @Override
+        public void verifyDeterministic() {}
 
         @Override
-        public void encode(BoundedWindow value, OutputStream outStream)
-            throws IOException {
+        public void encode(BoundedWindow value, OutputStream outStream) throws IOException {
           VarInt.encode(value.maxTimestamp().getMillis(), outStream);
         }
 

@@ -31,9 +31,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  */
 public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
-  /**
-   * Produces a {@link SetCoder} with the given {@code elementCoder}.
-   */
+  /** Produces a {@link SetCoder} with the given {@code elementCoder}. */
   public static <T> SetCoder<T> of(Coder<T> elementCoder) {
     return new SetCoder<>(elementCoder);
   }
@@ -41,13 +39,13 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always. Sets are not ordered, but
-   *         they are encoded in the order of an arbitrary iteration.
+   * @throws NonDeterministicException always. Sets are not ordered, but they are encoded in the
+   *     order of an arbitrary iteration.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "Ordering of elements in a set may be non-deterministic.");
+    throw new NonDeterministicException(
+        this, "Ordering of elements in a set may be non-deterministic.");
   }
 
   @Override
@@ -62,8 +60,8 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   /**
    * {@inheritDoc}
    *
-   * @return A new {@link Set} built from the elements in the {@link List} decoded by
-   * {@link IterableLikeCoder}.
+   * @return A new {@link Set} built from the elements in the {@link List} decoded by {@link
+   *     IterableLikeCoder}.
    */
   @Override
   protected final Set<T> decodeToIterable(List<T> decodedElements) {

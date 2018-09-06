@@ -24,9 +24,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the {@link AfterSynchronizedProcessingTime}.
- */
+/** Tests the {@link AfterSynchronizedProcessingTime}. */
 @RunWith(JUnit4.class)
 public class AfterSynchronizedProcessingTimeTest {
 
@@ -34,7 +32,8 @@ public class AfterSynchronizedProcessingTimeTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
         underTest.getWatermarkThatGuaranteesFiring(
             new IntervalWindow(new Instant(0), new Instant(10))));
   }

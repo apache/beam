@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -27,20 +28,19 @@ import org.apache.beam.sdk.util.NameUtils;
 /**
  * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
  *
- * <p>An abstract base class that provides default implementations for some methods of
- * {@link PValue}.
+ * <p>An abstract base class that provides default implementations for some methods of {@link
+ * PValue}.
  */
 @Internal
 public abstract class PValueBase implements PValue {
 
-  private final Pipeline pipeline;
+  private final transient @Nullable Pipeline pipeline;
 
   /**
    * Returns the name of this {@link PValueBase}.
    *
-   * <p>By default, the name of a {@link PValueBase} is based on the
-   * name of the {@link PTransform} that produces it.  It can be
-   * specified explicitly by calling {@link #setName}.
+   * <p>By default, the name of a {@link PValueBase} is based on the name of the {@link PTransform}
+   * that produces it. It can be specified explicitly by calling {@link #setName}.
    *
    * @throws IllegalStateException if the name hasn't been set yet
    */
@@ -55,8 +55,8 @@ public abstract class PValueBase implements PValue {
   /**
    * Sets the name of this {@link PValueBase}. Returns {@code this}.
    *
-   * @throws IllegalStateException if this {@link PValueBase} has
-   * already been finalized and may no longer be set.
+   * @throws IllegalStateException if this {@link PValueBase} has already been finalized and may no
+   *     longer be set.
    */
   public PValueBase setName(String name) {
     checkState(!finishedSpecifying, "cannot change the name of %s once it's been used", this);
@@ -71,28 +71,26 @@ public abstract class PValueBase implements PValue {
   }
 
   /**
-   * No-arg constructor for Java serialization only.
-   * The resulting {@link PValueBase} is unlikely to be
-   * valid.
+   * No-arg constructor to allow subclasses to implement {@link java.io.Serializable}. The resulting
+   * {@link PValueBase} is not valid as a {@link PValue}, but may have other properties that are
+   * still usable, such as the tag in a {@link PCollectionView}.
    */
   protected PValueBase() {
     this.pipeline = null;
   }
 
-  /**
-   * The name of this {@link PValueBase}, or {@code null} if not yet set.
-   */
-  private String name;
+  /** The name of this {@link PValueBase}, or {@code null} if not yet set. */
+  @Nullable private String name;
 
   /**
-   * Whether this {@link PValueBase} has been finalized, and its core
-   * properties, e.g., name, can no longer be changed.
+   * Whether this {@link PValueBase} has been finalized, and its core properties, e.g., name, can no
+   * longer be changed.
    */
   private boolean finishedSpecifying = false;
 
   /**
-   * Returns whether this {@link PValueBase} has been finalized, and
-   * its core properties, e.g., name, can no longer be changed.
+   * Returns whether this {@link PValueBase} has been finalized, and its core properties, e.g.,
+   * name, can no longer be changed.
    *
    * <p>For internal use only.
    */
@@ -107,13 +105,11 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public String toString() {
-    return (name == null ? "<unnamed>" : getName())
-        + " [" + getKindString() + "]";
+    return (name == null ? "<unnamed>" : getName()) + " [" + getKindString() + "]";
   }
 
   /**
-   * Returns a {@link String} capturing the kind of this
-   * {@link PValueBase}.
+   * Returns a {@link String} capturing the kind of this {@link PValueBase}.
    *
    * <p>By default, uses the base name of the current class as its kind string.
    */
@@ -123,6 +119,13 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public Pipeline getPipeline() {
+    checkState(
+        pipeline != null,
+        "Pipeline was null for %s. "
+            + "this probably means it was used as a %s after being deserialized, "
+            + "which not unsupported.",
+        getClass().getCanonicalName(),
+        PValue.class.getSimpleName());
     return pipeline;
   }
 

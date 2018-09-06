@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Map;
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -33,12 +33,12 @@ import org.apache.flink.util.Collector;
 /**
  * Special version of {@link FlinkReduceFunction} that supports merging windows.
  *
- * <p>This is different from the pair of function for the non-merging windows case
- * in that we cannot do combining before the shuffle because elements would not
- * yet be in their correct windows for side-input access.
+ * <p>This is different from the pair of function for the non-merging windows case in that we cannot
+ * do combining before the shuffle because elements would not yet be in their correct windows for
+ * side-input access.
  */
 public class FlinkMergingNonShuffleReduceFunction<
-    K, InputT, AccumT, OutputT, W extends BoundedWindow>
+        K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> {
 
   private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
@@ -47,7 +47,7 @@ public class FlinkMergingNonShuffleReduceFunction<
 
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
-  private final SerializedPipelineOptions serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
 
   public FlinkMergingNonShuffleReduceFunction(
       CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn,
@@ -60,16 +60,15 @@ public class FlinkMergingNonShuffleReduceFunction<
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
-    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
-
+    this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
   }
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, InputT>>> elements,
-      Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
+      Iterable<WindowedValue<KV<K, InputT>>> elements, Collector<WindowedValue<KV<K, OutputT>>> out)
+      throws Exception {
 
-    PipelineOptions options = serializedOptions.getPipelineOptions();
+    PipelineOptions options = serializedOptions.get();
 
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
@@ -82,12 +81,11 @@ public class FlinkMergingNonShuffleReduceFunction<
     }
 
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<K, InputT, AccumT, OutputT>(combineFn),
+        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,
         elements,
         out);
   }
-
 }

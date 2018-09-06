@@ -22,14 +22,16 @@ For internal use only. No backwards compatibility guarantees.
 
 from __future__ import absolute_import
 
+from builtins import object
+
 
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
-  def __init__(self, applied_ptransform, uncommitted_output_bundles,
+  def __init__(self, transform_evaluator, uncommitted_output_bundles,
                unprocessed_bundles, counters, keyed_watermark_holds,
                undeclared_tag_values=None):
-    self.transform = applied_ptransform
+    self.transform = transform_evaluator._applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
     self.counters = counters
@@ -47,6 +49,9 @@ class TransformResult(object):
     # Populated by the TransformExecutor.
     self.logical_metric_updates = None
 
+    step_context = transform_evaluator._execution_context.get_step_context()
+    self.partial_keyed_state = step_context.partial_keyed_state
+
 
 class TimerFiring(object):
   """A single instance of a fired timer."""
@@ -57,6 +62,11 @@ class TimerFiring(object):
     self.name = name
     self.time_domain = time_domain
     self.timestamp = timestamp
+
+  def __repr__(self):
+    return 'TimerFiring(%r, %r, %s, %s)' % (self.encoded_key,
+                                            self.name, self.time_domain,
+                                            self.timestamp)
 
 
 class KeyedWorkItem(object):

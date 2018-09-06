@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.util.Map;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,9 +42,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ReplacementOutputs}.
- */
+/** Tests for {@link ReplacementOutputs}. */
 @RunWith(JUnit4.class)
 public class ReplacementOutputsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -50,37 +50,36 @@ public class ReplacementOutputsTest {
 
   private PCollection<Integer> ints =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<Integer> moreInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<String> strs =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
 
   private PCollection<Integer> replacementInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<Integer> moreReplacementInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<String> replacementStrs =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
 
   @Test
   public void singletonSucceeds() {
     Map<PValue, ReplacementOutput> replacements =
         ReplacementOutputs.singleton(ints.expand(), replacementInts);
 
-    assertThat(replacements, Matchers.<PValue>hasKey(replacementInts));
+    assertThat(replacements, Matchers.hasKey(replacementInts));
 
     ReplacementOutput replacement = replacements.get(replacementInts);
     Map.Entry<TupleTag<?>, PValue> taggedInts = Iterables.getOnlyElement(ints.expand().entrySet());
-    assertThat(
-        replacement.getOriginal().getTag(), Matchers.<TupleTag<?>>equalTo(taggedInts.getKey()));
+    assertThat(replacement.getOriginal().getTag(), equalTo(taggedInts.getKey()));
     assertThat(replacement.getOriginal().getValue(), equalTo(taggedInts.getValue()));
-    assertThat(replacement.getReplacement().getValue(), Matchers.<PValue>equalTo(replacementInts));
+    assertThat(replacement.getReplacement().getValue(), equalTo(replacementInts));
   }
 
   @Test
@@ -111,7 +110,7 @@ public class ReplacementOutputsTest {
                 .and(intsTag, replacementInts));
     assertThat(
         replacements.keySet(),
-        Matchers.<PValue>containsInAnyOrder(replacementStrs, replacementInts, moreReplacementInts));
+        Matchers.containsInAnyOrder(replacementStrs, replacementInts, moreReplacementInts));
     ReplacementOutput intsReplacement = replacements.get(replacementInts);
     ReplacementOutput strsReplacement = replacements.get(replacementStrs);
     ReplacementOutput moreIntsReplacement = replacements.get(moreReplacementInts);

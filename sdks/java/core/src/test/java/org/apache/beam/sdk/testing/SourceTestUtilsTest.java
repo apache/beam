@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link SourceTestUtils}.
- */
+/** Tests for {@link SourceTestUtils}. */
 @RunWith(JUnit4.class)
 public class SourceTestUtilsTest {
 
@@ -44,8 +42,8 @@ public class SourceTestUtilsTest {
     BoundedSource<Long> baseSource = CountingSource.upTo(100);
     BoundedSource<Long> unsplittableSource = SourceTestUtils.toUnsplittableSource(baseSource);
     List<?> splits = unsplittableSource.split(1, options);
-    assertEquals(splits.size(), 1);
-    assertEquals(splits.get(0), unsplittableSource);
+    assertEquals(1, splits.size());
+    assertEquals(unsplittableSource, splits.get(0));
 
     BoundedReader<Long> unsplittableReader = unsplittableSource.createReader(options);
     assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);

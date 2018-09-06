@@ -14,484 +14,435 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """SDK harness for executing Python Fns via the Fn API."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import base64
-import collections
-import json
+import abc
+import contextlib
 import logging
-import Queue as queue
+import queue
+import sys
 import threading
 import traceback
+from builtins import object
+from builtins import range
+from concurrent import futures
 
-from google.protobuf import wrappers_pb2
+import grpc
+from future import standard_library
+from future.utils import raise_
+from future.utils import with_metaclass
 
-from apache_beam.coders import coder_impl
-from apache_beam.coders import WindowedValueCoder
-from apache_beam.internal import pickler
-from apache_beam.io import iobase
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners.dataflow.native_io import iobase as native_iobase
-from apache_beam.runners import pipeline_context
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import operations
-from apache_beam.utils import counters
-from apache_beam.utils import proto_utils
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker import bundle_processor
+from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
-# This module is experimental. No backwards-compatibility guarantees.
-
-
-try:
-  from apache_beam.runners.worker import statesampler
-except ImportError:
-  from apache_beam.runners.worker import statesampler_fake as statesampler
-from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
-
-
-DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'urn:org.apache.beam:sink:runner:0.1'
-IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
-PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
-PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
-# TODO(vikasrk): Fix this once runner sends appropriate python urns.
-PYTHON_DOFN_URN = 'urn:org.apache.beam:dofn:java:0.1'
-PYTHON_SOURCE_URN = 'urn:org.apache.beam:source:java:0.1'
-
-
-def side_input_tag(transform_id, tag):
-  return str("%d[%s][%s]" % (len(transform_id), transform_id, tag))
-
-
-class RunnerIOOperation(operations.Operation):
-  """Common baseclass for runner harness IO operations."""
-
-  def __init__(self, operation_name, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, target, data_channel):
-    super(RunnerIOOperation, self).__init__(
-        operation_name, None, counter_factory, state_sampler)
-    self.windowed_coder = windowed_coder
-    self.step_name = step_name
-    # target represents the consumer for the bytes in the data plane for a
-    # DataInputOperation or a producer of these bytes for a DataOutputOperation.
-    self.target = target
-    self.data_channel = data_channel
-    for _, consumer_ops in consumers.items():
-      for consumer in consumer_ops:
-        self.add_receiver(consumer, 0)
-
-
-class DataOutputOperation(RunnerIOOperation):
-  """A sink-like operation that gathers outputs to be sent back to the runner.
-  """
-
-  def set_output_stream(self, output_stream):
-    self.output_stream = output_stream
-
-  def process(self, windowed_value):
-    self.windowed_coder.get_impl().encode_to_stream(
-        windowed_value, self.output_stream, True)
-
-  def finish(self):
-    self.output_stream.close()
-    super(DataOutputOperation, self).finish()
-
-
-class DataInputOperation(RunnerIOOperation):
-  """A source-like operation that gathers input from the runner.
-  """
-
-  def __init__(self, operation_name, step_name, consumers, counter_factory,
-               state_sampler, windowed_coder, input_target, data_channel):
-    super(DataInputOperation, self).__init__(
-        operation_name, step_name, consumers, counter_factory, state_sampler,
-        windowed_coder, target=input_target, data_channel=data_channel)
-    # We must do this manually as we don't have a spec or spec.output_coders.
-    self.receivers = [
-        operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               consumers.itervalues().next(),
-                               self.windowed_coder)]
-
-  def process(self, windowed_value):
-    self.output(windowed_value)
-
-  def process_encoded(self, encoded_windowed_values):
-    input_stream = coder_impl.create_InputStream(encoded_windowed_values)
-    while input_stream.size() > 0:
-      decoded_value = self.windowed_coder.get_impl().decode_from_stream(
-          input_stream, True)
-      self.output(decoded_value)
-
-
-# TODO(robertwb): Revise side input API to not be in terms of native sources.
-# This will enable lookups, but there's an open question as to how to handle
-# custom sources without forcing intermediate materialization.  This seems very
-# related to the desire to inject key and window preserving [Splittable]DoFns
-# into the view computation.
-class SideInputSource(native_iobase.NativeSource,
-                      native_iobase.NativeSourceReader):
-  """A 'source' for reading side inputs via state API calls.
-  """
-
-  def __init__(self, state_handler, state_key, coder):
-    self._state_handler = state_handler
-    self._state_key = state_key
-    self._coder = coder
-
-  def reader(self):
-    return self
-
-  @property
-  def returns_windowed_values(self):
-    return True
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, *exn_info):
-    pass
-
-  def __iter__(self):
-    # TODO(robertwb): Support pagination.
-    input_stream = coder_impl.create_InputStream(
-        self._state_handler.Get(self._state_key).data)
-    while input_stream.size() > 0:
-      yield self._coder.get_impl().decode_from_stream(input_stream, True)
-
-
-def memoize(func):
-  cache = {}
-  missing = object()
-
-  def wrapper(*args):
-    result = cache.get(args, missing)
-    if result is missing:
-      result = cache[args] = func(*args)
-    return result
-  return wrapper
-
-
-def only_element(iterable):
-  element, = iterable
-  return element
+standard_library.install_aliases()
 
 
 class SdkHarness(object):
+  REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_channel):
-    self._control_channel = control_channel
-    self._data_channel_factory = GrpcClientDataChannelFactory()
+  def __init__(self, control_address, worker_count, credentials=None):
+    self._worker_count = worker_count
+    self._worker_index = 0
+    if credentials is None:
+      logging.info('Creating insecure control channel.')
+      self._control_channel = grpc.insecure_channel(control_address)
+    else:
+      logging.info('Creating secure control channel.')
+      self._control_channel = grpc.secure_channel(control_address, credentials)
+    grpc.channel_ready_future(self._control_channel).result(timeout=60)
+    logging.info('Control channel established.')
+
+    self._control_channel = grpc.intercept_channel(
+        self._control_channel, WorkerIdInterceptor())
+    self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
+        credentials)
+    self._state_handler_factory = GrpcStateHandlerFactory()
+    self.workers = queue.Queue()
+    # one thread is enough for getting the progress report.
+    # Assumption:
+    # Progress report generation should not do IO or wait on other resources.
+    #  Without wait, having multiple threads will not improve performance and
+    #  will only add complexity.
+    self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    self._process_thread_pool = futures.ThreadPoolExecutor(
+        max_workers=self._worker_count)
+    self._instruction_id_vs_worker = {}
+    self._fns = {}
+    self._responses = queue.Queue()
+    self._process_bundle_queue = queue.Queue()
+    self._unscheduled_process_bundle = set()
+    logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
 
   def run(self):
-    contol_stub = beam_fn_api_pb2.BeamFnControlStub(self._control_channel)
-    # TODO(robertwb): Wire up to new state api.
-    state_stub = None
-    self.worker = SdkWorker(state_stub, self._data_channel_factory)
-
-    responses = queue.Queue()
+    control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
     no_more_work = object()
+
+    # Create workers
+    for _ in range(self._worker_count):
+      # SdkHarness manage function registration and share self._fns with all
+      # the workers. This is needed because function registration (register)
+      # and exceution(process_bundle) are send over different request and we
+      # do not really know which woker is going to process bundle
+      # for a function till we get process_bundle request. Moreover
+      # same function is reused by different process bundle calls and
+      # potentially get executed by different worker. Hence we need a
+      # centralized function list shared among all the workers.
+      self.workers.put(
+          SdkWorker(
+              state_handler_factory=self._state_handler_factory,
+              data_channel_factory=self._data_channel_factory,
+              fns=self._fns))
 
     def get_responses():
       while True:
-        response = responses.get()
+        response = self._responses.get()
         if response is no_more_work:
           return
         yield response
 
-    def process_requests():
-      for work_request in contol_stub.Control(get_responses()):
-        logging.info('Got work %s', work_request.instruction_id)
-        try:
-          response = self.worker.do_instruction(work_request)
-        except Exception:  # pylint: disable=broad-except
-          logging.error(
-              'Error processing instruction %s',
-              work_request.instruction_id,
-              exc_info=True)
-          response = beam_fn_api_pb2.InstructionResponse(
-              instruction_id=work_request.instruction_id,
-              error=traceback.format_exc())
-        responses.put(response)
-    t = threading.Thread(target=process_requests)
-    t.start()
-    t.join()
+    for work_request in control_stub.Control(get_responses()):
+      logging.info('Got work %s', work_request.instruction_id)
+      request_type = work_request.WhichOneof('request')
+      # Name spacing the request method with 'request_'. The called method
+      # will be like self.request_register(request)
+      getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
+          work_request)
+
+    logging.info('No more requests from control plane')
+    logging.info('SDK Harness waiting for in-flight requests to complete')
+    # Wait until existing requests are processed.
+    self._progress_thread_pool.shutdown()
+    self._process_thread_pool.shutdown()
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
-    responses.put(no_more_work)
+    self._responses.put(no_more_work)
+    # Stop all the workers and clean all the associated resources
     self._data_channel_factory.close()
+    self._state_handler_factory.close()
     logging.info('Done consuming work.')
+
+  def _execute(self, task, request):
+    try:
+      response = task()
+    except Exception:  # pylint: disable=broad-except
+      traceback_string = traceback.format_exc()
+      print(traceback_string, file=sys.stderr)
+      logging.error(
+          'Error processing instruction %s. Original traceback is\n%s\n',
+          request.instruction_id, traceback_string)
+      response = beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id, error=traceback_string)
+    self._responses.put(response)
+
+  def _request_register(self, request):
+
+    def task():
+      for process_bundle_descriptor in getattr(
+          request, request.WhichOneof('request')).process_bundle_descriptor:
+        self._fns[process_bundle_descriptor.id] = process_bundle_descriptor
+
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id,
+          register=beam_fn_api_pb2.RegisterResponse())
+
+    self._execute(task, request)
+
+  def _request_process_bundle(self, request):
+
+    def task():
+      # Take the free worker. Wait till a worker is free.
+      worker = self.workers.get()
+      # Get the first work item in the queue
+      work = self._process_bundle_queue.get()
+      # add the instuction_id vs worker map for progress reporting lookup
+      self._instruction_id_vs_worker[work.instruction_id] = worker
+      self._unscheduled_process_bundle.discard(work.instruction_id)
+      try:
+        self._execute(lambda: worker.do_instruction(work), work)
+      finally:
+        # Delete the instruction_id <-> worker mapping
+        self._instruction_id_vs_worker.pop(work.instruction_id, None)
+        # Put the worker back in the free worker pool
+        self.workers.put(worker)
+
+    # Create a task for each process_bundle request and schedule it
+    self._process_bundle_queue.put(request)
+    self._unscheduled_process_bundle.add(request.instruction_id)
+    self._process_thread_pool.submit(task)
+
+  def _request_process_bundle_progress(self, request):
+
+    def task():
+      instruction_reference = getattr(
+          request, request.WhichOneof('request')).instruction_reference
+      if instruction_reference in self._instruction_id_vs_worker:
+        self._execute(
+            lambda: self._instruction_id_vs_worker[
+                instruction_reference
+            ].do_instruction(request), request)
+      else:
+        self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=(
+                'Process bundle request not yet scheduled for instruction {}' if
+                instruction_reference in self._unscheduled_process_bundle else
+                'Unknown process bundle instruction {}').format(
+                    instruction_reference)), request)
+
+    self._progress_thread_pool.submit(task)
 
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler, data_channel_factory):
-    self.fns = {}
-    self.state_handler = state_handler
+  def __init__(self, state_handler_factory, data_channel_factory, fns):
+    self.fns = fns
+    self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
+    self.bundle_processors = {}
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
     if request_type:
-      # E.g. if register is set, this will construct
-      # InstructionResponse(register=self.register(request.register))
-      return beam_fn_api_pb2.InstructionResponse(**{
-          'instruction_id': request.instruction_id,
-          request_type: getattr(self, request_type)
-                        (getattr(request, request_type), request.instruction_id)
-      })
+      # E.g. if register is set, this will call self.register(request.register))
+      return getattr(self, request_type)(getattr(request, request_type),
+                                         request.instruction_id)
     else:
       raise NotImplementedError
 
-  def register(self, request, unused_instruction_id=None):
+  def register(self, request, instruction_id):
     for process_bundle_descriptor in request.process_bundle_descriptor:
       self.fns[process_bundle_descriptor.id] = process_bundle_descriptor
-      for p_transform in list(process_bundle_descriptor.primitive_transform):
-        self.fns[p_transform.function_spec.id] = p_transform.function_spec
-    return beam_fn_api_pb2.RegisterResponse()
-
-  def create_execution_tree(self, descriptor):
-    # TODO(robertwb): Figure out the correct prefix to use for output counters
-    # from StateSampler.
-    counter_factory = counters.CounterFactory()
-    state_sampler = statesampler.StateSampler(
-        'fnapi-step%s-' % descriptor.id, counter_factory)
-
-    transform_factory = BeamTransformFactory(
-        descriptor, self.data_channel_factory, counter_factory, state_sampler,
-        self.state_handler)
-
-    pcoll_consumers = collections.defaultdict(list)
-    for transform_id, transform_proto in descriptor.transforms.items():
-      for pcoll_id in transform_proto.inputs.values():
-        pcoll_consumers[pcoll_id].append(transform_id)
-
-    @memoize
-    def get_operation(transform_id):
-      transform_consumers = {
-          tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
-          for tag, pcoll_id
-          in descriptor.transforms[transform_id].outputs.items()
-      }
-      return transform_factory.create_operation(
-          transform_id, transform_consumers)
-
-    # Operations must be started (hence returned) in order.
-    @memoize
-    def topological_height(transform_id):
-      return 1 + max(
-          [0] +
-          [topological_height(consumer)
-           for pcoll in descriptor.transforms[transform_id].outputs.values()
-           for consumer in pcoll_consumers[pcoll]])
-
-    return [get_operation(transform_id)
-            for transform_id in sorted(
-                descriptor.transforms, key=topological_height, reverse=True)]
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    ops = self.create_execution_tree(
-        self.fns[request.process_bundle_descriptor_reference])
+    process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
+    state_handler = self.state_handler_factory.create_state_handler(
+        process_bundle_desc.state_api_service_descriptor)
+    self.bundle_processors[
+        instruction_id] = processor = bundle_processor.BundleProcessor(
+            process_bundle_desc,
+            state_handler,
+            self.data_channel_factory)
+    try:
+      with state_handler.process_instruction_id(instruction_id):
+        processor.process_bundle(instruction_id)
+    finally:
+      del self.bundle_processors[instruction_id]
 
-    expected_inputs = []
-    for op in ops:
-      if isinstance(op, DataOutputOperation):
-        # TODO(robertwb): Is there a better way to pass the instruction id to
-        # the operation?
-        op.set_output_stream(op.data_channel.output_stream(
-            instruction_id, op.target))
-      elif isinstance(op, DataInputOperation):
-        # We must wait until we receive "end of stream" for each of these ops.
-        expected_inputs.append(op)
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+            metrics=processor.metrics()))
 
-    # Start all operations.
-    for op in reversed(ops):
-      logging.info('start %s', op)
-      op.start()
-
-    # Inject inputs from data plane.
-    for input_op in expected_inputs:
-      for data in input_op.data_channel.input_elements(
-          instruction_id, [input_op.target]):
-        # ignores input name
-        input_op.process_encoded(data.data)
-
-    # Finish all operations.
-    for op in ops:
-      logging.info('finish %s', op)
-      op.finish()
-
-    return beam_fn_api_pb2.ProcessBundleResponse()
+  def process_bundle_progress(self, request, instruction_id):
+    # It is an error to get progress for a not-in-flight bundle.
+    processor = self.bundle_processors.get(request.instruction_reference)
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
+            metrics=processor.metrics() if processor else None))
 
 
-class BeamTransformFactory(object):
-  """Factory for turning transform_protos into executable operations."""
-  def __init__(self, descriptor, data_channel_factory, counter_factory,
-               state_sampler, state_handler):
-    self.descriptor = descriptor
-    self.data_channel_factory = data_channel_factory
-    self.counter_factory = counter_factory
-    self.state_sampler = state_sampler
-    self.state_handler = state_handler
-    self.context = pipeline_context.PipelineContext(descriptor)
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
+  """An abstract factory for creating ``DataChannel``."""
 
-  _known_urns = {}
+  @abc.abstractmethod
+  def create_state_handler(self, api_service_descriptor):
+    """Returns a ``StateHandler`` from the given ApiServiceDescriptor."""
+    raise NotImplementedError(type(self))
 
-  @classmethod
-  def register_urn(cls, urn, parameter_type):
-    def wrapper(func):
-      cls._known_urns[urn] = func, parameter_type
-      return func
-    return wrapper
+  @abc.abstractmethod
+  def close(self):
+    """Close all channels that this factory owns."""
+    raise NotImplementedError(type(self))
 
-  def create_operation(self, transform_id, consumers):
-    transform_proto = self.descriptor.transforms[transform_id]
-    creator, parameter_type = self._known_urns[transform_proto.spec.urn]
-    parameter = proto_utils.unpack_Any(
-        transform_proto.spec.parameter, parameter_type)
-    return creator(self, transform_id, transform_proto, parameter, consumers)
 
-  def get_coder(self, coder_id):
-    coder_proto = self.descriptor.codersyyy[coder_id]
-    if coder_proto.spec.spec.urn:
-      return self.context.coders.get_by_id(coder_id)
+class GrpcStateHandlerFactory(StateHandlerFactory):
+  """A factory for ``GrpcStateHandler``.
+
+  Caches the created channels by ``state descriptor url``.
+  """
+
+  def __init__(self):
+    self._state_handler_cache = {}
+    self._lock = threading.Lock()
+    self._throwing_state_handler = ThrowingStateHandler()
+
+  def create_state_handler(self, api_service_descriptor):
+    if not api_service_descriptor:
+      return self._throwing_state_handler
+    url = api_service_descriptor.url
+    if url not in self._state_handler_cache:
+      with self._lock:
+        if url not in self._state_handler_cache:
+          logging.info('Creating channel for %s', url)
+          grpc_channel = grpc.insecure_channel(
+              url,
+              # Options to have no limits (-1) on the size of the messages
+              # received or sent over the data plane. The actual buffer size is
+              # controlled in a layer above.
+              options=[("grpc.max_receive_message_length", -1),
+                       ("grpc.max_send_message_length", -1)])
+          # Add workerId to the grpc channel
+          grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                WorkerIdInterceptor())
+          self._state_handler_cache[url] = GrpcStateHandler(
+              beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel))
+    return self._state_handler_cache[url]
+
+  def close(self):
+    logging.info('Closing all cached gRPC state handlers.')
+    for _, state_handler in self._state_handler_cache.items():
+      state_handler.done()
+    self._state_handler_cache.clear()
+
+
+class ThrowingStateHandler(object):
+  """A state handler that errors on any requests."""
+
+  def blocking_get(self, state_key, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+  def blocking_append(self, state_key, data, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+  def blocking_clear(self, state_key, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+
+class GrpcStateHandler(object):
+
+  _DONE = object()
+
+  def __init__(self, state_stub):
+    self._lock = threading.Lock()
+    self._state_stub = state_stub
+    self._requests = queue.Queue()
+    self._responses_by_id = {}
+    self._last_id = 0
+    self._exc_info = None
+    self._context = threading.local()
+    self.start()
+
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id):
+    if getattr(self._context, 'process_instruction_id', None) is not None:
+      raise RuntimeError(
+          'Already bound to %r' % self._context.process_instruction_id)
+    self._context.process_instruction_id = bundle_id
+    try:
+      yield
+    finally:
+      self._context.process_instruction_id = None
+
+  def start(self):
+    self._done = False
+
+    def request_iter():
+      while True:
+        request = self._requests.get()
+        if request is self._DONE or self._done:
+          break
+        yield request
+
+    responses = self._state_stub.State(request_iter())
+
+    def pull_responses():
+      try:
+        for response in responses:
+          self._responses_by_id[response.id].set(response)
+          if self._done:
+            break
+      except:  # pylint: disable=bare-except
+        self._exc_info = sys.exc_info()
+        raise
+
+    reader = threading.Thread(target=pull_responses, name='read_state')
+    reader.daemon = True
+    reader.start()
+
+  def done(self):
+    self._done = True
+    self._requests.put(self._DONE)
+
+  def blocking_get(self, state_key):
+    response = self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            state_key=state_key,
+            get=beam_fn_api_pb2.StateGetRequest()))
+    if response.get.continuation_token:
+      raise NotImplementedError
+    return response.get.data
+
+  def blocking_append(self, state_key, data):
+    self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            state_key=state_key,
+            append=beam_fn_api_pb2.StateAppendRequest(data=data)))
+
+  def blocking_clear(self, state_key):
+    self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            state_key=state_key,
+            clear=beam_fn_api_pb2.StateClearRequest()))
+
+  def _blocking_request(self, request):
+    request.id = self._next_id()
+    request.instruction_reference = self._context.process_instruction_id
+    self._responses_by_id[request.id] = future = _Future()
+    self._requests.put(request)
+    while not future.wait(timeout=1):
+      if self._exc_info:
+        t, v, tb = self._exc_info
+        raise_(t, v, tb)
+      elif self._done:
+        raise RuntimeError()
+    del self._responses_by_id[request.id]
+    response = future.get()
+    if response.error:
+      raise RuntimeError(response.error)
     else:
-      # No URN, assume cloud object encoding json bytes.
-      return operation_specs.get_coder_from_spec(
-          json.loads(
-              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
-                                     wrappers_pb2.BytesValue).value))
+      return response
 
-  def get_output_coders(self, transform_proto):
-    return {
-        tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
-        for tag, pcoll_id in transform_proto.outputs.items()
-    }
-
-  def get_only_output_coder(self, transform_proto):
-    return only_element(self.get_output_coders(transform_proto).values())
-
-  def get_input_coders(self, transform_proto):
-    return {
-        tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
-        for tag, pcoll_id in transform_proto.inputs.items()
-    }
-
-  def get_only_input_coder(self, transform_proto):
-    return only_element(self.get_input_coders(transform_proto).values())
-
-  # TODO(robertwb): Update all operations to take these in the constructor.
-  @staticmethod
-  def augment_oldstyle_op(op, step_name, consumers, tag_list=None):
-    op.step_name = step_name
-    for tag, op_consumers in consumers.items():
-      for consumer in op_consumers:
-        op.add_receiver(consumer, tag_list.index(tag) if tag_list else 0)
-    return op
+  def _next_id(self):
+    self._last_id += 1
+    return str(self._last_id)
 
 
-@BeamTransformFactory.register_urn(
-    DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create(factory, transform_id, transform_proto, grpc_port, consumers):
-  target = beam_fn_api_pb2.Target(
-      primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.outputs.keys()))
-  return DataInputOperation(
-      transform_proto.unique_name,
-      transform_proto.unique_name,
-      consumers,
-      factory.counter_factory,
-      factory.state_sampler,
-      factory.get_only_output_coder(transform_proto),
-      input_target=target,
-      data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
+class _Future(object):
+  """A simple future object to implement blocking requests.
+  """
 
+  def __init__(self):
+    self._event = threading.Event()
 
-@BeamTransformFactory.register_urn(
-    DATA_OUTPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
-def create(factory, transform_id, transform_proto, grpc_port, consumers):
-  target = beam_fn_api_pb2.Target(
-      primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.inputs.keys()))
-  return DataOutputOperation(
-      transform_proto.unique_name,
-      transform_proto.unique_name,
-      consumers,
-      factory.counter_factory,
-      factory.state_sampler,
-      # TODO(robertwb): Perhaps this could be distinct from the input coder?
-      factory.get_only_input_coder(transform_proto),
-      target=target,
-      data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
+  def wait(self, timeout=None):
+    return self._event.wait(timeout)
 
+  def get(self, timeout=None):
+    if self.wait(timeout):
+      return self._value
+    else:
+      raise LookupError()
 
-@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-  # The Dataflow runner harness strips the base64 encoding.
-  source = pickler.loads(base64.b64encode(parameter.value))
-  spec = operation_specs.WorkerRead(
-      iobase.SourceBundle(1.0, source, None, None),
-      [WindowedValueCoder(source.default_output_coder())])
-  return factory.augment_oldstyle_op(
-      operations.ReadOperation(
-          transform_proto.unique_name,
-          spec,
-          factory.counter_factory,
-          factory.state_sampler),
-      transform_proto.unique_name,
-      consumers)
-
-
-@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, wrappers_pb2.BytesValue)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-  dofn_data = pickler.loads(parameter.value)
-  if len(dofn_data) == 2:
-    # Has side input data.
-    serialized_fn, side_input_data = dofn_data
-  else:
-    # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
-
-  def create_side_input(tag, coder):
-    # TODO(robertwb): Extract windows (and keys) out of element data.
-    # TODO(robertwb): Extract state key from ParDoPayload.
-    return operation_specs.WorkerSideInputSource(
-        tag=tag,
-        source=SideInputSource(
-            factory.state_handler,
-            beam_fn_api_pb2.StateKey.MultimapSideInput(
-                key=side_input_tag(transform_id, tag)),
-            coder=coder))
-  output_tags = list(transform_proto.outputs.keys())
-  output_coders = factory.get_output_coders(transform_proto)
-  spec = operation_specs.WorkerDoFn(
-      serialized_fn=serialized_fn,
-      output_tags=output_tags,
-      input=None,
-      side_inputs=[
-          create_side_input(tag, coder) for tag, coder in side_input_data],
-      output_coders=[output_coders[tag] for tag in output_tags])
-  return factory.augment_oldstyle_op(
-      operations.DoOperation(
-          transform_proto.unique_name,
-          spec,
-          factory.counter_factory,
-          factory.state_sampler),
-      transform_proto.unique_name,
-      consumers,
-      output_tags)
-
-
-@BeamTransformFactory.register_urn(IDENTITY_DOFN_URN, None)
-def create(factory, transform_id, transform_proto, unused_parameter, consumers):
-  return factory.augment_oldstyle_op(
-      operations.FlattenOperation(
-          transform_proto.unique_name,
-          None,
-          factory.counter_factory,
-          factory.state_sampler),
-      transform_proto.unique_name,
-      consumers)
+  def set(self, value):
+    self._value = value
+    self._event.set()

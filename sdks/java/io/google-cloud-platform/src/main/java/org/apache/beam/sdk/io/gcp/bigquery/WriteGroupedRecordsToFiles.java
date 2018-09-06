@@ -22,18 +22,17 @@ import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.values.ShardedKey;
 
 /**
- * Receives elements grouped by their (sharded) destination, and writes them out to a file.
- * Since all the elements in the {@link Iterable} are destined to the same table, they are all
- * written to the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
+ * Receives elements grouped by their (sharded) destination, and writes them out to a file. Since
+ * all the elements in the {@link Iterable} are destined to the same table, they are all written to
+ * the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
  */
 class WriteGroupedRecordsToFiles<DestinationT>
-    extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
-    WriteBundlesToFiles.Result<DestinationT>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteGroupedRecordsToFiles.class);
+    extends DoFn<
+        KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
+        WriteBundlesToFiles.Result<DestinationT>> {
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
@@ -47,22 +46,25 @@ class WriteGroupedRecordsToFiles<DestinationT>
   public void processElement(ProcessContext c) throws Exception {
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
-    try (TableRowWriter ignored = writer) {
+    try {
       for (TableRow tableRow : c.element().getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
-          TableRowWriter.Result result = writer.getResult();
-          c.output(new WriteBundlesToFiles.Result<>(
-              result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
           writer = new TableRowWriter(tempFilePrefix);
+          TableRowWriter.Result result = writer.getResult();
+          c.output(
+              new WriteBundlesToFiles.Result<>(
+                  result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         }
         writer.write(tableRow);
       }
+    } finally {
+      writer.close();
     }
+
     TableRowWriter.Result result = writer.getResult();
     c.output(
         new WriteBundlesToFiles.Result<>(
             result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
   }
-
 }

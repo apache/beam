@@ -1,0 +1,100 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+# This script creates single node HBase cluster. This means all three services
+# zookeeper, HBase master and regionserver are running on the same kubernetes pod.
+# Service "hbase" allow to reach HBase pod using its FQDN.
+# StatefulSet "hbase" creates one replica of HBase fully configured node. In order
+# to access the cluster from outside of GCP please also run this configuration file with:
+# hbase-single-node-cluster-for-local-dev.yml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hbase
+  labels:
+    name: hbase
+spec:
+  clusterIP: None
+  ports:
+    - name: zookeeper
+      port: 2181
+      targetPort: 2181
+    - name: rest
+      port: 8080
+      targetPort: 8080
+    - name: rest-info
+      port: 8085
+      targetPort: 8085
+    - name: thrift
+      port: 9090
+      targetPort: 9090
+    - name: thrift-info
+      port: 9095
+      targetPort: 9095
+    - name: hbase-master
+      port: 16000
+      targetPort: 16000
+    - name: web
+      port: 16010
+      targetPort: 16010
+    - name: region
+      port: 16201
+      targetPort: 16201
+    - name: region-info
+      port: 16301
+      targetPort: 16301
+  selector:
+    name: hbase
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hbase
+spec:
+  selector:
+    matchLabels:
+      name: hbase
+  serviceName: "hbase"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: hbase
+    spec:
+      containers:
+        - name: hbase
+          image: harisekhon/hbase:1.2
+          ports:
+            - name: zookeeper
+              containerPort: 2181
+            - name: rest
+              containerPort: 8080
+            - name: rest-info
+              containerPort: 8085
+            - name: thrift
+              containerPort: 9090
+            - name: thrift-info
+              containerPort: 9095
+            - name: hbase-master
+              containerPort: 16000
+            - name: web
+              containerPort: 16010
+            - name: region
+              containerPort: 16201
+            - name: region-info
+              containerPort: 16301

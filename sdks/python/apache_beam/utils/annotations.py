@@ -17,6 +17,17 @@
 
 """Deprecated and experimental annotations.
 
+Experimental: Signifies that a public API (public class, method or field) is
+subject to incompatible changes, or even removal, in a future release. Note that
+the presence of this annotation implies nothing about the quality or performance
+of the API in question, only the fact that the API or behavior may change in any
+way.
+
+Deprecated: Signifies that users are discouraged from using a public API
+typically because a better alternative exists, and the current form might be
+removed in a future version.
+
+Usage:
 For internal use only; no backwards-compatibility guarantees.
 
 Annotations come in two flavors: deprecated and experimental
@@ -30,7 +41,7 @@ The following example illustrates how to annotate coexisting versions of the
 same function 'multiply'.::
 
   def multiply(arg1, arg2):
-    print arg1, '*', arg2, '=',
+    print(arg1, '*', arg2, '=', end=' ')
     return arg1*arg2
 
 # This annotation marks 'old_multiply' as deprecated since 'v.1' and suggests
@@ -41,7 +52,7 @@ same function 'multiply'.::
     result = 0
     for i in xrange(arg1):
         result += arg2
-    print arg1, '*', arg2, '(the old way)=',
+    print(arg1, '*', arg2, '(the old way)=', end=' ')
     return result
 
 # This annotation marks 'exp_multiply' as experimental and suggests
@@ -49,16 +60,18 @@ same function 'multiply'.::
 
   @experimental(since='v.1', current='multiply')
   def exp_multiply(arg1, arg2):
-    print arg1, '*', arg2, '(the experimental way)=',
+    print(arg1, '*', arg2, '(the experimental way)=', end=' ')
     return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
 
 # Set a warning filter to control how often warnings are produced.::
 
   warnings.simplefilter("always")
-  print multiply(5, 6)
-  print old_multiply(5,6)
-  print exp_multiply(5,6)
+  print(multiply(5, 6))
+  print(old_multiply(5,6))
+  print(exp_multiply(5,6))
 """
+
+from __future__ import absolute_import
 
 import warnings
 from functools import partial
@@ -95,8 +108,8 @@ def annotate(label, since, current, extra_message):
         message += ' since %s' % since
       message += '. Use %s instead.' % current if current else '.'
       if extra_message:
-        message += '. ' + extra_message
-      warnings.warn(message, warning_type)
+        message += ' ' + extra_message
+      warnings.warn(message, warning_type, stacklevel=2)
       return fnc(*args, **kwargs)
     return inner
   return _annotate

@@ -17,14 +17,24 @@
 
 """Utilities for handling side inputs."""
 
+from __future__ import absolute_import
+
 import collections
 import logging
-import Queue
+import queue
 import threading
 import traceback
+from builtins import object
+from builtins import range
 
+from future import standard_library
+
+from apache_beam.coders import observable
 from apache_beam.io import iobase
+from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
+
+standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -50,26 +60,44 @@ _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
-  def __init__(self, sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS):
+  def __init__(self,
+               sources,
+               max_reader_threads=MAX_SOURCE_READER_THREADS,
+               read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
     # Queue for sources that are to be read.
-    self.sources_queue = Queue.Queue()
+    self.sources_queue = queue.Queue()
     for source in sources:
       self.sources_queue.put(source)
     # Queue for elements that have been read.
-    self.element_queue = Queue.Queue(ELEMENT_QUEUE_SIZE)
+    self.element_queue = queue.Queue(ELEMENT_QUEUE_SIZE)
     # Queue for exceptions encountered in reader threads; to be rethrown.
-    self.reader_exceptions = Queue.Queue()
+    self.reader_exceptions = queue.Queue()
     # Whether we have already iterated; this iterable can only be used once.
     self.already_iterated = False
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
+    self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
     self.reader_threads = []
     self._start_reader_threads()
+
+  def add_byte_counter(self, reader):
+    """Adds byte counter observer to a side input reader.
+
+    Args:
+      reader: A reader that should inherit from ObservableMixin to have
+        bytes tracked.
+    """
+    def update_bytes_read(record_size, is_record_size=False, **kwargs):
+      # Let the reader report block size.
+      if is_record_size:
+        self.read_counter.add_bytes_read(record_size)
+
+    if isinstance(reader, observable.ObservableMixin):
+      reader.register_observer(update_bytes_read)
 
   def _start_reader_threads(self):
     for _ in range(0, self.num_reader_threads):
@@ -96,6 +124,10 @@ class PrefetchingSourceSetIterable(object):
           else:
             # Native dataflow source.
             with source.reader() as reader:
+              # The tracking of time spend reading and bytes read from side
+              # inputs is kept behind an experiment flag to test performance
+              # impact.
+              self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
@@ -105,7 +137,7 @@ class PrefetchingSourceSetIterable(object):
                   self.element_queue.put(value)
                 else:
                   self.element_queue.put(_globally_windowed(value))
-        except Queue.Empty:
+        except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
       logging.error('Encountered exception in PrefetchingSourceSetIterable '
@@ -116,6 +148,7 @@ class PrefetchingSourceSetIterable(object):
       self.element_queue.put(READER_THREAD_IS_DONE_SENTINEL)
 
   def __iter__(self):
+    # pylint: disable=too-many-nested-blocks
     if self.already_iterated:
       raise RuntimeError(
           'Can only iterate once over PrefetchingSourceSetIterable instance.')
@@ -128,15 +161,18 @@ class PrefetchingSourceSetIterable(object):
     num_readers_finished = 0
     try:
       while True:
-        element = self.element_queue.get()
-        if element is READER_THREAD_IS_DONE_SENTINEL:
-          num_readers_finished += 1
-          if num_readers_finished == self.num_reader_threads:
-            return
-        elif self.has_errored:
-          raise self.reader_exceptions.get()
-        else:
-          yield element
+        try:
+          with self.read_counter:
+            element = self.element_queue.get()
+          if element is READER_THREAD_IS_DONE_SENTINEL:
+            num_readers_finished += 1
+            if num_readers_finished == self.num_reader_threads:
+              return
+          else:
+            yield element
+        finally:
+          if self.has_errored:
+            raise self.reader_exceptions.get()
     except GeneratorExit:
       self.has_errored = True
       raise
@@ -149,12 +185,17 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(
-    sources, max_reader_threads=MAX_SOURCE_READER_THREADS):
+def get_iterator_fn_for_sources(sources,
+                                max_reader_threads=MAX_SOURCE_READER_THREADS,
+                                read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
-    return iter(PrefetchingSourceSetIterable(
-        sources, max_reader_threads=max_reader_threads))
+    return iter(
+        PrefetchingSourceSetIterable(
+            sources,
+            max_reader_threads=max_reader_threads,
+            read_counter=read_counter))
+
   return _inner
 
 

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,8 +40,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * Helper for keeping track of which {@link DataStream DataStreams} map
- * to which {@link PTransform PTransforms}.
+ * Helper for keeping track of which {@link DataStream DataStreams} map to which {@link PTransform
+ * PTransforms}.
  */
 class FlinkStreamingTranslationContext {
 
@@ -48,10 +49,10 @@ class FlinkStreamingTranslationContext {
   private final PipelineOptions options;
 
   /**
-   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
-   * Flink Operator that produced it, after the translation of the correspondinf PTransform
-   * to its Flink equivalent.
-   * */
+   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the Flink Operator
+   * that produced it, after the translation of the correspondinf PTransform to its Flink
+   * equivalent.
+   */
   private final Map<PValue, DataStream<?>> dataStreams;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
@@ -83,18 +84,31 @@ class FlinkStreamingTranslationContext {
 
   /**
    * Sets the AppliedPTransform which carries input/output.
+   *
    * @param currentTransform
    */
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
     this.currentTransform = currentTransform;
   }
 
-  public <T> Coder<WindowedValue<T>> getCoder(PCollection<T> collection) {
+  public <T> Coder<WindowedValue<T>> getWindowedInputCoder(PCollection<T> collection) {
     Coder<T> valueCoder = collection.getCoder();
 
     return WindowedValue.getFullCoder(
-        valueCoder,
-        collection.getWindowingStrategy().getWindowFn().windowCoder());
+        valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
+  }
+
+  public <T> Coder<T> getInputCoder(PCollection<T> collection) {
+    return collection.getCoder();
+  }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return currentTransform
+        .getOutputs()
+        .entrySet()
+        .stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 
   @SuppressWarnings("unchecked")
@@ -102,8 +116,7 @@ class FlinkStreamingTranslationContext {
     Coder<T> valueCoder = collection.getCoder();
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(
-            valueCoder,
-            collection.getWindowingStrategy().getWindowFn().windowCoder());
+            valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
   }
@@ -130,5 +143,4 @@ class FlinkStreamingTranslationContext {
       PTransform<?, OutputT> transform) {
     return currentTransform.getOutputs();
   }
-
 }

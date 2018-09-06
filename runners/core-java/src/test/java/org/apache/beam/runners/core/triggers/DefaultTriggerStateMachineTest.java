@@ -32,8 +32,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests the {@link DefaultTriggerStateMachine}, which should be equivalent to
- * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
+ * Tests the {@link DefaultTriggerStateMachine}, which should be equivalent to {@code
+ * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
  */
 @RunWith(JUnit4.class)
 public class DefaultTriggerStateMachineTest {
@@ -42,9 +42,9 @@ public class DefaultTriggerStateMachineTest {
 
   @Test
   public void testDefaultTriggerFixedWindows() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        DefaultTriggerStateMachine.of(),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            DefaultTriggerStateMachine.of(), FixedWindows.of(Duration.millis(100)));
 
     tester.injectElements(
         1, // [0, 100)
@@ -79,9 +79,10 @@ public class DefaultTriggerStateMachineTest {
 
   @Test
   public void testDefaultTriggerSlidingWindows() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        DefaultTriggerStateMachine.of(),
-        SlidingWindows.of(Duration.millis(100)).every(Duration.millis(50)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            DefaultTriggerStateMachine.of(),
+            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(50)));
 
     tester.injectElements(
         1, // [-50, 50), [0, 100)
@@ -125,9 +126,9 @@ public class DefaultTriggerStateMachineTest {
 
   @Test
   public void testDefaultTriggerSessions() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        DefaultTriggerStateMachine.of(),
-        Sessions.withGapDuration(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            DefaultTriggerStateMachine.of(), Sessions.withGapDuration(Duration.millis(100)));
 
     tester.injectElements(
         1, // [1, 101)

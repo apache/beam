@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -29,17 +27,13 @@ import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.joda.time.Instant;
 
-/**
- * Helpers for merging state.
- */
+/** Helpers for merging state. */
 public class StateMerging {
   /**
-   * Clear all state in {@code address} in all windows under merge (even result windows)
-   * in {@code context}.
+   * Clear all state in {@code address} in all windows under merge (even result windows) in {@code
+   * context}.
    */
   public static <K, StateT extends State, W extends BoundedWindow> void clear(
       MergingStateAccessor<K, W> context, StateTag<StateT> address) {
@@ -49,9 +43,8 @@ public class StateMerging {
   }
 
   /**
-   * Prefetch all bag state in {@code address} across all windows under merge in
-   * {@code context}, except for the bag state in the final state address window which we can
-   * blindly append to.
+   * Prefetch all bag state in {@code address} across all windows under merge in {@code context},
+   * except for the bag state in the final state address window which we can blindly append to.
    */
   public static <K, T, W extends BoundedWindow> void prefetchBags(
       MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
@@ -69,9 +62,7 @@ public class StateMerging {
     }
   }
 
-  /**
-   * Merge all bag state in {@code address} across all windows under merge.
-   */
+  /** Merge all bag state in {@code address} across all windows under merge. */
   public static <K, T, W extends BoundedWindow> void mergeBags(
       MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
     mergeBags(context.accessInEachMergingWindow(address).values(), context.access(address));
@@ -112,9 +103,7 @@ public class StateMerging {
     }
   }
 
-  /**
-   * Merge all set state in {@code address} across all windows under merge.
-   */
+  /** Merge all set state in {@code address} across all windows under merge. */
   public static <K, T, W extends BoundedWindow> void mergeSets(
       MergingStateAccessor<K, W> context, StateTag<SetState<T>> address) {
     mergeSets(context.accessInEachMergingWindow(address).values(), context.access(address));
@@ -159,17 +148,14 @@ public class StateMerging {
    * Prefetch all combining value state for {@code address} across all merging windows in {@code
    * context}.
    */
-  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow> void
-      prefetchCombiningValues(MergingStateAccessor<K, W> context,
-          StateTag<StateT> address) {
+  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow>
+      void prefetchCombiningValues(MergingStateAccessor<K, W> context, StateTag<StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
       prefetchRead(state);
     }
   }
 
-  /**
-   * Merge all value state in {@code address} across all merging windows in {@code context}.
-   */
+  /** Merge all value state in {@code address} across all merging windows in {@code context}. */
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       MergingStateAccessor<K, W> context,
       StateTag<CombiningState<InputT, AccumT, OutputT>> address) {
@@ -178,8 +164,8 @@ public class StateMerging {
   }
 
   /**
-   * Merge all value state from {@code sources} (which may include {@code result}) into
-   * {@code result}.
+   * Merge all value state from {@code sources} (which may include {@code result}) into {@code
+   * result}.
    */
   public static <InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       Collection<CombiningState<InputT, AccumT, OutputT>> sources,
@@ -212,98 +198,7 @@ public class StateMerging {
     result.addAccum(merged);
   }
 
-  /**
-   * Prefetch all watermark state for {@code address} across all merging windows in
-   * {@code context}.
-   */
-  public static <K, W extends BoundedWindow> void prefetchWatermarks(
-      MergingStateAccessor<K, W> context,
-      StateTag<WatermarkHoldState> address) {
-    Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(address);
-    WatermarkHoldState result = context.access(address);
-    if (map.isEmpty()) {
-      // Nothing to prefetch.
-      return;
-    }
-    if (map.size() == 1 && map.values().contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
-      // Nothing to change.
-      return;
-    }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
-      // No need to read existing holds.
-      return;
-    }
-    // Prefetch.
-    for (WatermarkHoldState source : map.values()) {
-      prefetchRead(source);
-    }
-  }
-
   private static void prefetchRead(ReadableState<?> source) {
     source.readLater();
-  }
-
-  /**
-   * Merge all watermark state in {@code address} across all merging windows in {@code context},
-   * where the final merge result window is {@code mergeResult}.
-   */
-  public static <K, W extends BoundedWindow> void mergeWatermarks(
-      MergingStateAccessor<K, W> context,
-      StateTag<WatermarkHoldState> address,
-      W mergeResult) {
-    mergeWatermarks(
-        context.accessInEachMergingWindow(address).values(), context.access(address), mergeResult);
-  }
-
-  /**
-   * Merge all watermark state in {@code sources} (which must include {@code result} if non-empty)
-   * into {@code result}, where the final merge result window is {@code mergeResult}.
-   */
-  public static <W extends BoundedWindow> void mergeWatermarks(
-      Collection<WatermarkHoldState> sources, WatermarkHoldState result,
-      W resultWindow) {
-    if (sources.isEmpty()) {
-      // Nothing to merge.
-      return;
-    }
-    if (sources.size() == 1 && sources.contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
-      // Nothing to merge.
-      return;
-    }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
-      // Clear sources.
-      for (WatermarkHoldState source : sources) {
-        source.clear();
-      }
-      // Update directly from window-derived hold.
-      Instant hold =
-          result.getTimestampCombiner().assign(resultWindow, BoundedWindow.TIMESTAMP_MIN_VALUE);
-      checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
-      result.add(hold);
-    } else {
-      // Prefetch.
-      List<ReadableState<Instant>> futures = new ArrayList<>(sources.size());
-      for (WatermarkHoldState source : sources) {
-        futures.add(source);
-      }
-      // Read.
-      List<Instant> outputTimesToMerge = new ArrayList<>(sources.size());
-      for (ReadableState<Instant> future : futures) {
-        Instant sourceOutputTime = future.read();
-        if (sourceOutputTime != null) {
-          outputTimesToMerge.add(sourceOutputTime);
-        }
-      }
-      // Clear sources.
-      for (WatermarkHoldState source : sources) {
-        source.clear();
-      }
-      if (!outputTimesToMerge.isEmpty()) {
-        // Merge and update.
-        result.add(result.getTimestampCombiner().merge(resultWindow, outputTimesToMerge));
-      }
-    }
   }
 }

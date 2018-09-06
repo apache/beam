@@ -32,7 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -53,9 +52,9 @@ public class JAXBCoderTest {
     private String testString = null;
     private int testInt;
 
-    public TestType() {}
+    TestType() {}
 
-    public TestType(String testString, int testInt) {
+    TestType(String testString, int testInt) {
       this.testString = testString;
       this.testInt = testInt;
     }
@@ -118,11 +117,11 @@ public class JAXBCoderTest {
     TestCoder nesting = new TestCoder(jaxbCoder);
 
     byte[] encoded = CoderUtils.encodeToByteArray(nesting, new TestType("abc", 9999));
-    assertEquals(
-        new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
+    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
   }
 
   @Test
+  @SuppressWarnings("AssertionFailureIgnored")
   public void testEncodeDecodeMultithreaded() throws Throwable {
     final JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
     int numThreads = 100;
@@ -138,24 +137,21 @@ public class JAXBCoderTest {
       final TestType elem = new TestType("abc", i);
       final int index = i;
       executor.execute(
-          new Runnable() {
-            @Override
-            public void run() {
-              ready.countDown();
-              try {
-                start.await();
-              } catch (InterruptedException e) {
-              }
-
-              try {
-                byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
-                assertEquals(
-                    new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
-              } catch (Throwable e) {
-                thrown.compareAndSet(null, e);
-              }
-              done.countDown();
+          () -> {
+            ready.countDown();
+            try {
+              start.await();
+            } catch (InterruptedException ignored) {
             }
+
+            try {
+              byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
+              assertEquals(
+                  new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
+            } catch (Throwable e) {
+              thrown.compareAndSet(null, e);
+            }
+            done.countDown();
           });
     }
     ready.await();
@@ -168,37 +164,33 @@ public class JAXBCoderTest {
     }
   }
 
-  /**
-   * A coder that surrounds the value with two values, to demonstrate nesting.
-   */
+  /** A coder that surrounds the value with two values, to demonstrate nesting. */
   private static class TestCoder extends StructuredCoder<TestType> {
     private final JAXBCoder<TestType> jaxbCoder;
-    public TestCoder(JAXBCoder<TestType> jaxbCoder) {
+
+    TestCoder(JAXBCoder<TestType> jaxbCoder) {
       this.jaxbCoder = jaxbCoder;
     }
 
     @Override
-    public void encode(TestType value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(TestType value, OutputStream outStream) throws IOException {
       encode(value, outStream, Context.NESTED);
     }
 
     @Override
-    public void encode(TestType value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+    public void encode(TestType value, OutputStream outStream, Context context) throws IOException {
       VarIntCoder.of().encode(3, outStream);
       jaxbCoder.encode(value, outStream);
       VarLongCoder.of().encode(22L, outStream, context);
     }
 
     @Override
-    public TestType decode(InputStream inStream) throws CoderException, IOException {
+    public TestType decode(InputStream inStream) throws IOException {
       return decode(inStream, Context.NESTED);
     }
 
     @Override
-    public TestType decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+    public TestType decode(InputStream inStream, Context context) throws IOException {
       VarIntCoder.of().decode(inStream);
       TestType result = jaxbCoder.decode(inStream);
       VarLongCoder.of().decode(inStream, context);
@@ -217,12 +209,12 @@ public class JAXBCoderTest {
   }
 
   @Test
-  public void testEncodable() throws Exception {
+  public void testEncodable() {
     CoderProperties.coderSerializable(JAXBCoder.of(TestType.class));
   }
 
   @Test
-  public void testEncodedTypeDescriptor() throws Exception {
+  public void testEncodedTypeDescriptor() {
     assertThat(
         JAXBCoder.of(TestType.class).getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(TestType.class)));

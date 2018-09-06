@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Classes shared by Hadoop based IOs.
- */
+/** Classes shared by Hadoop based IOs. */
 package org.apache.beam.sdk.io.hadoop;

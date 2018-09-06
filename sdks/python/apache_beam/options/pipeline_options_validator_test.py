@@ -17,13 +17,17 @@
 
 """Unit tests for the pipeline options validator module."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
+from builtins import object
+
+from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
-from hamcrest.core.base_matcher import BaseMatcher
 
 
 # Mock runners to use for validations.

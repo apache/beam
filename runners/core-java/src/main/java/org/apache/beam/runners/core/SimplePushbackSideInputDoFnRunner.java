@@ -23,7 +23,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -39,7 +41,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
-  private Set<BoundedWindow> notReadyWindows;
+  // Initialized in startBundle()
+  private @Nullable Set<BoundedWindow> notReadyWindows;
 
   public static <InputT, OutputT> SimplePushbackSideInputDoFnRunner<InputT, OutputT> create(
       DoFnRunner<InputT, OutputT> underlying,
@@ -55,6 +58,11 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     this.underlying = underlying;
     this.views = views;
     this.sideInputReader = sideInputReader;
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return underlying.getFn();
   }
 
   @Override
@@ -90,8 +98,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       return false;
     }
     for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow =
-          view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+      BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }
@@ -100,8 +107,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-                      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
@@ -111,4 +118,3 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     underlying.finishBundle();
   }
 }
-

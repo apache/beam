@@ -19,9 +19,14 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
 
 from abc import ABCMeta
 from abc import abstractmethod
+from builtins import object
+from functools import total_ordering
+
+from future.utils import with_metaclass
 
 from apache_beam import coders
 from apache_beam import core
@@ -32,7 +37,6 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
-
 __all__ = [
     'Event',
     'ElementEvent',
@@ -42,18 +46,20 @@ __all__ = [
     ]
 
 
-class Event(object):
+@total_ordering
+class Event(with_metaclass(ABCMeta, object)):
   """Test stream event to be emitted during execution of a TestStream."""
 
-  __metaclass__ = ABCMeta
-
-  def __cmp__(self, other):
-    if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return self._typed_cmp(other)
+  @abstractmethod
+  def __eq__(self, other):
+    raise NotImplementedError
 
   @abstractmethod
-  def _typed_cmp(self, other):
+  def __hash__(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def __lt__(self, other):
     raise NotImplementedError
 
 
@@ -63,8 +69,17 @@ class ElementEvent(Event):
   def __init__(self, timestamped_values):
     self.timestamped_values = timestamped_values
 
-  def _typed_cmp(self, other):
-    return cmp(self.timestamped_values, other.timestamped_values)
+  def __eq__(self, other):
+    return self.timestamped_values == other.timestamped_values
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(self.timestamped_values)
+
+  def __lt__(self, other):
+    return self.timestamped_values < other.timestamped_values
 
 
 class WatermarkEvent(Event):
@@ -73,8 +88,17 @@ class WatermarkEvent(Event):
   def __init__(self, new_watermark):
     self.new_watermark = timestamp.Timestamp.of(new_watermark)
 
-  def _typed_cmp(self, other):
-    return cmp(self.new_watermark, other.new_watermark)
+  def __eq__(self, other):
+    return self.new_watermark == other.new_watermark
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(self.new_watermark)
+
+  def __lt__(self, other):
+    return self.new_watermark < other.new_watermark
 
 
 class ProcessingTimeEvent(Event):
@@ -83,8 +107,17 @@ class ProcessingTimeEvent(Event):
   def __init__(self, advance_by):
     self.advance_by = timestamp.Duration.of(advance_by)
 
-  def _typed_cmp(self, other):
-    return cmp(self.advance_by, other.advance_by)
+  def __eq__(self, other):
+    return self.advance_by == other.advance_by
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(self.advance_by)
+
+  def __lt__(self, other):
+    return self.advance_by < other.advance_by
 
 
 class TestStream(PTransform):

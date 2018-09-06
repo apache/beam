@@ -62,7 +62,7 @@ public class CoderTest {
   public void testNonDeterministicExcpetionRequiresReason() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Reasons must not be empty");
-    new NonDeterministicException(VoidCoder.of(), Collections.<String>emptyList());
+    new NonDeterministicException(VoidCoder.of(), Collections.emptyList());
   }
 
   @Test
@@ -79,7 +79,6 @@ public class CoderTest {
 
   @Test
   public void testTypeIsPreserved() throws Exception {
-    assertThat(VoidCoder.of().getEncodedTypeDescriptor(),
-        equalTo(TypeDescriptor.of(Void.class)));
+    assertThat(VoidCoder.of().getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Void.class)));
   }
 }

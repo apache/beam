@@ -23,12 +23,13 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Count;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -50,25 +50,30 @@ import org.apache.beam.sdk.values.TupleTag;
  * The number of shards is the log base 10 of the number of input records, with up to 2 additional
  * shards.
  */
-class WriteWithShardingFactory<InputT>
+class WriteWithShardingFactory<InputT, DestinationT>
     implements PTransformOverrideFactory<
-        PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>> {
+        PCollection<InputT>, WriteFilesResult<DestinationT>,
+        PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
-          transform) {
-
+  public PTransformReplacement<PCollection<InputT>, WriteFilesResult<DestinationT>>
+      getReplacementTransform(
+          AppliedPTransform<
+                  PCollection<InputT>, WriteFilesResult<DestinationT>,
+                  PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>>
+              transform) {
     try {
-      WriteFiles<InputT> replacement = WriteFiles.to(WriteFilesTranslation.getSink(transform));
+      WriteFiles<InputT, DestinationT, ?> replacement =
+          WriteFiles.to(WriteFilesTranslation.getSink(transform))
+              .withSideInputs(WriteFilesTranslation.getDynamicDestinationSideInputs(transform))
+              .withSharding(new LogElementShardsWithDrift<>());
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }
       return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          replacement.withSharding(new LogElementShardsWithDrift<InputT>()));
+          PTransformReplacements.getSingletonMainInput(transform), replacement);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -76,8 +81,10 @@ class WriteWithShardingFactory<InputT>
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
-    return Collections.emptyMap();
+      Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+    // We must connect the new output from WriteFilesResult to the outputs provided by the original
+    // transform.
+    return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   private static class LogElementShardsWithDrift<T>
@@ -86,10 +93,10 @@ class WriteWithShardingFactory<InputT>
     @Override
     public PCollectionView<Integer> expand(PCollection<T> records) {
       return records
-          .apply(Window.<T>into(new GlobalWindows()))
-          .apply("CountRecords", Count.<T>globally())
+          .apply(Window.into(new GlobalWindows()))
+          .apply("CountRecords", Count.globally())
           .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
-          .apply(View.<Integer>asSingleton());
+          .apply(View.asSingleton());
     }
   }
 
@@ -131,7 +138,7 @@ class WriteWithShardingFactory<InputT>
         return (int) totalRecords;
       }
       // 100mil records before >7 output files
-      int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
+      int floorLogRecs = (int) Math.log10(totalRecords);
       return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + extraShards;
     }
   }

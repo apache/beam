@@ -24,18 +24,20 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.Serializable;
+import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
-/**
- * Utilities for working with Serializables.
- */
+/** Utilities for working with Serializables. */
 public class SerializableUtils {
   /**
    * Serializes the argument into an array of bytes, and returns it.
@@ -50,53 +52,63 @@ public class SerializableUtils {
       }
       return buffer.toByteArray();
     } catch (IOException exn) {
-      throw new IllegalArgumentException(
-          "unable to serialize " + value,
-          exn);
+      throw new IllegalArgumentException("unable to serialize " + value, exn);
     }
   }
 
   /**
-   * Deserializes an object from the given array of bytes, e.g., as
-   * serialized using {@link #serializeToByteArray}, and returns it.
+   * Deserializes an object from the given array of bytes, e.g., as serialized using {@link
+   * #serializeToByteArray}, and returns it.
    *
-   * @throws IllegalArgumentException if there are errors when
-   * deserializing, using the provided description to identify what
-   * was being deserialized
+   * @throws IllegalArgumentException if there are errors when deserializing, using the provided
+   *     description to identify what was being deserialized
    */
-  public static Object deserializeFromByteArray(byte[] encodedValue,
-      String description) {
+  public static Object deserializeFromByteArray(byte[] encodedValue, String description) {
     try {
-      try (ObjectInputStream ois = new ObjectInputStream(
-          new SnappyInputStream(new ByteArrayInputStream(encodedValue)))) {
+      try (ObjectInputStream ois =
+          new ContextualObjectInputStream(
+              new SnappyInputStream(new ByteArrayInputStream(encodedValue)))) {
         return ois.readObject();
       }
     } catch (IOException | ClassNotFoundException exn) {
-      throw new IllegalArgumentException(
-          "unable to deserialize " + description,
-          exn);
+      throw new IllegalArgumentException("unable to deserialize " + description, exn);
     }
   }
 
   public static <T extends Serializable> T ensureSerializable(T value) {
-    @SuppressWarnings("unchecked")
-    T copy = (T) deserializeFromByteArray(serializeToByteArray(value),
-        value.toString());
-    return copy;
+    return clone(value);
   }
 
   public static <T extends Serializable> T clone(T value) {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader tccl = thread.getContextClassLoader();
+    ClassLoader loader = tccl;
+    try {
+      if (tccl.loadClass(value.getClass().getName()) != value.getClass()) {
+        loader = value.getClass().getClassLoader();
+      }
+    } catch (final NoClassDefFoundError | ClassNotFoundException e) {
+      loader = value.getClass().getClassLoader();
+    }
+    if (loader == null) {
+      loader = tccl; // will likely fail but the best we can do
+    }
+    thread.setContextClassLoader(loader);
     @SuppressWarnings("unchecked")
-    T copy = (T) deserializeFromByteArray(serializeToByteArray(value),
-        value.toString());
+    final T copy;
+    try {
+      copy = (T) deserializeFromByteArray(serializeToByteArray(value), value.toString());
+    } finally {
+      thread.setContextClassLoader(tccl);
+    }
     return copy;
   }
 
   /**
    * Serializes a Coder and verifies that it can be correctly deserialized.
    *
-   * <p>Throws a RuntimeException if serialized Coder cannot be deserialized, or
-   * if the deserialized instance is not equal to the original.
+   * <p>Throws a RuntimeException if serialized Coder cannot be deserialized, or if the deserialized
+   * instance is not equal to the original.
    *
    * @return the deserialized Coder
    */
@@ -116,32 +128,70 @@ public class SerializableUtils {
   }
 
   /**
-   * Serializes an arbitrary T with the given {@code Coder<T>} and verifies
-   * that it can be correctly deserialized.
+   * Serializes an arbitrary T with the given {@code Coder<T>} and verifies that it can be correctly
+   * deserialized.
    */
-  public static <T> T ensureSerializableByCoder(
-      Coder<T> coder, T value, String errorContext) {
-      byte[] encodedValue;
+  public static <T> T ensureSerializableByCoder(Coder<T> coder, T value, String errorContext) {
+    byte[] encodedValue;
+    try {
+      encodedValue = encodeToByteArray(coder, value);
+    } catch (CoderException exn) {
+      // TODO: Put in better element printing:
+      // truncate if too long.
+      throw new IllegalArgumentException(
+          errorContext + ": unable to encode value " + value + " using " + coder, exn);
+    }
+    try {
+      return decodeFromByteArray(coder, encodedValue);
+    } catch (CoderException exn) {
+      // TODO: Put in better encoded byte array printing:
+      // use printable chars with escapes instead of codes, and
+      // truncate if too long.
+      throw new IllegalArgumentException(
+          errorContext
+              + ": unable to decode "
+              + Arrays.toString(encodedValue)
+              + ", encoding of value "
+              + value
+              + ", using "
+              + coder,
+          exn);
+    }
+  }
+
+  private static final class ContextualObjectInputStream extends ObjectInputStream {
+    private ContextualObjectInputStream(final InputStream in) throws IOException {
+      super(in);
+    }
+
+    @Override
+    protected Class<?> resolveClass(final ObjectStreamClass classDesc)
+        throws IOException, ClassNotFoundException {
+      // note: staying aligned on JVM default but can need class filtering here to avoid 0day issue
+      final String n = classDesc.getName();
+      final ClassLoader classloader = ReflectHelpers.findClassLoader();
       try {
-        encodedValue = encodeToByteArray(coder, value);
-      } catch (CoderException exn) {
-        // TODO: Put in better element printing:
-        // truncate if too long.
-        throw new IllegalArgumentException(
-            errorContext + ": unable to encode value "
-            + value + " using " + coder,
-            exn);
+        return Class.forName(n, false, classloader);
+      } catch (final ClassNotFoundException e) {
+        return super.resolveClass(classDesc);
       }
+    }
+
+    @Override
+    protected Class resolveProxyClass(final String[] interfaces)
+        throws IOException, ClassNotFoundException {
+      final ClassLoader classloader = ReflectHelpers.findClassLoader();
+
+      final Class[] cinterfaces = new Class[interfaces.length];
+      for (int i = 0; i < interfaces.length; i++) {
+        cinterfaces[i] = classloader.loadClass(interfaces[i]);
+      }
+
       try {
-        return decodeFromByteArray(coder, encodedValue);
-      } catch (CoderException exn) {
-        // TODO: Put in better encoded byte array printing:
-        // use printable chars with escapes instead of codes, and
-        // truncate if too long.
-        throw new IllegalArgumentException(
-            errorContext + ": unable to decode " + Arrays.toString(encodedValue)
-            + ", encoding of value " + value + ", using " + coder,
-            exn);
+        return Proxy.getProxyClass(classloader, cinterfaces);
+      } catch (final IllegalArgumentException e) {
+        throw new ClassNotFoundException(null, e);
       }
+    }
   }
 }

@@ -36,8 +36,8 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms
- * to encode/decode the objects. Users must provide the {@code Class} of the JAXB annotated object.
+ * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms to
+ * encode/decode the objects. Users must provide the {@code Class} of the JAXB annotated object.
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
@@ -54,28 +54,30 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private JAXBCoder(Class<T> jaxbClass) {
     this.jaxbClass = jaxbClass;
-    this.jaxbMarshaller = new EmptyOnDeserializationThreadLocal<Marshaller>() {
-      @Override
-      protected Marshaller initialValue() {
-        try {
-          JAXBContext jaxbContext = getContext();
-          return jaxbContext.createMarshaller();
-        } catch (JAXBException e) {
-          throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
-        }
-      }
-    };
-    this.jaxbUnmarshaller = new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
-      @Override
-      protected Unmarshaller initialValue() {
-        try {
-          JAXBContext jaxbContext = getContext();
-          return jaxbContext.createUnmarshaller();
-        } catch (Exception e) {
-          throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
-        }
-      }
-    };
+    this.jaxbMarshaller =
+        new EmptyOnDeserializationThreadLocal<Marshaller>() {
+          @Override
+          protected Marshaller initialValue() {
+            try {
+              JAXBContext jaxbContext = getContext();
+              return jaxbContext.createMarshaller();
+            } catch (JAXBException e) {
+              throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
+            }
+          }
+        };
+    this.jaxbUnmarshaller =
+        new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
+          @Override
+          protected Unmarshaller initialValue() {
+            try {
+              JAXBContext jaxbContext = getContext();
+              return jaxbContext.createUnmarshaller();
+            } catch (Exception e) {
+              throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
+            }
+          }
+        };
   }
 
   /**
@@ -88,13 +90,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream, Context context) throws IOException {
     if (context.isWholeStream) {
       try {
         jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
@@ -114,12 +115,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream) throws CoderException, IOException {
+  public T decode(InputStream inStream) throws IOException {
     return decode(inStream, Context.NESTED);
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+  public T decode(InputStream inStream, Context context) throws IOException {
     try {
       if (!context.isWholeStream) {
         long limit = VarInt.decodeLong(inStream);
@@ -168,7 +169,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private static class CloseIgnoringInputStream extends FilterInputStream {
 
-    protected CloseIgnoringInputStream(InputStream in) {
+    CloseIgnoringInputStream(InputStream in) {
       super(in);
     }
 
@@ -180,12 +181,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private static class CloseIgnoringOutputStream extends FilterOutputStream {
 
-    protected CloseIgnoringOutputStream(OutputStream out) {
+    CloseIgnoringOutputStream(OutputStream out) {
       super(out);
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       // JAXB closes the underlying stream so we must filter out those calls.
     }
   }

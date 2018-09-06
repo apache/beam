@@ -149,6 +149,6 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   public DirectGraph getGraph() {
     checkState(finalized, "Can't get a graph before the Pipeline has been completely traversed");
     return DirectGraph.create(
-        producers, viewWriters, perElementConsumers, allConsumers, rootTransforms, stepNames);
+        producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
   }
 }

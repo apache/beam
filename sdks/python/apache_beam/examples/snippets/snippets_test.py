@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +17,8 @@
 #
 
 """Tests for all code snippets used in public docs."""
+from __future__ import absolute_import
+from __future__ import division
 
 import glob
 import gzip
@@ -24,22 +27,38 @@ import os
 import tempfile
 import unittest
 import uuid
+from builtins import map
+from builtins import object
+from builtins import range
+from builtins import zip
+
+import mock
 
 import apache_beam as beam
+from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToStringCoder
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterAny
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
-
-# pylint: disable=expression-not-assigned
-from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -55,6 +74,14 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
 except ImportError:
   datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+# Protect against environments where the PubSub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import pubsub
+except ImportError:
+  pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -225,24 +252,27 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'xyz'}, set(marked))
 
   def test_pardo_with_undeclared_outputs(self):
-    numbers = [1, 2, 3, 4, 5, 10, 20]
+    # Note: the use of undeclared outputs is currently not supported in eager
+    # execution mode.
+    with TestPipeline() as p:
+      numbers = p | beam.Create([1, 2, 3, 4, 5, 10, 20])
 
-    # [START model_pardo_with_undeclared_outputs]
-    def even_odd(x):
-      yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
-      if x % 10 == 0:
-        yield x
+      # [START model_pardo_with_undeclared_outputs]
+      def even_odd(x):
+        yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
+        if x % 10 == 0:
+          yield x
 
-    results = numbers | beam.FlatMap(even_odd).with_outputs()
+      results = numbers | beam.FlatMap(even_odd).with_outputs()
 
-    evens = results.even
-    odds = results.odd
-    tens = results[None]  # the undeclared main output
-    # [END model_pardo_with_undeclared_outputs]
+      evens = results.even
+      odds = results.odd
+      tens = results[None]  # the undeclared main output
+      # [END model_pardo_with_undeclared_outputs]
 
-    self.assertEqual({2, 4, 10, 20}, set(evens))
-    self.assertEqual({1, 3, 5}, set(odds))
-    self.assertEqual({10, 20}, set(tens))
+      assert_that(evens, equal_to([2, 4, 10, 20]), label='assert_even')
+      assert_that(odds, equal_to([1, 3, 5]), label='assert_odds')
+      assert_that(tens, equal_to([10, 20]), label='assert_tens')
 
 
 class TypeHintsTest(unittest.TestCase):
@@ -307,10 +337,14 @@ class TypeHintsTest(unittest.TestCase):
           beam.typehints.Tuple[int, int])
 
   def test_runtime_checks_off(self):
+    # We do not run the following pipeline, as it has incorrect type
+    # information, and may fail with obscure errors, depending on the runner
+    # implementation.
+
     # pylint: disable=expression-not-assigned
-    with TestPipeline() as p:
-      # [START type_hints_runtime_off]
-      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+    p = TestPipeline()
+    # [START type_hints_runtime_off]
+    p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
@@ -327,7 +361,7 @@ class TypeHintsTest(unittest.TestCase):
       lines = (p | beam.Create(
           ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
-      # For pickling
+      # For pickling.
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
@@ -360,7 +394,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_deterministic_key]
 
       assert_that(
-          totals | beam.Map(lambda (k, v): (k.name, v)),
+          totals | beam.Map(lambda k_v: (k_v[0].name, k_v[1])),
           equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
@@ -425,8 +459,8 @@ class SnippetsTest(unittest.TestCase):
 
       def start_bundle(self):
         assert self.file_to_write
-        self.file_to_write += str(uuid.uuid4())
-        self.file_obj = open(self.file_to_write, 'w')
+        # Appending a UUID to create a unique file object per invocation.
+        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'w')
 
       def process(self, element):
         assert self.file_obj
@@ -453,7 +487,7 @@ class SnippetsTest(unittest.TestCase):
   def tearDown(self):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
-    # Cleanup all the temporary files created in the test
+    # Cleanup all the temporary files created in the test.
     map(os.remove, self.temp_files)
 
   def create_temp_file(self, contents=''):
@@ -589,25 +623,9 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
-  def test_model_textio_gzip_concatenated(self):
-    temp_path_1 = self.create_temp_file('a\nb\nc\n')
-    temp_path_2 = self.create_temp_file('p\nq\nr\n')
-    temp_path_3 = self.create_temp_file('x\ny\nz')
-    gzip_file_name = temp_path_1 + '.gz'
-    with open(temp_path_1) as src, gzip.open(gzip_file_name, 'wb') as dst:
-      dst.writelines(src)
-    with open(temp_path_2) as src, gzip.open(gzip_file_name, 'ab') as dst:
-      dst.writelines(src)
-    with open(temp_path_3) as src, gzip.open(gzip_file_name, 'ab') as dst:
-      dst.writelines(src)
-      # Add the temporary gzip file to be cleaned up as well.
-      self.temp_files.append(gzip_file_name)
-    snippets.model_textio_compressed(
-        {'read': gzip_file_name}, ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z'])
-
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
-    # We cannot test datastoreio functionality in unit tests therefore we limit
+    # We cannot test DatastoreIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing Datastore read and write
     # transforms can be built.
     # TODO(vikasrk): Expore using Datastore Emulator.
@@ -615,10 +633,26 @@ class SnippetsTest(unittest.TestCase):
 
   @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
   def test_model_bigqueryio(self):
-    # We cannot test BigQueryIO functionality in unit tests therefore we limit
+    # We cannot test BigQueryIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing BigQuery sources and
     # sinks can be built.
-    snippets.model_bigqueryio()
+    #
+    # To run locally, set `run_locally` to `True`. You will also have to set
+    # `project`, `dataset` and `table` to the BigQuery table the test will write
+    # to.
+    run_locally = False
+    if run_locally:
+      project = 'my-project'
+      dataset = 'samples'  # this must already exist
+      table = 'model_bigqueryio'  # this will be created if needed
+
+      options = PipelineOptions().view_as(GoogleCloudOptions)
+      options.project = project
+      with beam.Pipeline(options=options) as p:
+        snippets.model_bigqueryio(p, project, dataset, table)
+    else:
+      p = TestPipeline()
+      snippets.model_bigqueryio(p)
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
@@ -685,6 +719,59 @@ class SnippetsTest(unittest.TestCase):
         self.get_output(result_path),
         ['Flourish: 3', 'stomach: 1'])
 
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  @mock.patch('apache_beam.io.ReadFromPubSub')
+  @mock.patch('apache_beam.io.WriteStringsToPubSub')
+  def test_examples_wordcount_streaming(self, *unused_mocks):
+    def FakeReadFromPubSub(topic=None, subscription=None, values=None):
+      expected_topic = topic
+      expected_subscription = subscription
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        assert subscription == expected_subscription
+        return TestStream().add_elements(values)
+      return _inner
+
+    class AssertTransform(beam.PTransform):
+      def __init__(self, matcher):
+        self.matcher = matcher
+
+      def expand(self, pcoll):
+        assert_that(pcoll, self.matcher)
+
+    def FakeWriteStringsToPubSub(topic=None, values=None):
+      expected_topic = topic
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        return AssertTransform(equal_to(values))
+      return _inner
+
+    # Test basic execution.
+    input_topic = 'projects/fake-beam-test-project/topic/intopic'
+    input_values = [TimestampedValue('a a b', 1),
+                    TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
+                    TimestampedValue('a b c c c', 20)]
+    output_topic = 'projects/fake-beam-test-project/topic/outtopic'
+    output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
+    beam.io.ReadFromPubSub = (
+        FakeReadFromPubSub(topic=input_topic, values=input_values))
+    beam.io.WriteStringsToPubSub = (
+        FakeWriteStringsToPubSub(topic=output_topic, values=output_values))
+    snippets.examples_wordcount_streaming([
+        '--input_topic', 'projects/fake-beam-test-project/topic/intopic',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
+
+    # Test with custom subscription.
+    input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
+    beam.io.ReadFromPubSub = FakeReadFromPubSub(subscription=input_sub,
+                                                values=input_values)
+    snippets.examples_wordcount_streaming([
+        '--input_subscription',
+        'projects/fake-beam-test-project/subscriptions/insub',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
+
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
     result_path = self.create_temp_file()
@@ -712,12 +799,56 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual([str(s) for s in expected], self.get_output(result_path))
 
   def test_model_co_group_by_key_tuple(self):
-    email_list = [['a', 'a@example.com'], ['b', 'b@example.com']]
-    phone_list = [['a', 'x4312'], ['b', 'x8452']]
-    result_path = self.create_temp_file()
-    snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
-    expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
-    self.assertEqual(expect, self.get_output(result_path))
+    with TestPipeline() as p:
+      # [START model_group_by_key_cogroupbykey_tuple_inputs]
+      emails_list = [
+          ('amy', 'amy@example.com'),
+          ('carl', 'carl@example.com'),
+          ('julia', 'julia@example.com'),
+          ('carl', 'carl@email.com'),
+      ]
+      phones_list = [
+          ('amy', '111-222-3333'),
+          ('james', '222-333-4444'),
+          ('amy', '333-444-5555'),
+          ('carl', '444-555-6666'),
+      ]
+
+      emails = p | 'CreateEmails' >> beam.Create(emails_list)
+      phones = p | 'CreatePhones' >> beam.Create(phones_list)
+      # [END model_group_by_key_cogroupbykey_tuple_inputs]
+
+      result_path = self.create_temp_file()
+      snippets.model_co_group_by_key_tuple(emails, phones, result_path)
+
+    # [START model_group_by_key_cogroupbykey_tuple_outputs]
+    results = [
+        ('amy', {
+            'emails': ['amy@example.com'],
+            'phones': ['111-222-3333', '333-444-5555']}),
+        ('carl', {
+            'emails': ['carl@email.com', 'carl@example.com'],
+            'phones': ['444-555-6666']}),
+        ('james', {
+            'emails': [],
+            'phones': ['222-333-4444']}),
+        ('julia', {
+            'emails': ['julia@example.com'],
+            'phones': []}),
+    ]
+    # [END model_group_by_key_cogroupbykey_tuple_outputs]
+    # [START model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    formatted_results = [
+        "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
+        "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
+        "james; []; ['222-333-4444']",
+        "julia; ['julia@example.com']; []",
+    ]
+    # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    expected_results = ['%s; %s; %s' % (name, info['emails'], info['phones'])
+                        for name, info in results]
+    self.assertEqual(expected_results, formatted_results)
+    self.assertEqual(formatted_results, self.get_output(result_path))
 
   def test_model_use_and_query_metrics(self):
     """DebuggingWordCount example snippets."""
@@ -789,6 +920,123 @@ class SnippetsTest(unittest.TestCase):
     expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
     self.assertEqual(expect, self.get_output(result_path))
 
+  def test_model_early_late_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .add_elements([TimestampedValue('a', 10)])
+                     .advance_watermark_to(20)
+                     .advance_processing_time(60)
+                     .add_elements([TimestampedValue('a', 10)]))
+      trigger = (
+          # [START model_early_late_triggers]
+          AfterWatermark(
+              early=AfterProcessingTime(delay=1 * 60),
+              late=AfterCount(1))
+          # [END model_early_late_triggers]
+          )
+      counts = (p
+                | test_stream
+                | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+                | WindowInto(FixedWindows(15),
+                             trigger=trigger,
+                             accumulation_mode=AccumulationMode.DISCARDING)
+                | 'group' >> beam.GroupByKey()
+                | 'count' >> beam.Map(
+                    lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 4), ('b', 2), ('a', 1)]))
+
+  def test_model_setting_trigger(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .advance_watermark_to(70)
+                     .advance_processing_time(600))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_setting_trigger]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=AfterProcessingTime(10 * 60),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_setting_trigger]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2)]))
+
+  def test_model_composite_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a', 'a', 'b', 'b'])
+                     .advance_watermark_to(70)
+                     .add_elements([TimestampedValue('a', 10),
+                                    TimestampedValue('a', 10),
+                                    TimestampedValue('c', 10),
+                                    TimestampedValue('c', 10)])
+                     .advance_processing_time(600))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_composite_triggers]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=AfterWatermark(
+                  late=AfterProcessingTime(10 * 60)),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_composite_triggers]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 2), ('c', 2)]))
+
+  def test_model_other_composite_triggers(self):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+    with TestPipeline(options=pipeline_options) as p:
+      test_stream = (TestStream()
+                     .advance_watermark_to(10)
+                     .add_elements(['a', 'a'])
+                     .add_elements(['a', 'b', 'b'])
+                     .advance_processing_time(60)
+                     .add_elements(['a'] * 100))
+      pcollection = (p
+                     | test_stream
+                     | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+
+      counts = (
+          # [START model_other_composite_triggers]
+          pcollection | WindowInto(
+              FixedWindows(1 * 60),
+              trigger=Repeatedly(
+                  AfterAny(
+                      AfterCount(100),
+                      AfterProcessingTime(1 * 60))),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          # [END model_other_composite_triggers]
+          | 'group' >> beam.GroupByKey()
+          | 'count' >> beam.Map(
+              lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+      assert_that(counts, equal_to([('a', 3), ('b', 2), ('a', 100)]))
+
 
 class CombineTest(unittest.TestCase):
   """Tests for model/combine."""
@@ -850,7 +1098,7 @@ class CombineTest(unittest.TestCase):
     import functools
     import operator
     product = factors | beam.CombineGlobally(
-        functools.partial(reduce, operator.mul), 1)
+        functools.partial(functools.reduce, operator.mul), 1)
     # [END combine_reduce]
     self.assertEqual([210], product)
 
@@ -862,14 +1110,16 @@ class CombineTest(unittest.TestCase):
       def create_accumulator(self):
         return (0.0, 0)
 
-      def add_input(self, (sum, count), input):
+      def add_input(self, sum_count, input):
+        (sum, count) = sum_count
         return sum + input, count + 1
 
       def merge_accumulators(self, accumulators):
         sums, counts = zip(*accumulators)
         return sum(sums), sum(counts)
 
-      def extract_output(self, (sum, count)):
+      def extract_output(self, sum_count):
+        (sum, count) = sum_count
         return sum / count if count else float('NaN')
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]
@@ -996,7 +1246,7 @@ class PTransformTest(unittest.TestCase):
     # [START model_composite_transform]
     class ComputeWordLengths(beam.PTransform):
       def expand(self, pcoll):
-        # transform logic goes here
+        # Transform logic goes here.
         return pcoll | beam.Map(lambda x: len(x))
     # [END model_composite_transform]
 

@@ -17,16 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
- */
+/** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
 class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationOptimizer.class);
@@ -60,11 +60,22 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    Class<? extends PTransform> transformClass = node.getTransform().getClass();
-    if (transformClass == Read.Unbounded.class) {
+    AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(getPipeline());
+    if (hasUnboundedOutput(appliedPTransform)) {
+      Class<? extends PTransform> transformClass = node.getTransform().getClass();
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
       translationMode = TranslationMode.STREAMING;
     }
+  }
+
+  private boolean hasUnboundedOutput(AppliedPTransform<?, ?, ?> transform) {
+    return transform
+        .getOutputs()
+        .values()
+        .stream()
+        .filter(value -> value instanceof PCollection)
+        .map(value -> (PCollection<?>) value)
+        .anyMatch(collection -> collection.isBounded() == IsBounded.UNBOUNDED);
   }
 
   @Override

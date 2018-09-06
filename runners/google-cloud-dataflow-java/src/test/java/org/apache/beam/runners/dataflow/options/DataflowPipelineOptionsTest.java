@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
+import com.google.common.base.Splitter;
+import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,13 +56,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().remove("user.name");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("TestApplication");
-    String[] nameComponents = options.getJobName().split("-");
-    assertEquals(4, nameComponents.length);
-    assertEquals("testapplication", nameComponents[0]);
-    assertEquals("", nameComponents[1]);
-    assertEquals("1208190706", nameComponents[2]);
+    List<String> nameComponents = Splitter.on('-').splitToList(options.getJobName());
+    assertEquals(4, nameComponents.size());
+    assertEquals("testapplication", nameComponents.get(0));
+    assertEquals("", nameComponents.get(1));
+    assertEquals("1208190706", nameComponents.get(2));
     // Verify the last component is a hex integer (unsigned).
-    Long.parseLong(nameComponents[3], 16);
+    Long.parseLong(nameComponents.get(3), 16);
     assertTrue(options.getJobName().length() <= 40);
   }
 
@@ -70,13 +72,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    String[] nameComponents = options.getJobName().split("-");
-    assertEquals(4, nameComponents.length);
-    assertEquals("a234567890123456789012345678901234567890", nameComponents[0]);
-    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents[1]);
-    assertEquals("1208190706", nameComponents[2]);
+    List<String> nameComponents = Splitter.on('-').splitToList(options.getJobName());
+    assertEquals(4, nameComponents.size());
+    assertEquals("a234567890123456789012345678901234567890", nameComponents.get(0));
+    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents.get(1));
+    assertEquals("1208190706", nameComponents.get(2));
     // Verify the last component is a hex integer (unsigned).
-    Long.parseLong(nameComponents[3], 16);
+    Long.parseLong(nameComponents.get(3), 16);
   }
 
   @Test
@@ -85,13 +87,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    String[] nameComponents = options.getJobName().split("-");
-    assertEquals(4, nameComponents.length);
-    assertEquals("a234567890123456789012345678901234567890", nameComponents[0]);
-    assertEquals("abcde", nameComponents[1]);
-    assertEquals("1208190706", nameComponents[2]);
+    List<String> nameComponents = Splitter.on('-').splitToList(options.getJobName());
+    assertEquals(4, nameComponents.size());
+    assertEquals("a234567890123456789012345678901234567890", nameComponents.get(0));
+    assertEquals("abcde", nameComponents.get(1));
+    assertEquals("1208190706", nameComponents.get(2));
     // Verify the last component is a hex integer (unsigned).
-    Long.parseLong(nameComponents[3], 16);
+    Long.parseLong(nameComponents.get(3), 16);
   }
 
   @Test
@@ -100,13 +102,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890");
-    String[] nameComponents = options.getJobName().split("-");
-    assertEquals(4, nameComponents.length);
-    assertEquals("a234567890", nameComponents[0]);
-    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents[1]);
-    assertEquals("1208190706", nameComponents[2]);
+    List<String> nameComponents = Splitter.on('-').splitToList(options.getJobName());
+    assertEquals(4, nameComponents.size());
+    assertEquals("a234567890", nameComponents.get(0));
+    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents.get(1));
+    assertEquals("1208190706", nameComponents.get(2));
     // Verify the last component is a hex integer (unsigned).
-    Long.parseLong(nameComponents[3], 16);
+    Long.parseLong(nameComponents.get(3), 16);
   }
 
   @Test
@@ -115,13 +117,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "ði ıntəˈnæʃənəl ");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("fəˈnɛtık əsoʊsiˈeıʃn");
-    String[] nameComponents = options.getJobName().split("-");
-    assertEquals(4, nameComponents.length);
-    assertEquals("f00n0t0k00so0si0e00n", nameComponents[0]);
-    assertEquals("0i00nt00n000n0l0", nameComponents[1]);
-    assertEquals("1208190706", nameComponents[2]);
+    List<String> nameComponents = Splitter.on('-').splitToList(options.getJobName());
+    assertEquals(4, nameComponents.size());
+    assertEquals("f00n0t0k00so0si0e00n", nameComponents.get(0));
+    assertEquals("0i00nt00n000n0l0", nameComponents.get(1));
+    assertEquals("1208190706", nameComponents.get(2));
     // Verify the last component is a hex integer (unsigned).
-    Long.parseLong(nameComponents[3], 16);
+    Long.parseLong(nameComponents.get(3), 16);
   }
 
   @Test
@@ -159,10 +161,11 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Error constructing default value for stagingLocation: "
-        + "failed to retrieve gcpTempLocation.");
-    thrown.expectCause(hasMessage(containsString(
-        "Error constructing default value for gcpTempLocation")));
+    thrown.expectMessage(
+        "Error constructing default value for stagingLocation: "
+            + "failed to retrieve gcpTempLocation.");
+    thrown.expectCause(
+        hasMessage(containsString("Error constructing default value for gcpTempLocation")));
     options.getStagingLocation();
   }
 
@@ -173,9 +176,8 @@ public class DataflowPipelineOptionsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Error constructing default value for stagingLocation: gcpTempLocation is not"
-        + " a valid GCS path");
-    thrown.expectCause(
-        hasMessage(containsString("Expected a valid 'gs://' path")));
+            + " a valid GCS path");
+    thrown.expectCause(hasMessage(containsString("Expected a valid 'gs://' path")));
     options.getStagingLocation();
   }
 

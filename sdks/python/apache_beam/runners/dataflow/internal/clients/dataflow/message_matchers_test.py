@@ -14,10 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import unittest
-import hamcrest as hc
-import apache_beam.runners.dataflow.internal.clients.dataflow as dataflow
+from __future__ import absolute_import
 
+import unittest
+
+import hamcrest as hc
+
+import apache_beam.runners.dataflow.internal.clients.dataflow as dataflow
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.runners.dataflow.internal.clients.dataflow import message_matchers
 

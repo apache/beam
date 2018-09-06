@@ -21,65 +21,13 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * This shared set of options is used so that the full suite of IO tests can be run in one pass -
- * if a test tries to read TestPipelineOptions, it must be able to understand all the options
- * that were passed on the command line.
- */
+/** Pipeline options common for IO integration tests. */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
-  /* Postgres */
-  @Description("Server name for postgres server (host name/ip address)")
-  @Default.String("postgres-server-name")
-  String getPostgresServerName();
-  void setPostgresServerName(String value);
 
-  @Description("Username for postgres server")
-  @Default.String("postgres-username")
-  String getPostgresUsername();
-  void setPostgresUsername(String value);
+  /* Used by most IOIT */
+  @Description("Number records that will be written and read by the test")
+  @Default.Integer(100000)
+  Integer getNumberOfRecords();
 
-  // Note that passwords are not as secure an authentication as other methods, and used here for
-  // a test environment only.
-  @Description("Password for postgres server")
-  @Default.String("postgres-password")
-  String getPostgresPassword();
-  void setPostgresPassword(String value);
-
-  @Description("Database name for postgres server")
-  @Default.String("postgres-database-name")
-  String getPostgresDatabaseName();
-  void setPostgresDatabaseName(String value);
-
-  @Description("Port for postgres server")
-  @Default.Integer(0)
-  Integer getPostgresPort();
-  void setPostgresPort(Integer value);
-
-  @Description("Whether the postgres server uses SSL")
-  @Default.Boolean(true)
-  Boolean getPostgresSsl();
-  void setPostgresSsl(Boolean value);
-
-  /* Elasticsearch */
-  @Description("Server name for Elasticsearch server (host name/ip address)")
-  @Default.String("elasticsearch-server-name")
-  String getElasticsearchServer();
-  void setElasticsearchServer(String value);
-
-  @Description("Http port for elasticsearch server")
-  @Default.Integer(9200)
-  Integer getElasticsearchHttpPort();
-  void setElasticsearchHttpPort(Integer value);
-
-  /* Cassandra */
-  @Description("Host for Cassandra server (host name/ip address)")
-  @Default.String("cassandra-host")
-  String getCassandraHost();
-  void setCassandraHost(String host);
-
-  @Description("Port for Cassandra server")
-  @Default.Integer(7001)
-  Integer getCassandraPort();
-  void setCassandraPort(Integer port);
-
+  void setNumberOfRecords(Integer count);
 }

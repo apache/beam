@@ -22,13 +22,11 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Singleton keyed word item.
- */
+/** Singleton keyed word item. */
 public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
 
-  final K key;
-  final WindowedValue<ElemT> value;
+  private final K key;
+  private final WindowedValue<ElemT> value;
 
   public SingletonKeyedWorkItem(K key, WindowedValue<ElemT> value) {
     this.key = key;
@@ -46,7 +44,7 @@ public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT>
 
   @Override
   public Iterable<TimerInternals.TimerData> timersIterable() {
-    return Collections.EMPTY_LIST;
+    return Collections.emptyList();
   }
 
   @Override

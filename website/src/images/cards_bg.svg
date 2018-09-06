@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Generator: Adobe Illustrator 19.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="334 278 1280 237" style="enable-background:new 334 278 1280 237;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:url(#Rectangle-Copy_1_);}
+</style>
+<title>Rectangle Copy</title>
+<desc>Created with Sketch.</desc>
+<g id="Page-1">
+	<g id="Design---Desktop-Landscape" transform="translate(0.000000, -1592.000000)">
+		
+			<linearGradient id="Rectangle-Copy_1_" gradientUnits="userSpaceOnUse" x1="667.7352" y1="2382.8274" x2="668.743" y2="2383.8352" gradientTransform="matrix(1280 0 0 -237 -854372 566838)">
+			<stop  offset="0" style="stop-color:#FBDA61"/>
+			<stop  offset="1" style="stop-color:#F76B1C"/>
+		</linearGradient>
+		<rect id="Rectangle-Copy" x="324" y="1870" class="st0" width="1300" height="237"/>
+	</g>
+</g>
+</svg>

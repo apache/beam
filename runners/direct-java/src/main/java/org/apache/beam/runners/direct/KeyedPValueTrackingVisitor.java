@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.TupleTag;
 class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
 
   private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
-      ImmutableSet.<Class<? extends PTransform>>of(
+      ImmutableSet.of(
           SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
           DirectGroupByKeyOnly.class,
           DirectGroupAlsoByWindow.class);

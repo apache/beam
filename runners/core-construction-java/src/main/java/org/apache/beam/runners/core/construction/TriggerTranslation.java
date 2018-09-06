@@ -23,8 +23,8 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
@@ -123,14 +123,14 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    private RunnerApi.TimeDomain convertTimeDomain(TimeDomain timeDomain) {
+    private RunnerApi.TimeDomain.Enum convertTimeDomain(TimeDomain timeDomain) {
       switch (timeDomain) {
         case EVENT_TIME:
-          return RunnerApi.TimeDomain.EVENT_TIME;
+          return RunnerApi.TimeDomain.Enum.EVENT_TIME;
         case PROCESSING_TIME:
-          return RunnerApi.TimeDomain.PROCESSING_TIME;
+          return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
         case SYNCHRONIZED_PROCESSING_TIME:
-          return RunnerApi.TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+          return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
         default:
           throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
       }
@@ -188,8 +188,7 @@ public class TriggerTranslation implements Serializable {
     private RunnerApi.Trigger convertSpecific(Repeatedly v) {
       return RunnerApi.Trigger.newBuilder()
           .setRepeat(
-              RunnerApi.Trigger.Repeat.newBuilder()
-                  .setSubtrigger(toProto(v.getRepeatedTrigger())))
+              RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(toProto(v.getRepeatedTrigger())))
           .build();
     }
 
@@ -264,8 +263,7 @@ public class TriggerTranslation implements Serializable {
           if (triggerProto.getAfterEndOfWindow().hasLateFirings()) {
             trigger =
                 trigger.withLateFirings(
-                    (OnceTrigger)
-                        fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
+                    (OnceTrigger) fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
           }
           return trigger;
         } else {
@@ -289,8 +287,7 @@ public class TriggerTranslation implements Serializable {
               break;
             case TIMESTAMPTRANSFORM_NOT_SET:
               throw new IllegalArgumentException(
-                  String.format(
-                      "Required field 'timestamp_transform' not set in %s", transform));
+                  String.format("Required field 'timestamp_transform' not set in %s", transform));
             default:
               throw new IllegalArgumentException(
                   String.format(

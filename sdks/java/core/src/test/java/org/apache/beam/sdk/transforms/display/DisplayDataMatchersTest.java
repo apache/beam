@@ -37,9 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link DisplayDataMatchers}.
- */
+/** Unit tests for {@link DisplayDataMatchers}. */
 @RunWith(JUnit4.class)
 public class DisplayDataMatchersTest {
   @Test
@@ -76,17 +74,19 @@ public class DisplayDataMatchersTest {
   public void testHasType() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasType(DisplayData.Type.JAVA_CLASS));
 
-    DisplayData data = DisplayData.from(new PTransform<PCollection<String>, PCollection<String>>() {
-      @Override
-      public PCollection<String> expand(PCollection<String> input) {
-        throw new IllegalArgumentException("Should never be applied");
-      }
+    DisplayData data =
+        DisplayData.from(
+            new PTransform<PCollection<String>, PCollection<String>>() {
+              @Override
+              public PCollection<String> expand(PCollection<String> input) {
+                throw new IllegalArgumentException("Should never be applied");
+              }
 
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
-      }
-    });
+              @Override
+              public void populateDisplayData(Builder builder) {
+                builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
+              }
+            });
 
     assertFalse(matcher.matches(createDisplayDataWithItem("fooz", "bar")));
     assertThat(data, matcher);
@@ -104,90 +104,59 @@ public class DisplayDataMatchersTest {
   public void testHasPath() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasPath("a", "b"));
 
-    final HasDisplayData subComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("b", new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.add(DisplayData.item("foo", "bar"));
-          }
-        });
-      }
-    };
+    final HasDisplayData subComponent =
+        builder ->
+            builder.include(
+                "b",
+                (HasDisplayData)
+                    builder1 -> {
+                      builder1.add(DisplayData.item("foo", "bar"));
+                    });
 
     assertFalse(matcher.matches(DisplayData.from(subComponent)));
 
-    assertThat(DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("a", subComponent);
-      }
-    }), matcher);
+    assertThat(DisplayData.from(builder -> builder.include("a", subComponent)), matcher);
   }
 
   @Test
   public void testHasNamespace() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasNamespace(SampleTransform.class));
 
-    assertFalse(matcher.matches(DisplayData.from(
-        new PTransform<PCollection<String>, PCollection<String>>(){
-          @Override
-          public PCollection<String> expand(PCollection<String> input) {
-            throw new IllegalArgumentException("Should never be applied");
-          }
-        })));
+    assertFalse(
+        matcher.matches(
+            DisplayData.from(
+                new PTransform<PCollection<String>, PCollection<String>>() {
+                  @Override
+                  public PCollection<String> expand(PCollection<String> input) {
+                    throw new IllegalArgumentException("Should never be applied");
+                  }
+                })));
     assertThat(createDisplayDataWithItem("foo", "bar"), matcher);
   }
 
   @Test
   public void testIncludes() {
-    final HasDisplayData subComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    HasDisplayData hasSubcomponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("p", subComponent);
-      }
-    };
+    final HasDisplayData subComponent = builder -> builder.add(DisplayData.item("foo", "bar"));
+    HasDisplayData hasSubcomponent = builder -> builder.include("p", subComponent);
 
-    HasDisplayData wrongPath = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("q", subComponent);
-      }
-    };
+    HasDisplayData wrongPath = builder -> builder.include("q", subComponent);
 
-    HasDisplayData deeplyNested = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("p", new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.include("p", subComponent);
-          }
-        });
-      }
-    };
+    HasDisplayData deeplyNested =
+        builder -> builder.include("p", builder1 -> builder1.include("p", subComponent));
 
-    HasDisplayData sameDisplayItemDifferentComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData sameDisplayItemDifferentComponent =
+        builder -> builder.add(DisplayData.item("foo", "bar"));
 
     Matcher<DisplayData> matcher = includesDisplayDataFor("p", subComponent);
 
-    assertFalse("should not match sub-component at different path",
+    assertFalse(
+        "should not match sub-component at different path",
         matcher.matches(DisplayData.from(wrongPath)));
-    assertFalse("should not match deeply nested sub-component",
+    assertFalse(
+        "should not match deeply nested sub-component",
         matcher.matches(DisplayData.from(deeplyNested)));
-    assertFalse("should not match identical display data from different component",
+    assertFalse(
+        "should not match identical display data from different component",
         matcher.matches(DisplayData.from(sameDisplayItemDifferentComponent)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);
   }

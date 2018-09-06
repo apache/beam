@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.hdfs;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -36,8 +35,8 @@ import java.util.TreeMap;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer}
- * for a Hadoop {@link Configuration}. The serialized representation is that of a JSON map.
+ * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
+ * a Hadoop {@link Configuration}. The serialized representation is that of a JSON map.
  *
  * <p>Note that the serialization of the Hadoop {@link Configuration} only keeps the keys and their
  * values dropping any configuration hierarchy and source information.
@@ -55,10 +54,10 @@ public class HadoopFileSystemModule extends SimpleModule {
   private static class ConfigurationMixin {}
 
   /** A Jackson {@link JsonDeserializer} for Hadoop {@link Configuration} objects. */
-  static class ConfigurationDeserializer extends JsonDeserializer<Configuration> {
+  private static class ConfigurationDeserializer extends JsonDeserializer<Configuration> {
     @Override
-    public Configuration deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+    public Configuration deserialize(
+        JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
       Map<String, String> rawConfiguration =
           jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
       Configuration configuration = new Configuration(false);
@@ -70,10 +69,13 @@ public class HadoopFileSystemModule extends SimpleModule {
   }
 
   /** A Jackson {@link JsonSerializer} for Hadoop {@link Configuration} objects. */
-  static class ConfigurationSerializer extends JsonSerializer<Configuration> {
+  private static class ConfigurationSerializer extends JsonSerializer<Configuration> {
     @Override
-    public void serialize(Configuration configuration, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+    public void serialize(
+        Configuration configuration,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider)
+        throws IOException {
       Map<String, String> map = new TreeMap<>();
       for (Map.Entry<String, String> entry : configuration) {
         map.put(entry.getKey(), entry.getValue());

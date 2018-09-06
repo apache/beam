@@ -16,6 +16,7 @@
 #
 
 """Unit tests for the sources framework."""
+from __future__ import absolute_import
 
 import logging
 import os
@@ -23,7 +24,6 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers

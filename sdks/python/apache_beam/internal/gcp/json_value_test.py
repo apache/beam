@@ -17,13 +17,14 @@
 
 """Unit tests for the json_value module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
-
+from apache_beam.options.value_provider import StaticValueProvider
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -90,14 +91,14 @@ class JsonValueTest(unittest.TestCase):
   def test_large_integer(self):
     num = 1 << 35
     self.assertEquals(num, from_json_value(to_json_value(num)))
-    self.assertEquals(long(num), from_json_value(to_json_value(long(num))))
 
   def test_long_value(self):
-    self.assertEquals(long(27), from_json_value(to_json_value(long(27))))
+    num = 1 << 63 - 1
+    self.assertEquals(num, from_json_value(to_json_value(num)))
 
   def test_too_long_value(self):
     with self.assertRaises(TypeError):
-      to_json_value(long(1 << 64))
+      to_json_value(1 << 64)
 
 
 if __name__ == '__main__':

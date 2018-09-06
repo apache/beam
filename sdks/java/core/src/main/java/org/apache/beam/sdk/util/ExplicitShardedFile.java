@@ -26,9 +26,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -52,8 +52,8 @@ public class ExplicitShardedFile implements ShardedFile {
 
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
   public ExplicitShardedFile(Collection<String> files) throws IOException {
-    this.files = new LinkedList<>();
-    for (String file: files) {
+    this.files = new ArrayList<>();
+    for (String file : files) {
       this.files.add(FileSystems.matchSingleFileSpec(file));
     }
   }
@@ -109,8 +109,8 @@ public class ExplicitShardedFile implements ShardedFile {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
     for (Metadata file : files) {
-      try (Reader reader = Channels.newReader(FileSystems.open(file.resourceId()),
-          StandardCharsets.UTF_8.name())) {
+      try (Reader reader =
+          Channels.newReader(FileSystems.open(file.resourceId()), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug("[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);

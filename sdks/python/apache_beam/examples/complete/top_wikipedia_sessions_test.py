@@ -17,9 +17,10 @@
 
 """Test for the top wikipedia sessions example."""
 
+from __future__ import absolute_import
+
 import json
 import unittest
-
 
 import apache_beam as beam
 from apache_beam.examples.complete import top_wikipedia_sessions

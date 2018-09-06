@@ -27,10 +27,18 @@ Available classes:
     decremented during pipeline execution.
 - Distribution - Distribution Metric interface. Allows statistics about the
     distribution of a variable to be collected during pipeline execution.
+- Gauge - Gauge Metric interface. Allows to track the latest value of a
+    variable during pipeline execution.
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
-__all__ = ['Metric', 'Counter', 'Distribution', 'MetricName']
+from __future__ import absolute_import
+
+from builtins import object
+
+from apache_beam.portability.api import beam_fn_api_pb2
+
+__all__ = ['Metric', 'Counter', 'Distribution', 'Gauge', 'MetricName']
 
 
 class MetricName(object):
@@ -47,6 +55,10 @@ class MetricName(object):
       namespace: A string with the namespace of a metric.
       name: A string with the name of a metric.
     """
+    if not namespace:
+      raise ValueError('Metric namespace must be non-empty')
+    if not name:
+      raise ValueError('Metric name must be non-empty')
     self.namespace = namespace
     self.name = name
 
@@ -60,6 +72,14 @@ class MetricName(object):
 
   def __hash__(self):
     return hash((self.namespace, self.name))
+
+  def to_runner_api(self):
+    return beam_fn_api_pb2.Metrics.User.MetricName(
+        namespace=self.namespace, name=self.name)
+
+  @staticmethod
+  def from_runner_api(proto):
+    return MetricName(proto.namespace, proto.name)
 
 
 class Metric(object):
@@ -78,7 +98,20 @@ class Counter(Metric):
 
 
 class Distribution(Metric):
-  """Distribution Metric interface. Allows statistics about the
-    distribution of a variable to be collected during pipeline execution."""
+  """Distribution Metric interface.
+
+  Allows statistics about the distribution of a variable to be collected during
+  pipeline execution."""
+
   def update(self, value):
+    raise NotImplementedError
+
+
+class Gauge(Metric):
+  """Gauge Metric interface.
+
+  Allows tracking of the latest value of a variable during pipeline
+  execution."""
+
+  def set(self, value):
     raise NotImplementedError

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -43,9 +42,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DeduplicatedFlattenFactory}.
- */
+/** Tests for {@link DeduplicatedFlattenFactory}. */
 @RunWith(JUnit4.class)
 public class DeduplicatedFlattenFactoryTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -89,13 +86,12 @@ public class DeduplicatedFlattenFactoryTest {
   public void outputMapping() {
     final PCollectionList<String> inputList =
         PCollectionList.of(first).and(second).and(first).and(first);
-    PCollection<String> original =
-        inputList.apply(Flatten.<String>pCollections());
-    PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<String>());
+    PCollection<String> original = inputList.apply(Flatten.pCollections());
+    PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<>());
 
     assertThat(
         factory.mapOutputs(original.expand(), replacement),
-        Matchers.<PValue, ReplacementOutput>hasEntry(
+        Matchers.hasEntry(
             replacement,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(original),

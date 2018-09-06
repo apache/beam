@@ -50,22 +50,27 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from builtins import object
+from builtins import range
+from functools import total_ordering
 
+from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
 from apache_beam.coders import coders
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
 
 __all__ = [
     'TimestampCombiner',
@@ -87,9 +92,9 @@ __all__ = [
 class TimestampCombiner(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
-  OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
-  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.EARLIEST_IN_PANE
-  OUTPUT_AT_LATEST = beam_runner_api_pb2.LATEST_IN_PANE
+  OUTPUT_AT_EOW = beam_runner_api_pb2.OutputTime.END_OF_WINDOW
+  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.OutputTime.EARLIEST_IN_PANE
+  OUTPUT_AT_LATEST = beam_runner_api_pb2.OutputTime.LATEST_IN_PANE
   # TODO(robertwb): Add this to the runner API or remove it.
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
@@ -107,21 +112,27 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
 
-    def __init__(self, timestamp, element=None):
+    def __init__(self, timestamp, element=None, window=None):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
+      self.window = window
 
   @abc.abstractmethod
   def assign(self, assign_context):
-    """Associates a timestamp to an element."""
+    """Associates windows to an element.
+
+    Arguments:
+      assign_context: Instance of AssignContext.
+
+    Returns:
+      An iterable of BoundedWindow.
+    """
     raise NotImplementedError
 
   class MergeContext(object):
@@ -165,7 +176,7 @@ class WindowFn(urns.RunnerApiFn):
     # By default, just return the input timestamp.
     return input_timestamp
 
-  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_WINDOW_FN)
+  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_WINDOWFN)
 
 
 class BoundedWindow(object):
@@ -181,15 +192,35 @@ class BoundedWindow(object):
   def max_timestamp(self):
     return self.end.predecessor()
 
-  def __cmp__(self, other):
-    # Order first by endpoint, then arbitrarily.
-    return cmp(self.end, other.end) or cmp(hash(self), hash(other))
-
   def __eq__(self, other):
     raise NotImplementedError
 
+  def __ne__(self, other):
+    #  Order first by endpoint, then arbitrarily
+    return self.end != other.end or hash(self) != hash(other)
+
+  def __lt__(self, other):
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
+
+  def __le__(self, other):
+    if self.end != other.end:
+      return self.end <= other.end
+    return hash(self) <= hash(other)
+
+  def __gt__(self, other):
+    if self.end != other.end:
+      return self.end > other.end
+    return hash(self) > hash(other)
+
+  def __ge__(self, other):
+    if self.end != other.end:
+      return self.end >= other.end
+    return hash(self) >= hash(other)
+
   def __hash__(self):
-    return hash(self.end)
+    raise NotImplementedError
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -211,7 +242,12 @@ class IntervalWindow(BoundedWindow):
     return hash((self.start, self.end))
 
   def __eq__(self, other):
-    return self.start == other.start and self.end == other.end
+    return (self.start == other.start
+            and self.end == other.end
+            and type(self) == type(other))
+
+  def __ne__(self, other):
+    return not self == other
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))
@@ -224,6 +260,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -236,15 +273,33 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
-  def __cmp__(self, other):
-    if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.value == other.value
+            and self.timestamp == other.timestamp)
+
+  def __hash__(self):
+    return hash((self.value, self.timestamp))
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __lt__(self, other):
+    if type(self) != type(other):
+      return type(self).__name__ < type(other).__name__
+    if self.value != other.value:
+      return self.value < other.value
+    return self.timestamp < other.timestamp
 
 
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance = None
+  # The maximum timestamp for global windows is MAX_TIMESTAMP - 1 day.
+  # This is due to timers triggering when the watermark passes the trigger
+  # time, which is only possible for timestamps < MAX_TIMESTAMP.
+  # See also GlobalWindow in the Java SDK.
+  _END_OF_GLOBAL_WINDOW = MAX_TIMESTAMP - (24 * 60 * 60)
 
   def __new__(cls):
     if cls._instance is None:
@@ -252,7 +307,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(MAX_TIMESTAMP)
+    super(GlobalWindow, self).__init__(GlobalWindow._END_OF_GLOBAL_WINDOW)
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):
@@ -264,6 +319,9 @@ class GlobalWindow(BoundedWindow):
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
+
+  def __ne__(self, other):
+    return not self == other
 
 
 class NonMergingWindowFn(WindowFn):
@@ -299,9 +357,9 @@ class GlobalWindows(NonMergingWindowFn):
     return not self == other
 
   def to_runner_api_parameter(self, context):
-    return urns.GLOBAL_WINDOWS_FN, None
+    return common_urns.global_windows.urn, None
 
-  @urns.RunnerApiFn.register_urn(urns.GLOBAL_WINDOWS_FN, None)
+  @urns.RunnerApiFn.register_urn(common_urns.global_windows.urn, None)
   def from_runner_api_parameter(unused_fn_parameter, unused_context):
     return GlobalWindows()
 
@@ -338,11 +396,14 @@ class FixedWindows(NonMergingWindowFn):
     if type(self) == type(other) == FixedWindows:
       return self.size == other.size and self.offset == other.offset
 
+  def __hash__(self):
+    return hash((self.size, self.offset))
+
   def __ne__(self, other):
     return not self == other
 
   def to_runner_api_parameter(self, context):
-    return (urns.FIXED_WINDOWS_FN,
+    return (common_urns.fixed_windows.urn,
             standard_window_fns_pb2.FixedWindowsPayload(
                 size=proto_utils.from_micros(
                     duration_pb2.Duration, self.size.micros),
@@ -350,7 +411,8 @@ class FixedWindows(NonMergingWindowFn):
                     timestamp_pb2.Timestamp, self.offset.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      urns.FIXED_WINDOWS_FN, standard_window_fns_pb2.FixedWindowsPayload)
+      common_urns.fixed_windows.urn,
+      standard_window_fns_pb2.FixedWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return FixedWindows(
         size=Duration(micros=fn_parameter.size.ToMicroseconds()),
@@ -396,8 +458,14 @@ class SlidingWindows(NonMergingWindowFn):
               and self.offset == other.offset
               and self.period == other.period)
 
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash((self.offset, self.period))
+
   def to_runner_api_parameter(self, context):
-    return (urns.SLIDING_WINDOWS_FN,
+    return (common_urns.sliding_windows.urn,
             standard_window_fns_pb2.SlidingWindowsPayload(
                 size=proto_utils.from_micros(
                     duration_pb2.Duration, self.size.micros),
@@ -407,7 +475,7 @@ class SlidingWindows(NonMergingWindowFn):
                     duration_pb2.Duration, self.period.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      urns.SLIDING_WINDOWS_FN,
+      common_urns.sliding_windows.urn,
       standard_window_fns_pb2.SlidingWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return SlidingWindows(
@@ -463,14 +531,21 @@ class Sessions(WindowFn):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
 
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(self.gap_size)
+
   def to_runner_api_parameter(self, context):
-    return (urns.SESSION_WINDOWS_FN,
+    return (common_urns.session_windows.urn,
             standard_window_fns_pb2.SessionsPayload(
                 gap_size=proto_utils.from_micros(
                     duration_pb2.Duration, self.gap_size.micros)))
 
   @urns.RunnerApiFn.register_urn(
-      urns.SESSION_WINDOWS_FN, standard_window_fns_pb2.SessionsPayload)
+      common_urns.session_windows.urn,
+      standard_window_fns_pb2.SessionsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return Sessions(
         gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))

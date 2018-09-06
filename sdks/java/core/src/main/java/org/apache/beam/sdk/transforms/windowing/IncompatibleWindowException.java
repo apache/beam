@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 /**
- * Exception thrown by {@link WindowFn#verifyCompatibility(WindowFn)} if two compared
- * WindowFns are not compatible, including the explanation of incompatibility.
+ * Exception thrown by {@link WindowFn#verifyCompatibility(WindowFn)} if two compared WindowFns are
+ * not compatible, including the explanation of incompatibility.
  */
 public class IncompatibleWindowException extends Exception {
   private WindowFn<?, ?> givenWindowFn;
@@ -32,7 +32,7 @@ public class IncompatibleWindowException extends Exception {
 
   @Override
   public String getMessage() {
-    String windowFn = givenWindowFn == null ? "null" : givenWindowFn.getClass().getSimpleName();
+    String windowFn = givenWindowFn.getClass().getSimpleName();
     return String.format("The given WindowFn is %s. %s", windowFn, reason);
   }
 }

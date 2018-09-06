@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * A {@link OutputStream} wrapper which protects against the user attempting to modify
- * the underlying stream by closing it.
+ * A {@link OutputStream} wrapper which protects against the user attempting to modify the
+ * underlying stream by closing it.
  */
 public class UnownedOutputStream extends FilterOutputStream {
   public UnownedOutputStream(OutputStream delegate) {
@@ -33,14 +33,13 @@ public class UnownedOutputStream extends FilterOutputStream {
 
   @Override
   public void close() throws IOException {
-    throw new UnsupportedOperationException("Caller does not own the underlying output stream "
-        + " and should not call close().");
+    throw new UnsupportedOperationException(
+        "Caller does not own the underlying output stream " + " and should not call close().");
   }
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof UnownedOutputStream
-        && ((UnownedOutputStream) obj).out.equals(out);
+    return obj instanceof UnownedOutputStream && ((UnownedOutputStream) obj).out.equals(out);
   }
 
   @Override

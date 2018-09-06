@@ -39,9 +39,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test NonMergingActiveWindowSet.
- */
+/** Test NonMergingActiveWindowSet. */
 @RunWith(JUnit4.class)
 public class MergingActiveWindowSetTest {
   private Sessions windowFn;
@@ -55,8 +53,8 @@ public class MergingActiveWindowSetTest {
     state = InMemoryStateInternals.forKey("dummyKey");
     set = new MergingActiveWindowSet<>(windowFn, state);
     @SuppressWarnings("unchecked")
-    ActiveWindowSet.MergeCallback<IntervalWindow>
-        callback = mock(ActiveWindowSet.MergeCallback.class);
+    ActiveWindowSet.MergeCallback<IntervalWindow> callback =
+        mock(ActiveWindowSet.MergeCallback.class);
     this.callback = callback;
   }
 
@@ -70,22 +68,23 @@ public class MergingActiveWindowSetTest {
   private void add(long... instants) {
     for (final long instant : instants) {
       System.out.println("ADD " + instant);
-      Sessions.AssignContext context = windowFn.new AssignContext() {
-        @Override
-        public Object element() {
-          return (Object) instant;
-        }
+      Sessions.AssignContext context =
+          windowFn.new AssignContext() {
+            @Override
+            public Object element() {
+              return (Object) instant;
+            }
 
-        @Override
-        public Instant timestamp() {
-          return new Instant(instant);
-        }
+            @Override
+            public Instant timestamp() {
+              return new Instant(instant);
+            }
 
-        @Override
-        public BoundedWindow window() {
-          return GlobalWindow.INSTANCE;
-        }
-      };
+            @Override
+            public BoundedWindow window() {
+              return GlobalWindow.INSTANCE;
+            }
+          };
 
       for (IntervalWindow window : windowFn.assignWindows(context)) {
         set.ensureWindowExists(window);
@@ -94,8 +93,7 @@ public class MergingActiveWindowSetTest {
   }
 
   private Map<IntervalWindow, IntervalWindow> merge(
-      List<IntervalWindow> toBeMerged,
-      IntervalWindow mergeResult) throws Exception {
+      List<IntervalWindow> toBeMerged, IntervalWindow mergeResult) throws Exception {
     IntervalWindow predictedPostMergeWriteStateAddress =
         set.mergedWriteStateAddress(toBeMerged, mergeResult);
 
@@ -135,8 +133,7 @@ public class MergingActiveWindowSetTest {
     set.checkInvariants();
     System.out.println(set);
     set.persist();
-    MergingActiveWindowSet<IntervalWindow> reloaded =
-        new MergingActiveWindowSet<>(windowFn, state);
+    MergingActiveWindowSet<IntervalWindow> reloaded = new MergingActiveWindowSet<>(windowFn, state);
     reloaded.checkInvariants();
     assertEquals(set, reloaded);
   }
@@ -155,17 +152,15 @@ public class MergingActiveWindowSetTest {
     // ACTIVE 1+11 (target 1+11)
     // ACTIVE 15+10 (target 15+10)
     add(1, 2, 15);
-    assertEquals(ImmutableSet.of(window(1, 10), window(2, 10), window(15, 10)),
-                 set.getActiveAndNewWindows());
+    assertEquals(
+        ImmutableSet.of(window(1, 10), window(2, 10), window(15, 10)),
+        set.getActiveAndNewWindows());
     Map<IntervalWindow, IntervalWindow> map =
-        merge(ImmutableList.of(window(1, 10), window(2, 10)),
-              window(1, 11));
+        merge(ImmutableList.of(window(1, 10), window(2, 10)), window(1, 11));
     activate(map, 1, 2, 15);
     assertEquals(ImmutableSet.of(window(1, 11), window(15, 10)), set.getActiveAndNewWindows());
-    assertEquals(
-        ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 11)));
-    assertEquals(
-        ImmutableSet.of(window(15, 10)), set.readStateAddresses(window(15, 10)));
+    assertEquals(ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 11)));
+    assertEquals(ImmutableSet.of(window(15, 10)), set.readStateAddresses(window(15, 10)));
     cleanup();
 
     // Step 2: Another element, merged into an existing ACTIVE window.
@@ -174,16 +169,14 @@ public class MergingActiveWindowSetTest {
     // ACTIVE 1+12 (target 1+11)
     // ACTIVE 15+10 (target 15+10)
     add(3);
-    assertEquals(ImmutableSet.of(window(3, 10), window(1, 11), window(15, 10)),
-                 set.getActiveAndNewWindows());
-    map = merge(ImmutableList.of(window(1, 11), window(3, 10)),
-                window(1, 12));
+    assertEquals(
+        ImmutableSet.of(window(3, 10), window(1, 11), window(15, 10)),
+        set.getActiveAndNewWindows());
+    map = merge(ImmutableList.of(window(1, 11), window(3, 10)), window(1, 12));
     activate(map, 3);
     assertEquals(ImmutableSet.of(window(1, 12), window(15, 10)), set.getActiveAndNewWindows());
-    assertEquals(
-        ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 12)));
-    assertEquals(
-        ImmutableSet.of(window(15, 10)), set.readStateAddresses(window(15, 10)));
+    assertEquals(ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 12)));
+    assertEquals(ImmutableSet.of(window(15, 10)), set.readStateAddresses(window(15, 10)));
     cleanup();
 
     // Step 3: Another element, causing two ACTIVE windows to be merged.
@@ -191,14 +184,13 @@ public class MergingActiveWindowSetTest {
     // =>
     // ACTIVE 1+24 (target 1+11)
     add(8);
-    assertEquals(ImmutableSet.of(window(8, 10), window(1, 12), window(15, 10)),
-                 set.getActiveAndNewWindows());
-    map = merge(ImmutableList.of(window(1, 12), window(8, 10), window(15, 10)),
-                window(1, 24));
+    assertEquals(
+        ImmutableSet.of(window(8, 10), window(1, 12), window(15, 10)),
+        set.getActiveAndNewWindows());
+    map = merge(ImmutableList.of(window(1, 12), window(8, 10), window(15, 10)), window(1, 24));
     activate(map, 8);
     assertEquals(ImmutableSet.of(window(1, 24)), set.getActiveAndNewWindows());
-    assertEquals(
-        ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
+    assertEquals(ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
     cleanup();
 
     // Step 4: Another element, merged into an existing ACTIVE window.
@@ -207,12 +199,10 @@ public class MergingActiveWindowSetTest {
     // ACTIVE 1+24 (target 1+11)
     add(9);
     assertEquals(ImmutableSet.of(window(9, 10), window(1, 24)), set.getActiveAndNewWindows());
-    map = merge(ImmutableList.of(window(1, 24), window(9, 10)),
-                window(1, 24));
+    map = merge(ImmutableList.of(window(1, 24), window(9, 10)), window(1, 24));
     activate(map, 9);
     assertEquals(ImmutableSet.of(window(1, 24)), set.getActiveAndNewWindows());
-    assertEquals(
-        ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
+    assertEquals(ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
     cleanup();
 
     // Step 5: Another element reusing earlier window, merged into an existing ACTIVE window.
@@ -221,12 +211,10 @@ public class MergingActiveWindowSetTest {
     // ACTIVE 1+24 (target 1+11)
     add(1);
     assertEquals(ImmutableSet.of(window(1, 10), window(1, 24)), set.getActiveAndNewWindows());
-    map = merge(ImmutableList.of(window(1, 10), window(1, 24)),
-                window(1, 24));
+    map = merge(ImmutableList.of(window(1, 10), window(1, 24)), window(1, 24));
     activate(map, 1);
     assertEquals(ImmutableSet.of(window(1, 24)), set.getActiveAndNewWindows());
-    assertEquals(
-        ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
+    assertEquals(ImmutableSet.of(window(1, 11)), set.readStateAddresses(window(1, 24)));
     cleanup();
 
     // Step 6: Window is closed.
@@ -239,18 +227,18 @@ public class MergingActiveWindowSetTest {
   public void testLegacyState() {
     // Pre 1.4 we merged window state lazily.
     // Simulate loading an active window set with multiple state address windows.
-    set.addActiveForTesting(window(1, 12),
-                            ImmutableList.of(window(1, 10), window(2, 10), window(3, 10)));
-
+    set.addActiveForTesting(
+        window(1, 12), ImmutableList.of(window(1, 10), window(2, 10), window(3, 10)));
 
     // Make sure we can detect and repair the state.
     assertTrue(set.isActive(window(1, 12)));
-    assertEquals(ImmutableSet.of(window(1, 10), window(2, 10), window(3, 10)),
-                 set.readStateAddresses(window(1, 12)));
-    assertEquals(window(1, 10),
-                 set.mergedWriteStateAddress(
-                     ImmutableList.of(window(1, 10), window(2, 10), window(3, 10)),
-                     window(1, 12)));
+    assertEquals(
+        ImmutableSet.of(window(1, 10), window(2, 10), window(3, 10)),
+        set.readStateAddresses(window(1, 12)));
+    assertEquals(
+        window(1, 10),
+        set.mergedWriteStateAddress(
+            ImmutableList.of(window(1, 10), window(2, 10), window(3, 10)), window(1, 12)));
     set.merged(window(1, 12));
     cleanup();
 

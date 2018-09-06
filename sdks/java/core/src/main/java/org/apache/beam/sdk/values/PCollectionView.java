@@ -28,22 +28,18 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
- * as a value of type {@code T} that can be accessed
- * as a side input to a {@link ParDo} transform.
+ * as a value of type {@code T} that can be accessed as a side input to a {@link ParDo} transform.
  *
- * <p>A {@link PCollectionView} should always be the output of a
- * {@link org.apache.beam.sdk.transforms.PTransform}. It is the joint responsibility of
- * this transform and each {@link PipelineRunner} to implement
- * the view in a runner-specific manner.
+ * <p>A {@link PCollectionView} should always be the output of a {@link
+ * org.apache.beam.sdk.transforms.PTransform}. It is the joint responsibility of this transform and
+ * each {@link PipelineRunner} to implement the view in a runner-specific manner.
  *
- * <p>The most common case is using the {@link View} transforms to prepare a {@link PCollection}
- * for use as a side input to {@link ParDo}. See {@link View#asSingleton()},
- * {@link View#asIterable()}, and {@link View#asMap()} for more detail on specific views
- * available in the SDK.
+ * <p>The most common case is using the {@link View} transforms to prepare a {@link PCollection} for
+ * use as a side input to {@link ParDo}. See {@link View#asSingleton()}, {@link View#asIterable()},
+ * and {@link View#asMap()} for more detail on specific views available in the SDK.
  *
  * <p>NOTE: View methods should not be considered to be user-accessible. They are implementation
  * details of how a Runner obtains information required to construct a view, and are subject to
@@ -72,7 +68,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
+  TupleTag<?> getTagInternal();
 
   /**
    * <b>For internal use only.</b>
@@ -83,7 +79,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
+  ViewFn<?, T> getViewFn();
 
   /**
    * <b>For internal use only.</b>
@@ -116,5 +112,5 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
+  Coder<?> getCoderInternal();
 }

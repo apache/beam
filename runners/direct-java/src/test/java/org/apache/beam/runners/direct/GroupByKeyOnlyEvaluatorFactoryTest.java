@@ -28,6 +28,7 @@ import com.google.common.collect.Multiset;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -44,15 +45,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link GroupByKeyOnlyEvaluatorFactory}.
- */
+/** Tests for {@link GroupByKeyOnlyEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class GroupByKeyOnlyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testInMemoryEvaluator() throws Exception {
@@ -65,7 +63,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
     PCollection<KV<String, Integer>> values =
         p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        values.apply(new DirectGroupByKeyOnly<String, Integer>());
+        values.apply(new DirectGroupByKeyOnly<>());
 
     CommittedBundle<KV<String, Integer>> inputBundle =
         bundleFactory.createBundle(values).commit(Instant.now());
@@ -87,8 +85,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
 
     // The input to a GroupByKey is assumed to be a KvCoder
     @SuppressWarnings("unchecked")
-    Coder<String> keyCoder =
-        ((KvCoder<String, Integer>) values.getCoder()).getKeyCoder();
+    Coder<String> keyCoder = ((KvCoder<String, Integer>) values.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, Integer>> evaluator =
         new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
             .forApplication(DirectGraphs.getProducer(groupedKvs), inputBundle);
@@ -128,8 +125,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
         contains(
             new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
-                    "baz",
-                    ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
+                    "baz", ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
                 keyCoder)));
   }
 

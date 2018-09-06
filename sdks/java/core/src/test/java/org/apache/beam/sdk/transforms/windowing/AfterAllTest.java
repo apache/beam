@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link AfterAll}.
- */
+/** Tests for {@link AfterAll}. */
 @RunWith(JUnit4.class)
 public class AfterAllTest {
 
@@ -35,7 +33,8 @@ public class AfterAllTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterAll.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(1))
             .getWatermarkThatGuaranteesFiring(window));
   }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -30,31 +29,28 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of BigtableRead.
- */
+/** End-to-end tests of BigtableRead. */
 @RunWith(JUnit4.class)
 public class BigtableReadIT {
 
   @Test
   public void testE2EBigtableRead() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
-    BigtableTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(BigtableTestOptions.class);
+    BigtableTestOptions options =
+        TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
     String project = options.as(GcpOptions.class).getProject();
 
-    BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
-        .setProjectId(project)
-        .setInstanceId(options.getInstanceId());
+    BigtableOptions.Builder bigtableOptionsBuilder =
+        new BigtableOptions.Builder().setProjectId(project).setInstanceId(options.getInstanceId());
 
     final String tableId = "BigtableReadTest";
     final long numRows = 1000L;
 
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
-        .apply(Count.<Row>globally());
+    PCollection<Long> count =
+        p.apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
+            .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
     p.run();
   }

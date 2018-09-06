@@ -16,14 +16,19 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
-import unittest
+from __future__ import absolute_import
+from __future__ import division
 
-from apache_beam.io import source_test_utils
+import logging
+import unittest
+from builtins import range
 
 from apache_beam import Create
 from apache_beam.coders import FastPrimitivesCoder
+from apache_beam.io import source_test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class CreateTest(unittest.TestCase):
@@ -32,13 +37,13 @@ class CreateTest(unittest.TestCase):
 
   def test_create_transform(self):
     with TestPipeline() as p:
-      assert_that(p | Create(range(10)), equal_to(range(10)))
+      assert_that(p | Create(list(range(10))), equal_to(list(range(10))))
 
   def test_create_source_read(self):
     self.check_read([], self.coder)
     self.check_read([1], self.coder)
     # multiple values.
-    self.check_read(range(10), self.coder)
+    self.check_read(list(range(10)), self.coder)
 
   def check_read(self, values, coder):
     source = Create._create_source_from_iterable(values, coder)
@@ -48,7 +53,7 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_with_initial_splits(self):
     self.check_read_with_initial_splits([], self.coder, num_splits=2)
     self.check_read_with_initial_splits([1], self.coder, num_splits=2)
-    values = range(8)
+    values = list(range(8))
     # multiple values with a single split.
     self.check_read_with_initial_splits(values, self.coder, num_splits=1)
     # multiple values with a single split with a large desired bundle size
@@ -69,7 +74,7 @@ class CreateTest(unittest.TestCase):
     from the split sources.
     """
     source = Create._create_source_from_iterable(values, coder)
-    desired_bundle_size = source._total_size / num_splits
+    desired_bundle_size = source._total_size // num_splits
     splits = source.split(desired_bundle_size)
     splits_info = [
         (split.source, split.start_position, split.stop_position)
@@ -120,3 +125,8 @@ class CreateTest(unittest.TestCase):
 
     self.assertEqual(
         expected_split_points_report, split_points_report)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

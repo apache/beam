@@ -19,8 +19,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
@@ -36,41 +34,97 @@ public class StreamingInserts<DestinationT>
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
+  private boolean extendedErrorInfo;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   /** Constructor. */
-  public StreamingInserts(CreateDisposition createDisposition,
-                   DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(createDisposition, dynamicDestinations, new BigQueryServicesImpl(),
-        InsertRetryPolicy.alwaysRetry());
+  public StreamingInserts(
+      CreateDisposition createDisposition,
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this(
+        createDisposition,
+        dynamicDestinations,
+        new BigQueryServicesImpl(),
+        InsertRetryPolicy.alwaysRetry(),
+        false,
+        false,
+        false);
   }
 
   /** Constructor. */
-  private StreamingInserts(CreateDisposition createDisposition,
-                          DynamicDestinations<?, DestinationT> dynamicDestinations,
-                          BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy) {
+  private StreamingInserts(
+      CreateDisposition createDisposition,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      BigQueryServices bigQueryServices,
+      InsertRetryPolicy retryPolicy,
+      boolean extendedErrorInfo,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
+    this.extendedErrorInfo = extendedErrorInfo;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
-  /**
-   * Specify a retry policy for failed inserts.
-   */
+  /** Specify a retry policy for failed inserts. */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
+  }
+
+  /** Specify whether to use extended error info or not. */
+  public StreamingInserts<DestinationT> withExtendedErrorInfo(boolean extendedErrorInfo) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
+  }
+
+  StreamingInserts<DestinationT> withSkipInvalidRows(boolean skipInvalidRows) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
+  }
+
+  StreamingInserts<DestinationT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
-
-
-  @Override
-  protected Coder<Void> getDefaultOutputCoder() {
-    return VoidCoder.of();
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   @Override
@@ -84,6 +138,9 @@ public class StreamingInserts<DestinationT>
     return writes.apply(
         new StreamingWriteTables()
             .withTestServices(bigQueryServices)
-            .withInsertRetryPolicy(retryPolicy));
+            .withInsertRetryPolicy(retryPolicy)
+            .withExtendedErrorInfo(extendedErrorInfo)
+            .withSkipInvalidRows(skipInvalidRows)
+            .withIgnoreUnknownValues(ignoreUnknownValues));
   }
 }

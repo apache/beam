@@ -1,0 +1,83 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+# This script contains definition of hdfs single node cluster. In this configuration hdfs datanode
+# and namenode are running on the same pod. Service hadoop allows to connect to pods labeled as
+# hadoop, this service also provides connectivity from outside of the cluster.
+# Replication controller creates pods using docker image sequenceiq/hadoop-docker:2.7.1.
+# Each pod created will expose hdfs standard ports.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop
+  labels:
+    name: hadoop
+spec:
+  ports:
+    - name: sshd
+      port: 2122
+    - name: hdfs
+      port: 9000
+    - name: web
+      port: 50070
+    - name: datanode
+      port: 50010
+    - name: datanode-icp
+      port: 50020
+    - name: datanode-http
+      port: 50075
+  selector:
+    name: hadoop
+  type: NodePort
+
+---
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: hadoop
+  labels:
+    name: hadoop
+spec:
+  replicas: 1
+  selector:
+    name: hadoop
+  template:
+    metadata:
+      labels:
+        name: hadoop
+    spec:
+      containers:
+        - name: hadoop
+          image: sequenceiq/hadoop-docker:2.7.1
+          ports:
+            - name: sshd
+              containerPort: 2122
+            - name: namenode-hdfs
+              containerPort: 9000
+            - name: datanode
+              containerPort: 50010
+            - name: datanode-icp
+              containerPort: 50020
+            - name: namenode-http
+              containerPort: 50070
+            - name: datanode-http
+              containerPort: 50075
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "hostname > /usr/local/hadoop/etc/hadoop/slaves"]

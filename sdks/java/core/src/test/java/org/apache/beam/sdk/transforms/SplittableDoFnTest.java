@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
-import static org.hamcrest.Matchers.greaterThan;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Ordering;
@@ -33,25 +32,28 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
+import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -72,12 +74,18 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SplittableDoFnTest implements Serializable {
 
-  static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
+  static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
-      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(KV.of(c.element(), (int) i));
+        if (numIterations % 3 == 0) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -93,40 +101,36 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
-  private static class ReifyTimestampsFn<T> extends DoFn<T, TimestampedValue<T>> {
-    @ProcessElement
-    public void process(ProcessContext c) {
-      c.output(TimestampedValue.of(c.element(), c.timestamp()));
-    }
+  @BoundedPerElement
+  static class PairStringWithIndexToLengthBounded extends PairStringWithIndexToLengthBase {}
+
+  @UnboundedPerElement
+  static class PairStringWithIndexToLengthUnbounded extends PairStringWithIndexToLengthBase {}
+
+  private static PairStringWithIndexToLengthBase pairStringWithIndexToLengthFn(IsBounded bounded) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new PairStringWithIndexToLengthBounded()
+        : new PairStringWithIndexToLengthUnbounded();
   }
 
-  private static PipelineOptions streamingTestPipelineOptions() {
-    // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo
-    // tests in Dataflow runner, because as of writing, it can run Splittable DoFn only in
-    // streaming mode.
-    // This is a no-op for other runners currently (Direct runner doesn't care, and other
-    // runners don't implement SDF at all yet).
-    //
-    // This is a workaround until https://issues.apache.org/jira/browse/BEAM-1620
-    // is properly implemented and supports marking tests as streaming-only.
-    //
-    // https://issues.apache.org/jira/browse/BEAM-2483 specifically tracks the removal of the
-    // current workaround.
-    PipelineOptions options = testingPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
-    return options;
-  }
-
-  @Rule
-  public final transient TestPipeline p = TestPipeline.fromOptions(streamingTestPipelineOptions());
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testPairWithIndexBasic() {
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  public void testPairWithIndexBasicBounded() {
+    testPairWithIndexBasic(IsBounded.BOUNDED);
+  }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testPairWithIndexBasicUnbounded() {
+    testPairWithIndexBasic(IsBounded.UNBOUNDED);
+  }
+
+  private void testPairWithIndexBasic(IsBounded bounded) {
     PCollection<KV<String, Integer>> res =
         p.apply(Create.of("a", "bb", "ccccc"))
-            .apply(ParDo.of(new PairStringWithIndexToLength()))
+            .apply(ParDo.of(pairStringWithIndexToLengthFn(bounded)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PAssert.that(res)
@@ -145,8 +149,18 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testPairWithIndexWindowedTimestamped() {
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  public void testPairWithIndexWindowedTimestampedBounded() {
+    testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testPairWithIndexWindowedTimestampedUnbounded() {
+    testPairWithIndexWindowedTimestamped(IsBounded.UNBOUNDED);
+  }
+
+  private void testPairWithIndexWindowedTimestamped(IsBounded bounded) {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
 
@@ -164,14 +178,13 @@ public class SplittableDoFnTest implements Serializable {
                     TimestampedValue.of("a", now),
                     TimestampedValue.of("bb", nowP1),
                     TimestampedValue.of("ccccc", nowP2)))
-            .apply(Window.<String>into(windowFn))
-            .apply(ParDo.of(new PairStringWithIndexToLength()))
+            .apply(Window.into(windowFn))
+            .apply(ParDo.of(pairStringWithIndexToLengthFn(bounded)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     assertEquals(windowFn, res.getWindowingStrategy().getWindowFn());
 
-    PCollection<TimestampedValue<KV<String, Integer>>> timestamped =
-        res.apply("Reify timestamps", ParDo.of(new ReifyTimestampsFn<KV<String, Integer>>()));
+    PCollection<TimestampedValue<KV<String, Integer>>> timestamped = res.apply(Reify.timestamps());
 
     for (int i = 0; i < 4; ++i) {
       Instant base = now.minus(Duration.standardSeconds(i));
@@ -202,14 +215,13 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  @BoundedPerElement
-  private static class SDFWithMultipleOutputsPerBlock extends DoFn<String, Integer> {
+  private static class SDFWithMultipleOutputsPerBlockBase extends DoFn<String, Integer> {
     private static final int MAX_INDEX = 98765;
 
-    private final TupleTag<Integer> numProcessCalls;
+    private final int numClaimsPerCall;
 
-    private SDFWithMultipleOutputsPerBlock(TupleTag<Integer> numProcessCalls) {
-      this.numProcessCalls = numProcessCalls;
+    private SDFWithMultipleOutputsPerBlockBase(int numClaimsPerCall) {
+      this.numClaimsPerCall = numClaimsPerCall;
     }
 
     private static int snapToNextBlock(int index, int[] blockStarts) {
@@ -222,15 +234,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      c.output(numProcessCalls, 1);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim((long) blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -239,36 +256,55 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  @BoundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockBounded
+      extends SDFWithMultipleOutputsPerBlockBase {
+    SDFWithMultipleOutputsPerBlockBounded(int numClaimsPerCall) {
+      super(numClaimsPerCall);
+    }
+  }
+
+  @UnboundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockUnbounded
+      extends SDFWithMultipleOutputsPerBlockBase {
+    SDFWithMultipleOutputsPerBlockUnbounded(int numClaimsPerCall) {
+      super(numClaimsPerCall);
+    }
+  }
+
+  private static SDFWithMultipleOutputsPerBlockBase sdfWithMultipleOutputsPerBlock(
+      IsBounded bounded, int numClaimsPerCall) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithMultipleOutputsPerBlockBounded(numClaimsPerCall)
+        : new SDFWithMultipleOutputsPerBlockUnbounded(numClaimsPerCall);
+  }
+
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testOutputAfterCheckpoint() throws Exception {
-    TupleTag<Integer> main = new TupleTag<>();
-    TupleTag<Integer> numProcessCalls = new TupleTag<>();
-    PCollectionTuple outputs =
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  public void testOutputAfterCheckpointBounded() {
+    testOutputAfterCheckpoint(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testOutputAfterCheckpointUnbounded() {
+    testOutputAfterCheckpoint(IsBounded.UNBOUNDED);
+  }
+
+  private void testOutputAfterCheckpoint(IsBounded bounded) {
+    PCollection<Integer> outputs =
         p.apply(Create.of("foo"))
-            .apply(
-                ParDo.of(new SDFWithMultipleOutputsPerBlock(numProcessCalls))
-                    .withOutputTags(main, TupleTagList.of(numProcessCalls)));
-    PAssert.thatSingleton(outputs.get(main).apply(Count.<Integer>globally()))
-        .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
-    // Verify that more than 1 process() call was involved, i.e. that there was checkpointing.
-    PAssert.thatSingleton(
-            outputs.get(numProcessCalls).setCoder(VarIntCoder.of()).apply(Sum.integersGlobally()))
-        .satisfies(
-            new SerializableFunction<Integer, Void>() {
-              @Override
-              public Void apply(Integer input) {
-                assertThat(input, greaterThan(1));
-                return null;
-              }
-            });
+            .apply(ParDo.of(sdfWithMultipleOutputsPerBlock(bounded, 3)))
+            .apply(Window.<Integer>configure().triggering(Never.ever()).discardingFiredPanes());
+    PAssert.thatSingleton(outputs.apply(Count.globally()))
+        .isEqualTo((long) SDFWithMultipleOutputsPerBlockBase.MAX_INDEX);
     p.run();
   }
 
-  private static class SDFWithSideInput extends DoFn<Integer, String> {
+  private static class SDFWithSideInputBase extends DoFn<Integer, String> {
     private final PCollectionView<String> sideInput;
 
-    private SDFWithSideInput(PCollectionView<String> sideInput) {
+    private SDFWithSideInputBase(PCollectionView<String> sideInput) {
       this.sideInput = sideInput;
     }
 
@@ -285,15 +321,46 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  @BoundedPerElement
+  private static class SDFWithSideInputBounded extends SDFWithSideInputBase {
+    private SDFWithSideInputBounded(PCollectionView<String> sideInput) {
+      super(sideInput);
+    }
+  }
+
+  @UnboundedPerElement
+  private static class SDFWithSideInputUnbounded extends SDFWithSideInputBase {
+    private SDFWithSideInputUnbounded(PCollectionView<String> sideInput) {
+      super(sideInput);
+    }
+  }
+
+  private static SDFWithSideInputBase sdfWithSideInput(
+      IsBounded bounded, PCollectionView<String> sideInput) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithSideInputBounded(sideInput)
+        : new SDFWithSideInputUnbounded(sideInput);
+  }
+
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testSideInput() throws Exception {
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  public void testSideInputBounded() {
+    testSideInput(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testSideInputUnbounded() {
+    testSideInput(IsBounded.UNBOUNDED);
+  }
+
+  private void testSideInput(IsBounded bounded) {
     PCollectionView<String> sideInput =
-        p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
+        p.apply("side input", Create.of("foo")).apply(View.asSingleton());
 
     PCollection<String> res =
         p.apply("input", Create.of(0, 1, 2))
-            .apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
+            .apply(ParDo.of(sdfWithSideInput(bounded, sideInput)).withSideInputs(sideInput));
 
     PAssert.that(res).containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
 
@@ -303,12 +370,27 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
+    UsesBoundedSplittableParDo.class,
     UsesSplittableParDoWithWindowedSideInputs.class
   })
-  public void testWindowedSideInput() throws Exception {
+  public void testWindowedSideInputBounded() {
+    testWindowedSideInput(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesUnboundedSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class,
+  })
+  public void testWindowedSideInputUnbounded() {
+    testWindowedSideInput(IsBounded.UNBOUNDED);
+  }
+
+  private void testWindowedSideInput(IsBounded bounded) {
     PCollection<Integer> mainInput =
-        p.apply("main",
+        p.apply(
+                "main",
                 Create.timestamped(
                     TimestampedValue.of(0, new Instant(0)),
                     TimestampedValue.of(1, new Instant(1)),
@@ -318,35 +400,35 @@ public class SplittableDoFnTest implements Serializable {
                     TimestampedValue.of(5, new Instant(5)),
                     TimestampedValue.of(6, new Instant(6)),
                     TimestampedValue.of(7, new Instant(7))))
-            .apply("window 2", Window.<Integer>into(FixedWindows.of(Duration.millis(2))));
+            .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))));
 
     PCollectionView<String> sideInput =
-        p.apply("side",
+        p.apply(
+                "side",
                 Create.timestamped(
                     TimestampedValue.of("a", new Instant(0)),
                     TimestampedValue.of("b", new Instant(4))))
-            .apply("window 4", Window.<String>into(FixedWindows.of(Duration.millis(4))))
-            .apply("singleton", View.<String>asSingleton());
+            .apply("window 4", Window.into(FixedWindows.of(Duration.millis(4))))
+            .apply("singleton", View.asSingleton());
 
     PCollection<String> res =
-        mainInput.apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
+        mainInput.apply(ParDo.of(sdfWithSideInput(bounded, sideInput)).withSideInputs(sideInput));
 
     PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
 
     p.run();
   }
 
-  @BoundedPerElement
-  private static class SDFWithMultipleOutputsPerBlockAndSideInput
+  private static class SDFWithMultipleOutputsPerBlockAndSideInputBase
       extends DoFn<Integer, KV<String, Integer>> {
     private static final int MAX_INDEX = 98765;
     private final PCollectionView<String> sideInput;
-    private final TupleTag<Integer> numProcessCalls;
+    private final int numClaimsPerCall;
 
-    public SDFWithMultipleOutputsPerBlockAndSideInput(
-        PCollectionView<String> sideInput, TupleTag<Integer> numProcessCalls) {
+    SDFWithMultipleOutputsPerBlockAndSideInputBase(
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
       this.sideInput = sideInput;
-      this.numProcessCalls = numProcessCalls;
+      this.numClaimsPerCall = numClaimsPerCall;
     }
 
     private static int snapToNextBlock(int index, int[] blockStarts) {
@@ -359,15 +441,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      c.output(numProcessCalls, 1);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim((long) blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -376,82 +463,102 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  @BoundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockAndSideInputBounded
+      extends SDFWithMultipleOutputsPerBlockAndSideInputBase {
+    private SDFWithMultipleOutputsPerBlockAndSideInputBounded(
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      super(sideInput, numClaimsPerCall);
+    }
+  }
+
+  @UnboundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockAndSideInputUnbounded
+      extends SDFWithMultipleOutputsPerBlockAndSideInputBase {
+    private SDFWithMultipleOutputsPerBlockAndSideInputUnbounded(
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      super(sideInput, numClaimsPerCall);
+    }
+  }
+
+  private static SDFWithMultipleOutputsPerBlockAndSideInputBase
+      sdfWithMultipleOutputsPerBlockAndSideInput(
+          IsBounded bounded, PCollectionView<String> sideInput, int numClaimsPerCall) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithMultipleOutputsPerBlockAndSideInputBounded(sideInput, numClaimsPerCall)
+        : new SDFWithMultipleOutputsPerBlockAndSideInputUnbounded(sideInput, numClaimsPerCall);
+  }
+
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesSplittableParDo.class,
+    UsesBoundedSplittableParDo.class,
     UsesSplittableParDoWithWindowedSideInputs.class
   })
-  public void testWindowedSideInputWithCheckpoints() throws Exception {
+  public void testWindowedSideInputWithCheckpointsBounded() {
+    testWindowedSideInputWithCheckpoints(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesUnboundedSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class,
+  })
+  public void testWindowedSideInputWithCheckpointsUnbounded() {
+    testWindowedSideInputWithCheckpoints(IsBounded.UNBOUNDED);
+  }
+
+  private void testWindowedSideInputWithCheckpoints(IsBounded bounded) {
     PCollection<Integer> mainInput =
-        p.apply("main",
+        p.apply(
+                "main",
                 Create.timestamped(
                     TimestampedValue.of(0, new Instant(0)),
                     TimestampedValue.of(1, new Instant(1)),
                     TimestampedValue.of(2, new Instant(2)),
                     TimestampedValue.of(3, new Instant(3))))
-            .apply("window 1", Window.<Integer>into(FixedWindows.of(Duration.millis(1))));
+            .apply("window 1", Window.into(FixedWindows.of(Duration.millis(1))));
 
     PCollectionView<String> sideInput =
-        p.apply("side",
+        p.apply(
+                "side",
                 Create.timestamped(
                     TimestampedValue.of("a", new Instant(0)),
                     TimestampedValue.of("b", new Instant(2))))
-            .apply("window 2", Window.<String>into(FixedWindows.of(Duration.millis(2))))
-            .apply("singleton", View.<String>asSingleton());
+            .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))))
+            .apply("singleton", View.asSingleton());
 
-    TupleTag<KV<String, Integer>> main = new TupleTag<>();
-    TupleTag<Integer> numProcessCalls = new TupleTag<>();
-    PCollectionTuple res =
+    PCollection<KV<String, Integer>> res =
         mainInput.apply(
-            ParDo.of(new SDFWithMultipleOutputsPerBlockAndSideInput(sideInput, numProcessCalls))
-                .withSideInputs(sideInput)
-                .withOutputTags(main, TupleTagList.of(numProcessCalls)));
-    PCollection<KV<String, Iterable<Integer>>> grouped =
-        res.get(main).apply(GroupByKey.<String, Integer>create());
+            ParDo.of(
+                    sdfWithMultipleOutputsPerBlockAndSideInput(
+                        bounded, sideInput, 3 /* numClaimsPerCall */))
+                .withSideInputs(sideInput));
+    PCollection<KV<String, Iterable<Integer>>> grouped = res.apply(GroupByKey.create());
 
-    PAssert.that(grouped.apply(Keys.<String>create()))
-        .containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
+    PAssert.that(grouped.apply(Keys.create())).containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
     PAssert.that(grouped)
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
-                List<Integer> expected = new ArrayList<>();
-                for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInput.MAX_INDEX; ++i) {
-                  expected.add(i);
-                }
-                for (KV<String, Iterable<Integer>> kv : input) {
-                  assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
-                }
-                return null;
+            input -> {
+              List<Integer> expected = new ArrayList<>();
+              for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInputBase.MAX_INDEX; ++i) {
+                expected.add(i);
               }
-            });
-
-    // Verify that more than 1 process() call was involved, i.e. that there was checkpointing.
-    PAssert.thatSingleton(
-            res.get(numProcessCalls)
-                .setCoder(VarIntCoder.of())
-                .apply(Sum.integersGlobally().withoutDefaults()))
-        // This should hold in all windows, but verifying a particular window is sufficient.
-        .inOnlyPane(new IntervalWindow(new Instant(0), new Instant(1)))
-        .satisfies(
-            new SerializableFunction<Integer, Void>() {
-              @Override
-              public Void apply(Integer input) {
-                assertThat(input, greaterThan(1));
-                return null;
+              for (KV<String, Iterable<Integer>> kv : input) {
+                assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
               }
+              return null;
             });
     p.run();
 
     // TODO: also test coverage when some of the windows of the side input are not ready.
   }
 
-  private static class SDFWithAdditionalOutput extends DoFn<Integer, String> {
+  private static class SDFWithAdditionalOutputBase extends DoFn<Integer, String> {
     private final TupleTag<String> additionalOutput;
 
-    private SDFWithAdditionalOutput(TupleTag<String> additionalOutput) {
+    private SDFWithAdditionalOutputBase(TupleTag<String> additionalOutput) {
       this.additionalOutput = additionalOutput;
     }
 
@@ -468,16 +575,47 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  @BoundedPerElement
+  private static class SDFWithAdditionalOutputBounded extends SDFWithAdditionalOutputBase {
+    private SDFWithAdditionalOutputBounded(TupleTag<String> additionalOutput) {
+      super(additionalOutput);
+    }
+  }
+
+  @UnboundedPerElement
+  private static class SDFWithAdditionalOutputUnbounded extends SDFWithAdditionalOutputBase {
+    private SDFWithAdditionalOutputUnbounded(TupleTag<String> additionalOutput) {
+      super(additionalOutput);
+    }
+  }
+
+  private static SDFWithAdditionalOutputBase sdfWithAdditionalOutput(
+      IsBounded bounded, TupleTag<String> additionalOutput) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithAdditionalOutputBounded(additionalOutput)
+        : new SDFWithAdditionalOutputUnbounded(additionalOutput);
+  }
+
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testAdditionalOutput() throws Exception {
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  public void testAdditionalOutputBounded() {
+    testAdditionalOutput(IsBounded.BOUNDED);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testAdditionalOutputUnbounded() {
+    testAdditionalOutput(IsBounded.UNBOUNDED);
+  }
+
+  private void testAdditionalOutput(IsBounded bounded) {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main") {};
     TupleTag<String> additionalOutputTag = new TupleTag<String>("additional") {};
 
     PCollectionTuple res =
         p.apply("input", Create.of(0, 1, 2))
             .apply(
-                ParDo.of(new SDFWithAdditionalOutput(additionalOutputTag))
+                ParDo.of(sdfWithAdditionalOutput(bounded, additionalOutputTag))
                     .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     PAssert.that(res.get(mainOutputTag))
@@ -489,8 +627,8 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesTestStream.class})
-  public void testLateData() throws Exception {
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
+  public void testLateData() {
 
     Instant base = Instant.now();
 
@@ -512,11 +650,10 @@ public class SplittableDoFnTest implements Serializable {
 
     PCollection<KV<String, Integer>> afterSDF =
         input
-            .apply(ParDo.of(new PairStringWithIndexToLength()))
+            .apply(ParDo.of(pairStringWithIndexToLengthFn(IsBounded.UNBOUNDED)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
-    PCollection<String> nonLate =
-        afterSDF.apply(GroupByKey.<String, Integer>create()).apply(Keys.<String>create());
+    PCollection<String> nonLate = afterSDF.apply(GroupByKey.create()).apply(Keys.create());
 
     // The splittable DoFn itself should not drop any data and act as pass-through.
     PAssert.that(afterSDF)
@@ -531,31 +668,31 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  private static class SDFWithLifecycle extends DoFn<String, String> {
+  private static class SDFWithLifecycleBase extends DoFn<String, String> {
     private enum State {
-      BEFORE_SETUP,
       OUTSIDE_BUNDLE,
       INSIDE_BUNDLE,
       TORN_DOWN
     }
 
-    private State state = State.BEFORE_SETUP;
-
-    @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
-      assertEquals(State.INSIDE_BUNDLE, state);
-      assertTrue(tracker.tryClaim(0));
-      c.output(c.element());
-    }
+    private transient State state;
 
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(String value) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
       return new OffsetRange(0, 1);
+    }
+
+    @SplitRestriction
+    public void splitRestriction(
+        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      receiver.output(range);
     }
 
     @Setup
     public void setUp() {
-      assertEquals(State.BEFORE_SETUP, state);
+      assertEquals(null, state);
       state = State.OUTSIDE_BUNDLE;
     }
 
@@ -563,6 +700,13 @@ public class SplittableDoFnTest implements Serializable {
     public void startBundle() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       state = State.INSIDE_BUNDLE;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      assertTrue(tracker.tryClaim(0L));
+      c.output(c.element());
     }
 
     @FinishBundle
@@ -578,16 +722,76 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  @BoundedPerElement
+  private static class SDFWithLifecycleBounded extends SDFWithLifecycleBase {}
+
+  @UnboundedPerElement
+  private static class SDFWithLifecycleUnbounded extends SDFWithLifecycleBase {}
+
+  private static SDFWithLifecycleBase sdfWithLifecycle(IsBounded bounded) {
+    return (bounded == IsBounded.BOUNDED)
+        ? new SDFWithLifecycleBounded()
+        : new SDFWithLifecycleUnbounded();
+  }
+
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testLifecycleMethods() throws Exception {
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, UsesBoundedSplittableParDo.class})
+  public void testLifecycleMethodsBounded() {
+    testLifecycleMethods(IsBounded.BOUNDED);
+  }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, UsesUnboundedSplittableParDo.class})
+  public void testLifecycleMethodsUnbounded() {
+    testLifecycleMethods(IsBounded.UNBOUNDED);
+  }
+
+  private void testLifecycleMethods(IsBounded bounded) {
     PCollection<String> res =
-        p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));
-
+        p.apply(Create.of("a", "b", "c")).apply(ParDo.of(sdfWithLifecycle(bounded)));
     PAssert.that(res).containsInAnyOrder("a", "b", "c");
-
     p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testBoundedness() {
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public void process(@Element String element, OffsetRangeTracker tracker) {
+                      // Doesn't matter
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.BOUNDED, res.isBounded());
+    }
+    {
+      PCollection<String> res =
+          foo.apply(
+              ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public ProcessContinuation process(
+                        @Element String element, OffsetRangeTracker tracker) {
+                      return stop();
+                    }
+
+                    @GetInitialRestriction
+                    public OffsetRange getInitialRestriction(String element) {
+                      return new OffsetRange(0, 1);
+                    }
+                  }));
+      assertEquals(PCollection.IsBounded.UNBOUNDED, res.isBounded());
+    }
   }
 
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn

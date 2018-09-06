@@ -15,8 +15,11 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import unittest
 import warnings
+
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 

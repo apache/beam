@@ -17,26 +17,17 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from __future__ import absolute_import
+
 import abc
 import inspect
+from builtins import object
 
+from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
 from apache_beam.utils import proto_utils
-
-
-PICKLED_WINDOW_FN = "beam:windowfn:pickled_python:v0.1"
-GLOBAL_WINDOWS_FN = "beam:windowfn:global_windows:v0.1"
-FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1"
-SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1"
-SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1"
-
-PICKLED_CODER = "beam:coder:pickled_python:v0.1"
-
-PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
-FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
-WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
 
 
 class RunnerApiFn(object):
@@ -50,7 +41,8 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  __metaclass__ = abc.ABCMeta
+  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+  # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}
 
@@ -64,9 +56,9 @@ class RunnerApiFn(object):
 
   @classmethod
   def register_urn(cls, urn, parameter_type, fn=None):
-    """Registeres a urn with a constructor.
+    """Registers a urn with a constructor.
 
-    For example, if 'beam:fn:foo' had paramter type FooPayload, one could
+    For example, if 'beam:fn:foo' had parameter type FooPayload, one could
     write `RunnerApiFn.register_urn('bean:fn:foo', FooPayload, foo_from_proto)`
     where foo_from_proto took as arguments a FooPayload and a PipelineContext.
     This function can also be used as a decorator rather than passing the
@@ -105,9 +97,12 @@ class RunnerApiFn(object):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.SdkFunctionSpec(
+        environment_id=context.default_environment_id(),
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            payload=typed_param.SerializeToString()
+            if isinstance(typed_param, message.Message)
+            else typed_param))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -117,5 +112,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
         context)

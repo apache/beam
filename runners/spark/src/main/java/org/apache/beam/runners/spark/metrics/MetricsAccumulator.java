@@ -34,10 +34,11 @@ import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
- * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ *
+ * @see <a
+ *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
@@ -49,21 +50,21 @@ public class MetricsAccumulator {
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
-  /**
-   * Init metrics accumulator if it has not been initiated. This method is idempotent.
-   */
+  /** Init metrics accumulator if it has not been initiated. This method is idempotent. */
   public static void init(SparkPipelineOptions opts, JavaSparkContext jsc) {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
           Optional<CheckpointDir> maybeCheckpointDir =
-              opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
-                  : Optional.<CheckpointDir>absent();
+              opts.isStreaming()
+                  ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+                  : Optional.absent();
           Accumulator<MetricsContainerStepMap> accumulator =
-              jsc.sc().accumulator(
-                  new MetricsContainerStepMap(),
-                  ACCUMULATOR_NAME,
-                  new MetricsAccumulatorParam());
+              jsc.sc()
+                  .accumulator(
+                      new MetricsContainerStepMap(),
+                      ACCUMULATOR_NAME,
+                      new MetricsAccumulatorParam());
           if (maybeCheckpointDir.isPresent()) {
             Optional<MetricsContainerStepMap> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
@@ -87,8 +88,7 @@ public class MetricsAccumulator {
   }
 
   private static Optional<MetricsContainerStepMap> recoverValueFromCheckpoint(
-      JavaSparkContext jsc,
-      CheckpointDir checkpointDir) {
+      JavaSparkContext jsc, CheckpointDir checkpointDir) {
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);

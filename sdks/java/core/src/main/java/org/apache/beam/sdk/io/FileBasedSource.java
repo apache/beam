@@ -23,19 +23,17 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -52,15 +50,15 @@ import org.slf4j.LoggerFactory;
  * glob, a single file, or a offset range for a single file. See {@link OffsetBasedSource} and
  * {@link org.apache.beam.sdk.io.range.RangeTracker} for semantics of offset ranges.
  *
- * <p>This source stores a {@code String} that is a {@link FileSystems} specification for a
- * file or file pattern. There should be a {@link FileSystem} registered for the file
- * specification provided. Please refer to {@link FileSystems} and {@link FileSystem} for
- * more information on this.
+ * <p>This source stores a {@code String} that is a {@link FileSystems} specification for a file or
+ * file pattern. There should be a {@link FileSystem} registered for the file specification
+ * provided. Please refer to {@link FileSystems} and {@link FileSystem} for more information on
+ * this.
  *
  * <p>In addition to the methods left abstract from {@code BoundedSource}, subclasses must implement
- * methods to create a sub-source and a reader for a range of a single file -
- * {@link #createForSubrangeOfFile} and {@link #createSingleFileReader}. Please refer to
- * {@link TextIO TextIO.TextSource} for an example implementation of {@code FileBasedSource}.
+ * methods to create a sub-source and a reader for a range of a single file - {@link
+ * #createForSubrangeOfFile} and {@link #createSingleFileReader}. Please refer to {@link TextIO
+ * TextIO.TextSource} for an example implementation of {@code FileBasedSource}.
  *
  * @param <T> Type of records represented by the source.
  */
@@ -68,41 +66,53 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
 
   private final ValueProvider<String> fileOrPatternSpec;
+  private final EmptyMatchTreatment emptyMatchTreatment;
   @Nullable private MatchResult.Metadata singleFileMetadata;
   private final Mode mode;
 
-  /**
-   * A given {@code FileBasedSource} represents a file resource of one of these types.
-   */
+  /** A given {@code FileBasedSource} represents a file resource of one of these types. */
   public enum Mode {
     FILEPATTERN,
     SINGLE_FILE_OR_SUBRANGE
   }
 
   /**
-   * Create a {@code FileBaseSource} based on a file or a file pattern specification.
+   * Create a {@code FileBaseSource} based on a file or a file pattern specification, with the given
+   * strategy for treating filepatterns that do not match any files.
    */
-  protected FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
+  protected FileBasedSource(
+      ValueProvider<String> fileOrPatternSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      long minBundleSize) {
     super(0, Long.MAX_VALUE, minBundleSize);
-    mode = Mode.FILEPATTERN;
+    this.mode = Mode.FILEPATTERN;
+    this.emptyMatchTreatment = emptyMatchTreatment;
     this.fileOrPatternSpec = fileOrPatternSpec;
   }
 
   /**
+   * Like {@link #FileBasedSource(ValueProvider, EmptyMatchTreatment, long)}, but uses the default
+   * value of {@link EmptyMatchTreatment#DISALLOW}.
+   */
+  protected FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
+    this(fileOrPatternSpec, EmptyMatchTreatment.DISALLOW, minBundleSize);
+  }
+
+  /**
    * Create a {@code FileBasedSource} based on a single file. This constructor must be used when
-   * creating a new {@code FileBasedSource} for a subrange of a single file.
-   * Additionally, this constructor must be used to create new {@code FileBasedSource}s when
-   * subclasses implement the method {@link #createForSubrangeOfFile}.
+   * creating a new {@code FileBasedSource} for a subrange of a single file. Additionally, this
+   * constructor must be used to create new {@code FileBasedSource}s when subclasses implement the
+   * method {@link #createForSubrangeOfFile}.
    *
-   * <p>See {@link OffsetBasedSource} for detailed descriptions of {@code minBundleSize},
-   * {@code startOffset}, and {@code endOffset}.
+   * <p>See {@link OffsetBasedSource} for detailed descriptions of {@code minBundleSize}, {@code
+   * startOffset}, and {@code endOffset}.
    *
    * @param fileMetadata specification of the file represented by the {@link FileBasedSource}, in
-   *        suitable form for use with {@link FileSystems#match(List)}.
+   *     suitable form for use with {@link FileSystems#match(List)}.
    * @param minBundleSize minimum bundle size in bytes.
    * @param startOffset starting byte offset.
    * @param endOffset ending byte offset. If the specified value {@code >= #getMaxEndOffset()} it
-   *        implies {@code #getMaxEndOffSet()}.
+   *     implies {@code #getMaxEndOffSet()}.
    */
   protected FileBasedSource(
       Metadata fileMetadata, long minBundleSize, long startOffset, long endOffset) {
@@ -110,6 +120,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
     this.singleFileMetadata = checkNotNull(fileMetadata, "fileMetadata");
     this.fileOrPatternSpec = StaticValueProvider.of(fileMetadata.resourceId().toString());
+
+    // This field will be unused in this mode.
+    this.emptyMatchTreatment = EmptyMatchTreatment.DISALLOW;
   }
 
   /**
@@ -139,55 +152,62 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     return fileOrPatternSpec;
   }
 
+  public final EmptyMatchTreatment getEmptyMatchTreatment() {
+    return emptyMatchTreatment;
+  }
+
   public final Mode getMode() {
     return mode;
   }
 
   @Override
   public final FileBasedSource<T> createSourceForSubrange(long start, long end) {
-    checkArgument(mode != Mode.FILEPATTERN,
-        "Cannot split a file pattern based source based on positions");
-    checkArgument(start >= getStartOffset(),
+    checkArgument(
+        mode != Mode.FILEPATTERN, "Cannot split a file pattern based source based on positions");
+    checkArgument(
+        start >= getStartOffset(),
         "Start offset value %s of the subrange cannot be smaller than the start offset value %s"
             + " of the parent source",
         start,
         getStartOffset());
-    checkArgument(end <= getEndOffset(),
+    checkArgument(
+        end <= getEndOffset(),
         "End offset value %s of the subrange cannot be larger than the end offset value %s",
         end,
         getEndOffset());
     checkState(
-        singleFileMetadata != null,
-        "A single file source should not have null metadata: %s",
-        this);
+        singleFileMetadata != null, "A single file source should not have null metadata: %s", this);
 
     FileBasedSource<T> source = createForSubrangeOfFile(singleFileMetadata, start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
-      checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
-          "Source created for the range [%s,%s) must be a subrange source", start, end);
+      checkArgument(
+          source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
+          "Source created for the range [%s,%s) must be a subrange source",
+          start,
+          end);
     }
     return source;
   }
 
   /**
-   * Creates and returns a new {@code FileBasedSource} of the same type as the current
-   * {@code FileBasedSource} backed by a given file and an offset range. When current source is
-   * being split, this method is used to generate new sub-sources. When creating the source
-   * subclasses must call the constructor {@link #FileBasedSource(Metadata, long, long, long)} of
-   * {@code FileBasedSource} with corresponding parameter values passed here.
+   * Creates and returns a new {@code FileBasedSource} of the same type as the current {@code
+   * FileBasedSource} backed by a given file and an offset range. When current source is being
+   * split, this method is used to generate new sub-sources. When creating the source subclasses
+   * must call the constructor {@link #FileBasedSource(Metadata, long, long, long)} of {@code
+   * FileBasedSource} with corresponding parameter values passed here.
    *
    * @param fileMetadata file backing the new {@code FileBasedSource}.
    * @param start starting byte offset of the new {@code FileBasedSource}.
-   * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE,
-   *        in which case it will be inferred using {@link FileBasedSource#getMaxEndOffset}.
+   * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE, in
+   *     which case it will be inferred using {@link FileBasedSource#getMaxEndOffset}.
    */
   protected abstract FileBasedSource<T> createForSubrangeOfFile(
       Metadata fileMetadata, long start, long end);
 
   /**
    * Creates and returns an instance of a {@code FileBasedReader} implementation for the current
-   * source assuming the source represents a single file. File patterns will be handled by
-   * {@code FileBasedSource} implementation automatically.
+   * source assuming the source represents a single file. File patterns will be handled by {@code
+   * FileBasedSource} implementation automatically.
    */
   protected abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options);
 
@@ -196,22 +216,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // This implementation of method getEstimatedSizeBytes is provided to simplify subclasses. Here
     // we perform the size estimation of files and file patterns using the interface provided by
     // FileSystem.
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot estimate size of a FileBasedSource with inaccessible file pattern: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
       long totalSize = 0;
-      List<MatchResult> inputs = FileSystems.match(Collections.singletonList(fileOrPattern));
-      MatchResult result = Iterables.getOnlyElement(inputs);
-      checkArgument(
-          result.status() == Status.OK,
-          "Error matching the pattern or glob %s: status %s",
-          fileOrPattern,
-          result.status());
-      List<Metadata> allMatches = result.metadata();
+      List<Metadata> allMatches = FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
       for (Metadata metadata : allMatches) {
         totalSize += metadata.sizeBytes();
       }
@@ -232,10 +241,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     if (mode == Mode.FILEPATTERN) {
-      String patternDisplay = getFileOrPatternSpecProvider().isAccessible()
-          ? getFileOrPatternSpecProvider().get()
-          : getFileOrPatternSpecProvider().toString();
-      builder.add(DisplayData.item("filePattern", patternDisplay).withLabel("File Pattern"));
+      builder.add(
+          DisplayData.item("filePattern", getFileOrPatternSpecProvider())
+              .withLabel("File Pattern"));
     }
   }
 
@@ -246,21 +254,17 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
     // those files to FileBasedSources based on sub ranges of single files.
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot split a FileBasedSource without access to the file or pattern specification: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      List<Metadata> expandedFiles = FileBasedSource.expandFilePattern(fileOrPattern);
-      checkArgument(!expandedFiles.isEmpty(),
-          "Unable to find any files matching %s", fileOrPattern);
+      List<Metadata> expandedFiles =
+          FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
       List<FileBasedSource<T>> splitResults = new ArrayList<>(expandedFiles.size());
       for (Metadata metadata : expandedFiles) {
         FileBasedSource<T> split = createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
-        verify(split.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
+        verify(
+            split.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
             "%s.createForSubrangeOfFile must return a source in mode %s",
             split,
             Mode.SINGLE_FILE_OR_SUBRANGE);
@@ -285,8 +289,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
             (List<FileBasedSource<T>>) super.split(desiredBundleSizeBytes, options);
         return splits;
       } else {
-        LOG.debug("The source for file {} is not split into sub-range based sources since "
-            + "the file is not seekable",
+        LOG.debug(
+            "The source for file {} is not split into sub-range based sources since "
+                + "the file is not seekable",
             fileOrPattern);
         return ImmutableList.of(this);
       }
@@ -319,15 +324,13 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public final BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     // Validate the current source prior to creating a reader for it.
     this.validate();
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot create a file reader without access to the file or pattern specification: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      List<Metadata> fileMetadata = FileBasedSource.expandFilePattern(fileOrPattern);
+      List<Metadata> fileMetadata =
+          FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
+      LOG.info("Matched {} files for pattern {}", fileMetadata.size(), fileOrPattern);
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (Metadata metadata : fileMetadata) {
         long endOffset = metadata.sizeBytes();
@@ -349,13 +352,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public String toString() {
-    String fileString = fileOrPatternSpec.isAccessible()
-        ? fileOrPatternSpec.get() : fileOrPatternSpec.toString();
     switch (mode) {
       case FILEPATTERN:
-        return fileString;
+        return fileOrPatternSpec.toString();
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileString + " range " + super.toString();
+        return fileOrPatternSpec + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }
@@ -366,12 +367,16 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     super.validate();
     switch (mode) {
       case FILEPATTERN:
-        checkArgument(getStartOffset() == 0,
+        checkArgument(
+            getStartOffset() == 0,
             "FileBasedSource is based on a file pattern or a full single file "
-            + "but the starting offset proposed %s is not zero", getStartOffset());
-        checkArgument(getEndOffset() == Long.MAX_VALUE,
+                + "but the starting offset proposed %s is not zero",
+            getStartOffset());
+        checkArgument(
+            getEndOffset() == Long.MAX_VALUE,
             "FileBasedSource is based on a file pattern or a full single file "
-            + "but the ending offset proposed %s is not Long.MAX_VALUE", getEndOffset());
+                + "but the ending offset proposed %s is not Long.MAX_VALUE",
+            getEndOffset());
         break;
       case SINGLE_FILE_OR_SUBRANGE:
         // Nothing more to validate.
@@ -384,30 +389,23 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   @Override
   public final long getMaxEndOffset(PipelineOptions options) throws IOException {
     checkArgument(
-            mode != Mode.FILEPATTERN, "Cannot determine the exact end offset of a file pattern");
+        mode != Mode.FILEPATTERN, "Cannot determine the exact end offset of a file pattern");
     Metadata metadata = getSingleFileMetadata();
     return metadata.sizeBytes();
   }
 
-  private static List<Metadata> expandFilePattern(String fileOrPatternSpec) throws IOException {
-    MatchResult matches =
-        Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(fileOrPatternSpec)));
-    LOG.info("Matched {} files for pattern {}", matches.metadata().size(), fileOrPatternSpec);
-    return ImmutableList.copyOf(matches.metadata());
-  }
-
   /**
-   * A {@link Source.Reader reader} that implements code common to readers of
-   * {@code FileBasedSource}s.
+   * A {@link Source.Reader reader} that implements code common to readers of {@code
+   * FileBasedSource}s.
    *
    * <h2>Seekability</h2>
    *
    * <p>This reader uses a {@link ReadableByteChannel} created for the file represented by the
    * corresponding source to efficiently move to the correct starting position defined in the
    * source. Subclasses of this reader should implement {@link #startReading} to get access to this
-   * channel. If the source corresponding to the reader is for a subrange of a file the
-   * {@code ReadableByteChannel} provided is guaranteed to be an instance of the type
-   * {@link SeekableByteChannel}, which may be used by subclass to traverse back in the channel to
+   * channel. If the source corresponding to the reader is for a subrange of a file the {@code
+   * ReadableByteChannel} provided is guaranteed to be an instance of the type {@link
+   * SeekableByteChannel}, which may be used by subclass to traverse back in the channel to
    * determine the correct starting position.
    *
    * <h2>Reading Records</h2>
@@ -415,16 +413,18 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * <p>Sequential reading is implemented using {@link #readNextRecord}.
    *
    * <p>Then {@code FileBasedReader} implements "reading a range [A, B)" in the following way.
+   *
    * <ol>
-   * <li>{@link #start} opens the file
-   * <li>{@link #start} seeks the {@code SeekableByteChannel} to A (reading offset ranges for
-   * non-seekable files is not supported) and calls {@code startReading()}
-   * <li>{@link #start} calls {@link #advance} once, which, via {@link #readNextRecord},
-   * locates the first record which is at a split point AND its offset is at or after A.
-   * If this record is at or after B, {@link #advance} returns false and reading is finished.
-   * <li>if the previous advance call returned {@code true} sequential reading starts and
-   * {@code advance()} will be called repeatedly
+   *   <li>{@link #start} opens the file
+   *   <li>{@link #start} seeks the {@code SeekableByteChannel} to A (reading offset ranges for
+   *       non-seekable files is not supported) and calls {@code startReading()}
+   *   <li>{@link #start} calls {@link #advance} once, which, via {@link #readNextRecord}, locates
+   *       the first record which is at a split point AND its offset is at or after A. If this
+   *       record is at or after B, {@link #advance} returns false and reading is finished.
+   *   <li>if the previous advance call returned {@code true} sequential reading starts and {@code
+   *       advance()} will be called repeatedly
    * </ol>
+   *
    * {@code advance()} calls {@code readNextRecord()} on the subclass, and stops (returns false) if
    * the new record is at a split point AND the offset of the new record is at or after B.
    *
@@ -434,7 +434,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * methods defined here will not be accessed by more than one thread concurrently.
    */
   public abstract static class FileBasedReader<T> extends OffsetBasedReader<T> {
-    private ReadableByteChannel channel = null;
+
+    // Initialized in startImpl
+    @Nullable private ReadableByteChannel channel = null;
 
     /**
      * Subclasses should not perform IO operations at the constructor. All IO operations should be
@@ -442,7 +444,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
      */
     public FileBasedReader(FileBasedSource<T> source) {
       super(source);
-      checkArgument(source.getMode() != Mode.FILEPATTERN,
+      checkArgument(
+          source.getMode() != Mode.FILEPATTERN,
           "FileBasedReader does not support reading file patterns");
     }
 
@@ -460,10 +463,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         seekChannel.position(source.getStartOffset());
       } else {
         // Channel is not seekable. Must not be a subrange.
-        checkArgument(source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
+        checkArgument(
+            source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
             "Subrange-based sources must only be defined for file types that support seekable "
-            + " read channels");
-        checkArgument(source.getStartOffset() == 0,
+                + " read channels");
+        checkArgument(
+            source.getStartOffset() == 0,
             "Start offset %s is not zero but channel for reading the file is not seekable.",
             source.getStartOffset());
       }
@@ -522,16 +527,16 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     protected abstract void startReading(ReadableByteChannel channel) throws IOException;
 
     /**
-     * Reads the next record from the channel provided by {@link #startReading}. Methods
-     * {@link #getCurrent}, {@link #getCurrentOffset}, and {@link #isAtSplitPoint()} should return
-     * the corresponding information about the record read by the last invocation of this method.
+     * Reads the next record from the channel provided by {@link #startReading}. Methods {@link
+     * #getCurrent}, {@link #getCurrentOffset}, and {@link #isAtSplitPoint()} should return the
+     * corresponding information about the record read by the last invocation of this method.
      *
      * <p>Note that this method will be called the same way for reading the first record in the
      * source (file or offset range in the file) and for reading subsequent records. It is up to the
      * subclass to do anything special for locating and reading the first record, if necessary.
      *
      * @return {@code true} if a record was successfully read, {@code false} if the end of the
-     *         channel was reached before successfully reading a new record.
+     *     channel was reached before successfully reading a new record.
      */
     protected abstract boolean readNextRecord() throws IOException;
   }
@@ -541,7 +546,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     private final FileBasedSource<T> source;
     private final List<FileBasedReader<T>> fileReaders;
     final ListIterator<FileBasedReader<T>> fileReadersIterator;
-    FileBasedReader<T> currentReader = null;
+
+    // Initialized in start
+    @Nullable FileBasedReader<T> currentReader = null;
 
     public FilePatternReader(FileBasedSource<T> source, List<FileBasedReader<T>> fileReaders) {
       this.source = source;

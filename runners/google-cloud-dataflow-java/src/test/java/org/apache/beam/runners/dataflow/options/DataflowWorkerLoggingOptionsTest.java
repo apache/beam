@@ -33,8 +33,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link DataflowWorkerLoggingOptions}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkerLoggingOptionsTest {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -46,30 +47,32 @@ public class DataflowWorkerLoggingOptionsTest {
 
   @Test
   public void testWorkerLogLevelOverrideForClass() throws Exception {
-    assertEquals("{\"org.junit.Test\":\"WARN\"}",
+    assertEquals(
+        "{\"org.junit.Test\":\"WARN\"}",
         MAPPER.writeValueAsString(
             new WorkerLogLevelOverrides().addOverrideForClass(Test.class, WARN)));
   }
 
   @Test
   public void testWorkerLogLevelOverrideForPackage() throws Exception {
-    assertEquals("{\"org.junit\":\"WARN\"}",
+    assertEquals(
+        "{\"org.junit\":\"WARN\"}",
         MAPPER.writeValueAsString(
             new WorkerLogLevelOverrides().addOverrideForPackage(Test.class.getPackage(), WARN)));
   }
 
   @Test
   public void testWorkerLogLevelOverrideForName() throws Exception {
-    assertEquals("{\"A\":\"WARN\"}",
-        MAPPER.writeValueAsString(
-            new WorkerLogLevelOverrides().addOverrideForName("A", WARN)));
+    assertEquals(
+        "{\"A\":\"WARN\"}",
+        MAPPER.writeValueAsString(new WorkerLogLevelOverrides().addOverrideForName("A", WARN)));
   }
 
   @Test
   public void testSerializationAndDeserializationOf() throws Exception {
     String testValue = "{\"A\":\"WARN\"}";
-    assertEquals(testValue,
-        MAPPER.writeValueAsString(
-            MAPPER.readValue(testValue, WorkerLogLevelOverrides.class)));
+    assertEquals(
+        testValue,
+        MAPPER.writeValueAsString(MAPPER.readValue(testValue, WorkerLogLevelOverrides.class)));
   }
 }

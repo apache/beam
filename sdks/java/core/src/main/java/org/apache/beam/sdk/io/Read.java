@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.NameUtils;
@@ -33,6 +32,7 @@ import org.joda.time.Duration;
  * A {@link PTransform} for reading from a {@link Source}.
  *
  * <p>Usage example:
+ *
  * <pre>
  * Pipeline p = Pipeline.create();
  * p.apply(Read.from(new MySource().withFoo("foo").withBar("bar")));
@@ -41,24 +41,22 @@ import org.joda.time.Duration;
 public class Read {
 
   /**
-   * Returns a new {@code Read.Bounded} {@code PTransform} reading from the given
-   * {@code BoundedSource}.
+   * Returns a new {@code Read.Bounded} {@code PTransform} reading from the given {@code
+   * BoundedSource}.
    */
   public static <T> Bounded<T> from(BoundedSource<T> source) {
     return new Bounded<>(null, source);
   }
 
   /**
-   * Returns a new {@link Read.Unbounded} {@link PTransform} reading from the given
-   * {@link UnboundedSource}.
+   * Returns a new {@link Read.Unbounded} {@link PTransform} reading from the given {@link
+   * UnboundedSource}.
    */
   public static <T> Unbounded<T> from(UnboundedSource<T, ?> source) {
     return new Unbounded<>(null, source);
   }
 
-  /**
-   * Helper class for building {@link Read} transforms.
-   */
+  /** Helper class for building {@link Read} transforms. */
   public static class Builder {
     private final String name;
 
@@ -67,25 +65,23 @@ public class Read {
     }
 
     /**
-     * Returns a new {@code Read.Bounded} {@code PTransform} reading from the given
-     * {@code BoundedSource}.
+     * Returns a new {@code Read.Bounded} {@code PTransform} reading from the given {@code
+     * BoundedSource}.
      */
     public <T> Bounded<T> from(BoundedSource<T> source) {
       return new Bounded<>(name, source);
     }
 
     /**
-     * Returns a new {@code Read.Unbounded} {@code PTransform} reading from the given
-     * {@code UnboundedSource}.
+     * Returns a new {@code Read.Unbounded} {@code PTransform} reading from the given {@code
+     * UnboundedSource}.
      */
     public <T> Unbounded<T> from(UnboundedSource<T, ?> source) {
       return new Unbounded<>(name, source);
     }
   }
 
-  /**
-   * {@link PTransform} that reads from a {@link BoundedSource}.
-   */
+  /** {@link PTransform} that reads from a {@link BoundedSource}. */
   public static class Bounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
 
@@ -95,22 +91,17 @@ public class Read {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
-    }
-
-    @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
-          WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-          .setCoder(getDefaultOutputCoder());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          IsBounded.BOUNDED,
+          source.getOutputCoder());
     }
 
-    /**
-     * Returns the {@code BoundedSource} used to create this {@code Read} {@code PTransform}.
-     */
+    /** Returns the {@code BoundedSource} used to create this {@code Read} {@code PTransform}. */
     public BoundedSource<T> getSource() {
       return source;
     }
@@ -124,15 +115,12 @@ public class Read {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("source", source.getClass())
-            .withLabel("Read Source"))
+          .add(DisplayData.item("source", source.getClass()).withLabel("Read Source"))
           .include("source", source);
     }
   }
 
-  /**
-   * {@link PTransform} that reads from a {@link UnboundedSource}.
-   */
+  /** {@link PTransform} that reads from a {@link UnboundedSource}. */
   public static class Unbounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
 
@@ -142,42 +130,36 @@ public class Read {
     }
 
     /**
-     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
-     * of data from the given {@link UnboundedSource}.  The bound is specified as a number
-     * of records to read.
+     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount of data from
+     * the given {@link UnboundedSource}. The bound is specified as a number of records to read.
      *
      * <p>This may take a long time to execute if the splits of this source are slow to read
      * records.
      */
     public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
-      return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, null);
+      return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, null);
     }
 
     /**
-     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
-     * of data from the given {@link UnboundedSource}.  The bound is specified as an amount
-     * of time to read for.  Each split of the source will read for this much time.
+     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount of data from
+     * the given {@link UnboundedSource}. The bound is specified as an amount of time to read for.
+     * Each split of the source will read for this much time.
      */
     public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
-      return new BoundedReadFromUnboundedSource<T>(source, Long.MAX_VALUE, maxReadTime);
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+      return new BoundedReadFromUnboundedSource<>(source, Long.MAX_VALUE, maxReadTime);
     }
 
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
-
-      return PCollection.<T>createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED);
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          IsBounded.UNBOUNDED,
+          source.getOutputCoder());
     }
 
-    /**
-     * Returns the {@code UnboundedSource} used to create this {@code Read} {@code PTransform}.
-     */
+    /** Returns the {@code UnboundedSource} used to create this {@code Read} {@code PTransform}. */
     public UnboundedSource<T, ?> getSource() {
       return source;
     }
@@ -191,8 +173,7 @@ public class Read {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("source", source.getClass())
-            .withLabel("Read Source"))
+          .add(DisplayData.item("source", source.getClass()).withLabel("Read Source"))
           .include("source", source);
     }
   }

@@ -1,0 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyGoNature()
+applyDockerNature()
+
+description = "Apache Beam :: Runners :: Google Cloud Platform :: GCS artifact proxy"
+
+// Figure out why the golang plugin does not add a build dependency between projects.
+// Without the line below, we get spurious errors about not being able to resolve
+// "./github.com/apache/beam/sdks/go"
+resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
+
+dependencies {
+  golang {
+    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
+    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
+    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+  }
+}
+
+golang {
+  packagePath = 'github.com/apache/beam/runners/gcp/gcsproxy'
+  build {
+    targetPlatform = ['linux-amd64']
+    outputLocation = './build/target/${GOOS}_${GOARCH}/gcsproxy'
+  }
+}
+
+docker {
+  name containerImageName(name: "gcsproxy")
+  files "./build/"
+}
+// Ensure that making the docker image builds any required artifacts
+dockerPrepare.dependsOn build

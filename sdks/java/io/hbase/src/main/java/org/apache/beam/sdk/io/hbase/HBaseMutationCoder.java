@@ -71,34 +71,35 @@ class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
   }
 
   /**
-   * Returns a {@link CoderProvider} which uses the {@link HBaseMutationCoder} for
-   * {@link Mutation mutations}.
+   * Returns a {@link CoderProvider} which uses the {@link HBaseMutationCoder} for {@link Mutation
+   * mutations}.
    */
   static CoderProvider getCoderProvider() {
     return HBASE_MUTATION_CODER_PROVIDER;
   }
 
   private static final CoderProvider HBASE_MUTATION_CODER_PROVIDER =
-    new HBaseMutationCoderProvider();
+      new HBaseMutationCoderProvider();
 
-  /**
-   * A {@link CoderProvider} for {@link Mutation mutations}.
-   */
+  /** A {@link CoderProvider} for {@link Mutation mutations}. */
   private static class HBaseMutationCoderProvider extends CoderProvider {
     @Override
-    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+    public <T> Coder<T> coderFor(
+        TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+        throws CannotProvideCoderException {
       if (!typeDescriptor.isSubtypeOf(HBASE_MUTATION_TYPE_DESCRIPTOR)) {
         throw new CannotProvideCoderException(
-          String.format(
-            "Cannot provide %s because %s is not a subclass of %s",
-            HBaseMutationCoder.class.getSimpleName(),
-            typeDescriptor,
-            Mutation.class.getName()));
+            String.format(
+                "Cannot provide %s because %s is not a subclass of %s",
+                HBaseMutationCoder.class.getSimpleName(),
+                typeDescriptor,
+                Mutation.class.getName()));
       }
 
       try {
-        return (Coder<T>) HBaseMutationCoder.of();
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) HBaseMutationCoder.of();
+        return coder;
       } catch (IllegalArgumentException e) {
         throw new CannotProvideCoderException(e);
       }
@@ -106,5 +107,5 @@ class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
   }
 
   private static final TypeDescriptor<Mutation> HBASE_MUTATION_TYPE_DESCRIPTOR =
-    new TypeDescriptor<Mutation>() {};
+      new TypeDescriptor<Mutation>() {};
 }

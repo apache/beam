@@ -40,23 +40,19 @@ public class DisplayDataEvaluator {
   private final PipelineOptions options;
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using options returned from
-   * {@link #getDefaultOptions()}.
+   * Create a new {@link DisplayDataEvaluator} using options returned from {@link
+   * #getDefaultOptions()}.
    */
   public static DisplayDataEvaluator create() {
     return create(getDefaultOptions());
   }
 
-  /**
-   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineOptions}.
-   */
+  /** Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineOptions}. */
   public static DisplayDataEvaluator create(PipelineOptions pipelineOptions) {
     return new DisplayDataEvaluator(pipelineOptions);
   }
 
-  /**
-   * The default {@link PipelineOptions} which will be used by {@link #create()}.
-   */
+  /** The default {@link PipelineOptions} which will be used by {@link #create()}. */
   public static PipelineOptions getDefaultOptions() {
     return TestPipeline.testingPipelineOptions();
   }
@@ -82,8 +78,7 @@ public class DisplayDataEvaluator {
    *
    * @param root The root {@link PTransform} to traverse
    * @param inputCoder The coder to set for the {@link PTransform} input, or null to infer the
-   *                   default coder.
-   *
+   *     default coder.
    * @return the set of {@link DisplayData} for primitive {@link PTransform PTransforms}.
    */
   public <InputT> Set<DisplayData> displayDataForPrimitiveTransforms(
@@ -99,16 +94,14 @@ public class DisplayDataEvaluator {
     }
 
     Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply("Input", input)
-        .apply("Transform", root);
+    pipeline.apply("Input", input).apply("Transform", root);
 
     return displayDataForPipeline(pipeline, root);
   }
 
   /**
-   * Traverse the specified source {@link PTransform}, collecting {@link DisplayData} registered
-   * on the inner primitive {@link PTransform PTransforms}.
+   * Traverse the specified source {@link PTransform}, collecting {@link DisplayData} registered on
+   * the inner primitive {@link PTransform PTransforms}.
    *
    * @param root The source root {@link PTransform} to traverse
    * @return the set of {@link DisplayData} for primitive source {@link PTransform PTransforms}.
@@ -128,11 +121,11 @@ public class DisplayDataEvaluator {
   }
 
   /**
-   * Visits {@link PTransform PTransforms} in a pipeline, and collects {@link DisplayData} for
-   * each primitive transform under a given composite root.
+   * Visits {@link PTransform PTransforms} in a pipeline, and collects {@link DisplayData} for each
+   * primitive transform under a given composite root.
    */
   private static class PrimitiveDisplayDataPTransformVisitor
-  extends Pipeline.PipelineVisitor.Defaults {
+      extends Pipeline.PipelineVisitor.Defaults {
     private final PTransform<?, ?> root;
     private final Set<DisplayData> displayData;
     private boolean inCompositeRoot = false;

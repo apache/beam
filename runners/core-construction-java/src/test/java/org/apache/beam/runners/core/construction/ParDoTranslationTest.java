@@ -20,20 +20,22 @@ package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.BagState;
@@ -51,6 +53,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -60,38 +64,26 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  ParDoTranslationTest.TestParDoPayloadTranslation.class,
-  ParDoTranslationTest.TestStateAndTimerTranslation.class
-})
 public class ParDoTranslationTest {
 
-  /**
-   * Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos.
-   */
+  /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
   @RunWith(Parameterized.class)
   public static class TestParDoPayloadTranslation {
     public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
     private static PCollectionView<Long> singletonSideInput =
-        p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L))
-            .apply(View.<Long>asSingleton());
+        p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L)).apply(View.asSingleton());
     private static PCollectionView<Map<Long, Iterable<String>>> multimapSideInput =
         p.apply("CreateMultimap", Create.of(KV.of(1L, "foo"), KV.of(1L, "bar"), KV.of(2L, "spam")))
             .setCoder(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
-            .apply(View.<Long, String>asMultimap());
+            .apply(View.asMultimap());
 
     private static PCollection<KV<Long, String>> mainInput =
         p.apply(
@@ -99,127 +91,148 @@ public class ParDoTranslationTest {
 
     @Parameters(name = "{index}: {0}")
     public static Iterable<ParDo.MultiOutput<?, ?>> data() {
-      return ImmutableList.<ParDo.MultiOutput<?, ?>>of(
-          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
+      return ImmutableList.of(
+          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()),
           ParDo.of(new DropElementsFn())
-              .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty())
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {}))
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})),
-      ParDo.of(new SplittableDropElementsFn())
-          .withOutputTags(
-              new TupleTag<Void>(),
-              TupleTagList.empty()));
+          ParDo.of(new SplittableDropElementsFn())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+          ParDo.of(new StateTimerDropElementsFn())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     }
 
     @Parameter(0)
     public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
 
     @Test
-    public void testToAndFromProto() throws Exception {
+    public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
+      components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
 
-      assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
-      assertThat(
-          ParDoTranslation.getMainOutputTag(payload),
-          Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
+      assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
+      assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
     }
 
     @Test
-    public void toAndFromTransformProto() throws Exception {
+    public void toTransformProto() throws Exception {
       Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-      inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
+      inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
       inputs.putAll(parDo.getAdditionalInputs());
       PCollectionTuple output = mainInput.apply(parDo);
 
-      SdkComponents components = SdkComponents.create();
-      String transformId =
-          components.registerPTransform(
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+
+      // Encode
+      RunnerApi.PTransform protoTransform =
+          PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
                   "foo", inputs, output.expand(), parDo, p),
-              Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+              sdkComponents);
+      RunnerApi.Components components = sdkComponents.toComponents();
+      RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
 
-      Components protoComponents = components.toComponents();
-      RunnerApi.PTransform protoTransform = protoComponents.getTransformsOrThrow(transformId);
-      ParDoPayload parDoPayload =
-          protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
+      // Decode
+      ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.fromProto(
-                sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
+            PCollectionViewTranslation.viewFromProto(
+                sideInput,
+                view.getTagInternal().getId(),
+                view.getPCollection(),
+                protoTransform,
+                rehydratedComponents);
         assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
             restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
         assertThat(
             restoredView.getWindowingStrategyInternal(),
-            Matchers.<WindowingStrategy<?, ?>>equalTo(
-                view.getWindowingStrategyInternal().fixDefaults()));
+            equalTo(view.getWindowingStrategyInternal().fixDefaults()));
         assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
       }
-      String mainInputId = components.registerPCollection(mainInput);
+      String mainInputId = sdkComponents.registerPCollection(mainInput);
       assertThat(
-          ParDoTranslation.getMainInput(protoTransform, protoComponents),
-          equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
+          ParDoTranslation.getMainInput(protoTransform, components),
+          equalTo(components.getPcollectionsOrThrow(mainInputId)));
+      assertThat(ParDoTranslation.getMainInputName(protoTransform), equalTo("mainInputName"));
+
+      // Validate that the timer PCollections are added correctly.
+      DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
+
+      for (String localTimerName : signature.timerDeclarations().keySet()) {
+        RunnerApi.PCollection timerPCollection =
+            components.getPcollectionsOrThrow(String.format("foo.%s", localTimerName));
+        assertEquals(
+            components.getPcollectionsOrThrow(mainInputId).getIsBounded(),
+            timerPCollection.getIsBounded());
+        assertEquals(
+            components.getPcollectionsOrThrow(mainInputId).getWindowingStrategyId(),
+            timerPCollection.getWindowingStrategyId());
+        ModelCoders.KvCoderComponents timerKvCoderComponents =
+            ModelCoders.getKvCoderComponents(
+                components.getCodersOrThrow(timerPCollection.getCoderId()));
+        Coder<?> timerKeyCoder =
+            CoderTranslation.fromProto(
+                components.getCodersOrThrow(timerKvCoderComponents.keyCoderId()),
+                rehydratedComponents);
+        assertEquals(VarLongCoder.of(), timerKeyCoder);
+        Coder<?> timerValueCoder =
+            CoderTranslation.fromProto(
+                components.getCodersOrThrow(timerKvCoderComponents.valueCoderId()),
+                rehydratedComponents);
+        assertEquals(
+            org.apache.beam.runners.core.construction.Timer.Coder.of(VoidCoder.of()),
+            timerValueCoder);
+      }
     }
   }
 
-  /**
-   * Tests for translating state and timer bits to/from protos.
-   */
-  @RunWith(JUnit4.class)
+  /** Tests for translating state and timer bits to/from protos. */
+  @RunWith(Parameterized.class)
   public static class TestStateAndTimerTranslation {
 
-    @Test
-    public void testValueStateSpecToFromProto() throws Exception {
-      SdkComponents sdkComponents = SdkComponents.create();
-      StateSpec<?> stateSpec = StateSpecs.value(VarIntCoder.of());
-      StateSpec<?> deserializedStateSpec =
-          ParDoTranslation.fromProto(
-              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<StateSpec<?>> stateSpecs() {
+      return ImmutableList.of(
+          StateSpecs.value(VarIntCoder.of()),
+          StateSpecs.bag(VarIntCoder.of()),
+          StateSpecs.set(VarIntCoder.of()),
+          StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()));
     }
 
-    @Test
-    public void testBagStateSpecToFromProto() throws Exception {
-      SdkComponents sdkComponents = SdkComponents.create();
-      StateSpec<?> stateSpec = StateSpecs.bag(VarIntCoder.of());
-      StateSpec<?> deserializedStateSpec =
-          ParDoTranslation.fromProto(
-              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
-    }
+    @Parameter public StateSpec<?> stateSpec;
 
     @Test
-    public void testSetStateSpecToFromProto() throws Exception {
+    public void testStateSpecToFromProto() throws Exception {
+      // Encode
       SdkComponents sdkComponents = SdkComponents.create();
-      StateSpec<?> stateSpec = StateSpecs.set(VarIntCoder.of());
-      StateSpec<?> deserializedStateSpec =
-          ParDoTranslation.fromProto(
-              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
-    }
+      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      RunnerApi.StateSpec stateSpecProto =
+          ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
 
-    @Test
-    public void testMapStateSpecToFromProto() throws Exception {
-      SdkComponents sdkComponents = SdkComponents.create();
-      StateSpec<?> stateSpec = StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
+      // Decode
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.forComponents(sdkComponents.toComponents());
       StateSpec<?> deserializedStateSpec =
-          ParDoTranslation.fromProto(
-              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+          ParDoTranslation.fromProto(stateSpecProto, rehydratedComponents);
+
+      assertThat(stateSpec, equalTo(deserializedStateSpec));
     }
   }
 
@@ -242,7 +255,7 @@ public class ParDoTranslationTest {
 
   private static class SplittableDropElementsFn extends DoFn<KV<Long, String>, Void> {
     @ProcessElement
-    public void proc(ProcessContext context, RestrictionTracker<Integer> restriction) {
+    public void proc(ProcessContext context, RestrictionTracker<Integer, ?> restriction) {
       context.output(null);
     }
 
@@ -252,10 +265,9 @@ public class ParDoTranslationTest {
     }
 
     @NewTracker
-    public RestrictionTracker<Integer> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
-
 
     @Override
     public boolean equals(Object other) {

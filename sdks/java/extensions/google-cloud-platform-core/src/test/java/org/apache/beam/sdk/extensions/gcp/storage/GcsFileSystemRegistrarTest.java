@@ -31,16 +31,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link GcsFileSystemRegistrar}.
- */
+/** Tests for {@link GcsFileSystemRegistrar}. */
 @RunWith(JUnit4.class)
 public class GcsFileSystemRegistrarTest {
 
   @Test
   public void testServiceLoader() {
-    for (FileSystemRegistrar registrar
-        : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
+    for (FileSystemRegistrar registrar :
+        Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof GcsFileSystemRegistrar) {
         Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
         assertThat(fileSystems, contains(instanceOf(GcsFileSystem.class)));

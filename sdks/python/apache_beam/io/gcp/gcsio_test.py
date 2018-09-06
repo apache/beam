@@ -15,15 +15,17 @@
 # limitations under the License.
 #
 """Tests for Google Cloud Storage client."""
+from __future__ import absolute_import
+from __future__ import division
 
+import datetime
 import errno
 import logging
-import multiprocessing
 import os
 import random
-import threading
-import time
 import unittest
+from builtins import object
+from builtins import range
 
 import httplib2
 import mock
@@ -51,18 +53,28 @@ class FakeGcsClient(object):
 
 class FakeFile(object):
 
-  def __init__(self, bucket, obj, contents, generation):
+  def __init__(self, bucket, obj, contents, generation, crc32c=None,
+               last_updated=None):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
     self.generation = generation
+    self.crc32c = crc32c
+    self.last_updated = last_updated
 
   def get_metadata(self):
+    last_updated_datetime = None
+    if self.last_updated:
+      last_updated_datetime = datetime.datetime.utcfromtimestamp(
+          self.last_updated)
+
     return storage.Object(
         bucket=self.bucket,
         name=self.object,
         generation=self.generation,
-        size=len(self.contents))
+        size=len(self.contents),
+        crc32c=self.crc32c,
+        updated=last_updated_datetime)
 
 
 class FakeGcsObjects(object):
@@ -98,7 +110,9 @@ class FakeGcsObjects(object):
       stream = download.stream
 
       def get_range_callback(start, end):
-        assert start >= 0 and end >= start and end < len(f.contents)
+        if not (start >= 0 and end >= start and end < len(f.contents)):
+          raise ValueError(
+              'start=%d end=%d len=%s' % (start, end, len(f.contents)))
         stream.write(f.contents[start:end + 1])
 
       download.GetRange = get_range_callback
@@ -223,9 +237,11 @@ class TestGCSPathParser(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
 
-  def _insert_random_file(self, client, path, size, generation=1):
+  def _insert_random_file(self, client, path, size, generation=1, crc32c=None,
+                          last_updated=None):
     bucket, name = gcsio.parse_gcs_path(path)
-    f = FakeFile(bucket, name, os.urandom(size), generation)
+    f = FakeFile(bucket, name, os.urandom(size), generation, crc32c=crc32c,
+                 last_updated=last_updated)
     client.objects.add_file(f)
     return f
 
@@ -252,6 +268,14 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.exists(file_name)
     self.assertEquals(400, cm.exception.status_code)
 
+  def test_checksum(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    checksum = 'deadbeef'
+    self._insert_random_file(self.client, file_name, file_size, crc32c=checksum)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(checksum, self.gcs.checksum(file_name))
+
   def test_size(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234
@@ -259,6 +283,16 @@ class TestGCSIO(unittest.TestCase):
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(1234, self.gcs.size(file_name))
+
+  def test_last_updated(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    last_updated = 123456.78
+
+    self._insert_random_file(self.client, file_name, file_size,
+                             last_updated=last_updated)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(last_updated, self.gcs.last_updated(file_name))
 
   def test_file_mode(self):
     file_name = 'gs://gcsio-test/dummy_mode_file'
@@ -342,8 +376,9 @@ class TestGCSIO(unittest.TestCase):
     self.assertTrue(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-    self.assertRaises(IOError, self.gcs.copy, 'gs://gcsio-test/non-existent',
-                      'gs://gcsio-test/non-existent-destination')
+    with self.assertRaisesRegexp(HttpError, r'Not Found'):
+      self.gcs.copy('gs://gcsio-test/non-existent',
+                    'gs://gcsio-test/non-existent-destination')
 
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
@@ -435,43 +470,6 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(f.read(), '')
     f.seek(0)
     self.assertEqual(f.read(), random_file.contents)
-
-  def test_flaky_file_read(self):
-    file_name = 'gs://gcsio-test/flaky_file'
-    file_size = 5 * 1024 * 1024 + 100
-    random_file = self._insert_random_file(self.client, file_name, file_size)
-    f = self.gcs.open(file_name)
-    random.seed(0)
-    f.buffer_size = 1024 * 1024
-    f.segment_timeout = 0.01
-    self.assertEqual(f.mode, 'r')
-    f._real_get_segment = f._get_segment
-
-    def flaky_get_segment(start, size):
-      if random.randint(0, 3) == 1:
-        time.sleep(600)
-      return f._real_get_segment(start, size)
-
-    f._get_segment = flaky_get_segment
-    self.assertEqual(f.read(), random_file.contents)
-
-    # Test exception handling in file read.
-    def failing_get_segment(unused_start, unused_size):
-      raise IOError('Could not read.')
-
-    f._get_segment = failing_get_segment
-    f.seek(0)
-    with self.assertRaises(IOError):
-      f.read()
-
-    # Test retry limit in hanging file read.
-    def hanging_get_segment(unused_start, unused_size):
-      time.sleep(600)
-
-    f._get_segment = hanging_get_segment
-    f.seek(0)
-    with self.assertRaises(gcsio.GcsIOError):
-      f.read()
 
   def test_file_random_seek(self):
     file_name = 'gs://gcsio-test/seek_file'
@@ -625,228 +623,39 @@ class TestGCSIO(unittest.TestCase):
     # Test that exceptions are not swallowed by the context manager.
     with self.assertRaises(ZeroDivisionError):
       with self.gcs.open(file_name) as f:
-        f.read(0 / 0)
+        f.read(0 // 0)
 
-  def test_glob(self):
+  def test_list_prefix(self):
     bucket_name = 'gcsio-test'
-    object_names = [
-        'cow/cat/fish',
-        'cow/cat/blubber',
-        'cow/dog/blubber',
-        'apple/dog/blubber',
-        'apple/fish/blubber',
-        'apple/fish/blowfish',
-        'apple/fish/bambi',
-        'apple/fish/balloon',
-        'apple/fish/cat',
-        'apple/fish/cart',
-        'apple/fish/carl',
-        'apple/fish/handle',
-        'apple/dish/bat',
-        'apple/dish/cat',
-        'apple/dish/carl',
-    ]
-    for object_name in object_names:
-      file_name = 'gs://%s/%s' % (bucket_name, object_name)
-      self._insert_random_file(self.client, file_name, 0)
-    test_cases = [
-        ('gs://gcsio-test/*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-            'cow/dog/blubber',
-            'apple/dog/blubber',
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-            'apple/fish/cat',
-            'apple/fish/cart',
-            'apple/fish/carl',
-            'apple/fish/handle',
-            'apple/dish/bat',
-            'apple/dish/cat',
-            'apple/dish/carl',
-        ]),
-        ('gs://gcsio-test/cow/*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-            'cow/dog/blubber',
-        ]),
-        ('gs://gcsio-test/cow/ca*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-        ]),
-        ('gs://gcsio-test/apple/[df]ish/ca*', [
-            'apple/fish/cat',
-            'apple/fish/cart',
-            'apple/fish/carl',
-            'apple/dish/cat',
-            'apple/dish/carl',
-        ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            'apple/fish/cart',
-            'apple/fish/carl',
-        ]),
-        ('gs://gcsio-test/apple/fish/b*', [
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-        ]),
-        ('gs://gcsio-test/apple/f*/b*', [
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-        ]),
-        ('gs://gcsio-test/apple/dish/[cb]at', [
-            'apple/dish/bat',
-            'apple/dish/cat',
-        ]),
-    ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_names = ['gs://%s/%s' % (bucket_name, o)
-                             for o in expected_object_names]
-      self.assertEqual(
-          set(self.gcs.glob(file_pattern)), set(expected_file_names))
-
-    # Check if limits are followed correctly
-    limit = 3
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
-
-  def test_size_of_files_in_glob(self):
-    bucket_name = 'gcsio-test'
-    object_names = [
+    objects = [
         ('cow/cat/fish', 2),
         ('cow/cat/blubber', 3),
         ('cow/dog/blubber', 4),
-        ('apple/dog/blubber', 5),
-        ('apple/fish/blubber', 6),
-        ('apple/fish/blowfish', 7),
-        ('apple/fish/bambi', 8),
-        ('apple/fish/balloon', 9),
-        ('apple/fish/cat', 10),
-        ('apple/fish/cart', 11),
-        ('apple/fish/carl', 12),
-        ('apple/dish/bat', 13),
-        ('apple/dish/cat', 14),
-        ('apple/dish/carl', 15),
-        ('apple/fish/handle', 16),
     ]
-    for (object_name, size) in object_names:
+    for (object_name, size) in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self._insert_random_file(self.client, file_name, size)
     test_cases = [
-        ('gs://gcsio-test/cow/*', [
+        ('gs://gcsio-test/c', [
             ('cow/cat/fish', 2),
             ('cow/cat/blubber', 3),
             ('cow/dog/blubber', 4),
         ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-        ('gs://gcsio-test/*/f*/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-    ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
-                             for (o, s) in expected_object_names}
-      self.assertEqual(
-          self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
-
-    # Check if limits are followed correctly
-    limit = 1
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
-
-  def test_size_of_files_in_glob_limited(self):
-    bucket_name = 'gcsio-test'
-    object_names = [
-        ('cow/cat/fish', 2),
-        ('cow/cat/blubber', 3),
-        ('cow/dog/blubber', 4),
-        ('apple/dog/blubber', 5),
-        ('apple/fish/blubber', 6),
-        ('apple/fish/blowfish', 7),
-        ('apple/fish/bambi', 8),
-        ('apple/fish/balloon', 9),
-        ('apple/fish/cat', 10),
-        ('apple/fish/cart', 11),
-        ('apple/fish/carl', 12),
-        ('apple/dish/bat', 13),
-        ('apple/dish/cat', 14),
-        ('apple/dish/carl', 15),
-    ]
-    for (object_name, size) in object_names:
-      file_name = 'gs://%s/%s' % (bucket_name, object_name)
-      self._insert_random_file(self.client, file_name, size)
-    test_cases = [
-        ('gs://gcsio-test/cow/*', [
+        ('gs://gcsio-test/cow/', [
             ('cow/cat/fish', 2),
             ('cow/cat/blubber', 3),
             ('cow/dog/blubber', 4),
         ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ])
+        ('gs://gcsio-test/cow/cat/fish', [
+            ('cow/cat/fish', 2),
+        ]),
     ]
-    # Check if limits are followed correctly
-    limit = 1
     for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
+      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
+                             for (object_name, size) in expected_object_names]
       self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestPipeStream(unittest.TestCase):
-
-  def _read_and_verify(self, stream, expected, buffer_size):
-    data_list = []
-    bytes_read = 0
-    seen_last_block = False
-    while True:
-      data = stream.read(buffer_size)
-      self.assertLessEqual(len(data), buffer_size)
-      if len(data) < buffer_size:
-        # Test the constraint that the pipe stream returns less than the buffer
-        # size only when at the end of the stream.
-        if data:
-          self.assertFalse(seen_last_block)
-        seen_last_block = True
-      if not data:
-        break
-      data_list.append(data)
-      bytes_read += len(data)
-      self.assertEqual(stream.tell(), bytes_read)
-    self.assertEqual(''.join(data_list), expected)
-
-  def test_pipe_stream(self):
-    block_sizes = list(4**i for i in range(0, 12))
-    data_blocks = list(os.urandom(size) for size in block_sizes)
-    expected = ''.join(data_blocks)
-
-    buffer_sizes = [100001, 512 * 1024, 1024 * 1024]
-
-    for buffer_size in buffer_sizes:
-      parent_conn, child_conn = multiprocessing.Pipe()
-      stream = gcsio.GcsBufferedWriter.PipeStream(child_conn)
-      child_thread = threading.Thread(
-          target=self._read_and_verify, args=(stream, expected, buffer_size))
-      child_thread.start()
-      for data in data_blocks:
-        parent_conn.send_bytes(data)
-      parent_conn.close()
-      child_thread.join()
+          set(self.gcs.list_prefix(file_pattern).items()),
+          set(expected_file_names))
 
 
 if __name__ == '__main__':

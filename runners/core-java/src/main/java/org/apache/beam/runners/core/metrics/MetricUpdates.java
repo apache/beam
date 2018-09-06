@@ -22,23 +22,22 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Representation of multiple metric updates.
- */
+/** Representation of multiple metric updates. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricUpdates {
 
-  public static final MetricUpdates EMPTY = MetricUpdates.create(
-      Collections.<MetricUpdate<Long>>emptyList(),
-      Collections.<MetricUpdate<DistributionData>>emptyList(),
-      Collections.<MetricUpdate<GaugeData>>emptyList());
+  public static final MetricUpdates EMPTY =
+      MetricUpdates.create(
+          Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 
   /**
    * Representation of a single metric update.
+   *
    * @param <T> The type of value representing the update.
    */
   @AutoValue
@@ -56,8 +55,7 @@ public abstract class MetricUpdates {
 
   /** Returns true if there are no updates in this MetricUpdates object. */
   public boolean isEmpty() {
-    return Iterables.isEmpty(counterUpdates())
-        && Iterables.isEmpty(distributionUpdates());
+    return Iterables.isEmpty(counterUpdates()) && Iterables.isEmpty(distributionUpdates());
   }
 
   /** All of the counter updates. */

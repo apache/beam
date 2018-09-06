@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+
 import com.google.common.base.Joiner;
-import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -44,17 +42,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PipelineRunner} that executes the operations in the
- * pipeline by first translating them to a Flink Plan and then executing them either locally
- * or on a Flink cluster, depending on the configuration.
+ * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
+ * to a Flink Plan and then executing them either locally or on a Flink cluster, depending on the
+ * configuration.
  */
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
 
-  /**
-   * Provided options.
-   */
+  /** Provided options. */
   private final FlinkPipelineOptions options;
 
   /**
@@ -77,9 +73,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(detectClassPathResourcesToStage(
-          FlinkRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
+      flinkOptions.setFilesToStage(
+          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
           flinkOptions.getFilesToStage().size());
@@ -110,7 +107,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
 
     LOG.info("Translating pipeline to Flink program.");
-    env.translate(this, pipeline);
+    env.translate(pipeline);
 
     JobExecutionResult result;
     try {
@@ -120,9 +117,13 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
     }
+    return createPipelineResult(result, options);
+  }
 
+  static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
+      // no metricsPusher because metrics are not supported in detached mode
       return new FlinkDetachedRunnerResult();
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
@@ -133,14 +134,17 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      FlinkRunnerResult flinkRunnerResult =
+          new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      MetricsPusher metricsPusher =
+          new MetricsPusher(
+              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+      metricsPusher.start();
+      return flinkRunnerResult;
     }
   }
 
-  /**
-   * For testing.
-   */
+  /** For testing. */
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
   }
@@ -150,43 +154,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     return "FlinkRunner#" + hashCode();
   }
 
-  /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
-   *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @return A list of absolute paths to the resources the class loader uses.
-   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one
-   *   of the resources the class loader exposes is not a file resource.
-   */
-  protected static List<String> detectClassPathResourcesToStage(
-      ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
-      LOG.error(message);
-      throw new IllegalArgumentException(message);
-    }
-
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        LOG.error(message);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
-  }
-
   /** A set of {@link View}s with non-deterministic key coders. */
   Set<PTransform<?, ?>> ptransformViewsWithNonDeterministicKeyCoders;
 
-  /**
-   * Records that the {@link PTransform} requires a deterministic key coder.
-   */
+  /** Records that the {@link PTransform} requires a deterministic key coder. */
   void recordViewUsesNonDeterministicKeyCoder(PTransform<?, ?> ptransform) {
     ptransformViewsWithNonDeterministicKeyCoders.add(ptransform);
   }
@@ -198,28 +169,30 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     // have just recorded the full names during apply time.
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
-      pipeline.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
+      pipeline.traverseTopologically(
+          new Pipeline.PipelineVisitor.Defaults() {
 
-        @Override
-        public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-        }
+            @Override
+            public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+            }
 
-        @Override
-        public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-          return CompositeBehavior.ENTER_TRANSFORM;
-        }
-      });
+            @Override
+            public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+          });
 
-      LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
-          + "because the key coder is not deterministic. Falling back to singleton implementation "
-          + "which may cause memory and/or performance problems. Future major versions of "
-          + "the Flink runner will require deterministic key coders.",
+      LOG.warn(
+          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
+              + "because the key coder is not deterministic. Falling back to singleton "
+              + "implementation which may cause memory and/or performance problems. Future major "
+              + "versions of the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
   }

@@ -17,8 +17,18 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,5 +40,34 @@ public class KafkaRecordCoderTest {
   public void testCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
         KafkaRecordCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testKafkaRecordSerializableWithHeaders() throws IOException {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("headerKey", "headerVal".getBytes(StandardCharsets.UTF_8));
+    verifySerialization(headers);
+  }
+
+  @Test
+  public void testKafkaRecordSerializableWithoutHeaders() throws IOException {
+    ConsumerRecord consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
+    verifySerialization(consumerRecord.headers());
+  }
+
+  private void verifySerialization(Headers headers) throws IOException {
+    KafkaRecord<String, String> kafkaRecord =
+        new KafkaRecord<>(
+            "topic", 0, 0, 0, KafkaTimestampType.CREATE_TIME, headers, "key", "value");
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    KafkaRecordCoder kafkaRecordCoder =
+        KafkaRecordCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    kafkaRecordCoder.encode(kafkaRecord, outputStream);
+    KafkaRecord<String, String> decodedRecord =
+        kafkaRecordCoder.decode(new ByteArrayInputStream(outputStream.toByteArray()));
+
+    assertEquals(kafkaRecord, decodedRecord);
   }
 }

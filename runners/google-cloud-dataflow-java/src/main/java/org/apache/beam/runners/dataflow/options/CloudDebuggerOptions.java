@@ -23,32 +23,35 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * Options for controlling Cloud Debugger.
- */
+/** Options for controlling Cloud Debugger. */
 @Description("[Experimental] Used to configure the Cloud Debugger")
 @Experimental
 @Hidden
-public interface CloudDebuggerOptions {
+public interface CloudDebuggerOptions extends PipelineOptions {
 
   /** Whether to enable the Cloud Debugger snapshot agent for the current job. */
   @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
   boolean getEnableCloudDebugger();
+
   void setEnableCloudDebugger(boolean enabled);
 
   /** The Cloud Debugger debuggee to associate with. This should not be set directly. */
   @Description("The Cloud Debugger debuggee to associate with. This should not be set directly.")
   @Hidden
-  @Nullable Debuggee getDebuggee();
+  @Nullable
+  Debuggee getDebuggee();
+
   void setDebuggee(Debuggee debuggee);
 
   /** The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. */
   @Description(
       "The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. "
-      + "Should be a double between 0 and 1. "
-      + "Snapshots will be cancelled if evaluating conditions takes more than this ratio of time.")
+          + "Should be a double between 0 and 1. "
+          + "Snapshots will be cancelled if evaluating conditions takes more than this ratio of time.")
   @Default.Double(0.01)
   double getMaxConditionCost();
+
   void setMaxConditionCost(double maxConditionCost);
 }

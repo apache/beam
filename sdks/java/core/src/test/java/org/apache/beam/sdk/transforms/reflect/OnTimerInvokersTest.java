@@ -117,11 +117,9 @@ public class OnTimerInvokersTest {
 
     @OnTimer(TIMER_ID)
     public void onMyTimer() {}
-  };
+  }
 
-  /**
-   * This is a change-detector test that the generated name is stable across runs.
-   */
+  /** This is a change-detector test that the generated name is stable across runs. */
   @Test
   public void testStableName() {
     OnTimerInvoker<Void, Void> invoker =

@@ -19,8 +19,11 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
 
 import struct
+from builtins import chr
+from builtins import object
 
 
 class OutputStream(object):
@@ -32,13 +35,13 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert isinstance(b, str)
+    assert isinstance(b, bytes)
     if nested:
       self.write_var_int64(len(b))
     self.data.append(b)
 
   def write_byte(self, val):
-    self.data.append(chr(val))
+    self.data.append(chr(val).encode('latin-1'))
 
   def write_var_int64(self, v):
     if v < 0:

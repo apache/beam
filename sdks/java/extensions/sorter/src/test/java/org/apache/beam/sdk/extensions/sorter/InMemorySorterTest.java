@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sorter;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -58,14 +57,7 @@ public class InMemorySorterTest {
   @Test
   public void testManySorters() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return InMemorySorter.create(new InMemorySorter.Options());
-          }
-        },
-        1000000,
-        10);
+        () -> InMemorySorter.create(new InMemorySorter.Options()), 1000000, 10);
   }
 
   @Test
@@ -80,30 +72,23 @@ public class InMemorySorterTest {
     fail();
   }
 
-  /**
-   * Verify an exception is thrown when the in memory sorter runs out of space.
-   *
-   * @throws Exception
-   */
+  /** Verify an exception is thrown when the in memory sorter runs out of space. */
   @Test
   public void testOutOfSpace() throws Exception {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(is("No space remaining for in memory sorting"));
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            InMemorySorter.Options options = new InMemorySorter.Options();
-            options.setMemoryMB(1);
-            return InMemorySorter.create(options);
-          }
+        () -> {
+          InMemorySorter.Options options = new InMemorySorter.Options();
+          options.setMemoryMB(1);
+          return InMemorySorter.create(options);
         },
         1,
         10000000);
   }
 
   @Test
-  public void testAddIfRoom() throws Exception {
+  public void testAddIfRoom() {
     InMemorySorter.Options options = new InMemorySorter.Options();
     options.setMemoryMB(1);
     InMemorySorter sorter = InMemorySorter.create(options);
@@ -117,7 +102,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testAddIfRoomOverhead() throws Exception {
+  public void testAddIfRoomOverhead() {
     InMemorySorter.Options options = new InMemorySorter.Options();
     options.setMemoryMB(1);
     InMemorySorter sorter = InMemorySorter.create(options);
@@ -135,7 +120,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testNegativeMemory() throws Exception {
+  public void testNegativeMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     InMemorySorter.Options options = new InMemorySorter.Options();
@@ -143,7 +128,7 @@ public class InMemorySorterTest {
   }
 
   @Test
-  public void testZeroMemory() throws Exception {
+  public void testZeroMemory() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
     InMemorySorter.Options options = new InMemorySorter.Options();

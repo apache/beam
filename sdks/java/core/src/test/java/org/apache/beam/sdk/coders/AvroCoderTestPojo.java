@@ -27,8 +27,7 @@ class AvroCoderTestPojo {
 
   // Empty constructor required for Avro decoding.
   @SuppressWarnings("unused")
-  public AvroCoderTestPojo() {
-  }
+  public AvroCoderTestPojo() {}
 
   public AvroCoderTestPojo(String text) {
     this.text = text;

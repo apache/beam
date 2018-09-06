@@ -29,7 +29,7 @@ import org.joda.time.Instant;
  * <p>An abstract description of a standardized transformation on timestamps.
  */
 @Internal
-public abstract class TimestampTransform implements Serializable{
+public abstract class TimestampTransform implements Serializable {
 
   TimestampTransform() {}
 

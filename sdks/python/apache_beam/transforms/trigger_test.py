@@ -17,35 +17,41 @@
 
 """Unit tests for the triggering classes."""
 
+from __future__ import absolute_import
+
 import collections
 import os.path
 import pickle
 import unittest
+from builtins import range
+from builtins import zip
 
 import yaml
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAll
+from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterEach
-from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
+from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import MIN_TIMESTAMP
-from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
@@ -63,10 +69,21 @@ class TriggerTest(unittest.TestCase):
   def run_trigger_simple(self, window_fn, trigger_fn, accumulation_mode,
                          timestamped_data, expected_panes, *groupings,
                          **kwargs):
+    # Groupings is a list of integers indicating the (uniform) size of bundles
+    # to try. For example, if timestamped_data has elements [a, b, c, d, e]
+    # then groupings=(5, 2) would first run the test with everything in the same
+    # bundle, and then re-run the test with bundling [a, b], [c, d], [e].
+    # A negative value will reverse the order, e.g. -2 would result in bundles
+    # [e, d], [c, b], [a].  This is useful for deterministic triggers in testing
+    # that the output is not a function of ordering or bundling.
+    # If empty, defaults to bundles of size 1 in the given order.
     late_data = kwargs.pop('late_data', [])
     assert not kwargs
 
     def bundle_data(data, size):
+      if size < 0:
+        data = list(data)[::-1]
+        size = -size
       bundle = []
       for timestamp, elem in data:
         windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
@@ -80,15 +97,6 @@ class TriggerTest(unittest.TestCase):
     if not groupings:
       groupings = [1]
     for group_by in groupings:
-      bundles = []
-      bundle = []
-      for timestamp, elem in timestamped_data:
-        windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
-        bundle.append(WindowedValue(elem, timestamp, windows))
-        if len(bundle) == group_by:
-          bundles.append(bundle)
-          bundle = []
-      bundles.append(bundle)
       self.run_trigger(window_fn, trigger_fn, accumulation_mode,
                        bundle_data(timestamped_data, group_by),
                        bundle_data(late_data, group_by),
@@ -99,12 +107,13 @@ class TriggerTest(unittest.TestCase):
                   expected_panes):
     actual_panes = collections.defaultdict(list)
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode))
+        Windowing(window_fn, trigger_fn, accumulation_mode), TestClock())
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
@@ -113,11 +122,13 @@ class TriggerTest(unittest.TestCase):
         for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
           window, = wvalue.windows
+          self.assertEqual(window.end, wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
@@ -126,6 +137,7 @@ class TriggerTest(unittest.TestCase):
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
             window, = wvalue.windows
+            self.assertEqual(window.end, wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
@@ -140,7 +152,10 @@ class TriggerTest(unittest.TestCase):
          IntervalWindow(10, 20): [set('c')]},
         1,
         2,
-        3)
+        3,
+        -3,
+        -2,
+        -1)
 
   def test_fixed_watermark_with_early(self):
     self.run_trigger_simple(
@@ -276,7 +291,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
+        2,
+        -2,
+        -1)
 
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
@@ -291,7 +308,10 @@ class TriggerTest(unittest.TestCase):
         3,
         4,
         5,
-        6)
+        6,
+        -4,
+        -2,
+        -1)
 
   def test_sessions_watermark(self):
     self.run_trigger_simple(
@@ -301,22 +321,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
-
-    self.run_trigger_simple(
-        Sessions(10),  # pyformat break
-        AfterWatermark(),
-        AccumulationMode.ACCUMULATING,
-        [(1, 'a'), (2, 'b'), (15, 'c'), (16, 'd'), (30, 'z'), (9, 'e'),
-         (10, 'f'), (30, 'y')],
-        {IntervalWindow(1, 26): [set('abcdef')],
-         IntervalWindow(30, 40): [set('yz')]},
-        1,
         2,
-        3,
-        4,
-        5,
-        6)
+        -2,
+        -1)
 
   def test_sessions_after_count(self):
     self.run_trigger_simple(
@@ -372,14 +379,14 @@ class TriggerTest(unittest.TestCase):
 
   def test_picklable_output(self):
     global_window = trigger.GlobalWindow(),
-    driver = trigger.DefaultGlobalBatchTriggerDriver()
+    driver = trigger.DiscardingGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
     with self.assertRaises(TypeError):
       pickle.dumps(unpicklable)
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
-                       range(10))
+                       list(range(10)))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -403,21 +410,27 @@ class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
     with TestPipeline() as p:
+      def construct_timestamped(k_t):
+        return TimestampedValue((k_t[0], k_t[1]), k_t[1])
+
+      def format_result(k_v):
+        return ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))
+
       result = (p
                 | beam.Create([1, 2, 3, 4, 5, 10, 11])
                 | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-                | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+                | beam.Map(construct_timestamped)
                 | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
                                   accumulation_mode=AccumulationMode.DISCARDING)
                 | beam.GroupByKey()
-                | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+                | beam.Map(format_result))
       assert_that(result, equal_to(
           {
               'A-5': {1, 2, 3, 4, 5},
               # A-10, A-11 never emitted due to AfterCount(3) never firing.
               'B-4': {6, 7, 8, 9},
               'B-3': {10, 15, 16},
-          }.iteritems()))
+          }.items()))
 
 
 class TranscriptTest(unittest.TestCase):
@@ -463,7 +476,7 @@ class TranscriptTest(unittest.TestCase):
       args = []
       start = 0
       depth = 0
-      for ix in xrange(len(s)):
+      for ix in range(len(s)):
         c = s[ix]
         if c in '({[':
           depth += 1
@@ -527,7 +540,8 @@ class TranscriptTest(unittest.TestCase):
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
+        TestClock())
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP
@@ -546,7 +560,7 @@ class TranscriptTest(unittest.TestCase):
 
     for line in spec['transcript']:
 
-      action, params = line.items()[0]
+      action, params = list(line.items())[0]
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.

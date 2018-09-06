@@ -65,9 +65,11 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
     }
 
     checkState(!(position == null && !isAtSplitPoint), "The first record must be at a split point");
-    checkState(!(recordStart.compareTo(range.getStartKey()) < 0),
+    checkState(
+        !(recordStart.compareTo(range.getStartKey()) < 0),
         "Trying to return record which is before the start key");
-    checkState(!(position != null && recordStart.compareTo(position) < 0),
+    checkState(
+        !(position != null && recordStart.compareTo(position) < 0),
         "Trying to return record which is before the last-returned record");
 
     if (position == null) {
@@ -127,7 +129,12 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   public synchronized double getFractionConsumed() {
     if (position == null) {
       return 0;
+    } else if (done) {
+      return 1.0;
+    } else if (position.compareTo(range.getEndKey()) >= 0) {
+      return 1.0;
     }
+
     return range.estimateFractionForKey(position);
   }
 
@@ -163,14 +170,15 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
    * Marks this range tracker as being done. Specifically, this will mark the current split point,
    * if one exists, as being finished.
    *
-   * <p>Always returns false, so that it can be used in an implementation of
-   * {@link BoundedReader#start()} or {@link BoundedReader#advance()} as follows:
+   * <p>Always returns false, so that it can be used in an implementation of {@link
+   * BoundedReader#start()} or {@link BoundedReader#advance()} as follows:
    *
-   * <pre> {@code
+   * <pre>{@code
    * public boolean start() {
    *   return startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint, position)
    *       || rangeTracker.markDone();
-   * }} </pre>
+   * }
+   * }</pre>
    */
   public synchronized boolean markDone() {
     done = true;

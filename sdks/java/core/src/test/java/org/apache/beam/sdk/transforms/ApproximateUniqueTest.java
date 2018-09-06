@@ -19,6 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.both;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -31,37 +35,32 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.apache.beam.sdk.TestUtils;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.testing.CombineFnTester;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
 
-/**
- * Tests for the ApproximateUnique transform.
- */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ApproximateUniqueTest.ApproximateUniqueWithDuplicatesTest.class,
-    ApproximateUniqueTest.ApproximateUniqueVariationsTest.class,
-    ApproximateUniqueTest.ApproximateUniqueMiscTest.class
-})
+/** Tests for the ApproximateUnique transform. */
 public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static class VerifyEstimateFn implements SerializableFunction<Long, Void> {
     private final long uniqueCount;
@@ -80,26 +79,54 @@ public class ApproximateUniqueTest implements Serializable {
   }
 
   /**
-   * Checks that the estimation error, i.e., the difference between
-   * {@code uniqueCount} and {@code estimate} is less than
-   * {@code 2 / sqrt(sampleSize}).
+   * Checks that the estimation error, i.e., the difference between {@code uniqueCount} and {@code
+   * estimate} is less than {@code 2 / sqrt(sampleSize}).
    */
-  private static void verifyEstimate(final long uniqueCount,
-                                     final int sampleSize,
-                                     final long estimate) {
+  private static void verifyEstimate(
+      final long uniqueCount, final int sampleSize, final long estimate) {
     if (uniqueCount < sampleSize) {
-      assertEquals("Number of hashes is less than the sample size. "
-                       + "Estimate should be exact", uniqueCount, estimate);
+      assertEquals(
+          "Number of hashes is less than the sample size. " + "Estimate should be exact",
+          uniqueCount,
+          estimate);
     }
 
     final double error = 100.0 * Math.abs(estimate - uniqueCount) / uniqueCount;
     final double maxError = 100.0 * 2 / Math.sqrt(sampleSize);
 
-    assertTrue("Estimate=" + estimate + " Actual=" + uniqueCount + " Error="
-                   + error + "%, MaxError=" + maxError + "%.", error < maxError);
+    assertTrue(
+        "Estimate="
+            + estimate
+            + " Actual="
+            + uniqueCount
+            + " Error="
+            + error
+            + "%, MaxError="
+            + maxError
+            + "%.",
+        error < maxError);
 
-    assertTrue("Estimate=" + estimate + " Actual=" + uniqueCount + " Error="
-                   + error + "%, MaxError=" + maxError + "%.", error < maxError);
+    assertTrue(
+        "Estimate="
+            + estimate
+            + " Actual="
+            + uniqueCount
+            + " Error="
+            + error
+            + "%, MaxError="
+            + maxError
+            + "%.",
+        error < maxError);
+  }
+
+  private static Matcher<Long> estimateIsWithinRangeFor(
+      final long uniqueCount, final int sampleSize) {
+    if (uniqueCount <= sampleSize) {
+      return is(uniqueCount);
+    } else {
+      long maxError = (long) Math.ceil(2.0 * uniqueCount / Math.sqrt(sampleSize));
+      return both(lessThan(uniqueCount + maxError)).and(greaterThan(uniqueCount - maxError));
+    }
   }
 
   private static class VerifyEstimatePerKeyFn
@@ -120,17 +147,15 @@ public class ApproximateUniqueTest implements Serializable {
     }
   }
 
-  /**
-   * Tests for ApproximateUnique with duplicates.
-   */
+  /** Tests for ApproximateUnique with duplicates. */
   @RunWith(Parameterized.class)
-  public static class ApproximateUniqueWithDuplicatesTest extends
-                                                          ApproximateUniqueTest {
+  public static class ApproximateUniqueWithDuplicatesTest extends ApproximateUniqueTest {
 
-    @Parameterized.Parameter
-    public int elementCount;
+    @Parameterized.Parameter public int elementCount;
+
     @Parameterized.Parameter(1)
     public int uniqueCount;
+
     @Parameterized.Parameter(2)
     public int sampleSize;
 
@@ -138,24 +163,15 @@ public class ApproximateUniqueTest implements Serializable {
     public static Iterable<Object[]> data() throws IOException {
       return ImmutableList.<Object[]>builder()
           .add(
-              new Object[] {
-                  100, 100, 100
-              },
-              new Object[] {
-                  1000, 1000, 100
-              },
-              new Object[] {
-                  1500, 1000, 100
-              },
-              new Object[] {
-                  10000, 1000, 100
-              })
+              new Object[] {100, 100, 100},
+              new Object[] {1000, 1000, 100},
+              new Object[] {1500, 1000, 100},
+              new Object[] {10000, 1000, 100})
           .build();
     }
 
-
-    private void runApproximateUniqueWithDuplicates(final int elementCount,
-                                                    final int uniqueCount, final int sampleSize) {
+    private void runApproximateUniqueWithDuplicates(
+        final int elementCount, final int uniqueCount, final int sampleSize) {
 
       assert elementCount >= uniqueCount;
       final List<Double> elements = Lists.newArrayList();
@@ -165,14 +181,12 @@ public class ApproximateUniqueTest implements Serializable {
       Collections.shuffle(elements);
 
       final PCollection<Double> input = p.apply(Create.of(elements));
-      final PCollection<Long> estimate =
-          input.apply(ApproximateUnique.<Double>globally(sampleSize));
+      final PCollection<Long> estimate = input.apply(ApproximateUnique.globally(sampleSize));
 
       PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
       p.run();
     }
-
 
     @Test
     @Category(NeedsRunner.class)
@@ -181,9 +195,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
   }
 
-  /**
-   * Tests for ApproximateUnique with different sample sizes.
-   */
+  /** Tests for ApproximateUnique with different sample sizes. */
   @RunWith(Parameterized.class)
   public static class ApproximateUniqueVariationsTest extends ApproximateUniqueTest {
 
@@ -197,61 +209,44 @@ public class ApproximateUniqueTest implements Serializable {
       }
     }
 
-    @Parameterized.Parameter
-    public int sampleSize;
+    @Parameterized.Parameter public int sampleSize;
 
     @Parameterized.Parameters(name = "sampleSize_{0}")
     public static Iterable<Object[]> data() throws IOException {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {
-                  16
-              },
-              new Object[] {
-                  64
-              },
-              new Object[] {
-                  128
-              },
-              new Object[] {
-                  256
-              },
-              new Object[] {
-                  512
-              },
-              new Object[] {
-                  1000
-              },
-              new Object[] {
-                  2014
-              },
-              new Object[] {
-                  15
-              })
+          .add(
+              new Object[] {16},
+              new Object[] {64},
+              new Object[] {128},
+              new Object[] {256},
+              new Object[] {512},
+              new Object[] {1000},
+              new Object[] {2014},
+              new Object[] {15})
           .build();
     }
 
     /**
-     * Applies {@code ApproximateUnique(sampleSize)} verifying that the estimation
-     * error falls within the maximum allowed error of {@code 2/sqrt(sampleSize)}.
+     * Applies {@code ApproximateUnique(sampleSize)} verifying that the estimation error falls
+     * within the maximum allowed error of {@code 2/sqrt(sampleSize)}.
      */
     private void runApproximateUniquePipeline(final int sampleSize) {
       final PCollection<String> input = p.apply(Create.of(TEST_LINES));
-      final PCollection<Long> approximate =
-          input.apply(ApproximateUnique.<String>globally(sampleSize));
+      final PCollection<Long> approximate = input.apply(ApproximateUnique.globally(sampleSize));
       final PCollectionView<Long> exact =
-          input
-              .apply(Distinct.<String>create())
-              .apply(Count.<String>globally())
-              .apply(View.<Long>asSingleton());
+          input.apply(Distinct.create()).apply(Count.globally()).apply(View.asSingleton());
 
-      final PCollection<KV<Long, Long>> approximateAndExact = approximate
-          .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
+      final PCollection<KV<Long, Long>> approximateAndExact =
+          approximate.apply(
+              ParDo.of(
+                      new DoFn<Long, KV<Long, Long>>() {
 
-            @ProcessElement
-            public void processElement(final ProcessContext c) {
-              c.output(KV.of(c.element(), c.sideInput(exact)));
-            }
-          }).withSideInputs(exact));
+                        @ProcessElement
+                        public void processElement(final ProcessContext c) {
+                          c.output(KV.of(c.element(), c.sideInput(exact)));
+                        }
+                      })
+                  .withSideInputs(exact));
 
       PAssert.that(approximateAndExact).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
@@ -259,9 +254,8 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     /**
-     * Applies {@link ApproximateUnique} for different sample sizes and verifies
-     * that the estimation error falls within the maximum allowed error of
-     * {@code 2 / sqrt(sampleSize)}.
+     * Applies {@link ApproximateUnique} for different sample sizes and verifies that the estimation
+     * error falls within the maximum allowed error of {@code 2 / sqrt(sampleSize)}.
      */
     @Test
     @Category(NeedsRunner.class)
@@ -274,16 +268,47 @@ public class ApproximateUniqueTest implements Serializable {
           runApproximateUniquePipeline(15);
           fail("Accepted sampleSize < 16");
         } catch (final IllegalArgumentException e) {
-          assertTrue("Expected an exception due to sampleSize < 16",
-                     e.getMessage().startsWith("ApproximateUnique needs a sampleSize >= 16"));
+          assertTrue(
+              "Expected an exception due to sampleSize < 16",
+              e.getMessage().startsWith("ApproximateUnique needs a sampleSize >= 16"));
         }
       }
     }
   }
 
-  /**
-   * Further tests for ApproximateUnique.
-   */
+  /** Test ApproximateUniqueCombineFn. TestPipeline does seem to test merging partial results. */
+  @RunWith(JUnit4.class)
+  public static class ApproximateUniqueCombineFnTest {
+
+    private void runCombineFnTest(long elementCount, long uniqueCount, int sampleSize) {
+      List<Double> input =
+          LongStream.range(0, elementCount)
+              .mapToObj(i -> 1.0 / (i % uniqueCount + 1))
+              .collect(Collectors.toList());
+
+      CombineFnTester.testCombineFn(
+          new ApproximateUniqueCombineFn<>(sampleSize, DoubleCoder.of()),
+          input,
+          estimateIsWithinRangeFor(uniqueCount, sampleSize));
+    }
+
+    @Test
+    public void testFnWithSmallerFractionOfUniques() {
+      runCombineFnTest(1000, 100, 16);
+    }
+
+    @Test
+    public void testWithLargerFractionOfUniques() {
+      runCombineFnTest(1000, 800, 100);
+    }
+
+    @Test
+    public void testWithLargeSampleSize() {
+      runCombineFnTest(200, 100, 150);
+    }
+  }
+
+  /** Further tests for ApproximateUnique. */
   @RunWith(JUnit4.class)
   public static class ApproximateUniqueMiscTest extends ApproximateUniqueTest {
 
@@ -300,19 +325,16 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testApproximateUniqueWithSmallInput() {
-      final PCollection<Integer> input = p.apply(
-          Create.of(Arrays.asList(1, 2, 3, 3)));
+      final PCollection<Integer> input = p.apply(Create.of(Arrays.asList(1, 2, 3, 3)));
 
-      final PCollection<Long> estimate = input
-          .apply(ApproximateUnique.<Integer>globally(1000));
+      final PCollection<Long> estimate = input.apply(ApproximateUnique.globally(1000));
 
       PAssert.thatSingleton(estimate).isEqualTo(3L);
 
       p.run();
     }
-
 
     @Test
     @Category(NeedsRunner.class)
@@ -320,9 +342,8 @@ public class ApproximateUniqueTest implements Serializable {
       runApproximateUniqueWithSkewedDistributions(10000, 2000, 1000);
     }
 
-    private void runApproximateUniqueWithSkewedDistributions(final int elementCount,
-                                                             final int uniqueCount,
-                                                             final int sampleSize) {
+    private void runApproximateUniqueWithSkewedDistributions(
+        final int elementCount, final int uniqueCount, final int sampleSize) {
       final List<Integer> elements = Lists.newArrayList();
       // Zipf distribution with approximately elementCount items.
       final double s = 1 - 1.0 * uniqueCount / elementCount;
@@ -336,8 +357,7 @@ public class ApproximateUniqueTest implements Serializable {
       }
 
       final PCollection<Integer> input = p.apply(Create.of(elements));
-      final PCollection<Long> estimate =
-          input.apply(ApproximateUnique.<Integer>globally(sampleSize));
+      final PCollection<Long> estimate = input.apply(ApproximateUnique.globally(sampleSize));
 
       PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
@@ -359,13 +379,11 @@ public class ApproximateUniqueTest implements Serializable {
       }
 
       final PCollection<KV<Long, Long>> input = p.apply(Create.of(elements));
-      final PCollection<KV<Long, Long>> counts =
-          input.apply(ApproximateUnique.<Long, Long>perKey(sampleSize));
+      final PCollection<KV<Long, Long>> counts = input.apply(ApproximateUnique.perKey(sampleSize));
 
       PAssert.that(counts).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
       p.run();
-
     }
 
     @Test
@@ -385,9 +403,10 @@ public class ApproximateUniqueTest implements Serializable {
 
       final DisplayData maxErrorDisplayData = DisplayData.from(specifiedMaxError);
       assertThat(maxErrorDisplayData, hasDisplayItem("maximumEstimationError", 0.1234));
-      assertThat("calculated sampleSize should be included", maxErrorDisplayData,
-                 hasDisplayItem("sampleSize"));
+      assertThat(
+          "calculated sampleSize should be included",
+          maxErrorDisplayData,
+          hasDisplayItem("sampleSize"));
     }
   }
-
 }

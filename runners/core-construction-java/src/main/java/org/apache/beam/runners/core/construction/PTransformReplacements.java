@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -28,8 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- */
+/** */
 public class PTransformReplacements {
   /**
    * Gets the singleton input of an {@link AppliedPTransform}, ignoring any additional inputs
@@ -65,5 +65,10 @@ public class PTransformReplacements {
         inputs,
         ignoredTags);
     return mainInput;
+  }
+
+  public static <T> PCollection<T> getSingletonMainOutput(
+      AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
+    return ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()));
   }
 }

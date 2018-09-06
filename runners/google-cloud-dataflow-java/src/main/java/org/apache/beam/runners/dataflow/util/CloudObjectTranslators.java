@@ -65,10 +65,7 @@ class CloudObjectTranslators {
 
   private static List<Coder<?>> getComponents(CloudObject target) {
     List<Map<String, Object>> cloudComponents =
-        Structs.getListOfMaps(
-            target,
-            PropertyNames.COMPONENT_ENCODINGS,
-            Collections.<Map<String, Object>>emptyList());
+        Structs.getListOfMaps(target, PropertyNames.COMPONENT_ENCODINGS, Collections.emptyList());
     List<Coder<?>> components = new ArrayList<>();
     for (Map<String, Object> cloudComponent : cloudComponents) {
       components.add(CloudObjects.coderFromCloudObject(CloudObject.fromSpec(cloudComponent)));
@@ -119,8 +116,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(IterableCoder target) {
         CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_STREAM);
         Structs.addBoolean(result, PropertyNames.IS_STREAM_LIKE, true);
-        return addComponents(
-            result, Collections.<Coder<?>>singletonList(target.getElemCoder()));
+        return addComponents(result, Collections.<Coder<?>>singletonList(target.getElemCoder()));
       }
 
       @Override
@@ -183,8 +179,7 @@ class CloudObjectTranslators {
       @Override
       public CloudObject toCloudObject(GlobalWindow.Coder target) {
         return addComponents(
-            CloudObject.forClassName(CloudObjectKinds.KIND_GLOBAL_WINDOW),
-            Collections.<Coder<?>>emptyList());
+            CloudObject.forClassName(CloudObjectKinds.KIND_GLOBAL_WINDOW), Collections.emptyList());
       }
 
       @Override
@@ -214,7 +209,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(IntervalWindowCoder target) {
         return addComponents(
             CloudObject.forClassName(CloudObjectKinds.KIND_INTERVAL_WINDOW),
-            Collections.<Coder<?>>emptyList());
+            Collections.emptyList());
       }
 
       @Override
@@ -251,8 +246,7 @@ class CloudObjectTranslators {
       @Override
       public FullWindowedValueCoder fromCloudObject(CloudObject object) {
         List<Coder<?>> components = getComponents(object);
-        checkArgument(components.size() == 2,
-            "Expecting 2 components, got " + components.size());
+        checkArgument(components.size() == 2, "Expecting 2 components, got " + components.size());
         @SuppressWarnings("unchecked")
         Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
         return FullWindowedValueCoder.of(components.get(0), window);
@@ -279,8 +273,7 @@ class CloudObjectTranslators {
       @Override
       public CloudObject toCloudObject(ByteArrayCoder target) {
         return addComponents(
-            CloudObject.forClassName(CloudObjectKinds.KIND_BYTES),
-            Collections.<Coder<?>>emptyList());
+            CloudObject.forClassName(CloudObjectKinds.KIND_BYTES), Collections.emptyList());
       }
 
       @Override
@@ -297,7 +290,6 @@ class CloudObjectTranslators {
       public String cloudObjectClassName() {
         return CloudObjectKinds.KIND_BYTES;
       }
-
     };
   }
 
@@ -309,8 +301,7 @@ class CloudObjectTranslators {
     return new CloudObjectTranslator<VarLongCoder>() {
       @Override
       public CloudObject toCloudObject(VarLongCoder target) {
-        return addComponents(
-            CloudObject.forClass(target.getClass()), Collections.<Coder<?>>emptyList());
+        return addComponents(CloudObject.forClass(target.getClass()), Collections.emptyList());
       }
 
       @Override
@@ -332,6 +323,7 @@ class CloudObjectTranslators {
 
   private static final String CODER_FIELD = "serialized_coder";
   private static final String TYPE_FIELD = "type";
+
   public static CloudObjectTranslator<Coder> javaSerialized() {
     return new CloudObjectTranslator<Coder>() {
       @Override
@@ -392,6 +384,7 @@ class CloudObjectTranslators {
       }
     };
   }
+
   public static CloudObjectTranslator<IterableLikeCoder> iterableLike(
       final Class<? extends IterableLikeCoder> clazz) {
     return new CloudObjectTranslator<IterableLikeCoder>() {
@@ -565,10 +558,7 @@ class CloudObjectTranslators {
       private CoGbkResultSchema schemaFromCloudObject(CloudObject cloudObject) {
         List<TupleTag<?>> tags = new ArrayList<>();
         List<Map<String, Object>> serializedTags =
-            Structs.getListOfMaps(
-                cloudObject,
-                PropertyNames.TUPLE_TAGS,
-                Collections.<Map<String, Object>>emptyList());
+            Structs.getListOfMaps(cloudObject, PropertyNames.TUPLE_TAGS, Collections.emptyList());
         for (Map<String, Object> serializedTag : serializedTags) {
           TupleTag<?> tag = new TupleTag<>(Structs.getString(serializedTag, PropertyNames.VALUE));
           tags.add(tag);

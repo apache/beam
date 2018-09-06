@@ -20,10 +20,10 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -36,21 +36,20 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link CollectionCoder}.
- */
+/** Test case for {@link CollectionCoder}. */
 @RunWith(JUnit4.class)
 public class CollectionCoderTest {
 
   private static final Coder<Collection<Integer>> TEST_CODER = CollectionCoder.of(VarIntCoder.of());
 
-  private static final List<Collection<Integer>> TEST_VALUES = Arrays.<Collection<Integer>>asList(
-      Collections.<Integer>emptyList(),
-      Collections.<Integer>emptySet(),
-      Collections.singletonList(13),
-      Arrays.asList(1, 2, 3, 4),
-      new LinkedList<>(Arrays.asList(7, 6, 5)),
-      new TreeSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Collection<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptyList(),
+          Collections.emptySet(),
+          Collections.singletonList(13),
+          Arrays.asList(1, 2, 3, 4),
+          new ArrayList<>(Arrays.asList(7, 6, 5)),
+          new TreeSet<>(Arrays.asList(31, -5, 83)));
 
   @Test
   public void testDecodeEncodeContentsEqual() throws Exception {
@@ -60,24 +59,18 @@ public class CollectionCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAA",
-      "AAAAAQ0",
-      "AAAABAECAwQ",
-      "AAAAAwcGBQ",
-      "AAAAA_v___8PH1M");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAAA", "AAAAAQ0", "AAAABAECAwQ", "AAAAAwcGBQ", "AAAAA_v___8PH1M");
 
   @Test
   public void testWireFormat() throws Exception {
     CoderProperties.coderDecodesBase64ContentsEqual(TEST_CODER, TEST_ENCODINGS, TEST_VALUES);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {
@@ -92,6 +85,7 @@ public class CollectionCoderTest {
     CoderProperties.coderSerializable(CollectionCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
+  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     TypeDescriptor<Collection<Integer>> expectedTypeDescriptor =
         new TypeDescriptor<Collection<Integer>>() {};

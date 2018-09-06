@@ -43,10 +43,11 @@ public class MapCoderTest {
   private static final Coder<Map<Integer, String>> TEST_CODER =
       MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of());
 
-  private static final List<Map<Integer, String>> TEST_VALUES = Arrays.<Map<Integer, String>>asList(
-      Collections.<Integer, String>emptyMap(),
-      new TreeMap<>(new ImmutableMap.Builder<Integer, String>()
-          .put(1, "hello").put(-1, "foo").build()));
+  private static final List<Map<Integer, String>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptyMap(),
+          new TreeMap<>(
+              new ImmutableMap.Builder<Integer, String>().put(1, "hello").put(-1, "foo").build()));
 
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
@@ -62,20 +63,18 @@ public class MapCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAv____8PA2ZvbwFoZWxsbw");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAAv____8PA2ZvbwFoZWxsbw");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

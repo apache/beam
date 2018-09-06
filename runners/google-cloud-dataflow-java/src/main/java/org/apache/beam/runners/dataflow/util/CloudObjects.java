@@ -40,8 +40,8 @@ public class CloudObjects {
       populateCoderTranslators() {
     ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
-    for (CoderCloudObjectTranslatorRegistrar coderRegistrar : ServiceLoader.load(
-        CoderCloudObjectTranslatorRegistrar.class)) {
+    for (CoderCloudObjectTranslatorRegistrar coderRegistrar :
+        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
       builder.putAll(coderRegistrar.classesToTranslators());
     }
     return builder.build();
@@ -58,9 +58,7 @@ public class CloudObjects {
     return builder.build();
   }
 
-  /**
-   * Convert the provided {@link Coder} into a {@link CloudObject}.
-   */
+  /** Convert the provided {@link Coder} into a {@link CloudObject}. */
   public static CloudObject asCloudObject(Coder<?> coder) {
     CloudObjectTranslator<Coder> translator =
         (CloudObjectTranslator<Coder>) CODER_TRANSLATORS.get(coder.getClass());

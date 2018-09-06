@@ -20,11 +20,15 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
-from collections import defaultdict
+from __future__ import absolute_import
+
 import threading
+from builtins import object
+from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterAggregator
 from apache_beam.metrics.cells import DistributionAggregator
+from apache_beam.metrics.cells import GaugeAggregator
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
@@ -36,6 +40,8 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(CounterAggregator()))
     self._distributions = defaultdict(
         lambda: DirectMetric(DistributionAggregator()))
+    self._gauges = defaultdict(
+        lambda: DirectMetric(GaugeAggregator()))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -43,6 +49,9 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.distributions.items():
       op(self._distributions[k], bundle, v)
+
+    for k, v in updates.gauges.items():
+      op(self._gauges[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
@@ -67,9 +76,15 @@ class DirectMetrics(MetricResults):
                                   v.extract_latest_attempted())
                      for k, v in self._distributions.items()
                      if self.matches(filter, k)]
+    gauges = [MetricResult(MetricKey(k.step, k.metric),
+                           v.extract_committed(),
+                           v.extract_latest_attempted())
+              for k, v in self._gauges.items()
+              if self.matches(filter, k)]
 
-    return {'counters': counters,
-            'distributions': distributions}
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
 
 class DirectMetric(object):
@@ -81,10 +96,10 @@ class DirectMetric(object):
   def __init__(self, aggregator):
     self.aggregator = aggregator
     self._attempted_lock = threading.Lock()
-    self.finished_attempted = aggregator.zero()
+    self.finished_attempted = aggregator.identity_element()
     self.inflight_attempted = {}
     self._committed_lock = threading.Lock()
-    self.finished_committed = aggregator.zero()
+    self.finished_committed = aggregator.identity_element()
 
   def commit_logical(self, bundle, update):
     with self._committed_lock:

@@ -17,19 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.Coder.Context;
 
 /**
- * Provides an efficient encoding for {@link Iterable}s containing small values by
- * buffering up to {@code bufferSize} bytes of data before prefixing the count.
- * Note that each element needs to be encoded in a nested context. See
- * {@link Context Coder.Context} for more details.
+ * Provides an efficient encoding for {@link Iterable}s containing small values by buffering up to
+ * {@code bufferSize} bytes of data before prefixing the count. Note that each element needs to be
+ * encoded in a nested context. See {@link Context Coder.Context} for more details.
  *
  * <p>To use this stream:
+ *
  * <pre><code>
  * BufferedElementCountingOutputStream os = ...
  * for (Element E : elements) {
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
  * </code></pre>
  *
  * <p>The resulting output stream is:
+ *
  * <pre>
  * countA element(0) element(1) ... element(countA - 1)
  * countB element(0) element(1) ... element(countB - 1)
@@ -49,6 +52,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
  * </pre>
  *
  * <p>To read this stream:
+ *
  * <pre>{@code
  * InputStream is = ...
  * long count;
@@ -65,6 +69,11 @@ import org.apache.beam.sdk.coders.Coder.Context;
  */
 @NotThreadSafe
 public class BufferedElementCountingOutputStream extends OutputStream {
+  private static final int MAX_POOLED = 12;
+
+  @VisibleForTesting
+  static final ArrayBlockingQueue<ByteBuffer> BUFFER_POOL = new ArrayBlockingQueue<>(MAX_POOLED);
+
   public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private final ByteBuffer buffer;
   private final OutputStream os;
@@ -84,16 +93,17 @@ public class BufferedElementCountingOutputStream extends OutputStream {
    * manner with the given {@code bufferSize}.
    */
   BufferedElementCountingOutputStream(OutputStream os, int bufferSize) {
-    this.buffer = ByteBuffer.allocate(bufferSize);
     this.os = os;
     this.finished = false;
     this.count = 0;
+    ByteBuffer buffer = BUFFER_POOL.poll();
+    if (buffer == null) {
+      buffer = ByteBuffer.allocate(bufferSize);
+    }
+    this.buffer = buffer;
   }
 
-  /**
-   * Finishes the encoding by flushing any buffered data,
-   * and outputting a final count of 0.
-   */
+  /** Finishes the encoding by flushing any buffered data, and outputting a final count of 0. */
   public void finish() throws IOException {
     if (finished) {
       return;
@@ -101,13 +111,15 @@ public class BufferedElementCountingOutputStream extends OutputStream {
     flush();
     // Finish the stream by stating that there are 0 elements that follow.
     VarInt.encode(0, os);
+    if (!BUFFER_POOL.offer(buffer)) {
+      // The pool is full, we can't store the buffer. We just drop the buffer.
+    }
     finished = true;
   }
 
   /**
-   * Marks that a new element is being output. This allows this output stream
-   * to use the buffer if it had previously overflowed marking the start of a new
-   * block of elements.
+   * Marks that a new element is being output. This allows this output stream to use the buffer if
+   * it had previously overflowed marking the start of a new block of elements.
    */
   public void markElementStart() throws IOException {
     if (finished) {

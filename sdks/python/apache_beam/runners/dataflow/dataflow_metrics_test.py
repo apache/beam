@@ -18,8 +18,12 @@
 Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
+
+from __future__ import absolute_import
+
 import types
 import unittest
+from builtins import object
 
 import mock
 
@@ -34,7 +38,7 @@ from apache_beam.runners.dataflow import dataflow_metrics
 class DictToObject(object):
   """Translate from a dict(list()) structure to an object structure"""
   def __init__(self, data):
-    for name, value in data.iteritems():
+    for name, value in data.items():
       setattr(self, name, self._wrap(value))
 
   def _wrap(self, value):
@@ -205,7 +209,7 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
-    mock_job_result._is_in_terminal_state.return_value = False
+    mock_job_result.is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
   def test_cache_functions(self):
@@ -221,7 +225,7 @@ class TestDataflowMetrics(unittest.TestCase):
     self.assertTrue(dm._cached_metrics is None)
 
     # The job has ended. The query should not run again after this.
-    mock_job_result._is_in_terminal_state.return_value = True
+    mock_job_result.is_in_terminal_state.return_value = True
     dm.query()
     self.assertTrue(dm._cached_metrics)
 

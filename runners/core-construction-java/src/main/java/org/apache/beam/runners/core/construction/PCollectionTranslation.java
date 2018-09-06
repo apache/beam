@@ -18,13 +18,12 @@
 
 package org.apache.beam.runners.core.construction;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Utility methods for translating {@link PCollection PCollections} to and from Runner API protos.
@@ -47,36 +46,35 @@ public class PCollectionTranslation {
         .build();
   }
 
+  public static PCollection<?> fromProto(
+      RunnerApi.PCollection pCollection, Pipeline pipeline, RehydratedComponents components)
+      throws IOException {
+
+    Coder<?> coder = components.getCoder(pCollection.getCoderId());
+    return PCollection.createPrimitiveOutputInternal(
+        pipeline,
+        components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
+        fromProto(pCollection.getIsBounded()),
+        (Coder) coder);
+  }
+
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {
     return fromProto(pCollection.getIsBounded());
   }
 
-  public static Coder<?> getCoder(
-      RunnerApi.PCollection pCollection, RunnerApi.Components components) throws IOException {
-    return CoderTranslation
-        .fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
-  }
-
-  public static WindowingStrategy<?, ?> getWindowingStrategy(
-      RunnerApi.PCollection pCollection, RunnerApi.Components components)
-      throws InvalidProtocolBufferException {
-    return WindowingStrategyTranslation.fromProto(
-        components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()), components);
-  }
-
-  static RunnerApi.IsBounded toProto(IsBounded bounded) {
+  static RunnerApi.IsBounded.Enum toProto(IsBounded bounded) {
     switch (bounded) {
       case BOUNDED:
-        return RunnerApi.IsBounded.BOUNDED;
+        return RunnerApi.IsBounded.Enum.BOUNDED;
       case UNBOUNDED:
-        return RunnerApi.IsBounded.UNBOUNDED;
+        return RunnerApi.IsBounded.Enum.UNBOUNDED;
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", IsBounded.class.getSimpleName(), bounded));
     }
   }
 
-  static IsBounded fromProto(RunnerApi.IsBounded isBounded) {
+  static IsBounded fromProto(RunnerApi.IsBounded.Enum isBounded) {
     switch (isBounded) {
       case BOUNDED:
         return IsBounded.BOUNDED;

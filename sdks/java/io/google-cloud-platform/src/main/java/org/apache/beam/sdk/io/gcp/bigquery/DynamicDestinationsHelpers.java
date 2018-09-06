@@ -18,7 +18,10 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
@@ -31,17 +34,12 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-/**
- * Contains some useful helper instances of {@link DynamicDestinations}.
- */
+/** Contains some useful helper instances of {@link DynamicDestinations}. */
 class DynamicDestinationsHelpers {
-  /**
-   * Always returns a constant table destination.
-   */
+  /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
-    @Nullable
-    private final String tableDescription;
+    @Nullable private final String tableDescription;
 
     ConstantTableDestinations(ValueProvider<String> tableSpec, @Nullable String tableDescription) {
       this.tableSpec = tableSpec;
@@ -50,18 +48,20 @@ class DynamicDestinationsHelpers {
 
     static <T> ConstantTableDestinations<T> fromTableSpec(
         ValueProvider<String> tableSpec, String tableDescription) {
-      return new ConstantTableDestinations<T>(tableSpec, tableDescription);
+      return new ConstantTableDestinations<>(tableSpec, tableDescription);
     }
 
     static <T> ConstantTableDestinations<T> fromJsonTableRef(
         ValueProvider<String> jsonTableRef, String tableDescription) {
-      return new ConstantTableDestinations<T>(
+      return new ConstantTableDestinations<>(
           NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()), tableDescription);
     }
 
     @Override
     public TableDestination getDestination(ValueInSingleWindow<T> element) {
-      return new TableDestination(tableSpec.get(), tableDescription);
+      String tableSpec = this.tableSpec.get();
+      checkArgument(tableSpec != null, "tableSpec can not be null");
+      return new TableDestination(tableSpec, tableDescription);
     }
 
     @Override
@@ -80,9 +80,7 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  /**
-   * Returns a tables based on a user-supplied function.
-   */
+  /** Returns a tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
 
@@ -93,7 +91,13 @@ class DynamicDestinationsHelpers {
 
     @Override
     public TableDestination getDestination(ValueInSingleWindow<T> element) {
-      return tableFunction.apply(element);
+      TableDestination res = tableFunction.apply(element);
+      checkArgument(
+          res != null,
+          "result of tableFunction can not be null, but %s returned null for element: %s",
+          tableFunction,
+          element);
+      return res;
     }
 
     @Override
@@ -108,21 +112,23 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
   /**
-   * Delegates all calls to an inner instance of {@link DynamicDestinations}. This allows
-   * subclasses to modify another instance of {@link DynamicDestinations} by subclassing and
-   * overriding just the methods they want to alter.
+   * Delegates all calls to an inner instance of {@link DynamicDestinations}. This allows subclasses
+   * to modify another instance of {@link DynamicDestinations} by subclassing and overriding just
+   * the methods they want to alter.
    */
   static class DelegatingDynamicDestinations<T, DestinationT>
       extends DynamicDestinations<T, DestinationT> {
-    private final DynamicDestinations<T, DestinationT> inner;
+    final DynamicDestinations<T, DestinationT> inner;
+
     DelegatingDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
       this.inner = inner;
     }
+
     @Override
     public DestinationT getDestination(ValueInSingleWindow<T> element) {
       return inner.getDestination(element);
@@ -142,41 +148,95 @@ class DynamicDestinationsHelpers {
     public Coder<DestinationT> getDestinationCoder() {
       return inner.getDestinationCoder();
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
   }
 
-  /**
-   * Returns the same schema for every table.
-   */
+  /** Returns the same schema for every table. */
   static class ConstantSchemaDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
-    @Nullable
-    private final ValueProvider<String> jsonSchema;
+    @Nullable private final ValueProvider<String> jsonSchema;
 
-    ConstantSchemaDestinations(DynamicDestinations<T, TableDestination> inner,
-                               ValueProvider<String> jsonSchema) {
+    ConstantSchemaDestinations(
+        DynamicDestinations<T, TableDestination> inner, ValueProvider<String> jsonSchema) {
       super(inner);
+      checkArgument(jsonSchema != null, "jsonSchema can not be null");
       this.jsonSchema = jsonSchema;
     }
 
     @Override
     public TableSchema getSchema(TableDestination destination) {
-      return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
+      String jsonSchema = this.jsonSchema.get();
+      checkArgument(jsonSchema != null, "jsonSchema can not be null");
+      return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("jsonSchema", jsonSchema)
+          .toString();
+    }
+  }
+
+  static class ConstantTimePartitioningDestinations<T>
+      extends DelegatingDynamicDestinations<T, TableDestination> {
+
+    @Nullable private final ValueProvider<String> jsonTimePartitioning;
+
+    ConstantTimePartitioningDestinations(
+        DynamicDestinations<T, TableDestination> inner,
+        ValueProvider<String> jsonTimePartitioning) {
+      super(inner);
+      checkArgument(jsonTimePartitioning != null, "jsonTimePartitioning provider can not be null");
+      if (jsonTimePartitioning.isAccessible()) {
+        checkArgument(jsonTimePartitioning.get() != null, "jsonTimePartitioning can not be null");
+      }
+      this.jsonTimePartitioning = jsonTimePartitioning;
+    }
+
+    @Override
+    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+      TableDestination destination = super.getDestination(element);
+      String partitioning = this.jsonTimePartitioning.get();
+      checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
+      return new TableDestination(
+          destination.getTableSpec(), destination.getTableDescription(), partitioning);
+    }
+
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return TableDestinationCoderV2.of();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("jsonTimePartitioning", jsonTimePartitioning)
+          .toString();
     }
   }
 
   /**
-   * Takes in a side input mapping tablespec to json table schema, and always returns the
-   * matching schema from the side input.
+   * Takes in a side input mapping tablespec to json table schema, and always returns the matching
+   * schema from the side input.
    */
   static class SchemaFromViewDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
     PCollectionView<Map<String, String>> schemaView;
-    SchemaFromViewDestinations(DynamicDestinations<T, TableDestination> inner,
-                               PCollectionView<Map<String, String>> schemaView) {
+
+    SchemaFromViewDestinations(
+        DynamicDestinations<T, TableDestination> inner,
+        PCollectionView<Map<String, String>> schemaView) {
       super(inner);
+      checkArgument(schemaView != null, "schemaView can not be null");
       this.schemaView = schemaView;
     }
-
 
     @Override
     public List<PCollectionView<?>> getSideInputs() {
@@ -186,8 +246,24 @@ class DynamicDestinationsHelpers {
     @Override
     public TableSchema getSchema(TableDestination destination) {
       Map<String, String> mapValue = sideInput(schemaView);
-      return BigQueryHelpers.fromJsonString(mapValue.get(destination.getTableSpec()),
-          TableSchema.class);
+      String schema = mapValue.get(destination.getTableSpec());
+      checkArgument(
+          schema != null,
+          "Schema view must contain data for every destination used, "
+              + "but view %s does not contain data for table destination %s "
+              + "produced by %s",
+          schemaView,
+          destination.getTableSpec(),
+          inner);
+      return BigQueryHelpers.fromJsonString(schema, TableSchema.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("schemaView", schemaView)
+          .toString();
     }
   }
 }

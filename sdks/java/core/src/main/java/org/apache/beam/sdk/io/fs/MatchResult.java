@@ -21,17 +21,14 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystems;
 
-/**
- * The result of {@link org.apache.beam.sdk.io.FileSystem#match}.
- */
+/** The result of {@link org.apache.beam.sdk.io.FileSystem#match}. */
 public abstract class MatchResult {
 
   private MatchResult() {}
 
-  /**
-   * Returns a {@link MatchResult} given the {@link Status} and {@link Metadata}.
-   */
+  /** Returns a {@link MatchResult} given the {@link Status} and {@link Metadata}. */
   public static MatchResult create(Status status, List<Metadata> metadata) {
     return new AutoValue_MatchResult_Success(status, metadata);
   }
@@ -46,9 +43,7 @@ public abstract class MatchResult {
     }
   }
 
-  /**
-   * Returns a {@link MatchResult} given the {@link Status} and {@link IOException}.
-   */
+  /** Returns a {@link MatchResult} given the {@link Status} and {@link IOException}. */
   public static MatchResult create(final Status status, final IOException e) {
     return new AutoValue_MatchResult_Failure(status, e);
   }
@@ -63,53 +58,50 @@ public abstract class MatchResult {
     }
   }
 
-  /**
-   * Returns a {@link MatchResult} with {@link Status#UNKNOWN}.
-   */
+  /** Returns a {@link MatchResult} with {@link Status#UNKNOWN}. */
   public static MatchResult unknown() {
     return new AutoValue_MatchResult_Failure(
         Status.UNKNOWN,
         new IOException("MatchResult status is UNKNOWN, and metadata is not available."));
   }
 
-  /**
-   * Status of the {@link MatchResult}.
-   */
+  /** Status of the {@link MatchResult}. */
   public abstract Status status();
 
   /**
-   * {@link Metadata} of matched files.
+   * {@link Metadata} of matched files. Note that if {@link #status()} is {@link Status#NOT_FOUND},
+   * this may either throw a {@link java.io.FileNotFoundException} or return an empty list,
+   * depending on the {@link EmptyMatchTreatment} used in the {@link FileSystems#match} call.
    */
   public abstract List<Metadata> metadata() throws IOException;
 
-  /**
-   * {@link Metadata} of a matched file.
-   */
+  /** {@link Metadata} of a matched file. */
   @AutoValue
   public abstract static class Metadata implements Serializable {
     public abstract ResourceId resourceId();
+
     public abstract long sizeBytes();
+
     public abstract boolean isReadSeekEfficient();
 
     public static Builder builder() {
       return new AutoValue_MatchResult_Metadata.Builder();
     }
 
-    /**
-     * Builder class for {@link Metadata}.
-     */
+    /** Builder class for {@link Metadata}. */
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setResourceId(ResourceId value);
+
       public abstract Builder setSizeBytes(long value);
+
       public abstract Builder setIsReadSeekEfficient(boolean value);
+
       public abstract Metadata build();
     }
   }
 
-  /**
-   * Status of a {@link MatchResult}.
-   */
+  /** Status of a {@link MatchResult}. */
   public enum Status {
     UNKNOWN,
     OK,

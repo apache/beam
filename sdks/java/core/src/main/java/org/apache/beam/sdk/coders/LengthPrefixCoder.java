@@ -26,20 +26,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
- * A {@link Coder} which is able to take any existing coder and wrap it such that it is only
- * invoked in the {@link org.apache.beam.sdk.coders.Coder.Context#OUTER outer context}. The data
+ * A {@link Coder} which is able to take any existing coder and wrap it such that it is only invoked
+ * in the {@link org.apache.beam.sdk.coders.Coder.Context#OUTER outer context}. The data
  * representing the element is prefixed with a length using a variable integer encoding.
  *
  * @param <T> the type of the values being transcoded
  */
 public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
-  public static <T> LengthPrefixCoder<T> of(
-      Coder<T> valueCoder) {
+  public static <T> LengthPrefixCoder<T> of(Coder<T> valueCoder) {
     checkNotNull(valueCoder, "Coder not expected to be null");
     return new LengthPrefixCoder<>(valueCoder);
   }
@@ -53,8 +51,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     valueCoder.encode(value, bos, Context.OUTER);
     VarInt.encode(bos.size(), outStream);
@@ -72,9 +69,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
     return ImmutableList.of(valueCoder);
   }
 
-  /**
-   * Gets the value coder that will be prefixed by the length.
-   */
+  /** Gets the value coder that will be prefixed by the length. */
   public Coder<T> getValueCoder() {
     return valueCoder;
   }
@@ -82,7 +77,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   /**
    * {@code LengthPrefixCoder} is deterministic if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
@@ -92,7 +87,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   /**
    * {@code LengthPrefixCoder} is consistent with equals if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public boolean consistentWithEquals() {
@@ -104,7 +99,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * counting the bytes. The size is known to be the size of the value plus the number of bytes
    * required to prefix the length.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   protected long getEncodedElementByteSize(T value) throws Exception {
@@ -123,10 +118,10 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   /**
    * {@code LengthPrefixCoder} is cheap if {@code valueCoder} is cheap.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
+  public boolean isRegisterByteSizeObserverCheap(T value) {
     return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 }

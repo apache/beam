@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -38,6 +39,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   private final ImmutableListBundleFactory underlying;
+
   private CloningBundleFactory() {
     this.underlying = ImmutableListBundleFactory.create();
   }
@@ -49,8 +51,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(
-      PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
     return new CloningBundle<>(underlying.createBundle(output));
   }
 

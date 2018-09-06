@@ -36,10 +36,10 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
       getReplacementTransform(
           AppliedPTransform<
                   PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
-              GBKIntoKeyedWorkItems<KeyT, InputT>>
+                  GBKIntoKeyedWorkItems<KeyT, InputT>>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
+        new DirectGroupByKey.DirectGroupByKeyOnly<>());
   }
 }

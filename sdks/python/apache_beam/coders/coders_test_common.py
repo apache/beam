@@ -16,22 +16,25 @@
 #
 
 """Tests common to all coder implementations."""
+from __future__ import absolute_import
 
 import logging
 import math
 import unittest
+from builtins import range
 
 import dill
 
-from apache_beam.transforms.window import GlobalWindow
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-import observable
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders import coders
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-from apache_beam.coders import coders
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from . import observable
 
 
 # Defined out of line for picklability.
@@ -90,7 +93,8 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
                        (coder.get_impl().estimate_size(v), []))
     copy1 = dill.loads(dill.dumps(coder))
-    copy2 = dill.loads(dill.dumps(coder))
+    context = pipeline_context.PipelineContext()
+    copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
       if coder.is_deterministic():
@@ -100,7 +104,7 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(CustomCoder(), 1, -10, 5)
     self.check_coder(coders.TupleCoder((CustomCoder(), coders.BytesCoder())),
-                     (1, 'a'), (-10, 'b'), (5, 'c'))
+                     (1, b'a'), (-10, b'b'), (5, b'c'))
 
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
@@ -118,7 +122,7 @@ class CodersTest(unittest.TestCase):
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
-    cell_value = (lambda x: lambda: x)(0).func_closure[0]
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
@@ -126,7 +130,7 @@ class CodersTest(unittest.TestCase):
 
   def test_fast_primitives_coder(self):
     coder = coders.FastPrimitivesCoder(coders.SingletonCoder(len))
-    self.check_coder(coder, None, 1, -1, 1.5, 'str\0str', u'unicode\0\u0101')
+    self.check_coder(coder, None, 1, -1, 1.5, b'str\0str', u'unicode\0\u0101')
     self.check_coder(coder, (), (1, 2, 3))
     self.check_coder(coder, [], [1, 2, 3])
     self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
@@ -136,7 +140,7 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
   def test_bytes_coder(self):
-    self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
+    self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 
   def test_varint_coder(self):
     # Small ints.
@@ -187,7 +191,7 @@ class CodersTest(unittest.TestCase):
                      timestamp.Timestamp(micros=1234567890123456789))
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
-        (timestamp.Timestamp.of(27), 'abc'))
+        (timestamp.Timestamp.of(27), b'abc'))
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
@@ -203,14 +207,14 @@ class CodersTest(unittest.TestCase):
         kv_coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(
-        '\x04abc',
-        kv_coder.encode((4, 'abc')))
+        b'\x04abc',
+        kv_coder.encode((4, b'abc')))
     # Test unnested
     self.check_coder(
         kv_coder,
-        (1, 'a'),
-        (-2, 'a' * 100),
-        (300, 'abc\0' * 5))
+        (1, b'a'),
+        (-2, b'a' * 100),
+        (300, b'abc\0' * 5))
     # Test nested
     self.check_coder(
         coders.TupleCoder(
@@ -272,6 +276,38 @@ class CodersTest(unittest.TestCase):
                           iterable_coder.decode(
                               iterable_coder.encode(iter_generator(count))))
 
+  def test_windowedvalue_coder_paneinfo(self):
+    coder = coders.WindowedValueCoder(coders.VarIntCoder(),
+                                      coders.GlobalWindowCoder())
+    test_paneinfo_values = [
+        windowed_value.PANE_INFO_UNKNOWN,
+        windowed_value.PaneInfo(
+            True, True, windowed_value.PaneInfoTiming.EARLY, 0, -1),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 10, 0),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 23),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 12, 23),
+        windowed_value.PaneInfo(
+            False, False, windowed_value.PaneInfoTiming.LATE, 0, 123),]
+
+    test_values = [windowed_value.WindowedValue(123, 234, (GlobalWindow(),), p)
+                   for p in test_paneinfo_values]
+
+    # Test unnested.
+    self.check_coder(coder, windowed_value.WindowedValue(
+        123, 234, (GlobalWindow(),), windowed_value.PANE_INFO_UNKNOWN))
+    for value in test_values:
+      self.check_coder(coder, value)
+
+    # Test nested.
+    for value1 in test_values:
+      for value2 in test_values:
+        self.check_coder(coders.TupleCoder((coder, coder)), (value1, value2))
+
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(coders.VarIntCoder(),
                                       coders.GlobalWindowCoder())
@@ -287,12 +323,12 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
+    self.assertEqual(b'\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
                      coder.encode(window.GlobalWindows.windowed_value(1)))
 
     # Test decoding large timestamp
     self.assertEqual(
-        coder.decode('\x7f\xdf;dZ\x1c\xac\x08\x00\x00\x00\x01\x0f\x00'),
+        coder.decode(b'\x7f\xdf;dZ\x1c\xac\x08\x00\x00\x00\x01\x0f\x00'),
         windowed_value.create(0, MIN_TIMESTAMP.micros, (GlobalWindow(),)))
 
     # Test unnested
@@ -329,7 +365,7 @@ class CodersTest(unittest.TestCase):
     proto_coder = coders.ProtoCoder(ma.__class__)
     self.check_coder(proto_coder, ma)
     self.check_coder(coders.TupleCoder((proto_coder, coders.BytesCoder())),
-                     (ma, 'a'), (mb, 'b'))
+                     (ma, b'a'), (mb, b'b'))
 
   def test_global_window_coder(self):
     coder = coders.GlobalWindowCoder()
@@ -356,16 +392,16 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x00', coder.encode(''))
-    self.assertEqual('\x01a', coder.encode('a'))
-    self.assertEqual('\x02bc', coder.encode('bc'))
-    self.assertEqual('\xff\x7f' + 'z' * 16383, coder.encode('z' * 16383))
+    self.assertEqual(b'\x00', coder.encode(b''))
+    self.assertEqual(b'\x01a', coder.encode(b'a'))
+    self.assertEqual(b'\x02bc', coder.encode(b'bc'))
+    self.assertEqual(b'\xff\x7f' + b'z' * 16383, coder.encode(b'z' * 16383))
     # Test unnested
-    self.check_coder(coder, '', 'a', 'bc', 'def')
+    self.check_coder(coder, b'', b'a', b'bc', b'def')
     # Test nested
     self.check_coder(coders.TupleCoder((coder, coder)),
-                     ('', 'a'),
-                     ('bc', 'def'))
+                     (b'', b'a'),
+                     (b'bc', b'def'))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):

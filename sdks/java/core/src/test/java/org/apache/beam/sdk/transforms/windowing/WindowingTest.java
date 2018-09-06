@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -50,42 +52,54 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowingTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public transient TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
-    private final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
+    private static final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) {
         c.output(
             c.element().getKey()
-                + ":" + c.element().getValue()
-                + ":" + c.timestamp().getMillis()
-                + ":" + window);
+                + ":"
+                + c.element().getValue()
+                + ":"
+                + c.timestamp().getMillis()
+                + ":"
+                + window);
       }
     }
+
     private WindowFn<? super String, ?> windowFn;
+
     public WindowedCount(WindowFn<? super String, ?> windowFn) {
       this.windowFn = windowFn;
     }
+
     @Override
     public PCollection<String> expand(PCollection<String> in) {
-      return in.apply("Window",
-              Window.<String>into(windowFn)
-                  .withTimestampCombiner(TimestampCombiner.EARLIEST))
-          .apply(Count.<String>perElement())
+      return in.apply(
+              "Window",
+              Window.<String>into(windowFn).withTimestampCombiner(TimestampCombiner.EARLIEST))
+          .apply(Count.perElement())
           .apply("FormatCounts", ParDo.of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
     }
   }
 
   private String output(String value, int count, int timestamp, int windowStart, int windowEnd) {
-    return value + ":" + count + ":" + timestamp
-        + ":[" + new Instant(windowStart) + ".." + new Instant(windowEnd) + ")";
+    return value
+        + ":"
+        + count
+        + ":"
+        + timestamp
+        + ":["
+        + new Instant(windowStart)
+        + ".."
+        + new Instant(windowEnd)
+        + ")";
   }
 
   @Test
@@ -100,15 +114,14 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("c", new Instant(11)),
                 TimestampedValue.of("d", new Instant(11))));
 
-    PCollection<String> output =
-        input
-        .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
+    PCollection<String> output = input.apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
-    PAssert.that(output).containsInAnyOrder(
-        output("a", 1, 1, 0, 10),
-        output("b", 2, 2, 0, 10),
-        output("c", 1, 11, 10, 20),
-        output("d", 1, 11, 10, 20));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            output("a", 1, 1, 0, 10),
+            output("b", 2, 2, 0, 10),
+            output("c", 1, 11, 10, 20),
+            output("d", 1, 11, 10, 20));
 
     p.run();
   }
@@ -124,16 +137,15 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("b", new Instant(8))));
 
     PCollection<String> output =
-        input
-        .apply(new WindowedCount(
-            SlidingWindows.of(new Duration(10)).every(new Duration(5))));
+        input.apply(new WindowedCount(SlidingWindows.of(new Duration(10)).every(new Duration(5))));
 
-    PAssert.that(output).containsInAnyOrder(
-        output("a", 1, 1, -5, 5),
-        output("a", 2, 5, 0, 10),
-        output("a", 1, 10, 5, 15),
-        output("b", 1, 8, 0, 10),
-        output("b", 1, 10, 5, 15));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            output("a", 1, 1, -5, 5),
+            output("a", 2, 5, 0, 10),
+            output("a", 1, 10, 5, 15),
+            output("b", 1, 8, 0, 10),
+            output("b", 1, 10, 5, 15));
 
     p.run();
   }
@@ -149,12 +161,9 @@ public class WindowingTest implements Serializable {
                 TimestampedValue.of("a", new Instant(20))));
 
     PCollection<String> output =
-        input
-        .apply(new WindowedCount(Sessions.withGapDuration(new Duration(10))));
+        input.apply(new WindowedCount(Sessions.withGapDuration(new Duration(10))));
 
-    PAssert.that(output).containsInAnyOrder(
-        output("a", 2, 1, 1, 15),
-        output("a", 1, 20, 20, 30));
+    PAssert.that(output).containsInAnyOrder(output("a", 2, 1, 1, 15), output("a", 1, 20, 20, 30));
 
     p.run();
   }
@@ -162,26 +171,28 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowPreservation() {
-    PCollection<String> input1 = p.apply("Create12",
-        Create.timestamped(
-            TimestampedValue.of("a", new Instant(1)),
-            TimestampedValue.of("b", new Instant(2))));
+    PCollection<String> input1 =
+        p.apply(
+            "Create12",
+            Create.timestamped(
+                TimestampedValue.of("a", new Instant(1)),
+                TimestampedValue.of("b", new Instant(2))));
 
-    PCollection<String> input2 = p.apply("Create34",
-        Create.timestamped(
-            TimestampedValue.of("a", new Instant(3)),
-            TimestampedValue.of("b", new Instant(4))));
+    PCollection<String> input2 =
+        p.apply(
+            "Create34",
+            Create.timestamped(
+                TimestampedValue.of("a", new Instant(3)),
+                TimestampedValue.of("b", new Instant(4))));
 
     PCollectionList<String> input = PCollectionList.of(input1).and(input2);
 
     PCollection<String> output =
         input
-        .apply(Flatten.<String>pCollections())
-        .apply(new WindowedCount(FixedWindows.of(new Duration(5))));
+            .apply(Flatten.pCollections())
+            .apply(new WindowedCount(FixedWindows.of(new Duration(5))));
 
-    PAssert.that(output).containsInAnyOrder(
-        output("a", 2, 1, 0, 5),
-        output("b", 2, 2, 0, 5));
+    PAssert.that(output).containsInAnyOrder(output("a", 2, 1, 0, 5), output("b", 2, 2, 0, 5));
 
     p.run();
   }
@@ -191,9 +202,7 @@ public class WindowingTest implements Serializable {
   public void testEmptyInput() {
     PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of()));
 
-    PCollection<String> output =
-        input
-        .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
+    PCollection<String> output = input.apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
     PAssert.that(output).empty();
 
@@ -214,16 +223,18 @@ public class WindowingTest implements Serializable {
       writer.println("d 11");
     }
 
-    PCollection<String> output = p.begin()
-        .apply("ReadLines", TextIO.read().from(filename))
-        .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
-        .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
+    PCollection<String> output =
+        p.begin()
+            .apply("ReadLines", TextIO.read().from(filename))
+            .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
+            .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
-    PAssert.that(output).containsInAnyOrder(
-        output("a", 1, 1, 0, 10),
-        output("b", 2, 2, 0, 10),
-        output("c", 1, 11, 10, 20),
-        output("d", 1, 11, 10, 20));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            output("a", 1, 1, 0, 10),
+            output("b", 2, 2, 0, 10),
+            output("c", 1, 11, 10, 20),
+            output("d", 1, 11, 10, 20));
 
     p.run();
   }
@@ -232,9 +243,9 @@ public class WindowingTest implements Serializable {
   static class ExtractWordsWithTimestampsFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split("[^a-zA-Z0-9']+");
-      if (words.length == 2) {
-        c.outputWithTimestamp(words[0], new Instant(Long.parseLong(words[1])));
+      List<String> words = Splitter.onPattern("[^a-zA-Z0-9']+").splitToList(c.element());
+      if (words.size() == 2) {
+        c.outputWithTimestamp(words.get(0), new Instant(Long.parseLong(words.get(1))));
       }
     }
   }

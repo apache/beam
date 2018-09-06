@@ -27,9 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Static factory methods for constructing instances of {@link TransformExecutorService}.
- */
+/** Static factory methods for constructing instances of {@link TransformExecutorService}. */
 final class TransformExecutorServices {
   private TransformExecutorServices() {
     // Do not instantiate
@@ -69,7 +67,9 @@ final class TransformExecutorServices {
     }
 
     @Override
-    public void schedule(TransformExecutor<?> work) {
+    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    @SuppressWarnings("FutureReturnValueIgnored")
+    public void schedule(TransformExecutor work) {
       if (active.get()) {
         try {
           executor.submit(work);
@@ -92,8 +92,7 @@ final class TransformExecutorServices {
     }
 
     @Override
-    public void complete(TransformExecutor<?> completed) {
-    }
+    public void complete(TransformExecutor completed) {}
 
     @Override
     public void shutdown() {
@@ -106,14 +105,14 @@ final class TransformExecutorServices {
    * scheduled will be placed on the work queue. Only one item of work will be submitted to the
    * {@link ExecutorService} at any time.
    *
-   * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair.
-   * Keyed computations are processed serially per step.
+   * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair. Keyed
+   * computations are processed serially per step.
    */
   private static class SerialTransformExecutor implements TransformExecutorService {
     private final ExecutorService executor;
 
-    private AtomicReference<TransformExecutor<?>> currentlyEvaluating;
-    private final Queue<TransformExecutor<?>> workQueue;
+    private AtomicReference<TransformExecutor> currentlyEvaluating;
+    private final Queue<TransformExecutor> workQueue;
     private boolean active = true;
 
     private SerialTransformExecutor(ExecutorService executor) {
@@ -127,13 +126,13 @@ final class TransformExecutorServices {
      * evaluated and scheduling it immediately otherwise.
      */
     @Override
-    public void schedule(TransformExecutor<?> work) {
+    public void schedule(TransformExecutor work) {
       workQueue.offer(work);
       updateCurrentlyEvaluating();
     }
 
     @Override
-    public void complete(TransformExecutor<?> completed) {
+    public void complete(TransformExecutor completed) {
       if (!currentlyEvaluating.compareAndSet(completed, null)) {
         throw new IllegalStateException(
             "Finished work "
@@ -152,11 +151,13 @@ final class TransformExecutorServices {
       workQueue.clear();
     }
 
+    // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void updateCurrentlyEvaluating() {
       if (currentlyEvaluating.get() == null) {
         // Only synchronize if we need to update what's currently evaluating
         synchronized (this) {
-          TransformExecutor<?> newWork = workQueue.poll();
+          TransformExecutor newWork = workQueue.poll();
           if (active && newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
               executor.submit(newWork);

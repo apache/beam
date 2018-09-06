@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.apex.translation;
 
+import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -42,7 +43,6 @@ import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInput
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -61,15 +61,14 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * integration test for {@link ParDoTranslator}.
- */
+/** integration test for {@link ParDoTranslator}. */
 @RunWith(JUnit4.class)
 public class ParDoTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslatorTest.class);
@@ -78,8 +77,7 @@ public class ParDoTranslatorTest {
 
   @Test
   public void test() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     options.setApplicationName("ParDoBound");
     options.setRunner(ApexRunner.class);
 
@@ -162,19 +160,19 @@ public class ParDoTranslatorTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3272")
   public void testAssertionFailure() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(1, 2, 3, 4));
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
     Throwable exc = runExpectingAssertionFailure(pipeline);
-    Pattern expectedPattern = Pattern.compile(
-        "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
+    Pattern expectedPattern =
+        Pattern.compile(
+            "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
     // A loose pattern, but should get the job done.
     assertTrue(
         "Expected error message from PAssert with substring matching "
@@ -198,43 +196,44 @@ public class ParDoTranslatorTest {
 
   @Test
   public void testSerialization() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
-    Coder<WindowedValue<Integer>> coder = WindowedValue.getValueOnlyCoder(VarIntCoder.of());
 
-    PCollectionView<Integer> singletonView = pipeline.apply(Create.of(1))
-            .apply(Sum.integersGlobally().asSingletonView());
+    PCollectionView<Integer> singletonView =
+        pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
 
     ApexParDoOperator<Integer, Integer> operator =
         new ApexParDoOperator<>(
             options,
             new Add(singletonView),
-            new TupleTag<Integer>(),
+            new TupleTag<>(),
             TupleTagList.empty().getAll(),
             WindowingStrategy.globalDefault(),
-            Collections.<PCollectionView<?>>singletonList(singletonView),
-            coder,
+            Collections.singletonList(singletonView),
+            VarIntCoder.of(),
+            Collections.emptyMap(),
             new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
-    WindowedValue<Iterable<?>> sideInput = WindowedValue.<Iterable<?>>valueInGlobalWindow(
-        Lists.<Integer>newArrayList(22));
+    WindowedValue<Iterable<?>> sideInput =
+        WindowedValue.valueInGlobalWindow(materializeValuesFor(View.asSingleton(), 22));
     operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
     final List<Object> results = Lists.newArrayList();
-    Sink<Object> sink =  new Sink<Object>() {
-      @Override
-      public void put(Object tuple) {
-        results.add(tuple);
-      }
-      @Override
-      public int getCount(boolean reset) {
-        return 0;
-      }
-    };
+    Sink<Object> sink =
+        new Sink<Object>() {
+          @Override
+          public void put(Object tuple) {
+            results.add(tuple);
+          }
+
+          @Override
+          public int getCount(boolean reset) {
+            return 0;
+          }
+        };
 
     // verify pushed back input checkpointing
     Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
@@ -244,7 +243,9 @@ public class ParDoTranslatorTest {
     WindowedValue<Integer> wv2 = WindowedValue.valueInGlobalWindow(2);
     operator.sideInput1.process(ApexStreamTuple.DataTuple.of(sideInput));
     Assert.assertEquals("number outputs", 1, results.size());
-    Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(23),
+    Assert.assertEquals(
+        "result",
+        WindowedValue.valueInGlobalWindow(23),
         ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
 
     // verify side input checkpointing
@@ -255,7 +256,9 @@ public class ParDoTranslatorTest {
     operator.beginWindow(2);
     operator.input.process(ApexStreamTuple.DataTuple.of(wv2));
     Assert.assertEquals("number outputs", 1, results.size());
-    Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(24),
+    Assert.assertEquals(
+        "result",
+        WindowedValue.valueInGlobalWindow(24),
         ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
   }
 
@@ -269,33 +272,38 @@ public class ParDoTranslatorTest {
     final TupleTag<String> mainOutputTag = new TupleTag<>("main");
     final TupleTag<Void> additionalOutputTag = new TupleTag<>("output");
 
-    PCollectionView<Integer> sideInput1 = pipeline
-        .apply("CreateSideInput1", Create.of(11))
-        .apply("ViewSideInput1", View.<Integer>asSingleton());
-    PCollectionView<Integer> sideInputUnread = pipeline
-        .apply("CreateSideInputUnread", Create.of(-3333))
-        .apply("ViewSideInputUnread", View.<Integer>asSingleton());
-    PCollectionView<Integer> sideInput2 = pipeline
-        .apply("CreateSideInput2", Create.of(222))
-        .apply("ViewSideInput2", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInput1 =
+        pipeline
+            .apply("CreateSideInput1", Create.of(11))
+            .apply("ViewSideInput1", View.asSingleton());
+    PCollectionView<Integer> sideInputUnread =
+        pipeline
+            .apply("CreateSideInputUnread", Create.of(-3333))
+            .apply("ViewSideInputUnread", View.asSingleton());
+    PCollectionView<Integer> sideInput2 =
+        pipeline
+            .apply("CreateSideInput2", Create.of(222))
+            .apply("ViewSideInput2", View.asSingleton());
 
-    PCollectionTuple outputs = pipeline
-        .apply(Create.of(inputs))
-        .apply(ParDo
-            .of(new TestMultiOutputWithSideInputsFn(
-                Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList()))
-            .withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
+    PCollectionTuple outputs =
+        pipeline
+            .apply(Create.of(inputs))
+            .apply(
+                ParDo.of(
+                        new TestMultiOutputWithSideInputsFn(
+                            Arrays.asList(sideInput1, sideInput2), Arrays.asList()))
+                    .withSideInputs(sideInput1)
+                    .withSideInputs(sideInputUnread)
+                    .withSideInputs(sideInput2)
+                    .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
     outputs.get(additionalOutputTag).setCoder(VoidCoder.of());
     ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
 
-    HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
-        "processing: -42: [11, 222]", "processing: 666: [11, 222]");
+    HashSet<String> expected =
+        Sets.newHashSet(
+            "processing: 3: [11, 222]", "processing: -42: [11, 222]", "processing: 666: [11, 222]");
     long timeout = System.currentTimeMillis() + TIMEOUT_MILLIS;
     while (System.currentTimeMillis() < timeout) {
       if (EmbeddedCollector.RESULTS.containsAll(expected)) {
@@ -314,7 +322,8 @@ public class ParDoTranslatorTest {
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> additionalOutputTupleTags = new ArrayList<>();
 
-    public TestMultiOutputWithSideInputsFn(List<PCollectionView<Integer>> sideInputViews,
+    public TestMultiOutputWithSideInputsFn(
+        List<PCollectionView<Integer>> sideInputViews,
         List<TupleTag<String>> additionalOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
       this.additionalOutputTupleTags.addAll(additionalOutputTupleTags);
@@ -335,11 +344,8 @@ public class ParDoTranslatorTest {
       }
       c.output(value);
       for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
-        c.output(additionalOutputTupleTag,
-                     additionalOutputTupleTag.getId() + ": " + value);
+        c.output(additionalOutputTupleTag, additionalOutputTupleTag.getId() + ": " + value);
       }
     }
-
   }
-
 }

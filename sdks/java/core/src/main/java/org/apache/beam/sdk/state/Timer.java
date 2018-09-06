@@ -38,8 +38,7 @@ import org.joda.time.Instant;
  * per scope.
  *
  * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
- * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp
- * order.
+ * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp order.
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {

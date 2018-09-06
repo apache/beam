@@ -21,7 +21,6 @@ import static org.junit.Assert.assertFalse;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -34,34 +33,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the CoGbkResult.CoGbkResultCoder.
- */
+/** Tests the CoGbkResult.CoGbkResultCoder. */
 @RunWith(JUnit4.class)
 public class CoGbkResultCoderTest {
 
   private static final CoGbkResultSchema TEST_SCHEMA =
-        new CoGbkResultSchema(TupleTagList.of(new TupleTag<String>()).and(
-            new TupleTag<Integer>()));
+      new CoGbkResultSchema(TupleTagList.of(new TupleTag<String>()).and(new TupleTag<Integer>()));
 
   private static final UnionCoder TEST_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
-          StringUtf8Coder.of(),
-          VarIntCoder.of()));
+      UnionCoder.of(ImmutableList.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
   private static final UnionCoder COMPATIBLE_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
-          StringUtf8Coder.of(),
-          BigEndianIntegerCoder.of()));
+      UnionCoder.of(ImmutableList.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
   private static final CoGbkResultSchema INCOMPATIBLE_SCHEMA =
-        new CoGbkResultSchema(TupleTagList.of(new TupleTag<String>()).and(
-            new TupleTag<Double>()));
+      new CoGbkResultSchema(TupleTagList.of(new TupleTag<String>()).and(new TupleTag<Double>()));
 
   private static final UnionCoder INCOMPATIBLE_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
-          StringUtf8Coder.of(),
-          DoubleCoder.of()));
+      UnionCoder.of(ImmutableList.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
   private static final CoGbkResultCoder TEST_CODER =
       CoGbkResultCoder.of(TEST_SCHEMA, TEST_UNION_CODER);
@@ -86,8 +75,9 @@ public class CoGbkResultCoderTest {
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(CoGbkResultCoder.of(
-        CoGbkResultSchema.of(ImmutableList.<TupleTag<?>>of(new TupleTag<GlobalWindow>())),
-        UnionCoder.of(ImmutableList.<Coder<?>>of(GlobalWindow.Coder.INSTANCE))));
+    CoderProperties.coderSerializable(
+        CoGbkResultCoder.of(
+            CoGbkResultSchema.of(ImmutableList.of(new TupleTag<GlobalWindow>())),
+            UnionCoder.of(ImmutableList.of(GlobalWindow.Coder.INSTANCE))));
   }
 }

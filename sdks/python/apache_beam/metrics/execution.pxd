@@ -22,10 +22,4 @@ cdef class MetricsContainer(object):
   cdef object step_name
   cdef public object counters
   cdef public object distributions
-
-
-cdef class ScopedMetricsContainer(object):
-  cpdef enter(self)
-  cpdef exit(self)
-  cdef list _stack
-  cdef MetricsContainer _container
+  cdef public object gauges

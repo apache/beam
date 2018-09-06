@@ -23,7 +23,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-
 /**
  * Signifies that a public API (public class, method or field) is subject to incompatible changes,
  * or even removal, in a future release.
@@ -43,9 +42,7 @@ import java.lang.annotation.Target;
 public @interface Experimental {
   Kind value() default Kind.UNSPECIFIED;
 
-  /**
-   * An enumeration of various kinds of experimental APIs.
-   */
+  /** An enumeration of various kinds of experimental APIs. */
   enum Kind {
     /** Generic group of experimental APIs. This is the default value. */
     UNSPECIFIED,
@@ -72,8 +69,9 @@ public @interface Experimental {
     OUTPUT_TIME,
 
     /**
-     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
-     * Do not use: API is unstable and runner support is incomplete.
+     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>. See <a
+     * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>
+     * for runner support.
      */
     SPLITTABLE_DO_FN,
 
@@ -93,6 +91,15 @@ public @interface Experimental {
     CORE_RUNNERS_ONLY,
 
     /** Experimental feature related to making the encoded element type available from a Coder. */
-    CODER_TYPE_ENCODING
+    CODER_TYPE_ENCODING,
+
+    /**
+     * Experimental APIs related to <a href="https://s.apache.org/context-fn">contextful
+     * closures</a>.
+     */
+    CONTEXTFUL,
+
+    /** PCollection Schema support in Beam. */
+    SCHEMAS,
   }
 }

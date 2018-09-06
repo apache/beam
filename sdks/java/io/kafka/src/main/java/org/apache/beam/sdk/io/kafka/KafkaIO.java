@@ -23,40 +23,22 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Random;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -65,12 +47,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
-import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Gauge;
-import org.apache.beam.sdk.metrics.SinkMetrics;
-import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -86,21 +62,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -109,16 +80,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and 0.10 are supported. If you need a specific version of Kafka
- * client(e.g. 0.9 for 0.9 servers, or 0.10 for security features), specify explicit
- * kafka-client dependency.
  *
  * <h3>Reading from Kafka topics</h3>
  *
- * <p>KafkaIO source returns unbounded collection of Kafka records as
- * {@code PCollection<KafkaRecord<K, V>>}. A {@link KafkaRecord} includes basic
- * metadata like topic-partition and offset, along with key and value associated with a Kafka
- * record.
+ * <p>KafkaIO source returns unbounded collection of Kafka records as {@code
+ * PCollection<KafkaRecord<K, V>>}. A {@link KafkaRecord} includes basic metadata like
+ * topic-partition and offset, along with key and value associated with a Kafka record.
  *
  * <p>Although most applications consume a single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
@@ -127,159 +94,177 @@ import org.slf4j.LoggerFactory;
  * one or more topics to consume, and key and value deserializers. For example:
  *
  * <pre>{@code
+ * pipeline
+ *   .apply(KafkaIO.<Long, String>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      .withValueDeserializer(StringDeserializer.class)
  *
- *  pipeline
- *    .apply(KafkaIO.<Long, String>read()
- *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
- *       .withKeyDeserializer(LongDeserializer.class)
- *       .withValueDeserializer(StringDeserializer.class)
+ *      // Above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
  *
- *       // above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
+ *      // Rest of the settings are optional :
  *
- *       // rest of the settings are optional :
+ *      // you can further customize KafkaConsumer used to read the records by adding more
+ *      // settings for ConsumerConfig. e.g :
+ *      .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
- *       // you can further customize KafkaConsumer used to read the records by adding more
- *       // settings for ConsumerConfig. e.g :
- *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
+ *      // set event times and watermark based on 'LogAppendTime'. To provide a custom
+ *      // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
+ *      // Use withCreateTime() with topics that have 'CreateTime' timestamps.
+ *      .withLogAppendTime()
  *
- *       // custom function for calculating record timestamp (default is processing time)
- *       .withTimestampFn(new MyTypestampFunction())
+ *      // restrict reader to committed messages on Kafka (see method documentation).
+ *      .withReadCommitted()
  *
- *       // custom function for watermark (default is record timestamp)
- *       .withWatermarkFn(new MyWatermarkFunction())
+ *      // offset consumed by the pipeline can be committed back.
+ *      .commitOffsetsInFinalize()
  *
- *       // finally, if you don't need Kafka metadata, you can drop it
- *       .withoutMetadata() // PCollection<KV<Long, String>>
- *    )
- *    .apply(Values.<String>create()) // PCollection<String>
- *     ...
+ *      // finally, if you don't need Kafka metadata, you can drop it.g
+ *      .withoutMetadata() // PCollection<KV<Long, String>>
+ *   )
+ *   .apply(Values.<String>create()) // PCollection<String>
+ *    ...
  * }</pre>
  *
- * <p>Kafka provides deserializers for common types in
- * {@link org.apache.kafka.common.serialization}. In addition to deserializers, Beam runners need
- * {@link Coder} to materialize key and value objects if necessary.
- * In most cases, you don't need to specify {@link Coder} for key and value in the resulting
- * collection because the coders are inferred from deserializer types. However, in cases when
- * coder inference fails, they can be specified explicitly along with deserializers using
- * {@link Read#withKeyDeserializerAndCoder(Class, Coder)} and
- * {@link Read#withValueDeserializerAndCoder(Class, Coder)}. Note that Kafka messages are
- * interpreted using key and value <i>deserializers</i>.
+ * <p>Kafka provides deserializers for common types in {@link
+ * org.apache.kafka.common.serialization}. In addition to deserializers, Beam runners need {@link
+ * Coder} to materialize key and value objects if necessary. In most cases, you don't need to
+ * specify {@link Coder} for key and value in the resulting collection because the coders are
+ * inferred from deserializer types. However, in cases when coder inference fails, they can be
+ * specified explicitly along with deserializers using {@link
+ * Read#withKeyDeserializerAndCoder(Class, Coder)} and {@link
+ * Read#withValueDeserializerAndCoder(Class, Coder)}. Note that Kafka messages are interpreted using
+ * key and value <i>deserializers</i>.
  *
  * <h3>Partition Assignment and Checkpointing</h3>
+ *
  * The Kafka partitions are evenly distributed among splits (workers).
  *
- * <p>Checkpointing is fully supported and each split can resume from previous checkpoint
- * (to the extent supported by runner).
- * See {@link UnboundedKafkaSource#split(int, PipelineOptions)} for more details on
- * splits and checkpoint support.
+ * <p>Checkpointing is fully supported and each split can resume from previous checkpoint (to the
+ * extent supported by runner). See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for
+ * more details on splits and checkpoint support.
  *
  * <p>When the pipeline starts for the first time, or without any checkpoint, the source starts
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
- * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through
- * {@link Read#updateConsumerProperties(Map)}.
- * You can also enable offset auto_commit in Kafka to resume from last committed.
+ * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through {@link
+ * Read#updateConsumerProperties(Map)}. You can also enable offset auto_commit in Kafka to resume
+ * from last committed.
  *
  * <p>In summary, KafkaIO.read follows below sequence to set initial offset:<br>
  * 1. {@link KafkaCheckpointMark} provided by runner;<br>
- * 2. Consumer offset stored in Kafka when
- * {@code ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG = true};<br>
+ * 2. Consumer offset stored in Kafka when {@code ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG = true};
+ * <br>
  * 3. Start from <em>latest</em> offset by default;
  *
  * <h3>Writing to Kafka</h3>
  *
- * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
- * just the values. To configure a Kafka sink, you must specify at the minimum Kafka
+ * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
+ * values. To configure a Kafka sink, you must specify at the minimum Kafka
  * <tt>bootstrapServers</tt>, the topic to write to, and key and value serializers. For example:
  *
  * <pre>{@code
+ * PCollection<KV<Long, String>> kvColl = ...;
+ * kvColl.apply(KafkaIO.<Long, String>write()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("results")
  *
- *  PCollection<KV<Long, String>> kvColl = ...;
- *  kvColl.apply(KafkaIO.<Long, String>write()
- *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopic("results")
+ *      .withKeySerializer(LongSerializer.class)
+ *      .withValueSerializer(StringSerializer.class)
  *
- *       .withKeySerializer(LongSerializer.class)
- *       .withValueSerializer(StringSerializer.class)
+ *      // You can further customize KafkaProducer used to write the records by adding more
+ *      // settings for ProducerConfig. e.g, to enable compression :
+ *      .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
  *
- *       // you can further customize KafkaProducer used to write the records by adding more
- *       // settings for ProducerConfig. e.g, to enable compression :
- *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
- *    );
+ *      // You set publish timestamp for the Kafka records.
+ *      .withInputTimestamp() // element timestamp is used while publishing to Kafka
+ *      // or you can also set a custom timestamp with a function.
+ *      .withPublishTimestampFunction((elem, elemTs) -> ...)
+ *
+ *      // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
+ *      .withEOS(20, "eos-sink-group-id");
+ *   );
  * }</pre>
  *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
  * <pre>{@code
- *  PCollection<String> strings = ...;
- *  strings.apply(KafkaIO.<Void, String>write()
- *      .withBootstrapServers("broker_1:9092,broker_2:9092")
- *      .withTopic("results")
- *      .withValueSerializer(new StringSerializer()) // just need serializer for value
- *      .values()
- *    );
+ * PCollection<String> strings = ...;
+ * strings.apply(KafkaIO.<Void, String>write()
+ *     .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *     .withTopic("results")
+ *     .withValueSerializer(StringSerializer.class) // just need serializer for value
+ *     .values()
+ *   );
  * }</pre>
  *
  * <h3>Advanced Kafka Configuration</h3>
- * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in
- * {@link ProducerConfig} for sink. E.g. if you would like to enable offset
- * <em>auto commit</em> (for external monitoring or other purposes), you can set
- * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
- * <h3>Event Timestamp and Watermark</h3>
- * By default record timestamp and watermark are based on processing time in KafkaIO reader.
- * This can be overridden by providing {@code WatermarkFn} with
- * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
- * {@link Read#withTimestampFn(SerializableFunction)}.<br>
- * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
- * otherwise it is set to processing time.
+ * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in {@link
+ * ProducerConfig} for sink. E.g. if you would like to enable offset <em>auto commit</em> (for
+ * external monitoring or other purposes), you can set <tt>"group.id"</tt>,
+ * <tt>"enable.auto.commit"</tt>, etc.
+ *
+ * <h3>Event Timestamps and Watermark</h3>
+ *
+ * By default, record timestamp (event time) is set to processing time in KafkaIO reader and source
+ * watermark is current wall time. If a topic has Kafka server-side ingestion timestamp enabled
+ * ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}. A custom timestamp
+ * policy can be provided by implementing {@link TimestampPolicyFactory}. See {@link
+ * Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
+ *
+ * <h3>Supported Kafka Client Versions</h3>
+ *
+ * KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. The older versions 0.9.x
+ * - 0.10.0.0 are also supported, but are deprecated and likely be removed in near future. Please
+ * ensure that the version included with the application is compatible with the version of your
+ * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
+ * incompatibility.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * A specific instance of uninitialized {@link #read()} where key and values are bytes. See
+   * #read().
    */
   public static Read<byte[], byte[]> readBytes() {
-    return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
-        .setKeyDeserializer(ByteArrayDeserializer.class)
-        .setValueDeserializer(ByteArrayDeserializer.class)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
-        .setMaxNumRecords(Long.MAX_VALUE)
-        .build();
+    return KafkaIO.<byte[], byte[]>read()
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(ByteArrayDeserializer.class);
   }
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka configuration
+   * should set with {@link Read#withBootstrapServers(String)} and {@link Read#withTopics(List)}.
+   * Other optional settings include key and value {@link Deserializer}s, custom timestamp and
+   * watermark functions.
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setTopics(new ArrayList<>())
+        .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
+        .setCommitOffsetsInFinalizeEnabled(false)
+        .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
   }
 
   /**
    * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
-   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
-   * along with {@link Deserializer}s for (optional) key and values.
+   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic} along
+   * with {@link Deserializer}s for (optional) key and values.
    */
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
+        .setEOS(false)
+        .setNumShards(0)
+        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .build();
   }
 
@@ -293,70 +278,100 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
+
     abstract List<String> getTopics();
+
     abstract List<TopicPartition> getTopicPartitions();
-    @Nullable abstract Coder<K> getKeyCoder();
-    @Nullable abstract Coder<V> getValueCoder();
-    @Nullable abstract Class<? extends Deserializer<K>> getKeyDeserializer();
-    @Nullable abstract Class<? extends Deserializer<V>> getValueDeserializer();
+
+    @Nullable
+    abstract Coder<K> getKeyCoder();
+
+    @Nullable
+    abstract Coder<V> getValueCoder();
+
+    @Nullable
+    abstract Class<? extends Deserializer<K>> getKeyDeserializer();
+
+    @Nullable
+    abstract Class<? extends Deserializer<V>> getValueDeserializer();
+
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
-    @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getTimestampFn();
-    @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
+
+    @Nullable
+    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     abstract long getMaxNumRecords();
-    @Nullable abstract Duration getMaxReadTime();
 
-    @Nullable abstract Instant getStartReadTime();
+    @Nullable
+    abstract Duration getMaxReadTime();
+
+    @Nullable
+    abstract Instant getStartReadTime();
+
+    abstract boolean isCommitOffsetsInFinalizeEnabled();
+
+    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
+
       abstract Builder<K, V> setTopics(List<String> topics);
+
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
       abstract Builder<K, V> setKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer);
+
       abstract Builder<K, V> setValueDeserializer(
           Class<? extends Deserializer<V>> valueDeserializer);
+
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
-      abstract Builder<K, V> setTimestampFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
+
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
+
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
+
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
+
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
+
+      abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
+
+      abstract Builder<K, V> setTimestampPolicyFactory(
+          TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
       abstract Read<K, V> build();
     }
 
-    /**
-     * Sets the bootstrap servers for the Kafka consumer.
-     */
+    /** Sets the bootstrap servers for the Kafka consumer. */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
       return updateConsumerProperties(
-          ImmutableMap.<String, Object>of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
      * Sets the topic to read from.
      *
-     * <p>See {@link UnboundedKafkaSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
       return withTopics(ImmutableList.of(topic));
     }
 
     /**
-     * Sets a list of topics to read from. All the partitions from each
-     * of the topics are read.
+     * Sets a list of topics to read from. All the partitions from each of the topics are read.
      *
-     * <p>See {@link UnboundedKafkaSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
@@ -365,11 +380,11 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a list of partitions to read from. This allows reading only a subset
-     * of partitions for one or more topics when (if ever) needed.
+     * Sets a list of partitions to read from. This allows reading only a subset of partitions for
+     * one or more topics when (if ever) needed.
      *
-     * <p>See {@link UnboundedKafkaSource#split(int, PipelineOptions)} for description
-     * of how the partitions are distributed among the splits.
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
       checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
@@ -425,153 +440,264 @@ public class KafkaIO {
     }
 
     /**
-     * A factory to create Kafka {@link Consumer} from consumer configuration.
-     * This is useful for supporting another version of Kafka consumer.
-     * Default is {@link KafkaConsumer}.
+     * A factory to create Kafka {@link Consumer} from consumer configuration. This is useful for
+     * supporting another version of Kafka consumer. Default is {@link KafkaConsumer}.
      */
     public Read<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
     }
 
-    /**
-     * Update consumer configuration with new properties.
-     */
+    /** Update consumer configuration with new properties. */
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getConsumerConfig(),
-          IGNORED_CONSUMER_PROPERTIES, configUpdates);
+      Map<String, Object> config =
+          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
     /**
-     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}.
-     * Mainly used for tests and demo applications.
+     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}. Mainly used
+     * for tests and demo applications.
      */
     public Read<K, V> withMaxNumRecords(long maxNumRecords) {
-      return toBuilder().setMaxNumRecords(maxNumRecords).setMaxReadTime(null).build();
+      return toBuilder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
-     * Use timestamp to set up start offset.
-     * It is only supported by Kafka Client 0.10.1.0 onwards and the message format version
-     * after 0.10.0.
+     * Use timestamp to set up start offset. It is only supported by Kafka Client 0.10.1.0 onwards
+     * and the message format version after 0.10.0.
      *
-     * <p>Note that this take priority over start offset configuration
-     * {@code ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
+     * <p>Note that this take priority over start offset configuration {@code
+     * ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>This results in hard failures in either of the following two cases :
-     * 1. If one of more partitions do not contain any messages with timestamp larger than or
-     * equal to desired timestamp.
-     * 2. If the message format version in a partition is before 0.10.0, i.e. the messages do
-     * not have timestamps.
+     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * partitions do not contain any messages with timestamp larger than or equal to desired
+     * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
+     * messages do not have timestamps.
      */
     public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
     }
 
     /**
-     * Similar to
-     * {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxReadTime(Duration)}.
-     * Mainly used for tests and demo
-     * applications.
+     * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxReadTime(Duration)}. Mainly
+     * used for tests and demo applications.
      */
     public Read<K, V> withMaxReadTime(Duration maxReadTime) {
-      return toBuilder().setMaxNumRecords(Long.MAX_VALUE).setMaxReadTime(maxReadTime).build();
+      return toBuilder().setMaxReadTime(maxReadTime).build();
+    }
+
+    /**
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.LogAppendTimePolicy}. The
+     * policy assigns Kafka's log append time (server side ingestion time) to each record. The
+     * watermark for each Kafka partition is the timestamp of the last record read. If a partition
+     * is idle, the watermark advances to couple of seconds behind wall time. Every record consumed
+     * from Kafka is expected to have its timestamp type set to 'LOG_APPEND_TIME'.
+     *
+     * <p>In Kafka, log append time needs to be enabled for each topic, and all the subsequent
+     * records wil have their timestamp set to log append time. If a record does not have its
+     * timestamp type set to 'LOG_APPEND_TIME' for any reason, it's timestamp is set to previous
+     * record timestamp or latest watermark, whichever is larger.
+     *
+     * <p>The watermark for the entire source is the oldest of each partition's watermark. If one of
+     * the readers falls behind possibly due to uneven distribution of records among Kafka
+     * partitions, it ends up holding the watermark for the entire source.
+     */
+    public Read<K, V> withLogAppendTime() {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
+    }
+
+    /**
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
+     * the default timestamp policy. It assigns processing time to each record. Specifically, this
+     * is the timestamp when the record becomes 'current' in the reader. The watermark aways
+     * advances to current time. If server side time (log append time) is enabled in Kafka, {@link
+     * #withLogAppendTime()} is recommended over this.
+     */
+    public Read<K, V> withProcessingTime() {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+    }
+
+    /**
+     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
+     * records. It is an error if a record's timestamp type is not {@link
+     * KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to be roughly
+     * monotonically increasing with a cap on out of order delays (e.g. 'max delay' of 1 minute).
+     * The watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
+     * However, watermark is never set in future and capped to 'now - max delay'. In addition,
+     * watermark advanced to 'now - max delay' when a partition is idle.
+     *
+     * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent record
+     *     is expected to be after {@code current record timestamp - maxDelay}.
+     */
+    public Read<K, V> withCreateTime(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));
+    }
+
+    /**
+     * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
+     * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)} is
+     * invoked for each partition when the reader starts.
+     *
+     * @see #withLogAppendTime()
+     * @see #withCreateTime(Duration)
+     * @see #withProcessingTime()
+     */
+    public Read<K, V> withTimestampPolicyFactory(
+        TimestampPolicyFactory<K, V> timestampPolicyFactory) {
+      return toBuilder().setTimestampPolicyFactory(timestampPolicyFactory).build();
     }
 
     /**
      * A function to assign a timestamp to a record. Default is processing timestamp.
+     *
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withTimestampFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
-      checkNotNull(timestampFn);
-      return toBuilder().setTimestampFn(timestampFn).build();
+      checkArgument(timestampFn != null, "timestampFn can not be null");
+      return toBuilder()
+          .setTimestampPolicyFactory(TimestampPolicyFactory.withTimestampFn(timestampFn))
+          .build();
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
+     * A function to calculate watermark after a record. Default is last record timestamp.
+     *
      * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withWatermarkFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn) {
-      checkNotNull(watermarkFn);
+      checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return toBuilder().setWatermarkFn(watermarkFn).build();
     }
 
     /**
      * A function to assign a timestamp to a record. Default is processing timestamp.
+     *
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withTimestampFn(SerializableFunction<KV<K, V>, Instant> timestampFn) {
-      checkNotNull(timestampFn);
+      checkArgument(timestampFn != null, "timestampFn can not be null");
       return withTimestampFn2(unwrapKafkaAndThen(timestampFn));
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
+     * A function to calculate watermark after a record. Default is last record timestamp.
+     *
      * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4. Use {@link
+     *     #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withWatermarkFn(SerializableFunction<KV<K, V>, Instant> watermarkFn) {
-      checkNotNull(watermarkFn);
+      checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return withWatermarkFn2(unwrapKafkaAndThen(watermarkFn));
     }
 
     /**
-     * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
+     * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This is ensures
+     * that the consumer does not read uncommitted messages. Kafka version 0.11 introduced
+     * transactional writes. Applications requiring end-to-end exactly-once semantics should only
+     * read committed messages. See JavaDoc for {@link KafkaConsumer} for more description.
      */
-    public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
-      return new TypedWithoutMetadata<K, V>(this);
+    public Read<K, V> withReadCommitted() {
+      return updateConsumerProperties(ImmutableMap.of("isolation.level", "read_committed"));
     }
 
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
-          "Kafka bootstrap servers should be set");
-      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
-          "Kafka topics or topic_partitions are required");
-      checkNotNull(getKeyDeserializer(), "Key deserializer must be set");
-      checkNotNull(getValueDeserializer(), "Value deserializer must be set");
-      if (getStartReadTime() != null) {
-        checkArgument(new ConsumerSpEL().hasOffsetsForTimes(),
-            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is " + AppInfoParser.getVersion()
-                + ". If you are building with maven, set \"kafka.clients.version\" "
-                + "maven property to 0.10.1.0 or newer.");
-      }
+    /**
+     * Finalized offsets are committed to Kafka. See {@link CheckpointMark#finalizeCheckpoint()}. It
+     * helps with minimizing gaps or duplicate processing of records while restarting a pipeline
+     * from scratch. But it does not provide hard processing guarantees. There could be a short
+     * delay to commit after {@link CheckpointMark#finalizeCheckpoint()} is invoked, as reader might
+     * be blocked on reading from Kafka. Note that it is independent of 'AUTO_COMMIT' Kafka consumer
+     * configuration. Usually either this or AUTO_COMMIT in Kafka consumer is enabled, but not both.
+     */
+    public Read<K, V> commitOffsetsInFinalize() {
+      return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
+    }
+
+    /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
+    public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
+      return new TypedWithoutMetadata<>(this);
     }
 
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+      checkArgument(
+          getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
+          "withBootstrapServers() is required");
+      checkArgument(
+          getTopics().size() > 0 || getTopicPartitions().size() > 0,
+          "Either withTopic(), withTopics() or withTopicPartitions() is required");
+      checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
+      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
+
+      if (!consumerSpEL.hasOffsetsForTimes()) {
+        LOG.warn(
+            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
+                + "may not be supported in next release of Apache Beam. "
+                + "Please upgrade your Kafka client version.",
+            AppInfoParser.getVersion());
+      }
+      if (getStartReadTime() != null) {
+        checkArgument(
+            consumerSpEL.hasOffsetsForTimes(),
+            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
+                + "current version of Kafka Client is "
+                + AppInfoParser.getVersion()
+                + ". If you are building with maven, set \"kafka.clients.version\" "
+                + "maven property to 0.10.1.0 or newer.");
+      }
+      if (isCommitOffsetsInFinalizeEnabled()) {
+        checkArgument(
+            getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
+            "commitOffsetsInFinalize() is enabled, but group.id in Kafka consumer config "
+                + "is not set. Offset management requires group.id.");
+        if (Boolean.TRUE.equals(
+            getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
+          LOG.warn(
+              "'{}' in consumer config is enabled even though commitOffsetsInFinalize() "
+                  + "is set. You need only one of them.",
+              ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        }
+      }
+
       // Infer key/value coders if not specified explicitly
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
 
       Coder<K> keyCoder =
-          checkNotNull(
-              getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer()),
-              "Key coder could not be inferred from key deserializer. Please provide"
-                  + "key coder explicitly using withKeyDeserializerAndCoder()");
+          getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer());
+      checkArgument(
+          keyCoder != null,
+          "Key coder could not be inferred from key deserializer. Please provide"
+              + "key coder explicitly using withKeyDeserializerAndCoder()");
 
       Coder<V> valueCoder =
-          checkNotNull(
-              getValueCoder() != null ? getValueCoder()
-                  : inferCoder(registry, getValueDeserializer()),
-              "Value coder could not be inferred from value deserializer. Please provide"
-                  + "value coder explicitly using withValueDeserializerAndCoder()");
+          getValueCoder() != null ? getValueCoder() : inferCoder(registry, getValueDeserializer());
+      checkArgument(
+          valueCoder != null,
+          "Value coder could not be inferred from value deserializer. Please provide"
+              + "value coder explicitly using withValueDeserializerAndCoder()");
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(
-              toBuilder()
-                  .setKeyCoder(keyCoder)
-                  .setValueCoder(valueCoder)
-                  .build()
-                  .makeSource());
+              toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
 
       PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
-      if (getMaxNumRecords() < Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(getMaxNumRecords());
-      } else if (getMaxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(getMaxReadTime());
+      if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+        transform =
+            unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
@@ -584,37 +710,33 @@ public class KafkaIO {
      */
     @VisibleForTesting
     UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> makeSource() {
-
-      return new UnboundedKafkaSource<K, V>(this, -1);
+      return new KafkaUnboundedSource<>(this, -1);
     }
 
-    // utility method to convert KafkRecord<K, V> to user KV<K, V> before applying user functions
-    private static <KeyT, ValueT, OutT> SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>
-    unwrapKafkaAndThen(final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
-      return new SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>() {
-        @Override
-        public OutT apply(KafkaRecord<KeyT, ValueT> record) {
-          return fn.apply(record.getKV());
-        }
-      };
+    // utility method to convert KafkaRecord<K, V> to user KV<K, V> before applying user functions
+    private static <KeyT, ValueT, OutT>
+        SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT> unwrapKafkaAndThen(
+            final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
+      return record -> fn.apply(record.getKV());
     }
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * A set of properties that are not required or don't make sense for our consumer.
-     */
-    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES = ImmutableMap.of(
-        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
-        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
-        // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
-        //     lets allow these, applications can have better resume point for restarts.
-        );
+    /** A set of properties that are not required or don't make sense for our consumer. */
+    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES =
+        ImmutableMap.of(
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
+            // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
+            //     lets allow these, applications can have better resume point for restarts.
+            );
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
+        ImmutableMap.of(
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
 
             // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
             // with default value of of 32K, It takes multiple seconds between successful polls.
@@ -622,23 +744,20 @@ public class KafkaIO {
             // takes many polls before a 1MB chunk from the server is fully read. In my testing
             // about half of the time select() inside kafka consumer waited for 20-30ms, though
             // the server had lots of data in tcp send buffers on its side. Compared to default,
-            // this setting increased throughput increased by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG, 512 * 1024,
+            // this setting increased throughput by many fold (3-4x).
+            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
+            512 * 1024,
 
             // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+            "latest",
             // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+            false);
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-      KAFKA_CONSUMER_FACTORY_FN =
-        new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
-          @Override
-          public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-            return new KafkaConsumer<>(config);
-          }
-        };
+        KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -649,15 +768,18 @@ public class KafkaIO {
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
-        builder.add(DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
-            .withLabel("Topic Partition/s"));
+        builder.add(
+            DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
+                .withLabel("Topic Partition/s"));
       }
       Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
         String key = conf.getKey();
         if (!ignoredConsumerPropertiesKeys.contains(key)) {
-          Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : String.valueOf(conf.getValue());
+          Object value =
+              DisplayData.inferType(conf.getValue()) != null
+                  ? conf.getValue()
+                  : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
@@ -665,9 +787,9 @@ public class KafkaIO {
   }
 
   /**
-   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but
-   * removes Kafka metatdata and returns a {@link PCollection} of {@link KV}.
-   * See {@link KafkaIO} for more information on usage and configuration of reader.
+   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but removes
+   * Kafka metatdata and returns a {@link PCollection} of {@link KV}. See {@link KafkaIO} for more
+   * information on usage and configuration of reader.
    */
   public static class TypedWithoutMetadata<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
     private final Read<K, V> read;
@@ -681,13 +803,15 @@ public class KafkaIO {
     public PCollection<KV<K, V>> expand(PBegin begin) {
       return begin
           .apply(read)
-          .apply("Remove Kafka Metadata",
-              ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @ProcessElement
-                public void processElement(ProcessContext ctx) {
-                  ctx.output(ctx.element().getKV());
-                }
-              }));
+          .apply(
+              "Remove Kafka Metadata",
+              ParDo.of(
+                  new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext ctx) {
+                      ctx.output(ctx.element().getKV());
+                    }
+                  }));
     }
 
     @Override
@@ -702,8 +826,8 @@ public class KafkaIO {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
 
   /**
-   * Returns a new config map which is merge of current config and updates.
-   * Verifies the updates do not includes ignored properties.
+   * Returns a new config map which is merge of current config and updates. Verifies the updates do
+   * not includes ignored properties.
    */
   private static Map<String, Object> updateKafkaProperties(
       Map<String, Object> currentConfig,
@@ -711,8 +835,11 @@ public class KafkaIO {
       Map<String, Object> updates) {
 
     for (String key : updates.keySet()) {
-      checkArgument(!ignoredProperties.containsKey(key),
-          "No need to configure '%s'. %s", key, ignoredProperties.get(key));
+      checkArgument(
+          !ignoredProperties.containsKey(key),
+          "No need to configure '%s'. %s",
+          key,
+          ignoredProperties.get(key));
     }
 
     Map<String, Object> config = new HashMap<>(currentConfig);
@@ -724,668 +851,83 @@ public class KafkaIO {
   /** Static class, prevent instantiation. */
   private KafkaIO() {}
 
-  private static class UnboundedKafkaSource<K, V>
-      extends UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> {
-    private Read<K, V> spec;
-    private final int id; // split id, mainly for debugging
-
-    public UnboundedKafkaSource(Read<K, V> spec, int id) {
-      this.spec = spec;
-      this.id = id;
-    }
-
-    /**
-     * The partitions are evenly distributed among the splits. The number of splits returned is
-     * {@code min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact
-     * count.
-     *
-     * <p>It is important to assign the partitions deterministically so that we can support
-     * resuming a split from last checkpoint. The Kafka partitions are sorted by
-     * {@code <topic, partition>} and then assigned to splits in round-robin order.
-     */
-    @Override
-    public List<UnboundedKafkaSource<K, V>> split(
-        int desiredNumSplits, PipelineOptions options) throws Exception {
-
-      List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions());
-
-      // (a) fetch partitions for each topic
-      // (b) sort by <topic, partition>
-      // (c) round-robin assign the partitions to splits
-
-      if (partitions.isEmpty()) {
-        try (Consumer<?, ?> consumer =
-            spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
-          for (String topic : spec.getTopics()) {
-            for (PartitionInfo p : consumer.partitionsFor(topic)) {
-              partitions.add(new TopicPartition(p.topic(), p.partition()));
-            }
-          }
-        }
-      }
-
-      Collections.sort(partitions, new Comparator<TopicPartition>() {
-        @Override
-        public int compare(TopicPartition tp1, TopicPartition tp2) {
-          return ComparisonChain
-              .start()
-              .compare(tp1.topic(), tp2.topic())
-              .compare(tp1.partition(), tp2.partition())
-              .result();
-        }
-      });
-
-      checkArgument(desiredNumSplits > 0);
-      checkState(partitions.size() > 0,
-          "Could not find any partitions. Please check Kafka configuration and topic names");
-
-      int numSplits = Math.min(desiredNumSplits, partitions.size());
-      List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
-
-      for (int i = 0; i < numSplits; i++) {
-        assignments.add(new ArrayList<TopicPartition>());
-      }
-      for (int i = 0; i < partitions.size(); i++) {
-        assignments.get(i % numSplits).add(partitions.get(i));
-      }
-
-      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(numSplits);
-
-      for (int i = 0; i < numSplits; i++) {
-        List<TopicPartition> assignedToSplit = assignments.get(i);
-
-        LOG.info("Partitions assigned to split {} (total {}): {}",
-            i, assignedToSplit.size(), Joiner.on(",").join(assignedToSplit));
-
-        result.add(
-            new UnboundedKafkaSource<>(
-                spec.toBuilder()
-                    .setTopics(Collections.<String>emptyList())
-                    .setTopicPartitions(assignedToSplit)
-                    .build(),
-                i));
-      }
-
-      return result;
-    }
-
-    @Override
-    public UnboundedKafkaReader<K, V> createReader(PipelineOptions options,
-                                                   KafkaCheckpointMark checkpointMark) {
-      if (spec.getTopicPartitions().isEmpty()) {
-        LOG.warn("Looks like generateSplits() is not called. Generate single split.");
-        try {
-          return new UnboundedKafkaReader<K, V>(
-              split(1, options).get(0), checkpointMark);
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-      return new UnboundedKafkaReader<K, V>(this, checkpointMark);
-    }
-
-    @Override
-    public Coder<KafkaCheckpointMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(KafkaCheckpointMark.class);
-    }
-
-    @Override
-    public boolean requiresDeduping() {
-      // Kafka records are ordered with in partitions. In addition checkpoint guarantees
-      // records are not consumed twice.
-      return false;
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
-    }
-
-    @Override
-    public Coder<KafkaRecord<K, V>> getDefaultOutputCoder() {
-      return KafkaRecordCoder.of(spec.getKeyCoder(), spec.getValueCoder());
-    }
-  }
-
-  private static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
-
-    private final UnboundedKafkaSource<K, V> source;
-    private final String name;
-    private Consumer<byte[], byte[]> consumer;
-    private final List<PartitionState> partitionStates;
-    private KafkaRecord<K, V> curRecord;
-    private Instant curTimestamp;
-    private Iterator<PartitionState> curBatch = Collections.emptyIterator();
-
-    private Deserializer<K> keyDeserializerInstance = null;
-    private Deserializer<V> valueDeserializerInstance = null;
-
-    private final Counter elementsRead = SourceMetrics.elementsRead();
-    private final Counter bytesRead = SourceMetrics.bytesRead();
-    private final Counter elementsReadBySplit;
-    private final Counter bytesReadBySplit;
-    private final Gauge backlogBytesOfSplit;
-    private final Gauge backlogElementsOfSplit;
-
-    private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
-
-    // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
-    // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
-    // like 100 milliseconds does not work well. This along with large receive buffer for
-    // consumer achieved best throughput in tests (see `defaultConsumerProperties`).
-    private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
-    private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
-        new SynchronousQueue<>();
-    private AtomicBoolean closed = new AtomicBoolean(false);
-
-    // Backlog support :
-    // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
-    // then look at position(). Use another consumer to do this so that the primary consumer does
-    // not need to be interrupted. The latest offsets are fetched periodically on another thread.
-    // This is still a hack. There could be unintended side effects, e.g. if user enabled offset
-    // auto commit in consumer config, this could interfere with the primary consumer (we will
-    // handle this particular problem). We might have to make this optional.
-    private Consumer<byte[], byte[]> offsetConsumer;
-    private final ScheduledExecutorService offsetFetcherThread =
-        Executors.newSingleThreadScheduledExecutor();
-    private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 5;
-
-    private static final long UNINITIALIZED_OFFSET = -1;
-
-    //Add SpEL instance to cover the interface difference of Kafka client
-    private transient ConsumerSpEL consumerSpEL;
-
-    /** watermark before any records have been read. */
-    private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
-
-    @Override
-    public String toString() {
-      return name;
-    }
-
-    // maintains state of each assigned partition (buffered records, consumed offset, etc)
-    private static class PartitionState {
-      private final TopicPartition topicPartition;
-      private long nextOffset;
-      private long latestOffset;
-      private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
-
-      // simple moving average for size of each record in bytes
-      private double avgRecordSize = 0;
-      private static final int movingAvgWindow = 1000; // very roughly avg of last 1000 elements
-
-      PartitionState(TopicPartition partition, long nextOffset) {
-        this.topicPartition = partition;
-        this.nextOffset = nextOffset;
-        this.latestOffset = UNINITIALIZED_OFFSET;
-      }
-
-      // update consumedOffset and avgRecordSize
-      void recordConsumed(long offset, int size) {
-        nextOffset = offset + 1;
-
-        // this is always updated from single thread. probably not worth making it an AtomicDouble
-        if (avgRecordSize <= 0) {
-          avgRecordSize = size;
-        } else {
-          // initially, first record heavily contributes to average.
-          avgRecordSize += ((size - avgRecordSize) / movingAvgWindow);
-        }
-      }
-
-      synchronized void setLatestOffset(long latestOffset) {
-        this.latestOffset = latestOffset;
-      }
-
-      synchronized long approxBacklogInBytes() {
-        // Note that is an an estimate of uncompressed backlog.
-        long backlogMessageCount = backlogMessageCount();
-        if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
-          return UnboundedReader.BACKLOG_UNKNOWN;
-        }
-        return (long) (backlogMessageCount * avgRecordSize);
-      }
-
-      synchronized long backlogMessageCount() {
-        if (latestOffset < 0 || nextOffset < 0) {
-          return UnboundedReader.BACKLOG_UNKNOWN;
-        }
-        return Math.max(0, (latestOffset - nextOffset));
-      }
-    }
-
-    public UnboundedKafkaReader(
-        UnboundedKafkaSource<K, V> source,
-        @Nullable KafkaCheckpointMark checkpointMark) {
-      this.consumerSpEL = new ConsumerSpEL();
-      this.source = source;
-      this.name = "Reader-" + source.id;
-
-      List<TopicPartition> partitions = source.spec.getTopicPartitions();
-      partitionStates = ImmutableList.copyOf(Lists.transform(partitions,
-          new Function<TopicPartition, PartitionState>() {
-            @Override
-            public PartitionState apply(TopicPartition tp) {
-              return new PartitionState(tp, UNINITIALIZED_OFFSET);
-            }
-        }));
-
-      if (checkpointMark != null) {
-        // a) verify that assigned and check-pointed partitions match exactly
-        // b) set consumed offsets
-
-        checkState(checkpointMark.getPartitions().size() == partitions.size(),
-            "checkPointMark and assignedPartitions should match");
-
-        for (int i = 0; i < partitions.size(); i++) {
-          PartitionMark ckptMark = checkpointMark.getPartitions().get(i);
-          TopicPartition assigned = partitions.get(i);
-          TopicPartition partition = new TopicPartition(ckptMark.getTopic(),
-                                                        ckptMark.getPartition());
-          checkState(partition.equals(assigned),
-                     "checkpointed partition %s and assigned partition %s don't match",
-                     partition, assigned);
-
-          partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
-        }
-      }
-
-      String splitId = String.valueOf(source.id);
-
-      elementsReadBySplit = SourceMetrics.elementsReadBySplit(splitId);
-      bytesReadBySplit = SourceMetrics.bytesReadBySplit(splitId);
-      backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId);
-      backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
-    }
-
-    private void consumerPollLoop() {
-      // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue
-      while (!closed.get()) {
-        try {
-          ConsumerRecords<byte[], byte[]> records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          if (!records.isEmpty() && !closed.get()) {
-            availableRecordsQueue.put(records); // blocks until dequeued.
-          }
-        } catch (InterruptedException e) {
-          LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
-          break;
-        } catch (WakeupException e) {
-          break;
-        }
-      }
-
-      LOG.info("{}: Returning from consumer pool loop", this);
-    }
-
-    private void nextBatch() {
-      curBatch = Collections.emptyIterator();
-
-      ConsumerRecords<byte[], byte[]> records;
-      try {
-        // poll available records, wait (if necessary) up to the specified timeout.
-        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
-                                             TimeUnit.MILLISECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        LOG.warn("{}: Unexpected", this, e);
-        return;
-      }
-
-      if (records == null) {
-        return;
-      }
-
-      List<PartitionState> nonEmpty = new LinkedList<>();
-
-      for (PartitionState p : partitionStates) {
-        p.recordIter = records.records(p.topicPartition).iterator();
-        if (p.recordIter.hasNext()) {
-          nonEmpty.add(p);
-        }
-      }
-
-      // cycle through the partitions in order to interleave records from each.
-      curBatch = Iterators.cycle(nonEmpty);
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      Read<K, V> spec = source.spec;
-      consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-      consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
-
-      try {
-        keyDeserializerInstance = source.spec.getKeyDeserializer().newInstance();
-        valueDeserializerInstance = source.spec.getValueDeserializer().newInstance();
-      } catch (InstantiationException | IllegalAccessException e) {
-        throw new IOException("Could not instantiate deserializers", e);
-      }
-
-      keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
-      valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
-
-      for (PartitionState p : partitionStates) {
-        if (p.nextOffset != UNINITIALIZED_OFFSET) {
-          consumer.seek(p.topicPartition, p.nextOffset);
-        } else {
-          // nextOffset is unininitialized here, meaning start reading from latest record as of now
-          // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
-          // Remember the current position without waiting until the first record is read. This
-          // ensures checkpoint is accurate even if the reader is closed before reading any records.
-          Instant startReadTime = spec.getStartReadTime();
-          if (startReadTime != null) {
-            p.nextOffset =
-                consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
-            consumer.seek(p.topicPartition, p.nextOffset);
-          } else {
-            p.nextOffset = consumer.position(p.topicPartition);
-          }
-        }
-
-        LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
-      }
-
-      // Start consumer read loop.
-      // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
-      consumerPollThread.submit(
-          new Runnable() {
-            @Override
-            public void run() {
-              consumerPollLoop();
-            }
-          });
-
-      // offsetConsumer setup :
-
-      Object groupId = spec.getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-      // override group_id and disable auto_commit so that it does not interfere with main consumer
-      String offsetGroupId = String.format("%s_offset_consumer_%d_%s", name,
-          (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
-      Map<String, Object> offsetConsumerConfig = new HashMap<>(spec.getConsumerConfig());
-      offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-      offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-      offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-      consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
-
-      offsetFetcherThread.scheduleAtFixedRate(
-          new Runnable() {
-            @Override
-            public void run() {
-              updateLatestOffsets();
-            }
-          }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
-
-      nextBatch();
-      return advance();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      /* Read first record (if any). we need to loop here because :
-       *  - (a) some records initially need to be skipped if they are before consumedOffset
-       *  - (b) if curBatch is empty, we want to fetch next batch and then advance.
-       *  - (c) curBatch is an iterator of iterators. we interleave the records from each.
-       *        curBatch.next() might return an empty iterator.
-       */
-      while (true) {
-        if (curBatch.hasNext()) {
-          PartitionState pState = curBatch.next();
-
-          elementsRead.inc();
-          elementsReadBySplit.inc();
-
-          if (!pState.recordIter.hasNext()) { // -- (c)
-            pState.recordIter = Collections.emptyIterator(); // drop ref
-            curBatch.remove();
-            continue;
-          }
-
-          ConsumerRecord<byte[], byte[]> rawRecord = pState.recordIter.next();
-          long expected = pState.nextOffset;
-          long offset = rawRecord.offset();
-
-          if (offset < expected) { // -- (a)
-            // this can happen when compression is enabled in Kafka (seems to be fixed in 0.10)
-            // should we check if the offset is way off from consumedOffset (say > 1M)?
-            LOG.warn("{}: ignoring already consumed offset {} for {}",
-                this, offset, pState.topicPartition);
-            continue;
-          }
-
-          // sanity check
-          if (offset != expected) {
-            LOG.warn("{}: gap in offsets for {} at {}. {} records missing.",
-                this, pState.topicPartition, expected, offset - expected);
-          }
-
-          if (curRecord == null) {
-            LOG.info("{}: first record offset {}", name, offset);
-          }
-
-          curRecord = null; // user coders below might throw.
-
-          // apply user deserializers.
-          // TODO: write records that can't be deserialized to a "dead-letter" additional output.
-          KafkaRecord<K, V> record = new KafkaRecord<K, V>(
-              rawRecord.topic(),
-              rawRecord.partition(),
-              rawRecord.offset(),
-              consumerSpEL.getRecordTimestamp(rawRecord),
-              keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
-              valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
-
-          curTimestamp = (source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record);
-          curRecord = record;
-
-          int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
-              + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-          pState.recordConsumed(offset, recordSize);
-          bytesRead.inc(recordSize);
-          bytesReadBySplit.inc(recordSize);
-          return true;
-
-        } else { // -- (b)
-          nextBatch();
-
-          if (!curBatch.hasNext()) {
-            return false;
-          }
-        }
-      }
-    }
-
-    // update latest offset for each partition.
-    // called from offsetFetcher thread
-    private void updateLatestOffsets() {
-      for (PartitionState p : partitionStates) {
-        try {
-          consumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
-          long offset = offsetConsumer.position(p.topicPartition);
-          p.setLatestOffset(offset);
-        } catch (Exception e) {
-          // An exception is expected if we've closed the reader in another thread. Ignore and exit.
-          if (closed.get()) {
-            break;
-          }
-          LOG.warn("{}: exception while fetching latest offset for partition {}. will be retried.",
-              this, p.topicPartition, e);
-          p.setLatestOffset(UNINITIALIZED_OFFSET); // reset
-        }
-
-        LOG.debug("{}: latest offset update for {} : {} (consumer offset {}, avg record size {})",
-            this, p.topicPartition, p.latestOffset, p.nextOffset, p.avgRecordSize);
-      }
-
-      LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
-    }
-
-    private void reportBacklog() {
-      long splitBacklogBytes = getSplitBacklogBytes();
-      if (splitBacklogBytes < 0) {
-        splitBacklogBytes = UnboundedReader.BACKLOG_UNKNOWN;
-      }
-      backlogBytesOfSplit.set(splitBacklogBytes);
-      long splitBacklogMessages = getSplitBacklogMessageCount();
-      if (splitBacklogMessages < 0) {
-        splitBacklogMessages = UnboundedReader.BACKLOG_UNKNOWN;
-      }
-      backlogElementsOfSplit.set(splitBacklogMessages);
-    }
-
-    @Override
-    public Instant getWatermark() {
-      if (curRecord == null) {
-        LOG.debug("{}: getWatermark() : no records have been read yet.", name);
-        return initialWatermark;
-      }
-
-      return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
-    }
-
-    @Override
-    public CheckpointMark getCheckpointMark() {
-      reportBacklog();
-      return new KafkaCheckpointMark(ImmutableList.copyOf(// avoid lazy (consumedOffset can change)
-          Lists.transform(partitionStates,
-              new Function<PartitionState, PartitionMark>() {
-                @Override
-                public PartitionMark apply(PartitionState p) {
-                  return new PartitionMark(p.topicPartition.topic(),
-                                           p.topicPartition.partition(),
-                                           p.nextOffset);
-                }
-              }
-          )));
-    }
-
-    @Override
-    public UnboundedSource<KafkaRecord<K, V>, ?> getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
-      // should we delay updating consumed offset till this point? Mostly not required.
-      return curRecord;
-    }
-
-    @Override
-    public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return curTimestamp;
-    }
-
-
-    @Override
-    public long getSplitBacklogBytes() {
-      long backlogBytes = 0;
-
-      for (PartitionState p : partitionStates) {
-        long pBacklog = p.approxBacklogInBytes();
-        if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
-          return UnboundedReader.BACKLOG_UNKNOWN;
-        }
-        backlogBytes += pBacklog;
-      }
-
-      return backlogBytes;
-    }
-
-    private long getSplitBacklogMessageCount() {
-      long backlogCount = 0;
-
-      for (PartitionState p : partitionStates) {
-        long pBacklog = p.backlogMessageCount();
-        if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
-          return UnboundedReader.BACKLOG_UNKNOWN;
-        }
-        backlogCount += pBacklog;
-      }
-
-      return backlogCount;
-    }
-
-    @Override
-    public void close() throws IOException {
-      closed.set(true);
-      consumerPollThread.shutdown();
-      offsetFetcherThread.shutdown();
-
-      boolean isShutdown = false;
-
-      // Wait for threads to shutdown. Trying this as a loop to handle a tiny race where poll thread
-      // might block to enqueue right after availableRecordsQueue.poll() below.
-      while (!isShutdown) {
-
-        consumer.wakeup();
-        offsetConsumer.wakeup();
-        availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
-        try {
-          isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
-              && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e); // not expected
-        }
-
-        if (!isShutdown) {
-          LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
-        }
-      }
-
-      Closeables.close(keyDeserializerInstance, true);
-      Closeables.close(valueDeserializerInstance, true);
-
-      Closeables.close(offsetConsumer, true);
-      Closeables.close(consumer, true);
-    }
-  }
-
   //////////////////////// Sink Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   /**
-   * A {@link PTransform} to write to a Kafka topic. See {@link KafkaIO} for more
-   * information on usage and configuration.
+   * A {@link PTransform} to write to a Kafka topic. See {@link KafkaIO} for more information on
+   * usage and configuration.
    */
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    @Nullable abstract String getTopic();
+    @Nullable
+    abstract String getTopic();
+
     abstract Map<String, Object> getProducerConfig();
+
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
-    @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
-    @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
+    @Nullable
+    abstract Class<? extends Serializer<K>> getKeySerializer();
+
+    @Nullable
+    abstract Class<? extends Serializer<V>> getValueSerializer();
+
+    @Nullable
+    abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
+
+    // Configuration for EOS sink
+    abstract boolean isEOS();
+
+    @Nullable
+    abstract String getSinkGroupId();
+
+    abstract int getNumShards();
+
+    @Nullable
+    abstract SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+        getConsumerFactoryFn();
 
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setTopic(String topic);
+
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
+
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+
+      abstract Builder<K, V> setPublishTimestampFunction(
+          KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
+
+      abstract Builder<K, V> setEOS(boolean eosEnabled);
+
+      abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
+
+      abstract Builder<K, V> setNumShards(int numShards);
+
+      abstract Builder<K, V> setConsumerFactoryFn(
+          SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
+
       abstract Write<K, V> build();
     }
 
     /**
-     * Returns a new {@link Write} transform with Kafka producer pointing to
-     * {@code bootstrapServers}.
+     * Returns a new {@link Write} transform with Kafka producer pointing to {@code
+     * bootstrapServers}.
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.<String, Object>of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    /**
-     * Sets the Kafka topic to write to.
-     */
+    /** Sets the Kafka topic to write to. */
     public Write<K, V> withTopic(String topic) {
       return toBuilder().setTopic(topic).build();
     }
@@ -1400,9 +942,7 @@ public class KafkaIO {
       return toBuilder().setKeySerializer(keySerializer).build();
     }
 
-    /**
-     * Sets a {@link Serializer} for serializing value to bytes.
-     */
+    /** Sets a {@link Serializer} for serializing value to bytes. */
     public Write<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(valueSerializer).build();
     }
@@ -1411,14 +951,14 @@ public class KafkaIO {
      * Adds the given producer properties, overriding old values of properties with the same key.
      */
     public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
-      Map<String, Object> config = updateKafkaProperties(getProducerConfig(),
-          IGNORED_PRODUCER_PROPERTIES, configUpdates);
+      Map<String, Object> config =
+          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
     /**
-     * Sets a custom function to create Kafka producer. Primarily used
-     * for tests. Default is {@link KafkaProducer}
+     * Sets a custom function to create Kafka producer. Primarily used for tests. Default is {@link
+     * KafkaProducer}
      */
     public Write<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
@@ -1426,38 +966,143 @@ public class KafkaIO {
     }
 
     /**
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withInputTimestamp() {
+      return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
+    }
+
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withPublishTimestampFunction(
+        KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
+      return toBuilder().setPublishTimestampFunction(timestampFunction).build();
+    }
+
+    /**
+     * Provides exactly-once semantics while writing to Kafka, which enables applications with
+     * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam
+     * pipelines. It ensures that records written to sink are committed on Kafka exactly once, even
+     * in the case of retries during pipeline execution even when some processing is retried.
+     * Retries typically occur when workers restart (as in failure recovery), or when the work is
+     * redistributed (as in an autoscaling event).
+     *
+     * <p>Beam runners typically provide exactly-once semantics for results of a pipeline, but not
+     * for side effects from user code in transform. If a transform such as Kafka sink writes to an
+     * external system, those writes might occur more than once. When EOS is enabled here, the sink
+     * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
+     * (version 0.11+) to ensure a record is written only once. As the implementation relies on
+     * runners checkpoint semantics, not all the runners are compatible. The sink throws an
+     * exception during initialization if the runner is not whitelisted. Flink runner is one of the
+     * runners whose checkpoint semantics are not compatible with current implementation (hope to
+     * provide a solution in near future). Dataflow runner and Spark runners are whitelisted as
+     * compatible.
+     *
+     * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
+     * to cost of shuffling the records among workers, the records go through 2
+     * serialization-deserialization cycles. Depending on volume and cost of serialization, the CPU
+     * cost might be noticeable. The CPU cost can be reduced by writing byte arrays (i.e.
+     * serializing them to byte before writing to Kafka sink).
+     *
+     * @param numShards Sets sink parallelism. The state metadata stored on Kafka is stored across
+     *     this many virtual partitions using {@code sinkGroupId}. A good rule of thumb is to set
+     *     this to be around number of partitions in Kafka topic.
+     * @param sinkGroupId The <i>group id</i> used to store small amount of state as metadata on
+     *     Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
+     *     job should use a unique group id so that restarts/updates of job preserve the state to
+     *     ensure exactly-once semantics. The state is committed atomically with sink transactions
+     *     on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
+     *     information. The sink performs multiple sanity checks during initialization to catch
+     *     common mistakes so that it does not end up using state that does not <i>seem</i> to be
+     *     written by the same job.
+     */
+    public Write<K, V> withEOS(int numShards, String sinkGroupId) {
+      KafkaExactlyOnceSink.ensureEOSSupport();
+      checkArgument(numShards >= 1, "numShards should be >= 1");
+      checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
+      return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
+    }
+
+    /**
+     * When exactly-once semantics are enabled (see {@link #withEOS(int, String)}), the sink needs
+     * to fetch previously stored state with Kafka topic. Fetching the metadata requires a consumer.
+     * Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory function can
+     * be supplied if required in a specific case. The default is {@link KafkaConsumer}.
+     */
+    public Write<K, V> withConsumerFactoryFn(
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
+      return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
+    }
+
+    /**
      * Writes just the values to Kafka. This is useful for writing collections of values rather
      * thank {@link KV}s.
      */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<>(toBuilder().build());
+      return new KafkaValueWrite<>(
+          toBuilder().setKeySerializer((Class) StringSerializer.class).build());
     }
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      input.apply(ParDo.of(new KafkaWriter<>(this)));
+      checkArgument(
+          getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
+          "withBootstrapServers() is required");
+      checkArgument(getTopic() != null, "withTopic() is required");
+      checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
+      checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
+
+      if (isEOS()) {
+        KafkaExactlyOnceSink.ensureEOSSupport();
+
+        // TODO: Verify that the group_id does not have existing state stored on Kafka unless
+        //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
+        //       across multiple runs or across multiple jobs. This is checked when the sink
+        //       transform initializes while processing the output. It might be better to
+        //       check here to catch common mistake.
+
+        input.apply(new KafkaExactlyOnceSink<>(this));
+      } else {
+        input.apply(ParDo.of(new KafkaWriter<>(this)));
+      }
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
-          "Kafka bootstrap servers should be set");
-      checkNotNull(getTopic(), "Kafka topic should be set");
+      if (isEOS()) {
+        String runner = options.getRunner().getName();
+        if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
+            || runner.startsWith("org.apache.beam.runners.dataflow.")
+            || runner.startsWith("org.apache.beam.runners.spark.")) {
+          return;
+        }
+        throw new UnsupportedOperationException(
+            runner
+                + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
+                + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
+                + "Only the runners with known to have compatible checkpoint semantics are whitelisted.");
+      }
     }
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
-            ProducerConfig.RETRIES_CONFIG, 3);
+        ImmutableMap.of(ProducerConfig.RETRIES_CONFIG, 3);
 
-    /**
-     * A set of properties that are not required or don't make sense for our producer.
-     */
-    private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead"
-     );
+    /** A set of properties that are not required or don't make sense for our producer. */
+    private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES =
+        ImmutableMap.of(
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead");
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -1467,8 +1112,10 @@ public class KafkaIO {
       for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
         String key = conf.getKey();
         if (!ignoredProducerPropertiesKeys.contains(key)) {
-          Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : String.valueOf(conf.getValue());
+          Object value =
+              DisplayData.inferType(conf.getValue()) != null
+                  ? conf.getValue()
+                  : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
@@ -1489,15 +1136,17 @@ public class KafkaIO {
     @Override
     public PDone expand(PCollection<V> input) {
       return input
-        .apply("Kafka values with default key",
-          MapElements.via(new SimpleFunction<V, KV<K, V>>() {
-            @Override
-            public KV<K, V> apply(V element) {
-              return KV.of(null, element);
-            }
-          }))
-        .setCoder(KvCoder.of(new NullOnlyCoder<K>(), input.getCoder()))
-        .apply(kvWriteTransform);
+          .apply(
+              "Kafka values with default key",
+              MapElements.via(
+                  new SimpleFunction<V, KV<K, V>>() {
+                    @Override
+                    public KV<K, V> apply(V element) {
+                      return KV.of(null, element);
+                    }
+                  }))
+          .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
+          .apply(kvWriteTransform);
     }
 
     @Override
@@ -1517,99 +1166,6 @@ public class KafkaIO {
     @Override
     public T decode(InputStream inStream) {
       return null;
-    }
-  }
-
-  private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
-
-    @Setup
-    public void setup() {
-      if (spec.getProducerFactoryFn() != null) {
-        producer = spec.getProducerFactoryFn().apply(producerConfig);
-      } else {
-        producer = new KafkaProducer<K, V>(producerConfig);
-      }
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext ctx) throws Exception {
-      checkForFailures();
-
-      KV<K, V> kv = ctx.element();
-      producer.send(
-          new ProducerRecord<K, V>(spec.getTopic(), kv.getKey(), kv.getValue()),
-          new SendCallback());
-
-      elementsWritten.inc();
-    }
-
-    @FinishBundle
-    public void finishBundle() throws IOException {
-      producer.flush();
-      checkForFailures();
-    }
-
-    @Teardown
-    public void teardown() {
-      producer.close();
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    private final Write<K, V> spec;
-    private final Map<String, Object> producerConfig;
-
-    private transient Producer<K, V> producer = null;
-    //private transient Callback sendCallback = new SendCallback();
-    // first exception and number of failures since last invocation of checkForFailures():
-    private transient Exception sendException = null;
-    private transient long numSendFailures = 0;
-
-    private final Counter elementsWritten = SinkMetrics.elementsWritten();
-
-    KafkaWriter(Write<K, V> spec) {
-      this.spec = spec;
-
-      this.producerConfig = new HashMap<>(spec.getProducerConfig());
-
-      this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                              spec.getKeySerializer());
-      this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                              spec.getValueSerializer());
-    }
-
-    private synchronized void checkForFailures() throws IOException {
-      if (numSendFailures == 0) {
-        return;
-      }
-
-      String msg = String.format(
-          "KafkaWriter : failed to send %d records (since last report)", numSendFailures);
-
-      Exception e = sendException;
-      sendException = null;
-      numSendFailures = 0;
-
-      LOG.warn(msg);
-      throw new IOException(msg, e);
-    }
-
-    private class SendCallback implements Callback {
-      @Override
-      public void onCompletion(RecordMetadata metadata, Exception exception) {
-        if (exception == null) {
-          return;
-        }
-
-        synchronized (KafkaWriter.this) {
-          if (sendException == null) {
-            sendException = exception;
-          }
-          numSendFailures++;
-        }
-        // don't log exception stacktrace here, exception will be propagated up.
-        LOG.warn("KafkaWriter send failed : '{}'", exception.getMessage());
-      }
     }
   }
 
@@ -1641,14 +1197,15 @@ public class KafkaIO {
           return NullableCoder.of(coderRegistry.getCoder(clazz));
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException(
-              String.format("Unable to automatically infer a Coder for "
-                                + "the Kafka Deserializer %s: no coder registered for type %s",
-                            deserializer, clazz));
+              String.format(
+                  "Unable to automatically infer a Coder for "
+                      + "the Kafka Deserializer %s: no coder registered for type %s",
+                  deserializer, clazz));
         }
       }
     }
 
-    throw new RuntimeException(String.format(
-        "Could not extract the Kafka Deserializer type from %s", deserializer));
+    throw new RuntimeException(
+        String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
   }
 }

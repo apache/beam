@@ -24,7 +24,6 @@ import static com.google.common.base.Verify.verify;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
@@ -63,54 +63,72 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * Clients facing {@link FileSystem} utility.
- */
+/** Clients facing {@link FileSystem} utility. */
 @Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
-  public static final String DEFAULT_SCHEME = "default";
+  public static final String DEFAULT_SCHEME = "file";
   private static final Pattern FILE_SCHEME_PATTERN =
-      Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
+      Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
+  private static final Pattern GLOB_PATTERN = Pattern.compile("[*?{}]");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
-      new AtomicReference<Map<String, FileSystem>>(
-          ImmutableMap.<String, FileSystem>of("file", new LocalFileSystem()));
+      new AtomicReference<>(ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
 
-  /********************************** METHODS FOR CLIENT **********************************/
+  /** ******************************** METHODS FOR CLIENT ********************************* */
+
+  /** Checks whether the given spec contains a glob wildcard character. */
+  public static boolean hasGlobWildcard(String spec) {
+    return GLOB_PATTERN.matcher(spec).find();
+  }
 
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceId ResourceIds}.
-   * Callers should use {@link #match} to resolve users specs ambiguities before
-   * calling other methods.
+   * Callers should use {@link #match} to resolve users specs ambiguities before calling other
+   * methods.
    *
    * <p>Implementation handles the following ambiguities of a user-provided spec:
+   *
    * <ol>
-   * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
-   * choose efficient implementations.
-   * <li>The user-provided {@code spec} might refer to files or directories. It is common that
-   * users that wish to indicate a directory will omit the trailing path delimiter, such as
-   * {@code "/tmp/dir"} in Linux. The {@link FileSystem} should be able to recognize a directory
-   * with the trailing path delimiter omitted, but should always return a correct {@link ResourceId}
-   * (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
+   *   <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and choose
+   *       efficient implementations.
+   *   <li>The user-provided {@code spec} might refer to files or directories. It is common that
+   *       users that wish to indicate a directory will omit the trailing path delimiter, such as
+   *       {@code "/tmp/dir"} in Linux. The {@link FileSystem} should be able to recognize a
+   *       directory with the trailing path delimiter omitted, but should always return a correct
+   *       {@link ResourceId} (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
    * </ol>
    *
    * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
    * component of {@link ResourceId}. This allows SDK libraries to construct file system agnostic
    * spec. {@link FileSystem FileSystems} can support additional patterns for user-provided specs.
    *
-   * @return {@code List<MatchResult>} in the same order of the input specs.
+   * <p>In case the spec schemes don't match any known {@link FileSystem} implementations,
+   * FileSystems will attempt to use {@link LocalFileSystem} to resolve a path.
    *
+   * <p>Specs that do not match any resources are treated according to {@link
+   * EmptyMatchTreatment#DISALLOW}.
+   *
+   * @return {@code List<MatchResult>} in the same order of the input specs.
    * @throws IllegalArgumentException if specs are invalid -- empty or have different schemes.
-   * @throws IOException if all specs failed to match due to issues like:
-   * network connection, authorization.
-   * Exception for individual spec is deferred until callers retrieve
-   * metadata with {@link MatchResult#metadata()}.
+   * @throws IOException if all specs failed to match due to issues like: network connection,
+   *     authorization. Exception for individual spec is deferred until callers retrieve metadata
+   *     with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
+  /** Like {@link #match(List)}, but with a configurable {@link EmptyMatchTreatment}. */
+  public static List<MatchResult> match(List<String> specs, EmptyMatchTreatment emptyMatchTreatment)
+      throws IOException {
+    List<MatchResult> matches = getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+    List<MatchResult> res = Lists.newArrayListWithExpectedSize(matches.size());
+    for (int i = 0; i < matches.size(); i++) {
+      res.add(maybeAdjustEmptyMatchResult(specs.get(i), matches.get(i), emptyMatchTreatment));
+    }
+    return res;
+  }
 
   /**
    * Like {@link #match(List)}, but for a single resource specification.
@@ -127,6 +145,30 @@ public class FileSystems {
         matches);
     return matches.get(0);
   }
+
+  /** Like {@link #match(String)}, but with a configurable {@link EmptyMatchTreatment}. */
+  public static MatchResult match(String spec, EmptyMatchTreatment emptyMatchTreatment)
+      throws IOException {
+    MatchResult res = match(spec);
+    return maybeAdjustEmptyMatchResult(spec, res, emptyMatchTreatment);
+  }
+
+  private static MatchResult maybeAdjustEmptyMatchResult(
+      String spec, MatchResult res, EmptyMatchTreatment emptyMatchTreatment) throws IOException {
+    if (res.status() == Status.NOT_FOUND
+        || (res.status() == Status.OK && res.metadata().isEmpty())) {
+      boolean notFoundAllowed =
+          emptyMatchTreatment == EmptyMatchTreatment.ALLOW
+              || (hasGlobWildcard(spec)
+                  && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
+      return notFoundAllowed
+          ? MatchResult.create(Status.OK, Collections.emptyList())
+          : MatchResult.create(
+              Status.NOT_FOUND, new FileNotFoundException("No files matched spec: " + spec));
+    }
+    return res;
+  }
+
   /**
    * Returns the {@link Metadata} for a single file resource. Expects a resource specification
    * {@code spec} that matches a single result.
@@ -134,8 +176,8 @@ public class FileSystems {
    * @param spec a resource specification that matches exactly one result.
    * @return the {@link Metadata} for the specified resource.
    * @throws FileNotFoundException if the file resource is not found.
-   * @throws IOException in the event of an error in the inner call to {@link #match},
-   * or if the given spec does not match exactly 1 result.
+   * @throws IOException in the event of an error in the inner call to {@link #match}, or if the
+   *     given spec does not match exactly 1 result.
    */
   public static Metadata matchSingleFileSpec(String spec) throws IOException {
     List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
@@ -151,9 +193,7 @@ public class FileSystems {
         throw new IOException(
             String.format(
                 "Expecting spec %s to match exactly one file, but matched %s: %s",
-                spec,
-                metadata.size(),
-                metadata));
+                spec, metadata.size(), metadata));
       }
       return metadata.get(0);
     }
@@ -163,22 +203,13 @@ public class FileSystems {
    * Returns {@link MatchResult MatchResults} for the given {@link ResourceId resourceIds}.
    *
    * @param resourceIds {@link ResourceId resourceIds} that might be derived from {@link #match},
-   * {@link ResourceId#resolve}, or {@link ResourceId#getCurrentDirectory()}.
-   *
-   * @throws IOException if all {@code resourceIds} failed to match due to issues like:
-   * network connection, authorization.
-   * Exception for individual {@link ResourceId} need to be deferred until callers retrieve
-   * metadata with {@link MatchResult#metadata()}.
+   *     {@link ResourceId#resolve}, or {@link ResourceId#getCurrentDirectory()}.
+   * @throws IOException if all {@code resourceIds} failed to match due to issues like: network
+   *     connection, authorization. Exception for individual {@link ResourceId} need to be deferred
+   *     until callers retrieve metadata with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
-    return match(FluentIterable
-        .from(resourceIds)
-        .transform(new Function<ResourceId, String>() {
-          @Override
-          public String apply(@Nonnull ResourceId resourceId) {
-          return resourceId.toString();
-          }})
-        .toList());
+    return match(FluentIterable.from(resourceIds).transform(ResourceId::toString).toList());
   }
 
   /**
@@ -212,8 +243,7 @@ public class FileSystems {
    *
    * <p>The resource is not expanded; it is used verbatim.
    *
-   * <p>If seeking is supported, then this returns a
-   * {@link java.nio.channels.SeekableByteChannel}.
+   * <p>If seeking is supported, then this returns a {@link java.nio.channels.SeekableByteChannel}.
    *
    * @param resourceId the reference of the file-like resource to open
    */
@@ -224,8 +254,8 @@ public class FileSystems {
   /**
    * Copies a {@link List} of file-like resources from one location to another.
    *
-   * <p>The number of source resources must equal the number of destination resources.
-   * Destination resources will be created recursively.
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
    *
    * <p>{@code srcResourceIds} and {@code destResourceIds} must have the same scheme.
    *
@@ -245,8 +275,8 @@ public class FileSystems {
 
     List<ResourceId> srcToCopy = srcResourceIds;
     List<ResourceId> destToCopy = destResourceIds;
-    if (Sets.newHashSet(moveOptions).contains(
-        MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (Sets.newHashSet(moveOptions)
+        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToCopy = existings.getKey();
@@ -255,15 +285,14 @@ public class FileSystems {
     if (srcToCopy.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToCopy.iterator().next().getScheme())
-        .copy(srcToCopy, destToCopy);
+    getFileSystemInternal(srcToCopy.iterator().next().getScheme()).copy(srcToCopy, destToCopy);
   }
 
   /**
    * Renames a {@link List} of file-like resources from one location to another.
    *
-   * <p>The number of source resources must equal the number of destination resources.
-   * Destination resources will be created recursively.
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
    *
    * <p>{@code srcResourceIds} and {@code destResourceIds} must have the same scheme.
    *
@@ -283,8 +312,8 @@ public class FileSystems {
 
     List<ResourceId> srcToRename = srcResourceIds;
     List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions).contains(
-        MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (Sets.newHashSet(moveOptions)
+        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
@@ -300,49 +329,46 @@ public class FileSystems {
   /**
    * Deletes a collection of resources.
    *
-   * <p>It is allowed but not recommended to delete directories recursively.
-   * Callers depends on {@link FileSystems} and uses {@code DeleteOptions}.
-   *
    * <p>{@code resourceIds} must have the same scheme.
    *
    * @param resourceIds the references of the resources to delete.
    */
-  public static void delete(
-      Collection<ResourceId> resourceIds, MoveOptions... moveOptions) throws IOException {
+  public static void delete(Collection<ResourceId> resourceIds, MoveOptions... moveOptions)
+      throws IOException {
     if (resourceIds.isEmpty()) {
       // Short-circuit.
       return;
     }
 
     Collection<ResourceId> resourceIdsToDelete;
-    if (Sets.newHashSet(moveOptions).contains(
-        MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      resourceIdsToDelete = FluentIterable
-          .from(matchResources(Lists.newArrayList(resourceIds)))
-          .filter(new Predicate<MatchResult>() {
-            @Override
-            public boolean apply(@Nonnull MatchResult matchResult) {
-              return !matchResult.status().equals(MatchResult.Status.NOT_FOUND);
-            }})
-          .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
-            @Nonnull
-            @Override
-            public Iterable<Metadata> apply(@Nonnull MatchResult input) {
-              try {
-                return Lists.newArrayList(input.metadata());
-              } catch (IOException e) {
-                throw new RuntimeException(
-                    String.format("Failed to get metadata from MatchResult: %s.", input),
-                    e);
-              }
-            }})
-          .transform(new Function<Metadata, ResourceId>() {
-            @Nonnull
-            @Override
-            public ResourceId apply(@Nonnull Metadata input) {
-              return input.resourceId();
-            }})
-          .toList();
+    if (Sets.newHashSet(moveOptions)
+        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+      resourceIdsToDelete =
+          FluentIterable.from(matchResources(Lists.newArrayList(resourceIds)))
+              .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
+              .transformAndConcat(
+                  new Function<MatchResult, Iterable<Metadata>>() {
+                    @Nonnull
+                    @Override
+                    public Iterable<Metadata> apply(@Nonnull MatchResult input) {
+                      try {
+                        return Lists.newArrayList(input.metadata());
+                      } catch (IOException e) {
+                        throw new RuntimeException(
+                            String.format("Failed to get metadata from MatchResult: %s.", input),
+                            e);
+                      }
+                    }
+                  })
+              .transform(
+                  new Function<Metadata, ResourceId>() {
+                    @Nonnull
+                    @Override
+                    public ResourceId apply(@Nonnull Metadata input) {
+                      return input.resourceId();
+                    }
+                  })
+              .toList();
     } else {
       resourceIdsToDelete = resourceIds;
     }
@@ -387,14 +413,11 @@ public class FileSystems {
       return;
     }
 
-    Set<String> schemes = FluentIterable.from(srcResourceIds)
-        .append(destResourceIds)
-        .transform(new Function<ResourceId, String>() {
-          @Override
-          public String apply(@Nonnull ResourceId resourceId) {
-            return resourceId.getScheme();
-          }})
-        .toSet();
+    Set<String> schemes =
+        FluentIterable.from(srcResourceIds)
+            .append(destResourceIds)
+            .transform(ResourceId::getScheme)
+            .toSet();
     checkArgument(
         schemes.size() == 1,
         String.format(
@@ -404,13 +427,7 @@ public class FileSystems {
 
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs)
-        .transform(new Function<String, String>() {
-          @Override
-          public String apply(String spec) {
-            return parseScheme(spec);
-          }})
-        .toSet();
+    Set<String> schemes = FluentIterable.from(specs).transform(FileSystems::parseScheme).toSet();
     return Iterables.getOnlyElement(schemes);
   }
 
@@ -423,31 +440,25 @@ public class FileSystems {
     Matcher matcher = FILE_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return "file";
+      return DEFAULT_SCHEME;
     } else {
       return matcher.group("scheme").toLowerCase();
     }
   }
 
-  /**
-   * Internal method to get {@link FileSystem} for {@code scheme}.
-   */
+  /** Internal method to get {@link FileSystem} for {@code scheme}. */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(String scheme) {
     String lowerCaseScheme = scheme.toLowerCase();
     Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
     FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
-    if (rval != null) {
-      return rval;
+    if (rval == null) {
+      throw new IllegalArgumentException("No filesystem found for scheme " + scheme);
     }
-    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
-    if (rval != null) {
-      return rval;
-    }
-    throw new IllegalStateException("Unable to find registrar for " + scheme);
+    return rval;
   }
 
-  /********************************** METHODS FOR REGISTRATION **********************************/
+  /** ******************************** METHODS FOR REGISTRATION ********************************* */
 
   /**
    * Sets the default configuration in workers.
@@ -461,8 +472,9 @@ public class FileSystems {
     checkNotNull(options, "options");
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+    registrars.addAll(
+        Lists.newArrayList(
+            ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
 
     SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
   }
@@ -478,21 +490,18 @@ public class FileSystems {
         fileSystemsBySchemes.put(fileSystem.getScheme(), fileSystem);
       }
     }
-    for (Entry<String, Collection<FileSystem>> entry
-        : fileSystemsBySchemes.asMap().entrySet()) {
+    for (Entry<String, Collection<FileSystem>> entry : fileSystemsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
-        String conflictingFileSystems = Joiner.on(", ").join(
-            FluentIterable.from(entry.getValue())
-                .transform(new Function<FileSystem, String>() {
-                  @Override
-                  public String apply(@Nonnull FileSystem input) {
-                    return input.getClass().getName();
-                  }})
-                .toSortedList(Ordering.<String>natural()));
-        throw new IllegalStateException(String.format(
-            "Scheme: [%s] has conflicting filesystems: [%s]",
-            entry.getKey(),
-            conflictingFileSystems));
+        String conflictingFileSystems =
+            Joiner.on(", ")
+                .join(
+                    FluentIterable.from(entry.getValue())
+                        .transform(input -> input.getClass().getName())
+                        .toSortedList(Ordering.natural()));
+        throw new IllegalStateException(
+            String.format(
+                "Scheme: [%s] has conflicting filesystems: [%s]",
+                entry.getKey(), conflictingFileSystems));
       }
     }
 
@@ -504,11 +513,11 @@ public class FileSystems {
   }
 
   /**
-   * Returns a new {@link ResourceId} that represents the named resource of a type corresponding
-   * to the resource type.
+   * Returns a new {@link ResourceId} that represents the named resource of a type corresponding to
+   * the resource type.
    *
-   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including
-   * any necessary escaping, for the underlying {@link FileSystem}.
+   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including any
+   * necessary escaping, for the underlying {@link FileSystem}.
    *
    * <p>This function may throw an {@link IllegalArgumentException} if given an invalid argument,
    * such as when the specified {@code singleResourceSpec} is not a valid resource name.

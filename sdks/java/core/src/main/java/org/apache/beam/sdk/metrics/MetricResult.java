@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The results of a single current metric.
- */
+/** The results of a single current metric. */
 @Experimental(Kind.METRICS)
+@JsonFilter("committedMetrics")
 public interface MetricResult<T> {
   /** Return the name of the metric. */
-  MetricName name();
+  MetricName getName();
   /** Return the step context to which this metric result applies. */
-  String step();
+  String getStep();
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
@@ -36,10 +36,8 @@ public interface MetricResult<T> {
    * <p>Not all runners will support committed metrics. If they are not supported, the runner will
    * throw an {@link UnsupportedOperationException}.
    */
-  T committed();
+  T getCommitted();
 
-  /**
-   * Return the value of this metric across all attempts of executing all parts of the pipeline.
-   */
-  T attempted();
+  /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
+  T getAttempted();
 }

@@ -34,8 +34,7 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
   }
 
   @Override
-  public void encode(PubsubMessage value, OutputStream outStream)
-      throws IOException {
+  public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -52,7 +51,6 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
 
   @Override
   public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
-    return new PubsubMessage(
-        PAYLOAD_CODER.decode(inStream, context), ImmutableMap.<String, String>of());
+    return new PubsubMessage(PAYLOAD_CODER.decode(inStream, context), ImmutableMap.of());
   }
 }

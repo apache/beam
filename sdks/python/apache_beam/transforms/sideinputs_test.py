@@ -17,6 +17,8 @@
 
 """Unit tests for side inputs."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 
@@ -24,7 +26,8 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 
 
@@ -54,7 +57,7 @@ class SideInputsTest(unittest.TestCase):
         side |= beam.Map(lambda x: ('k%s' % x, 'v%s' % x))
       res = main | beam.Map(lambda x, s: (x, s), side_input_type(side, **kw))
       if side_input_type in (beam.pvalue.AsIter, beam.pvalue.AsList):
-        res |= beam.Map(lambda (x, s): (x, sorted(s)))
+        res |= beam.Map(lambda x_s: (x_s[0], sorted(x_s[1])))
       assert_that(res, equal_to(expected))
 
   def test_global_global_windows(self):
@@ -145,7 +148,9 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-5025): Disable this test in streaming temporarily.
+  # Remove sickbay-streaming tag after it's fixed.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -193,7 +198,7 @@ class SideInputsTest(unittest.TestCase):
         [[actual_elem, actual_list, actual_dict]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_list)(actual_list)
-        equal_to(expected_pairs)(actual_dict.iteritems())
+        equal_to(expected_pairs)(actual_dict.items())
       return match
 
     assert_that(results, matcher(1, a_list, some_pairs))
@@ -283,8 +288,8 @@ class SideInputsTest(unittest.TestCase):
       def match(actual):
         [[actual_elem, actual_dict1, actual_dict2]] = actual
         equal_to([expected_elem])([actual_elem])
-        equal_to(expected_kvs)(actual_dict1.iteritems())
-        equal_to(expected_kvs)(actual_dict2.iteritems())
+        equal_to(expected_kvs)(actual_dict1.items())
+        equal_to(expected_kvs)(actual_dict2.items())
       return match
 
     assert_that(results, matcher(1, some_kvs))

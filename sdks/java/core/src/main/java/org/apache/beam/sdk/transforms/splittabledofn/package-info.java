@@ -19,4 +19,8 @@
  * Defines utilities related to <a href="https://s.apache.org/splittable-do-fn">splittable</a>
  * {@link org.apache.beam.sdk.transforms.DoFn}.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.splittabledofn;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

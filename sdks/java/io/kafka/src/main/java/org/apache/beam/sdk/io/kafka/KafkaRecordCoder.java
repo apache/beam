@@ -20,29 +20,35 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
 
-/**
- * {@link Coder} for {@link KafkaRecord}.
- */
+/** {@link Coder} for {@link KafkaRecord}. */
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final VarLongCoder longCoder = VarLongCoder.of();
   private static final VarIntCoder intCoder = VarIntCoder.of();
+  private static final IterableCoder headerCoder =
+      IterableCoder.of(KvCoder.of(stringCoder, ByteArrayCoder.of()));
 
   private final KvCoder<K, V> kvCoder;
 
   public static <K, V> KafkaRecordCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
-    return new KafkaRecordCoder<K, V>(keyCoder, valueCoder);
+    return new KafkaRecordCoder<>(keyCoder, valueCoder);
   }
 
   public KafkaRecordCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
@@ -50,37 +56,49 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   @Override
-  public void encode(KafkaRecord<K, V> value, OutputStream outStream)
-      throws CoderException, IOException {
-    encode(value, outStream, Context.NESTED);
+  public void encode(KafkaRecord<K, V> value, OutputStream outStream) throws IOException {
+    stringCoder.encode(value.getTopic(), outStream);
+    intCoder.encode(value.getPartition(), outStream);
+    longCoder.encode(value.getOffset(), outStream);
+    longCoder.encode(value.getTimestamp(), outStream);
+    intCoder.encode(value.getTimestampType().ordinal(), outStream);
+    headerCoder.encode(toIterable(value), outStream);
+    kvCoder.encode(value.getKV(), outStream);
   }
 
   @Override
-  public void encode(KafkaRecord<K, V> value, OutputStream outStream, Context context)
-                         throws CoderException, IOException {
-    Context nested = context.nested();
-    stringCoder.encode(value.getTopic(), outStream, nested);
-    intCoder.encode(value.getPartition(), outStream, nested);
-    longCoder.encode(value.getOffset(), outStream, nested);
-    longCoder.encode(value.getTimestamp(), outStream, nested);
-    kvCoder.encode(value.getKV(), outStream, context);
+  public KafkaRecord<K, V> decode(InputStream inStream) throws IOException {
+    return new KafkaRecord<>(
+        stringCoder.decode(inStream),
+        intCoder.decode(inStream),
+        longCoder.decode(inStream),
+        longCoder.decode(inStream),
+        KafkaTimestampType.forOrdinal(intCoder.decode(inStream)),
+        (Headers) toHeaders(headerCoder.decode(inStream)),
+        kvCoder.decode(inStream));
   }
 
-  @Override
-  public KafkaRecord<K, V> decode(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Context.NESTED);
+  private Object toHeaders(Iterable<KV<String, byte[]>> records) {
+    if (!ConsumerSpEL.hasHeaders) {
+      return null;
+    }
+
+    // ConsumerRecord is used to simply create a list of headers
+    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
+    records.forEach(kv -> consumerRecord.headers().add(kv.getKey(), kv.getValue()));
+    return consumerRecord.headers();
   }
 
-  @Override
-  public KafkaRecord<K, V> decode(InputStream inStream, Context context)
-                                      throws CoderException, IOException {
-    Context nested = context.nested();
-    return new KafkaRecord<K, V>(
-        stringCoder.decode(inStream, nested),
-        intCoder.decode(inStream, nested),
-        longCoder.decode(inStream, nested),
-        longCoder.decode(inStream, nested),
-        kvCoder.decode(inStream, context));
+  private Iterable<KV<String, byte[]>> toIterable(KafkaRecord record) {
+    if (!ConsumerSpEL.hasHeaders) {
+      return Collections.emptyList();
+    }
+
+    List<KV<String, byte[]>> vals = new ArrayList<>();
+    for (Header header : record.getHeaders()) {
+      vals.add(KV.of(header.key(), header.value()));
+    }
+    return vals;
   }
 
   @Override
@@ -105,11 +123,13 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
     if (consistentWithEquals()) {
       return value;
     } else {
-      return new KafkaRecord<Object, Object>(
+      return new KafkaRecord<>(
           value.getTopic(),
           value.getPartition(),
           value.getOffset(),
           value.getTimestamp(),
+          value.getTimestampType(),
+          !ConsumerSpEL.hasHeaders ? null : value.getHeaders(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }

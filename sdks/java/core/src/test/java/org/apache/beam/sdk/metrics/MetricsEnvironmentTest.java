@@ -29,9 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for {@link MetricsEnvironment}.
- */
+/** Tests for {@link MetricsEnvironment}. */
 @RunWith(JUnit4.class)
 public class MetricsEnvironmentTest {
   @After

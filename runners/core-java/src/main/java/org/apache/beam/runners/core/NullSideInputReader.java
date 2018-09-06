@@ -24,16 +24,15 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A {@link SideInputReader} representing a well-defined set of views, but not storing
- * any values for them. Used to check if a side input is present when the data itself
- * comes from elsewhere.
+ * A {@link SideInputReader} representing a well-defined set of views, but not storing any values
+ * for them. Used to check if a side input is present when the data itself comes from elsewhere.
  */
 public class NullSideInputReader implements SideInputReader {
 
   private Set<PCollectionView<?>> views;
 
   public static NullSideInputReader empty() {
-    return new NullSideInputReader(Collections.<PCollectionView<?>>emptySet());
+    return new NullSideInputReader(Collections.emptySet());
   }
 
   public static NullSideInputReader of(Iterable<? extends PCollectionView<?>> views) {

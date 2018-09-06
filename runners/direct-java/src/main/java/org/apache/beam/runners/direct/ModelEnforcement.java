@@ -25,17 +25,16 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * Enforcement tools that verify that executing code conforms to the model.
  *
- * <p>ModelEnforcement is performed on a per-element and per-bundle basis. The
- * {@link ModelEnforcement} is provided with the input bundle as part of
- * {@link ModelEnforcementFactory#forBundle(CommittedBundle, AppliedPTransform)} each
- * element before and after that element is provided to an underlying {@link TransformEvaluator},
- * and the output {@link TransformResult} and committed output bundles after the
- * {@link TransformEvaluator} has completed.
+ * <p>ModelEnforcement is performed on a per-element and per-bundle basis. The {@link
+ * ModelEnforcement} is provided with the input bundle as part of {@link
+ * ModelEnforcementFactory#forBundle(CommittedBundle, AppliedPTransform)} each element before and
+ * after that element is provided to an underlying {@link TransformEvaluator}, and the output {@link
+ * TransformResult} and committed output bundles after the {@link TransformEvaluator} has completed.
  *
  * <p>Typically, {@link ModelEnforcement} will obtain required metadata (such as the {@link Coder}
- * of the input {@link PCollection} on construction, and then enforce per-element behavior
- * (such as the immutability of input elements). When the element is output or the bundle is
- * completed, the required conditions can be enforced across all elements.
+ * of the input {@link PCollection} on construction, and then enforce per-element behavior (such as
+ * the immutability of input elements). When the element is output or the bundle is completed, the
+ * required conditions can be enforced across all elements.
  */
 interface ModelEnforcement<T> {
   /**
@@ -45,15 +44,15 @@ interface ModelEnforcement<T> {
   void beforeElement(WindowedValue<T> element);
 
   /**
-   * Called after a call to {@link TransformEvaluator#processElement(WindowedValue)} on the
-   * provided {@link WindowedValue}.
+   * Called after a call to {@link TransformEvaluator#processElement(WindowedValue)} on the provided
+   * {@link WindowedValue}.
    */
   void afterElement(WindowedValue<T> element);
 
   /**
    * Called after a bundle has been completed and {@link TransformEvaluator#finishBundle()} has been
-   * called, producing the provided {@link TransformResult} and
-   * {@link CommittedBundle output bundles}.
+   * called, producing the provided {@link TransformResult} and {@link CommittedBundle output
+   * bundles}.
    */
   void afterFinish(
       CommittedBundle<T> input,

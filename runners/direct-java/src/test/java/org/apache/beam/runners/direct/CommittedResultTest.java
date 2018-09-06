@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -43,9 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CommittedResult}.
- */
+/** Tests for {@link CommittedResult}. */
 @RunWith(JUnit4.class)
 public class CommittedResultTest implements Serializable {
 
@@ -69,61 +68,69 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getTransformExtractsFromResult() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Optional.absent(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
+    assertThat(result.getExecutable(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
 
   @Test
   public void getUncommittedElementsEqualInput() {
     CommittedBundle<Integer> bundle =
-        bundleFactory.createBundle(created)
+        bundleFactory
+            .createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.of(bundle),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs().get(),
-        Matchers.<CommittedBundle<?>>equalTo(bundle));
+    assertThat(result.getUnprocessedInputs().get(), Matchers.equalTo(bundle));
   }
 
   @Test
   public void getUncommittedElementsNull() {
-    CommittedResult result =
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Optional.absent(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(
-        result.getUnprocessedInputs(),
-        Matchers.<Optional<? extends CommittedBundle<?>>>equalTo(
-            Optional.<CommittedBundle<?>>absent()));
+    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.absent()));
   }
 
   @Test
   public void getOutputsEqualInput() {
-    List<? extends CommittedBundle<?>> outputs =
-        ImmutableList.of(bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
-            WindowingStrategy.globalDefault(),
-            PCollection.IsBounded.BOUNDED)).commit(Instant.now()),
-            bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
-                WindowingStrategy.globalDefault(),
-                PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
-    CommittedResult result =
+    List<? extends CommittedBundle<Integer>> outputs =
+        ImmutableList.of(
+            bundleFactory
+                .createBundle(
+                    PCollection.createPrimitiveOutputInternal(
+                        p,
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.BOUNDED,
+                        VarIntCoder.of()))
+                .commit(Instant.now()),
+            bundleFactory
+                .createBundle(
+                    PCollection.createPrimitiveOutputInternal(
+                        p,
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.UNBOUNDED,
+                        VarIntCoder.of()))
+                .commit(Instant.now()));
+    CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
+            Optional.absent(),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 

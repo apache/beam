@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,11 +37,11 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * cannot be obtained when the extractor is created.
  */
 final class PaneExtractors {
-  private PaneExtractors() {
-  }
+  private PaneExtractors() {}
 
-  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane() {
-    return new ExtractOnlyPane<>();
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane(
+      PAssert.PAssertionSite site) {
+    return new ExtractOnlyPane<>(site);
   }
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onTimePane() {
@@ -68,21 +66,28 @@ final class PaneExtractors {
 
   private static class ExtractOnlyPane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
+    private final PAssert.PAssertionSite site;
+
+    private ExtractOnlyPane(PAssert.PAssertionSite site) {
+      this.site = site;
+    }
+
     @Override
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        checkState(value.getPane().isFirst() && value.getPane().isLast(),
-            "Expected elements to be produced by a trigger that fires at most once, but got"
-                + "a value in a pane that is %s. Actual Pane Info: %s",
-            value.getPane().isFirst() ? "not the last pane" : "not the first pane",
-            value.getPane());
+        if (!value.getPane().isFirst() || !value.getPane().isLast()) {
+          throw site.wrap(
+              String.format(
+                  "Expected elements to be produced by a trigger that fires at most once, but got "
+                      + "a value %s in a pane that is %s.",
+                  value, value.getPane().isFirst() ? "not the last pane" : "not the first pane"));
+        }
         outputs.add(value.getValue());
       }
       return outputs;
     }
   }
-
 
   private static class ExtractOnTimePane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
@@ -98,7 +103,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractFinalPane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -113,7 +117,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractAllPanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -125,7 +128,6 @@ final class PaneExtractors {
       return outputs;
     }
   }
-
 
   private static class ExtractNonLatePanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Provides a Beam runner that executes pipelines on the Google Cloud Dataflow service.
- */
+/** Provides a Beam runner that executes pipelines on the Google Cloud Dataflow service. */
 package org.apache.beam.runners.dataflow;

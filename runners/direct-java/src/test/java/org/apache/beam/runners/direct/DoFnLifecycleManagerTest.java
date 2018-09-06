@@ -43,9 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DoFnLifecycleManager}.
- */
+/** Tests for {@link DoFnLifecycleManager}. */
 @RunWith(JUnit4.class)
 public class DoFnLifecycleManagerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -162,7 +160,7 @@ public class DoFnLifecycleManagerTest {
       removeFutures.add(executor.submit(new TeardownFnCallable(mgr, removeSignal)));
     }
     removeSignal.countDown();
-    assertThat(mgr.removeAll(), Matchers.<Exception>emptyIterable());
+    assertThat(mgr.removeAll(), Matchers.emptyIterable());
     for (Future<Void> removed : removeFutures) {
       // Should not have thrown an exception.
       removed.get();
@@ -221,8 +219,7 @@ public class DoFnLifecycleManagerTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-    }
+    public void processElement(ProcessContext c) throws Exception {}
 
     @Teardown
     public void teardown() {

@@ -42,113 +42,73 @@ import org.hamcrest.Matchers;
  * serializable, either via Java serialization or via a provided {@link Coder}.
  *
  * <p>The following matchers are novel to Apache Beam:
+ *
  * <ul>
- * <li>{@link #kvWithKey} for matching just the key of a {@link KV}.
- * <li>{@link #kvWithValue} for matching just the value of a {@link KV}.
- * <li>{@link #kv} for matching the key and value of a {@link KV}.
+ *   <li>{@link #kvWithKey} for matching just the key of a {@link KV}.
+ *   <li>{@link #kvWithValue} for matching just the value of a {@link KV}.
+ *   <li>{@link #kv} for matching the key and value of a {@link KV}.
  * </ul>
  *
- * <p>For example, to match a group from
- * {@link org.apache.beam.sdk.transforms.GroupByKey}, which has type
- * {@code KV<K, Iterable<V>>} for some {@code K} and {@code V} and where the order of the iterable
- * is undefined, use a matcher like
- * {@code kv(equalTo("some key"), containsInAnyOrder(1, 2, 3))}.
+ * <p>For example, to match a group from {@link org.apache.beam.sdk.transforms.GroupByKey}, which
+ * has type {@code KV<K, Iterable<V>>} for some {@code K} and {@code V} and where the order of the
+ * iterable is undefined, use a matcher like {@code kv(equalTo("some key"), containsInAnyOrder(1, 2,
+ * 3))}.
  */
 class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
-  private SerializableMatchers() { } // not instantiable
+  private SerializableMatchers() {} // not instantiable
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#allOf(Iterable)}.
-   */
-  public static <T> SerializableMatcher<T>
-  allOf(Iterable<SerializableMatcher<? super T>> serializableMatchers) {
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#allOf(Iterable)}. */
+  public static <T> SerializableMatcher<T> allOf(
+      Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.allOf(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.allOf(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#allOf(Matcher[])}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#allOf(Matcher[])}. */
   @SafeVarargs
   public static <T> SerializableMatcher<T> allOf(final SerializableMatcher<T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.allOf(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.allOf(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#anyOf(Iterable)}.
-   */
-  public static <T> SerializableMatcher<T>
-  anyOf(Iterable<SerializableMatcher<? super T>> serializableMatchers) {
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#anyOf(Iterable)}. */
+  public static <T> SerializableMatcher<T> anyOf(
+      Iterable<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.anyOf(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.anyOf(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#anyOf(Matcher[])}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#anyOf(Matcher[])}. */
   @SafeVarargs
   public static <T> SerializableMatcher<T> anyOf(final SerializableMatcher<T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.anyOf(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.anyOf(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#anything()}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#anything()}. */
   public static SerializableMatcher<Object> anything() {
-    return fromSupplier(new SerializableSupplier<Matcher<Object>>() {
-      @Override
-      public Matcher<Object> get() {
-        return Matchers.anything();
-      }
-    });
+    return fromSupplier(Matchers::anything);
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContaining(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContaining(Object[])}.
    */
   @SafeVarargs
-  public static <T extends Serializable> SerializableMatcher<T[]>
-  arrayContaining(final T... items) {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContaining(items);
-      }
-    });
+  public static <T extends Serializable> SerializableMatcher<T[]> arrayContaining(
+      final T... items) {
+    return fromSupplier(() -> Matchers.arrayContaining(items));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContaining(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContaining(Object[])}.
    *
    * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
    * explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -156,69 +116,48 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T[]> arrayContaining(Coder<T> coder, T... items) {
 
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
 
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContaining(itemsSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContaining(itemsSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContaining(Matcher[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContaining(Matcher[])}.
    */
   @SafeVarargs
-  public static <T> SerializableMatcher<T[]>
-  arrayContaining(final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.<T>arrayContaining(matchers);
-      }
-    });
+  public static <T> SerializableMatcher<T[]> arrayContaining(
+      final SerializableMatcher<? super T>... matchers) {
+    return fromSupplier(() -> Matchers.arrayContaining(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContaining(List)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContaining(List)}.
    */
-  public static <T> SerializableMatcher<T[]>
-  arrayContaining(List<SerializableMatcher<? super T>> serializableMatchers) {
+  public static <T> SerializableMatcher<T[]> arrayContaining(
+      List<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContaining(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContaining(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContainingInAnyOrder(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContainingInAnyOrder(Object[])}.
    */
   @SafeVarargs
-  public static <T extends Serializable> SerializableMatcher<T[]>
-  arrayContainingInAnyOrder(final T... items) {
+  public static <T extends Serializable> SerializableMatcher<T[]> arrayContainingInAnyOrder(
+      final T... items) {
 
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContainingInAnyOrder(items);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContainingInAnyOrder(items));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContainingInAnyOrder(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContainingInAnyOrder(Object[])}.
    *
    * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
    * explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -226,35 +165,24 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(Coder<T> coder, T... items) {
 
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
 
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContaining(itemsSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContaining(itemsSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContainingInAnyOrder(Matcher[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContainingInAnyOrder(Matcher[])}.
    */
   @SafeVarargs
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.<T>arrayContainingInAnyOrder(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContainingInAnyOrder(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayContainingInAnyOrder(Collection)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayContainingInAnyOrder(Collection)}.
    */
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
@@ -262,179 +190,115 @@ class SerializableMatchers implements Serializable {
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayContainingInAnyOrder(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayContainingInAnyOrder(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayWithSize(int)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#arrayWithSize(int)}.
    */
   public static <T> SerializableMatcher<T[]> arrayWithSize(final int size) {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayWithSize(size);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayWithSize(size));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#arrayWithSize(Matcher)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#arrayWithSize(Matcher)}.
    */
   public static <T> SerializableMatcher<T[]> arrayWithSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.arrayWithSize(sizeMatcher);
-      }
-    });
+    return fromSupplier(() -> Matchers.arrayWithSize(sizeMatcher));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#closeTo(double,double)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#closeTo(double,double)}.
    */
   public static SerializableMatcher<Double> closeTo(final double target, final double error) {
-    return fromSupplier(new SerializableSupplier<Matcher<Double>>() {
-      @Override
-      public Matcher<Double> get() {
-        return Matchers.closeTo(target, error);
-      }
-    });
+    return fromSupplier(() -> Matchers.closeTo(target, error));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#contains(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#contains(Object[])}.
    */
   @SafeVarargs
   public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>> contains(
       final T... items) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.contains(items);
-      }
-    });
+    return fromSupplier(() -> Matchers.contains(items));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#contains(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#contains(Object[])}.
    *
    * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
    * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   @SafeVarargs
-  public static <T> SerializableMatcher<Iterable<? extends T>>
-  contains(Coder<T> coder, T... items) {
+  public static <T> SerializableMatcher<Iterable<? extends T>> contains(
+      Coder<T> coder, T... items) {
 
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
 
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.containsInAnyOrder(itemsSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.containsInAnyOrder(itemsSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#contains(Matcher[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#contains(Matcher[])}.
    */
   @SafeVarargs
   public static <T> SerializableMatcher<Iterable<? extends T>> contains(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.<T>contains(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.contains(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#contains(List)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#contains(List)}. */
   public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>> contains(
       List<SerializableMatcher<? super T>> serializableMatchers) {
 
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.contains(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.contains(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#containsInAnyOrder(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#containsInAnyOrder(Object[])}.
    */
   @SafeVarargs
-  public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>>
-  containsInAnyOrder(final T... items) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.containsInAnyOrder(items);
-      }
-    });
+  public static <T extends Serializable>
+      SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(final T... items) {
+    return fromSupplier(() -> Matchers.containsInAnyOrder(items));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#containsInAnyOrder(Object[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#containsInAnyOrder(Object[])}.
    *
-   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. It is
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   @SafeVarargs
-  public static <T> SerializableMatcher<Iterable<? extends T>>
-  containsInAnyOrder(Coder<T> coder, T... items) {
+  public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
+      Coder<T> coder, T... items) {
 
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
 
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.containsInAnyOrder(itemsSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.containsInAnyOrder(itemsSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#containsInAnyOrder(Matcher[])}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#containsInAnyOrder(Matcher[])}.
    */
   @SafeVarargs
   public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.<T>containsInAnyOrder(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.containsInAnyOrder(matchers));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#containsInAnyOrder(Collection)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#containsInAnyOrder(Collection)}.
    */
   public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
       Collection<SerializableMatcher<? super T>> serializableMatchers) {
@@ -442,418 +306,253 @@ class SerializableMatchers implements Serializable {
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe covariant cast
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.containsInAnyOrder(matchers);
-      }
-    });
+    return fromSupplier(() -> Matchers.containsInAnyOrder(matchers));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#containsString}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#containsString}. */
   public static SerializableMatcher<String> containsString(final String substring) {
-    return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      @Override
-      public Matcher<String> get() {
-        return Matchers.containsString(substring);
-      }
-    });
+    return fromSupplier(() -> Matchers.containsString(substring));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#empty()}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#empty()}. */
   public static <T> SerializableMatcher<Collection<? extends T>> empty() {
-    return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      @Override
-      public Matcher<Collection<? extends T>> get() {
-        return Matchers.empty();
-      }
-    });
+    return fromSupplier(Matchers::empty);
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyArray()}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyArray()}. */
   public static <T> SerializableMatcher<T[]> emptyArray() {
-    return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      @Override
-      public Matcher<T[]> get() {
-        return Matchers.emptyArray();
-      }
-    });
+    return fromSupplier(Matchers::emptyArray);
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyIterable()}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#emptyIterable()}. */
   public static <T> SerializableMatcher<Iterable<? extends T>> emptyIterable() {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      @Override
-      public Matcher<Iterable<? extends T>> get() {
-        return Matchers.emptyIterable();
-      }
-    });
+    return fromSupplier(Matchers::emptyIterable);
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#endsWith}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#endsWith}. */
   public static SerializableMatcher<String> endsWith(final String substring) {
-    return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      @Override
-      public Matcher<String> get() {
-        return Matchers.endsWith(substring);
-      }
-    });
+    return fromSupplier(() -> Matchers.endsWith(substring));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}. */
   public static <T extends Serializable> SerializableMatcher<T> equalTo(final T expected) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.equalTo(expected);
-      }
-    });
+    return fromSupplier(() -> Matchers.equalTo(expected));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
    *
-   * <p>The expected value of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The expected value of type {@code T} will be serialized using the provided {@link Coder}. It
+   * is explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <T> SerializableMatcher<T> equalTo(Coder<T> coder, T expected) {
 
     final SerializableSupplier<T> expectedSupplier = new SerializableViaCoder<>(coder, expected);
 
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.equalTo(expectedSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.equalTo(expectedSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThan(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#greaterThan(Comparable)}.
    */
-  public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
-  greaterThan(final T target) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.greaterThan(target);
-      }
-    });
+  public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> greaterThan(
+      final T target) {
+    return fromSupplier(() -> Matchers.greaterThan(target));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThan(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#greaterThan(Comparable)}.
    *
-   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}. It
+   * is explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
-  public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
-  greaterThan(final Coder<T> coder, T target) {
+  public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> greaterThan(
+      final Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.greaterThan(targetSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.greaterThan(targetSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#greaterThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T>> SerializableMatcher<T> greaterThanOrEqualTo(
       final T target) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.greaterThanOrEqualTo(target);
-      }
-    });
+    return fromSupplier(() -> Matchers.greaterThanOrEqualTo(target));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#greaterThanOrEqualTo(Comparable)}.
    *
-   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}. It
+   * is explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
-  public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
-  greaterThanOrEqualTo(final Coder<T> coder, T target) {
+  public static <T extends Comparable<T> & Serializable>
+      SerializableMatcher<T> greaterThanOrEqualTo(final Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.greaterThanOrEqualTo(targetSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.greaterThanOrEqualTo(targetSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasItem(Object)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasItem(Object)}. */
   public static <T extends Serializable> SerializableMatcher<Iterable<? super T>> hasItem(
       final T target) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      @Override
-      public Matcher<Iterable<? super T>> get() {
-        return Matchers.hasItem(target);
-      }
-    });
+    return fromSupplier(() -> Matchers.hasItem(target));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasItem(Object)}.
    *
-   * <p>The item of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The item of type {@code T} will be serialized using the provided {@link Coder}. It is
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <T> SerializableMatcher<Iterable<? super T>> hasItem(Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      @Override
-      public Matcher<Iterable<? super T>> get() {
-        return Matchers.hasItem(targetSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.hasItem(targetSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasItem(Matcher)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasItem(Matcher)}. */
   public static <T> SerializableMatcher<Iterable<? super T>> hasItem(
       final SerializableMatcher<? super T> matcher) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      @Override
-      public Matcher<Iterable<? super T>> get() {
-        return Matchers.hasItem(matcher);
-      }
-    });
+    return fromSupplier(() -> Matchers.hasItem(matcher));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasSize(int)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasSize(int)}. */
   public static <T> SerializableMatcher<Collection<? extends T>> hasSize(final int size) {
-    return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      @Override
-      public Matcher<Collection<? extends T>> get() {
-        return Matchers.hasSize(size);
-      }
-    });
+    return fromSupplier(() -> Matchers.hasSize(size));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasSize(Matcher)}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#hasSize(Matcher)}. */
   public static <T> SerializableMatcher<Collection<? extends T>> hasSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
-    return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      @Override
-      public Matcher<Collection<? extends T>> get() {
-        return Matchers.hasSize(sizeMatcher);
-      }
-    });
+    return fromSupplier(() -> Matchers.hasSize(sizeMatcher));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#iterableWithSize(int)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#iterableWithSize(int)}.
    */
   public static <T> SerializableMatcher<Iterable<T>> iterableWithSize(final int size) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<T>>>() {
-      @Override
-      public Matcher<Iterable<T>> get() {
-        return Matchers.iterableWithSize(size);
-      }
-    });
+    return fromSupplier(() -> Matchers.iterableWithSize(size));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#iterableWithSize(Matcher)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#iterableWithSize(Matcher)}.
    */
   public static <T> SerializableMatcher<Iterable<T>> iterableWithSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
-    return fromSupplier(new SerializableSupplier<Matcher<Iterable<T>>>() {
-      @Override
-      public Matcher<Iterable<T>> get() {
-        return Matchers.iterableWithSize(sizeMatcher);
-      }
-    });
+    return fromSupplier(() -> Matchers.iterableWithSize(sizeMatcher));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Collection)}.
-   */
-  public static <T extends Serializable> SerializableMatcher<T>
-  isIn(final Collection<T> collection) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isIn(collection);
-      }
-    });
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Collection)}. */
+  public static <T extends Serializable> SerializableMatcher<T> isIn(
+      final Collection<T> collection) {
+    return fromSupplier(() -> Matchers.isIn(collection));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Collection)}.
    *
-   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}.
-   * They are explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <T> SerializableMatcher<T> isIn(Coder<T> coder, Collection<T> collection) {
     @SuppressWarnings("unchecked")
     T[] items = (T[]) collection.toArray();
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isIn(itemsSupplier.get());
-      }
-    });
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
+    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Object[])}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Object[])}. */
   public static <T extends Serializable> SerializableMatcher<T> isIn(final T[] items) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isIn(items);
-      }
-    });
+    return fromSupplier(() -> Matchers.isIn(items));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isIn(Object[])}.
    *
-   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}.
-   * They are explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <T> SerializableMatcher<T> isIn(Coder<T> coder, T[] items) {
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isIn(itemsSupplier.get());
-      }
-    });
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
+    return fromSupplier(() -> Matchers.isIn(itemsSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isOneOf}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#isOneOf}. */
   @SafeVarargs
   public static <T extends Serializable> SerializableMatcher<T> isOneOf(final T... elems) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isOneOf(elems);
-      }
-    });
+    return fromSupplier(() -> Matchers.isOneOf(elems));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#isOneOf}.
    *
-   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}.
-   * They are explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The items of type {@code T} will be serialized using the provided {@link Coder}. They are
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   @SafeVarargs
   public static <T> SerializableMatcher<T> isOneOf(Coder<T> coder, T... items) {
-    final SerializableSupplier<T[]> itemsSupplier =
-        new SerializableArrayViaCoder<>(coder, items);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.isOneOf(itemsSupplier.get());
-      }
-    });
+    final SerializableSupplier<T[]> itemsSupplier = new SerializableArrayViaCoder<>(coder, items);
+    return fromSupplier(() -> Matchers.isOneOf(itemsSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} that matches any {@link KV} with the specified key.
-   */
-  public static <K extends Serializable, V> SerializableMatcher<KV<? extends K, ? extends V>>
-  kvWithKey(K key) {
-    return new KvKeyMatcher<K, V>(equalTo(key));
+  /** A {@link SerializableMatcher} that matches any {@link KV} with the specified key. */
+  public static <K extends Serializable, V>
+      SerializableMatcher<KV<? extends K, ? extends V>> kvWithKey(K key) {
+    return new KvKeyMatcher<>(equalTo(key));
   }
 
   /**
    * A {@link SerializableMatcher} that matches any {@link KV} with the specified key.
    *
-   * <p>The key of type {@code K} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
-   */
-  public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>>
-  kvWithKey(Coder<K> coder, K key) {
-    return new KvKeyMatcher<K, V>(equalTo(coder, key));
-  }
-
-  /**
-   * A {@link SerializableMatcher} that matches any {@link KV} with matching key.
+   * <p>The key of type {@code K} will be serialized using the provided {@link Coder}. It is
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kvWithKey(
-      final SerializableMatcher<? super K> keyMatcher) {
-    return new KvKeyMatcher<K, V>(keyMatcher);
+      Coder<K> coder, K key) {
+    return new KvKeyMatcher<>(equalTo(coder, key));
   }
 
-  /**
-   * A {@link SerializableMatcher} that matches any {@link KV} with the specified value.
-   */
-  public static <K, V extends Serializable> SerializableMatcher<KV<? extends K, ? extends V>>
-  kvWithValue(V value) {
-    return new KvValueMatcher<K, V>(equalTo(value));
+  /** A {@link SerializableMatcher} that matches any {@link KV} with matching key. */
+  public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kvWithKey(
+      final SerializableMatcher<? super K> keyMatcher) {
+    return new KvKeyMatcher<>(keyMatcher);
+  }
+
+  /** A {@link SerializableMatcher} that matches any {@link KV} with the specified value. */
+  public static <K, V extends Serializable>
+      SerializableMatcher<KV<? extends K, ? extends V>> kvWithValue(V value) {
+    return new KvValueMatcher<>(equalTo(value));
   }
 
   /**
    * A {@link SerializableMatcher} that matches any {@link KV} with the specified value.
    *
-   * <p>The value of type {@code V} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The value of type {@code V} will be serialized using the provided {@link Coder}. It is
+   * explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
-  public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>>
-  kvWithValue(Coder<V> coder, V value) {
-    return new KvValueMatcher<K, V>(equalTo(coder, value));
+  public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kvWithValue(
+      Coder<V> coder, V value) {
+    return new KvValueMatcher<>(equalTo(coder, value));
   }
 
-  /**
-   * A {@link SerializableMatcher} that matches any {@link KV} with matching value.
-   */
+  /** A {@link SerializableMatcher} that matches any {@link KV} with matching value. */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kvWithValue(
       final SerializableMatcher<? super V> valueMatcher) {
     return new KvValueMatcher<>(valueMatcher);
   }
 
-  /**
-   * A {@link SerializableMatcher} that matches any {@link KV} with matching key and value.
-   */
+  /** A {@link SerializableMatcher} that matches any {@link KV} with matching key and value. */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kv(
       final SerializableMatcher<? super K> keyMatcher,
       final SerializableMatcher<? super V> valueMatcher) {
 
-    return SerializableMatchers.<KV<? extends K, ? extends V>>allOf(
-        SerializableMatchers.<K, V>kvWithKey(keyMatcher),
-        SerializableMatchers.<K, V>kvWithValue(valueMatcher));
+    return SerializableMatchers.allOf(
+        SerializableMatchers.kvWithKey(keyMatcher), SerializableMatchers.kvWithValue(valueMatcher));
   }
 
   /**
@@ -861,104 +560,60 @@ class SerializableMatchers implements Serializable {
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThan(
       final T target) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.lessThan(target);
-      }
-    });
+    return fromSupplier(() -> Matchers.lessThan(target));
   }
 
   /**
    * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan(Comparable)}.
    *
-   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}. It
+   * is explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
-  public static <T extends Comparable<T>> SerializableMatcher<T>
-  lessThan(Coder<T> coder, T target) {
+  public static <T extends Comparable<T>> SerializableMatcher<T> lessThan(
+      Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.lessThan(targetSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.lessThan(targetSupplier.get()));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#lessThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThanOrEqualTo(
       final T target) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.lessThanOrEqualTo(target);
-      }
-    });
+    return fromSupplier(() -> Matchers.lessThanOrEqualTo(target));
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
+   * A {@link SerializableMatcher} with identical criteria to {@link
+   * Matchers#lessThanOrEqualTo(Comparable)}.
    *
-   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
-   * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
+   * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}. It
+   * is explicitly <i>not</i> required or expected to be serializable via Java serialization.
    */
   public static <T extends Comparable<T>> SerializableMatcher<T> lessThanOrEqualTo(
       Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.lessThanOrEqualTo(targetSupplier.get());
-      }
-    });
+    return fromSupplier(() -> Matchers.lessThanOrEqualTo(targetSupplier.get()));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#not}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#not}. */
   public static <T> SerializableMatcher<T> not(final SerializableMatcher<T> matcher) {
-    return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      @Override
-      public Matcher<T> get() {
-        return Matchers.not(matcher);
-      }
-    });
+    return fromSupplier(() -> Matchers.not(matcher));
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#nullValue}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#nullValue}. */
   public static SerializableMatcher<Object> nullValue() {
-    return fromSupplier(new SerializableSupplier<Matcher<Object>>() {
-      @Override
-      public Matcher<Object> get() {
-        return Matchers.nullValue();
-      }
-    });
+    return fromSupplier(Matchers::nullValue);
   }
 
-  /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#startsWith}.
-   */
+  /** A {@link SerializableMatcher} with identical criteria to {@link Matchers#startsWith}. */
   public static SerializableMatcher<String> startsWith(final String substring) {
-    return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      @Override
-      public Matcher<String> get() {
-        return Matchers.startsWith(substring);
-      }
-    });
+    return fromSupplier(() -> Matchers.startsWith(substring));
   }
 
-  private static class KvKeyMatcher<K, V>
-  extends BaseMatcher<KV<? extends K, ? extends V>>
-  implements SerializableMatcher<KV<? extends K, ? extends V>> {
+  private static class KvKeyMatcher<K, V> extends BaseMatcher<KV<? extends K, ? extends V>>
+      implements SerializableMatcher<KV<? extends K, ? extends V>> {
     private final SerializableMatcher<? super K> keyMatcher;
 
     public KvKeyMatcher(SerializableMatcher<? super K> keyMatcher) {
@@ -990,15 +645,12 @@ class SerializableMatchers implements Serializable {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .addValue(keyMatcher)
-          .toString();
+      return MoreObjects.toStringHelper(this).addValue(keyMatcher).toString();
     }
   }
 
-  private static class KvValueMatcher<K, V>
-  extends BaseMatcher<KV<? extends K, ? extends V>>
-  implements SerializableMatcher<KV<? extends K, ? extends V>> {
+  private static class KvValueMatcher<K, V> extends BaseMatcher<KV<? extends K, ? extends V>>
+      implements SerializableMatcher<KV<? extends K, ? extends V>> {
     private final SerializableMatcher<? super V> valueMatcher;
 
     public KvValueMatcher(SerializableMatcher<? super V> valueMatcher) {
@@ -1030,9 +682,7 @@ class SerializableMatchers implements Serializable {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .addValue(valueMatcher)
-          .toString();
+      return MoreObjects.toStringHelper(this).addValue(valueMatcher).toString();
     }
   }
 
@@ -1041,10 +691,10 @@ class SerializableMatchers implements Serializable {
    * indirection through {@link SerializableSupplier}.
    *
    * <p>To wrap a {@link Matcher} which is not serializable, provide a {@link SerializableSupplier}
-   * with a {@link SerializableSupplier#get()} method that returns a fresh instance of the
-   * {@link Matcher} desired. The resulting {@link SerializableMatcher} will behave according to
-   * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
-   * during matching (which may occur on another machine).
+   * with a {@link SerializableSupplier#get()} method that returns a fresh instance of the {@link
+   * Matcher} desired. The resulting {@link SerializableMatcher} will behave according to the {@link
+   * Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked during
+   * matching (which may occur on another machine).
    *
    * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {
@@ -1055,8 +705,7 @@ class SerializableMatchers implements Serializable {
    * });
    * }</pre>
    */
-  public static <T> SerializableMatcher<T> fromSupplier(
-      SerializableSupplier<Matcher<T>> supplier) {
+  public static <T> SerializableMatcher<T> fromSupplier(SerializableSupplier<Matcher<T>> supplier) {
     return new SerializableMatcherFromSupplier<>(supplier);
   }
 
@@ -1076,7 +725,7 @@ class SerializableMatchers implements Serializable {
    * SerializableFunction to return such a matcher.
    */
   private static class SerializableMatcherFromSupplier<T> extends BaseMatcher<T>
-  implements SerializableMatcher<T> {
+      implements SerializableMatcher<T> {
 
     private SerializableSupplier<Matcher<T>> supplier;
 
@@ -1101,14 +750,13 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * Wraps any value that can be encoded via a {@link Coder} to make it {@link Serializable}.
-   * This is not likely to be a good encoding, so should be used only for tests, where data
-   * volume is small and minor costs are not critical.
+   * Wraps any value that can be encoded via a {@link Coder} to make it {@link Serializable}. This
+   * is not likely to be a good encoding, so should be used only for tests, where data volume is
+   * small and minor costs are not critical.
    */
   private static class SerializableViaCoder<T> implements SerializableSupplier<T> {
     /** Cached value that is not serialized. */
-    @Nullable
-    private transient T value;
+    @Nullable private transient T value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */
     private byte[] encodedValue;
@@ -1139,14 +787,13 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * Wraps any array with values that can be encoded via a {@link Coder} to make it
-   * {@link Serializable}. This is not likely to be a good encoding, so should be used only for
-   * tests, where data volume is small and minor costs are not critical.
+   * Wraps any array with values that can be encoded via a {@link Coder} to make it {@link
+   * Serializable}. This is not likely to be a good encoding, so should be used only for tests,
+   * where data volume is small and minor costs are not critical.
    */
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
-    @Nullable
-    private transient T[] value;
+    @Nullable private transient T[] value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */
     private byte[] encodedValue;

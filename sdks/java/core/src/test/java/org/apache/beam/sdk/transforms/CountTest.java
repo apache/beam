@@ -23,9 +23,9 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -34,28 +34,23 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Count.
- */
+/** Tests for Count. */
 @RunWith(JUnit4.class)
 public class CountTest {
-  static final String[] WORDS_ARRAY = new String[] {
-    "hi", "there", "hi", "hi", "sue", "bob",
-    "hi", "sue", "", "", "ZOW", "bob", "" };
+  static final String[] WORDS_ARRAY =
+      new String[] {"hi", "there", "hi", "hi", "sue", "bob", "hi", "sue", "", "", "ZOW", "bob", ""};
 
   static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
 
-    PCollection<KV<String, Long>> output =
-        input.apply(Count.<String>perElement());
+    PCollection<KV<String, Long>> output = input.apply(Count.perElement());
 
     PAssert.that(output)
         .containsInAnyOrder(
@@ -69,41 +64,36 @@ public class CountTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
 
-    PCollection<KV<String, Long>> output =
-        input.apply(Count.<String>perElement());
+    PCollection<KV<String, Long>> output = input.apply(Count.perElement());
 
     PAssert.that(output).empty();
     p.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCountGloballyBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
 
-    PCollection<Long> output =
-        input.apply(Count.<String>globally());
+    PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(13L);
+    PAssert.that(output).containsInAnyOrder(13L);
     p.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCountGloballyEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
 
-    PCollection<Long> output =
-        input.apply(Count.<String>globally());
+    PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(0L);
+    PAssert.that(output).containsInAnyOrder(0L);
     p.run();
   }
 

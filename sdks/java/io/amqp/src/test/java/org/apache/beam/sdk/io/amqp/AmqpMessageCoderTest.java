@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.amqp;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Joiner;
-
 import java.util.Collections;
-
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.qpid.proton.amqp.messaging.AmqpValue;
@@ -33,14 +31,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test on {@link AmqpMessageCoder}.
- */
+/** Test on {@link AmqpMessageCoder}. */
 @RunWith(JUnit4.class)
 public class AmqpMessageCoderTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeDecode() throws Exception {
@@ -85,5 +80,4 @@ public class AmqpMessageCoderTest {
 
     clone.getBody().toString().equals(message.getBody().toString());
   }
-
 }

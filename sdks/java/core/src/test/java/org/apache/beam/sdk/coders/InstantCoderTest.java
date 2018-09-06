@@ -75,31 +75,31 @@ public class InstantCoderTest {
     // Verify that the encodings were already sorted, since they were generated
     // in the correct order.
     List<byte[]> sortedEncodings = new ArrayList<>(encodings);
-    Collections.sort(sortedEncodings, UnsignedBytes.lexicographicalComparator());
+    sortedEncodings.sort(UnsignedBytes.lexicographicalComparator());
 
     Assert.assertEquals(encodings, sortedEncodings);
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "gAAAAAAAAAA",
-      "gAAAAAAAAAE",
-      "f_________8",
-      "f________wE",
-      "gAAAAAAAAQA",
-      "AAAAAAAAAAA",
-      "__________8");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "gAAAAAAAAAA",
+          "gAAAAAAAAAE",
+          "f_________8",
+          "f________wE",
+          "gAAAAAAAAQA",
+          "AAAAAAAAAAA",
+          "__________8");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

@@ -49,15 +49,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-
 /**
- * A test suite that tests tracking of the streaming sources created an
- * {@link org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.
+ * A test suite that tests tracking of the streaming sources created an {@link
+ * org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.
  */
 public class TrackStreamingSourcesTest {
 
-  @Rule
-  public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
+  @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
 
   private static final transient SparkPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
@@ -71,19 +69,19 @@ public class TrackStreamingSourcesTest {
   public void testTrackSingle() {
     options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-    JavaStreamingContext jssc = new JavaStreamingContext(jsc,
-        new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
+    JavaStreamingContext jssc =
+        new JavaStreamingContext(
+            jsc, new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
 
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> emptyStream =
-        CreateStream.of(
-            VarIntCoder.of(),
-            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
+        CreateStream.of(VarIntCoder.of(), Duration.millis(options.getBatchIntervalMillis()))
+            .emptyBatch();
 
     p.apply(emptyStream).apply(ParDo.of(new PassthroughFn<>()));
 
-    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.MultiOutput.class,  0));
+    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.MultiOutput.class, 0));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
   }
 
@@ -91,24 +89,23 @@ public class TrackStreamingSourcesTest {
   public void testTrackFlattened() {
     options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-    JavaStreamingContext jssc = new JavaStreamingContext(jsc,
-        new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
+    JavaStreamingContext jssc =
+        new JavaStreamingContext(
+            jsc, new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
 
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> queueStream1 =
-        CreateStream.of(
-            VarIntCoder.of(),
-            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
+        CreateStream.of(VarIntCoder.of(), Duration.millis(options.getBatchIntervalMillis()))
+            .emptyBatch();
     CreateStream<Integer> queueStream2 =
-        CreateStream.of(
-            VarIntCoder.of(),
-            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
+        CreateStream.of(VarIntCoder.of(), Duration.millis(options.getBatchIntervalMillis()))
+            .emptyBatch();
 
     PCollection<Integer> pcol1 = p.apply(queueStream1);
     PCollection<Integer> pcol2 = p.apply(queueStream2);
     PCollection<Integer> flattened =
-        PCollectionList.of(pcol1).and(pcol2).apply(Flatten.<Integer>pCollections());
+        PCollectionList.of(pcol1).and(pcol2).apply(Flatten.pCollections());
     flattened.apply(ParDo.of(new PassthroughFn<>()));
 
     p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.MultiOutput.class, 0, 1));
@@ -136,8 +133,10 @@ public class TrackStreamingSourcesTest {
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
       this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, options, jssc);
-      this.evaluator = new SparkRunner.Evaluator(
-          new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
+      this.evaluator =
+          new SparkRunner.Evaluator(
+              new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()),
+              ctxt);
       this.transformClassToAssert = transformClassToAssert;
       this.expected = expected;
     }
@@ -179,5 +178,4 @@ public class TrackStreamingSourcesTest {
       evaluator.leavePipeline(p);
     }
   }
-
 }

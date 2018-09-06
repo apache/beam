@@ -43,12 +43,13 @@ import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Test for dependency resolution for pipeline execution on YARN.
- */
+/** Test for dependency resolution for pipeline execution on YARN. */
 public class ApexYarnLauncherTest {
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void testGetYarnDeployDependencies() throws Exception {
@@ -67,12 +68,8 @@ public class ApexYarnLauncherTest {
     // use the embedded launcher to build the DAG only
     EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
 
-    StreamingApplication app = new StreamingApplication() {
-      @Override
-      public void populateDAG(DAG dag, Configuration conf) {
-        dag.setAttribute(DAGContext.APPLICATION_NAME, "DummyApp");
-      }
-    };
+    StreamingApplication app =
+        (dag, conf) -> dag.setAttribute(DAGContext.APPLICATION_NAME, "DummyApp");
 
     Configuration conf = new Configuration(false);
     DAG dag = embeddedLauncher.prepareDAG(app, conf);
@@ -82,11 +79,11 @@ public class ApexYarnLauncherTest {
     launcher.launchApp(new MockApexYarnLauncherParams(dag, launchAttributes, configProperties));
   }
 
-  private static class MockApexYarnLauncherParams extends  ApexYarnLauncher.LaunchParams {
+  private static class MockApexYarnLauncherParams extends ApexYarnLauncher.LaunchParams {
     private static final long serialVersionUID = 1L;
 
-    public MockApexYarnLauncherParams(DAG dag, AttributeMap launchAttributes,
-        Properties properties) {
+    public MockApexYarnLauncherParams(
+        DAG dag, AttributeMap launchAttributes, Properties properties) {
       super(dag, launchAttributes, properties);
     }
 
@@ -94,9 +91,11 @@ public class ApexYarnLauncherTest {
     protected Launcher<?> getApexLauncher() {
       return new Launcher<AppHandle>() {
         @Override
-        public AppHandle launchApp(StreamingApplication application,
-            Configuration configuration, AttributeMap launchParameters)
-            throws org.apache.apex.api.Launcher.LauncherException {
+        public AppHandle launchApp(
+            StreamingApplication application,
+            Configuration configuration,
+            AttributeMap launchParameters)
+            throws Launcher.LauncherException {
           EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
           DAG dag = embeddedLauncher.getDAG();
           application.populateDAG(dag, new Configuration(false));
@@ -107,22 +106,20 @@ public class ApexYarnLauncherTest {
             public boolean isFinished() {
               return true;
             }
+
             @Override
-            public void shutdown(org.apache.apex.api.Launcher.ShutdownMode arg0) {
-            }
+            public void shutdown(Launcher.ShutdownMode arg0) {}
           };
         }
       };
     }
-
   }
 
   @Test
   public void testCreateJar() throws Exception {
-    File baseDir = new File("./target/testCreateJar");
-    File srcDir = new File(baseDir, "src");
+    File baseDir = tmpFolder.newFolder("target", "testCreateJar");
+    File srcDir = tmpFolder.newFolder("target", "testCreateJar", "src");
     String file1 = "file1";
-    FileUtils.forceMkdir(srcDir);
     FileUtils.write(new File(srcDir, file1), "file1");
 
     File jarFile = new File(baseDir, "test.jar");
@@ -130,10 +127,9 @@ public class ApexYarnLauncherTest {
     Assert.assertTrue("exists: " + jarFile, jarFile.exists());
     URI uri = URI.create("jar:" + jarFile.toURI());
     final Map<String, ?> env = Collections.singletonMap("create", "true");
-    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env);) {
+    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
       Assert.assertTrue("manifest", Files.isRegularFile(zipfs.getPath(JarFile.MANIFEST_NAME)));
       Assert.assertTrue("file1", Files.isRegularFile(zipfs.getPath(file1)));
     }
-
   }
 }

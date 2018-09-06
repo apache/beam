@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -41,7 +42,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -51,9 +51,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ImmutableListBundleFactory}.
- */
+/** Tests for {@link ImmutableListBundleFactory}. */
 @RunWith(JUnit4.class)
 public class ImmutableListBundleFactoryTest {
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -67,7 +65,7 @@ public class ImmutableListBundleFactoryTest {
   @Before
   public void setup() {
     created = p.apply(Create.of(1, 2, 3));
-    downstream = created.apply(WithKeys.<String, Integer>of("foo"));
+    downstream = created.apply(WithKeys.of("foo"));
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
@@ -77,7 +75,7 @@ public class ImmutableListBundleFactoryTest {
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.getKey(), Matchers.<StructuralKey<?>>equalTo(skey));
+    assertThat(bundle.getKey(), equalTo(skey));
   }
 
   @Test
@@ -100,8 +98,8 @@ public class ImmutableListBundleFactoryTest {
     createKeyedBundle(ByteArrayCoder.of(), new byte[] {0, 2, 4, 99});
   }
 
-  private <T> CommittedBundle<T>
-  afterCommitGetElementsShouldHaveAddedElements(Iterable<WindowedValue<T>> elems) {
+  private <T> CommittedBundle<T> afterCommitGetElementsShouldHaveAddedElements(
+      Iterable<WindowedValue<T>> elems) {
     UncommittedBundle<T> bundle = bundleFactory.createRootBundle();
     Collection<Matcher<? super WindowedValue<T>>> expectations = new ArrayList<>();
     Instant minElementTs = BoundedWindow.TIMESTAMP_MAX_VALUE;
@@ -113,14 +111,14 @@ public class ImmutableListBundleFactoryTest {
       }
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
-        Matchers.<WindowedValue<T>>containsInAnyOrder(expectations);
+        containsInAnyOrder(expectations);
     Instant commitTime = Instant.now();
     CommittedBundle<T> committed = bundle.commit(commitTime);
     assertThat(committed.getElements(), containsMatcher);
 
     // Sanity check that the test is meaningful.
     assertThat(minElementTs, not(equalTo(commitTime)));
-    assertThat(committed.getMinTimestamp(), equalTo(minElementTs));
+    assertThat(committed.getMinimumTimestamp(), equalTo(minElementTs));
     assertThat(committed.getSynchronizedProcessingOutputWatermark(), equalTo(commitTime));
 
     return committed;
@@ -185,12 +183,12 @@ public class ImmutableListBundleFactoryTest {
 
     assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
     assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
-    assertThat(withed.getKey(), Matchers.<StructuralKey<?>>equalTo(committed.getKey()));
+    assertThat(withed.getKey(), equalTo(committed.getKey()));
     assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
-    assertThat(withed.getMinTimestamp(), equalTo(new Instant(2048L)));
+    assertThat(withed.getMinimumTimestamp(), equalTo(new Instant(2048L)));
   }
 
   @Test
@@ -222,9 +220,10 @@ public class ImmutableListBundleFactoryTest {
 
   @Test
   public void createKeyedBundleKeyed() {
-    CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
-        StructuralKey.of("foo", StringUtf8Coder.of()),
-        downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey().getKey(), Matchers.<Object>equalTo("foo"));
+    CommittedBundle<KV<String, Integer>> keyedBundle =
+        bundleFactory
+            .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), downstream)
+            .commit(Instant.now());
+    assertThat(keyedBundle.getKey().getKey(), equalTo("foo"));
   }
 }

@@ -39,13 +39,9 @@ public abstract class TaggedPValue {
     return of(Iterables.getOnlyElement(value.expand().keySet()), value);
   }
 
-  /**
-   * Returns the local tag associated with the {@link PValue}.
-   */
+  /** Returns the local tag associated with the {@link PValue}. */
   public abstract TupleTag<?> getTag();
 
-  /**
-   * Returns the {@link PValue}.
-   */
+  /** Returns the {@link PValue}. */
   public abstract PValue getValue();
 }

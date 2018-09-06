@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,26 +51,19 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A DataflowPipelineJob represents a job submitted to Dataflow using
- * {@link DataflowRunner}.
- */
+/** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
 public class DataflowPipelineJob implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);
 
-  /**
-   * The id for the job.
-   */
+  /** The id for the job. */
   protected String jobId;
 
-  /**
-   * The {@link DataflowPipelineOptions} for the job.
-   */
+  /** The {@link DataflowPipelineOptions} for the job. */
   private final DataflowPipelineOptions dataflowOptions;
 
   /**
-   * Client for the Dataflow service. This can be used to query the service
-   * for information about the job.
+   * Client for the Dataflow service. This can be used to query the service for information about
+   * the job.
    */
   private final DataflowClient dataflowClient;
 
@@ -81,42 +73,30 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   private final DataflowMetrics dataflowMetrics;
 
-  /**
-   * The state the job terminated in or {@code null} if the job has not terminated.
-   */
-  @Nullable
-  private State terminalState = null;
+  /** The state the job terminated in or {@code null} if the job has not terminated. */
+  @Nullable private State terminalState = null;
 
-  /**
-   * The job that replaced this one or {@code null} if the job has not been replaced.
-   */
-  @Nullable
-  private DataflowPipelineJob replacedByJob = null;
+  /** The job that replaced this one or {@code null} if the job has not been replaced. */
+  @Nullable private DataflowPipelineJob replacedByJob = null;
 
   protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
 
-  /**
-   * The Metric Updates retrieved after the job was in a terminal state.
-   */
+  /** The Metric Updates retrieved after the job was in a terminal state. */
   private List<MetricUpdate> terminalMetricUpdates;
 
-  /**
-   * The latest timestamp up to which job messages have been retrieved.
-   */
+  /** The latest timestamp up to which job messages have been retrieved. */
   private long lastTimestamp = Long.MIN_VALUE;
 
-  /**
-   * The polling interval for job status and messages information.
-   */
+  /** The polling interval for job status and messages information. */
   static final Duration MESSAGES_POLLING_INTERVAL = Duration.standardSeconds(2);
+
   static final Duration STATUS_POLLING_INTERVAL = Duration.standardSeconds(2);
 
   static final double DEFAULT_BACKOFF_EXPONENT = 1.5;
 
-  /**
-   * The amount of polling retries for job status and messages information.
-   */
+  /** The amount of polling retries for job status and messages information. */
   static final int MESSAGES_POLLING_RETRIES = 11;
+
   static final int STATUS_POLLING_RETRIES = 4;
 
   private static final FluentBackoff MESSAGES_BACKOFF_FACTORY =
@@ -145,30 +125,34 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowClient = dataflowClient;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(
-        firstNonNull(transformStepNames, ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of()));
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
-  /**
-   * Get the id of this job.
-   */
+  /** Get the id of this job. */
   public String getJobId() {
     return jobId;
   }
 
-  /**
-   * Get the project this job exists in.
-   */
+  /** Get the project this job exists in. */
   public String getProjectId() {
     return dataflowOptions.getProject();
+  }
+
+  public DataflowPipelineOptions getDataflowOptions() {
+    return dataflowOptions;
+  }
+
+  /** Get the region this job exists in. */
+  public String getRegion() {
+    return dataflowOptions.getRegion();
   }
 
   /**
    * Returns a new {@link DataflowPipelineJob} for the job that replaced this one, if applicable.
    *
    * @throws IllegalStateException if called before the job has terminated or if the job terminated
-   * but was not updated
+   *     but was not updated
    */
   public DataflowPipelineJob getReplacedByJob() {
     if (terminalState == null) {
@@ -190,8 +174,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   public State waitUntilFinish(Duration duration) {
     try {
-      return waitUntilFinish(
-          duration, new MonitoringUtil.LoggingHandler());
+      return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
     } catch (Exception e) {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
@@ -206,34 +189,29 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * Waits until the pipeline finishes and returns the final status.
    *
-   * @param duration The time to wait for the job to finish.
-   *     Provide a value less than 1 ms for an infinite wait.
-   *
-   * @param messageHandler If non null this handler will be invoked for each
-   *   batch of messages received.
-   * @return The final state of the job or null on timeout or if the
-   *   thread is interrupted.
-   * @throws IOException If there is a persistent problem getting job
-   *   information.
+   * @param duration The time to wait for the job to finish. Provide a value less than 1 ms for an
+   *     infinite wait.
+   * @param messageHandler If non null this handler will be invoked for each batch of messages
+   *     received.
+   * @return The final state of the job or null on timeout or if the thread is interrupted.
+   * @throws IOException If there is a persistent problem getting job information.
    */
   @Nullable
   @VisibleForTesting
-  public State waitUntilFinish(
-      Duration duration,
-      MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
+  public State waitUntilFinish(Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
+      throws IOException, InterruptedException {
     // We ignore the potential race condition here (Ctrl-C after job submission but before the
     // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
     // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
     // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
     // etc. If the user wants to verify the job was cancelled they should look at the job status.
-    Thread shutdownHook = new Thread() {
-      @Override
-      public void run() {
-        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
-            + "To cancel the job in the cloud, run:\n> {}",
-            MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId()));
-      }
-    };
+    Thread shutdownHook =
+        new Thread(
+            () ->
+                LOG.warn(
+                    "Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+                        + "To cancel the job in the cloud, run:\n> {}",
+                    MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId())));
 
     try {
       Runtime.getRuntime().addShutdownHook(shutdownHook);
@@ -263,16 +241,14 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * Waits until the pipeline finishes and returns the final status.
    *
-   * @param duration The time to wait for the job to finish.
-   *     Provide a value less than 1 ms for an infinite wait.
-   *
-   * @param messageHandler If non null this handler will be invoked for each
-   *   batch of messages received.
+   * @param duration The time to wait for the job to finish. Provide a value less than 1 ms for an
+   *     infinite wait.
+   * @param messageHandler If non null this handler will be invoked for each batch of messages
+   *     received.
    * @param sleeper A sleeper to use to sleep between attempts.
    * @param nanoClock A nanoClock used to time the total time taken.
    * @return The final state of the job or null on timeout.
-   * @throws IOException If there is a persistent problem getting job
-   *   information.
+   * @throws IOException If there is a persistent problem getting job information.
    * @throws InterruptedException if the thread is interrupted.
    */
   @Nullable
@@ -282,14 +258,16 @@ public class DataflowPipelineJob implements PipelineResult {
       @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock,
-      MonitoringUtil monitor) throws IOException, InterruptedException {
+      MonitoringUtil monitor)
+      throws IOException, InterruptedException {
 
     BackOff backoff;
     if (!duration.isLongerThan(Duration.ZERO)) {
       backoff = BackOffAdapter.toGcpBackOff(MESSAGES_BACKOFF_FACTORY.backoff());
     } else {
-      backoff = BackOffAdapter.toGcpBackOff(
-          MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff());
+      backoff =
+          BackOffAdapter.toGcpBackOff(
+              MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff());
     }
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
@@ -301,17 +279,16 @@ public class DataflowPipelineJob implements PipelineResult {
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      state = getStateWithRetries(
-          BackOffAdapter.toGcpBackOff(
-              STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff()),
-          sleeper);
+      state =
+          getStateWithRetries(
+              BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff()),
+              sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
         // Process all the job messages that have accumulated so far.
         try {
-          List<JobMessage> allMessages = monitor.getJobMessages(
-              jobId, lastTimestamp);
+          List<JobMessage> allMessages = monitor.getJobMessages(jobId, lastTimestamp);
 
           if (!allMessages.isEmpty()) {
             lastTimestamp =
@@ -334,13 +311,16 @@ public class DataflowPipelineJob implements PipelineResult {
               LOG.info("Job {} finished with status {}.", getJobId(), state);
               break;
             case UPDATED:
-              LOG.info("Job {} has been updated and is running as the new job with id {}. "
-                  + "To access the updated job on the Dataflow monitoring console, "
-                  + "please navigate to {}",
+              LOG.info(
+                  "Job {} has been updated and is running as the new job with id {}. "
+                      + "To access the updated job on the Dataflow monitoring console, "
+                      + "please navigate to {}",
                   getJobId(),
                   getReplacedByJob().getJobId(),
                   MonitoringUtil.getJobMonitoringPageURL(
-                      getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
+                      getReplacedByJob().getProjectId(),
+                      getRegion(),
+                      getReplacedByJob().getJobId()));
               break;
             default:
               LOG.info("Job {} failed with status {}.", getJobId(), state);
@@ -359,17 +339,18 @@ public class DataflowPipelineJob implements PipelineResult {
           Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
           Duration remaining = duration.minus(consumed);
           if (remaining.isLongerThan(Duration.ZERO)) {
-            backoff = BackOffAdapter.toGcpBackOff(
-                MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff());
+            backoff =
+                BackOffAdapter.toGcpBackOff(
+                    MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff());
           } else {
             // If there is no time remaining, don't bother backing off.
             backoff = BackOff.STOP_BACKOFF;
           }
         }
       }
-    } while(BackOffUtils.next(sleeper, backoff));
+    } while (BackOffUtils.next(sleeper, backoff));
     LOG.warn("No terminal state was returned. State value {}", state);
-    return null;  // Timed out.
+    return null; // Timed out.
   }
 
   private AtomicReference<FutureTask<State>> cancelState = new AtomicReference<>();
@@ -386,45 +367,47 @@ public class DataflowPipelineJob implements PipelineResult {
     // externally almost concurrently to calling cancel(), but at least it
     // makes it possible to safely call cancel() multiple times and from
     // multiple threads in one program.
-    FutureTask<State> tentativeCancelTask = new FutureTask<>(new Callable<State>() {
-      @Override
-      public State call() throws Exception {
-        Job content = new Job();
-        content.setProjectId(getProjectId());
-        content.setId(jobId);
-        content.setRequestedState("JOB_STATE_CANCELLED");
-        try {
-          Job job = dataflowClient.updateJob(jobId, content);
-          return MonitoringUtil.toState(job.getCurrentState());
-        } catch (IOException e) {
-          State state = getState();
-          if (state.isTerminal()) {
-            LOG.warn("Cancel failed because job is already terminated. State is {}", state);
-            return state;
-          } else if (e.getMessage().contains("has terminated")) {
-            // This handles the case where the getState() call above returns RUNNING but the cancel
-            // was rejected because the job is in fact done. Hopefully, someday we can delete this
-            // code if there is better consistency between the State and whether Cancel succeeds.
-            //
-            // Example message:
-            //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
-            //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
-            //    terminated in state SUCCESS: Workflow job: 2017-04-01_22_50_59-9269855660514862348
-            //    succeeded.
-            LOG.warn("Cancel failed because job is already terminated.", e);
-            return state;
-          } else {
-            String errorMsg = String.format(
-                "Failed to cancel job in state %s, "
-                    + "please go to the Developers Console to cancel it manually: %s",
-                state,
-                MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-            LOG.warn(errorMsg);
-            throw new IOException(errorMsg, e);
-          }
-        }
-      }
-    });
+    FutureTask<State> tentativeCancelTask =
+        new FutureTask<>(
+            () -> {
+              Job content = new Job();
+              content.setProjectId(getProjectId());
+              content.setId(jobId);
+              content.setRequestedState("JOB_STATE_CANCELLED");
+              try {
+                Job job = dataflowClient.updateJob(jobId, content);
+                return MonitoringUtil.toState(job.getCurrentState());
+              } catch (IOException e) {
+                State state = getState();
+                if (state.isTerminal()) {
+                  LOG.warn("Cancel failed because job is already terminated. State is {}", state);
+                  return state;
+                } else if (e.getMessage().contains("has terminated")) {
+                  // This handles the case where the getState() call above returns RUNNING but the
+                  // cancel was rejected because the job is in fact done. Hopefully, someday we can
+                  // delete this code if there is better consistency between the State and whether
+                  // Cancel succeeds.
+                  //
+                  // Example message:
+                  //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
+                  //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
+                  //    terminated in state SUCCESS: Workflow job:
+                  //    2017-04-01_22_50_59-9269855660514862348 succeeded.
+                  LOG.warn("Cancel failed because job is already terminated.", e);
+                  return state;
+                } else {
+                  String errorMsg =
+                      String.format(
+                          "Failed to cancel job in state %s, "
+                              + "please go to the Developers Console to cancel it manually: %s",
+                          state,
+                          MonitoringUtil.getJobMonitoringPageURL(
+                              getProjectId(), getRegion(), getJobId()));
+                  LOG.warn(errorMsg);
+                  throw new IOException(errorMsg, e);
+                }
+              }
+            });
     if (cancelState.compareAndSet(null, tentativeCancelTask)) {
       // This thread should perform cancellation, while others will
       // only wait for the result.
@@ -444,13 +427,12 @@ public class DataflowPipelineJob implements PipelineResult {
     }
 
     return getStateWithRetries(
-        BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()),
-        Sleeper.DEFAULT);
+        BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
   /**
-   * Attempts to get the state. Uses exponential backoff on failure up to the maximum number
-   * of passed in attempts.
+   * Attempts to get the state. Uses exponential backoff on failure up to the maximum number of
+   * passed in attempts.
    *
    * @param attempts The amount of attempts to make.
    * @param sleeper Object used to do the sleeps between attempts.
@@ -480,7 +462,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * @param sleeper Object used to do the sleeps between attempts.
    * @return The underlying {@link Job} object.
    * @throws IOException When the maximum number of retries is exhausted, the last exception is
-   * thrown.
+   *     thrown.
    */
   private Job getJobWithRetries(BackOff backoff, Sleeper sleeper) throws IOException {
     // Retry loop ends in return or throw
@@ -490,8 +472,9 @@ public class DataflowPipelineJob implements PipelineResult {
         State currentState = MonitoringUtil.toState(job.getCurrentState());
         if (currentState.isTerminal()) {
           terminalState = currentState;
-          replacedByJob = new DataflowPipelineJob(
-              dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
+          replacedByJob =
+              new DataflowPipelineJob(
+                  dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
         }
         return job;
       } catch (IOException exn) {
@@ -505,9 +488,7 @@ public class DataflowPipelineJob implements PipelineResult {
     }
   }
 
-  /**
-   * Identical to {@link BackOffUtils#next} but without checked exceptions.
-   */
+  /** Identical to {@link BackOffUtils#next} but without checked exceptions. */
   private boolean nextBackOff(Sleeper sleeper, BackOff backoff) {
     try {
       return BackOffUtils.next(sleeper, backoff);

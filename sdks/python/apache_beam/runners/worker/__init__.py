@@ -16,3 +16,4 @@
 #
 
 """For internal use only; no backwards-compatibility guarantees."""
+from __future__ import absolute_import

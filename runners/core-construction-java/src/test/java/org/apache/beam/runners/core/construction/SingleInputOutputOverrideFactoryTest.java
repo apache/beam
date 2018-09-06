@@ -67,12 +67,13 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
             }
           };
 
-  private SimpleFunction<Integer, Integer> fn = new SimpleFunction<Integer, Integer>() {
-      @Override
-      public Integer apply(Integer input) {
-        return input - 1;
-      }
-    };
+  private SimpleFunction<Integer, Integer> fn =
+      new SimpleFunction<Integer, Integer>() {
+        @Override
+        public Integer apply(Integer input) {
+          return input - 1;
+        }
+      };
 
   @Test
   public void testMapOutputs() {
@@ -83,7 +84,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
         factory.mapOutputs(output.expand(), reappliedOutput);
     assertThat(
         replacementMap,
-        Matchers.<PValue, ReplacementOutput>hasEntry(
+        Matchers.hasEntry(
             reappliedOutput,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(output),
@@ -96,8 +97,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> output = input.apply("Map", MapElements.via(fn));
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     thrown.expect(IllegalArgumentException.class);
-    Map<PValue, ReplacementOutput> replacementMap =
-        factory.mapOutputs(
-            PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
+    factory.mapOutputs(
+        PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
   }
 }

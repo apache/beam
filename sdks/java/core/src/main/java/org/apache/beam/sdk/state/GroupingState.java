@@ -33,10 +33,18 @@ import org.apache.beam.sdk.transforms.GroupByKey;
  */
 @Experimental(Kind.STATE)
 public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
-  /** Add a value to the buffer. */
+  /**
+   * Add a value to the buffer.
+   *
+   * <p>Elements added will not be reflected in {@code OutputT} objects returned by previous calls
+   * to {@link #read}.
+   */
   void add(InputT value);
 
-  /** Return true if this state is empty. */
+  /**
+   * Returns a {@link ReadableState} whose {@link #read} method will return true if this state is
+   * empty at the point when that {@link #read} call returns.
+   */
   ReadableState<Boolean> isEmpty();
 
   @Override

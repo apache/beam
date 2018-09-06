@@ -45,6 +45,10 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
     this.lifecycleManager = lifecycleManager;
   }
 
+  public ParDoEvaluator<InputT> getParDoEvaluator() {
+    return underlying;
+  }
+
   @Override
   public void processElement(WindowedValue<InputT> element) throws Exception {
     try {
@@ -85,5 +89,4 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
       e.addSuppressed(removalException);
     }
   }
-
 }

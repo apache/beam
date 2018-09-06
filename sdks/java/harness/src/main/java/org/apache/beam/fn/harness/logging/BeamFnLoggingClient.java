@@ -22,9 +22,6 @@ import static com.google.common.base.Throwables.getStackTraceAsString;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Timestamp;
-import io.grpc.ManagedChannel;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -36,8 +33,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -46,72 +43,73 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Timestamp;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
  */
 public class BeamFnLoggingClient implements AutoCloseable {
   private static final String ROOT_LOGGER_NAME = "";
-  private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity> LOG_LEVEL_MAP =
-      ImmutableMap.<Level, BeamFnApi.LogEntry.Severity>builder()
-      .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.ERROR)
-      .put(Level.WARNING, BeamFnApi.LogEntry.Severity.WARN)
-      .put(Level.INFO, BeamFnApi.LogEntry.Severity.INFO)
-      .put(Level.FINE, BeamFnApi.LogEntry.Severity.DEBUG)
-      .put(Level.FINEST, BeamFnApi.LogEntry.Severity.TRACE)
-      .build();
+  private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
+      ImmutableMap.<Level, BeamFnApi.LogEntry.Severity.Enum>builder()
+          .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.Enum.ERROR)
+          .put(Level.WARNING, BeamFnApi.LogEntry.Severity.Enum.WARN)
+          .put(Level.INFO, BeamFnApi.LogEntry.Severity.Enum.INFO)
+          .put(Level.FINE, BeamFnApi.LogEntry.Severity.Enum.DEBUG)
+          .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
+          .build();
 
-  private static final ImmutableMap<DataflowWorkerLoggingOptions.Level, Level> LEVEL_CONFIGURATION =
-      ImmutableMap.<DataflowWorkerLoggingOptions.Level, Level>builder()
-          .put(DataflowWorkerLoggingOptions.Level.OFF, Level.OFF)
-          .put(DataflowWorkerLoggingOptions.Level.ERROR, Level.SEVERE)
-          .put(DataflowWorkerLoggingOptions.Level.WARN, Level.WARNING)
-          .put(DataflowWorkerLoggingOptions.Level.INFO, Level.INFO)
-          .put(DataflowWorkerLoggingOptions.Level.DEBUG, Level.FINE)
-          .put(DataflowWorkerLoggingOptions.Level.TRACE, Level.FINEST)
+  private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
+      ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
+          .put(SdkHarnessOptions.LogLevel.OFF, Level.OFF)
+          .put(SdkHarnessOptions.LogLevel.ERROR, Level.SEVERE)
+          .put(SdkHarnessOptions.LogLevel.WARN, Level.WARNING)
+          .put(SdkHarnessOptions.LogLevel.INFO, Level.INFO)
+          .put(SdkHarnessOptions.LogLevel.DEBUG, Level.FINE)
+          .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
   private static final Formatter FORMATTER = new SimpleFormatter();
 
-  private static final String FAKE_INSTRUCTION_ID = "FAKE_INSTRUCTION_ID";
-
-  /* Used to signal to a thread processing a queue to finish its work gracefully. */
-  private static final BeamFnApi.LogEntry POISON_PILL =
-      BeamFnApi.LogEntry.newBuilder().setInstructionReference(FAKE_INSTRUCTION_ID).build();
-
   /**
-   * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB,
-   * this represents a buffer of about 10 MiBs.
+   * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB, this
+   * represents a buffer of about 10 MiBs.
    */
   private static final int MAX_BUFFERED_LOG_ENTRY_COUNT = 10_000;
+
+  private static final Object COMPLETED = new Object();
 
   /* We need to store a reference to the configured loggers so that they are not
    * garbage collected. java.util.logging only has weak references to the loggers
    * so if they are garbage collected, our hierarchical configuration will be lost. */
   private final Collection<Logger> configuredLoggers;
-  private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final ManagedChannel channel;
-  private final StreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
+  private final CallStreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
   private final LogControlObserver inboundObserver;
   private final LogRecordHandler logRecordHandler;
   private final CompletableFuture<Object> inboundObserverCompletion;
+  private final Phaser phaser;
 
   public BeamFnLoggingClient(
       PipelineOptions options,
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<Function<StreamObserver<BeamFnApi.LogControl>,
-                          StreamObserver<BeamFnApi.LogEntry.List>>,
-                 StreamObserver<BeamFnApi.LogControl>,
-                 StreamObserver<BeamFnApi.LogEntry.List>> streamObserverFactory) {
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.inboundObserverCompletion = new CompletableFuture<>();
     this.configuredLoggers = new ArrayList<>();
+    this.phaser = new Phaser(1);
     this.channel = channelFactory.apply(apiServiceDescriptor);
 
     // Reset the global log manager, get the root logger and remove the default log handlers.
@@ -119,18 +117,18 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logManager.reset();
     Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
     for (Handler handler : rootLogger.getHandlers()) {
-      rootLogger.removeHandler(handler);
+      //rootLogger.removeHandler(handler);
     }
 
     // Use the passed in logging options to configure the various logger levels.
-    DataflowWorkerLoggingOptions loggingOptions = options.as(DataflowWorkerLoggingOptions.class);
-    if (loggingOptions.getDefaultWorkerLogLevel() != null) {
-      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultWorkerLogLevel()));
+    SdkHarnessOptions loggingOptions = options.as(SdkHarnessOptions.class);
+    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
+      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultSdkHarnessLogLevel()));
     }
 
-    if (loggingOptions.getWorkerLogLevelOverrides() != null) {
-      for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
-        loggingOptions.getWorkerLogLevelOverrides().entrySet()) {
+    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+          loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
         configuredLoggers.add(logger);
@@ -141,29 +139,31 @@ public class BeamFnLoggingClient implements AutoCloseable {
     inboundObserver = new LogControlObserver();
     logRecordHandler = new LogRecordHandler(options.as(GcsOptions.class).getExecutorService());
     logRecordHandler.setLevel(Level.ALL);
-    outboundObserver = streamObserverFactory.apply(stub::logging, inboundObserver);
+    outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
 
   @Override
   public void close() throws Exception {
-    // Hang up with the server
-    logRecordHandler.close();
+    try {
+      // Reset the logging configuration to what it is at startup
+      for (Logger logger : configuredLoggers) {
+        logger.setLevel(null);
+      }
+      configuredLoggers.clear();
+      LogManager.getLogManager().readConfiguration();
 
-    // Wait for the server to hang up
-    inboundObserverCompletion.get();
+      // Hang up with the server
+      logRecordHandler.close();
 
-    // Reset the logging configuration to what it is at startup
-    for (Logger logger : configuredLoggers) {
-      logger.setLevel(null);
-    }
-    configuredLoggers.clear();
-    LogManager.getLogManager().readConfiguration();
-
-    // Shut the channel down
-    channel.shutdown();
-    if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
-      channel.shutdownNow();
+      // Wait for the server to hang up
+      inboundObserverCompletion.get();
+    } finally {
+      // Shut the channel down
+      channel.shutdown();
+      if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
+        channel.shutdownNow();
+      }
     }
   }
 
@@ -179,8 +179,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
         new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private final Future<?> bufferedLogWriter;
     /**
-     * Safe object publishing is not required since we only care if the thread that set
-     * this field is equal to the thread also attempting to add a log entry.
+     * Safe object publishing is not required since we only care if the thread that set this field
+     * is equal to the thread also attempting to add a log entry.
      */
     private Thread logEntryHandlerThread;
 
@@ -190,18 +190,20 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     @Override
     public void publish(LogRecord record) {
-      BeamFnApi.LogEntry.Severity severity = LOG_LEVEL_MAP.get(record.getLevel());
+      BeamFnApi.LogEntry.Severity.Enum severity = LOG_LEVEL_MAP.get(record.getLevel());
       if (severity == null) {
         return;
       }
-      BeamFnApi.LogEntry.Builder builder = BeamFnApi.LogEntry.newBuilder()
-          .setSeverity(severity)
-          .setLogLocation(record.getLoggerName())
-          .setMessage(FORMATTER.formatMessage(record))
-          .setThread(Integer.toString(record.getThreadID()))
-          .setTimestamp(Timestamp.newBuilder()
-              .setSeconds(record.getMillis() / 1000)
-              .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
+      BeamFnApi.LogEntry.Builder builder =
+          BeamFnApi.LogEntry.newBuilder()
+              .setSeverity(severity)
+              .setLogLocation(record.getLoggerName())
+              .setMessage(FORMATTER.formatMessage(record))
+              .setThread(Integer.toString(record.getThreadID()))
+              .setTimestamp(
+                  Timestamp.newBuilder()
+                      .setSeconds(record.getMillis() / 1000)
+                      .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
       if (record.getThrown() != null) {
         builder.setTrace(getStackTraceAsString(record.getThrown()));
       }
@@ -228,59 +230,68 @@ public class BeamFnLoggingClient implements AutoCloseable {
       // this thread will get stuck.
       logEntryHandlerThread = Thread.currentThread();
 
-      List<BeamFnApi.LogEntry> additionalLogEntries =
-          new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
+      List<BeamFnApi.LogEntry> additionalLogEntries = new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
+      Throwable thrown = null;
       try {
-        BeamFnApi.LogEntry logEntry;
-        while ((logEntry = bufferedLogEntries.take()) != POISON_PILL) {
+        // As long as we haven't yet terminated, then attempt
+        while (!phaser.isTerminated()) {
+          // Try to wait for a message to show up.
+          BeamFnApi.LogEntry logEntry = bufferedLogEntries.poll(1, TimeUnit.SECONDS);
+          // If we don't have a message then we need to try this loop again.
+          if (logEntry == null) {
+            continue;
+          }
+
+          // Attempt to honor flow control. Phaser termination causes await advance to return
+          // immediately.
+          int phase = phaser.getPhase();
+          if (!outboundObserver.isReady()) {
+            phaser.awaitAdvance(phase);
+          }
+
+          // Batch together as many log messages as possible that are held within the buffer
           BeamFnApi.LogEntry.List.Builder builder =
               BeamFnApi.LogEntry.List.newBuilder().addLogEntries(logEntry);
           bufferedLogEntries.drainTo(additionalLogEntries);
-          for (int i = 0; i < additionalLogEntries.size(); ++i) {
-            if (additionalLogEntries.get(i) == POISON_PILL) {
-              additionalLogEntries = additionalLogEntries.subList(0, i);
-              break;
-            }
-          }
           builder.addAllLogEntries(additionalLogEntries);
           outboundObserver.onNext(builder.build());
+          additionalLogEntries.clear();
         }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException(e);
+
+        // Perform one more final check to see if there are any log entries to guarantee that
+        // if a log entry was added on the thread performing termination that we will send it.
+        bufferedLogEntries.drainTo(additionalLogEntries);
+        if (!additionalLogEntries.isEmpty()) {
+          outboundObserver.onNext(
+              BeamFnApi.LogEntry.List.newBuilder().addAllLogEntries(additionalLogEntries).build());
+        }
+      } catch (Throwable t) {
+        thrown = t;
       }
-    }
-
-    @Override
-    public void flush() {
-    }
-
-    @Override
-    public void close() {
-      synchronized (outboundObserver) {
-        // If we are done, then a previous caller has already shutdown the queue processing thread
-        // hence we don't need to do it again.
-        if (!bufferedLogWriter.isDone()) {
-          // We check to see if we were able to successfully insert the poison pill at the end of
-          // the queue forcing the remainder of the elements to be processed or if the processing
-          // thread is done.
-          try {
-            // The order of these checks is important because short circuiting will cause us to
-            // insert into the queue first and only if it fails do we check that the thread is done.
-            while (!bufferedLogEntries.offer(POISON_PILL, 60, TimeUnit.SECONDS)
-                || !bufferedLogWriter.isDone()) {
-            }
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-          }
-          waitTillFinish();
-        }
+      if (thrown != null) {
+        outboundObserver.onError(
+            Status.INTERNAL.withDescription(getStackTraceAsString(thrown)).asException());
+        throw new IllegalStateException(thrown);
+      } else {
         outboundObserver.onCompleted();
       }
     }
 
-    private void waitTillFinish() {
+    @Override
+    public void flush() {}
+
+    @Override
+    public synchronized void close() {
+      // If we are done, then a previous caller has already shutdown the queue processing thread
+      // hence we don't need to do it again.
+      if (phaser.isTerminated()) {
+        return;
+      }
+
+      // Terminate the phaser that we block on when attempting to honor flow control on the
+      // outbound observer.
+      phaser.forceTermination();
+
       try {
         bufferedLogWriter.get();
       } catch (CancellationException e) {
@@ -294,10 +305,16 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  private class LogControlObserver implements StreamObserver<BeamFnApi.LogControl> {
+  private class LogControlObserver
+      implements ClientResponseObserver<BeamFnApi.LogEntry, BeamFnApi.LogControl> {
+
     @Override
-    public void onNext(BeamFnApi.LogControl value) {
+    public void beforeStart(ClientCallStreamObserver requestStream) {
+      requestStream.setOnReadyHandler(phaser::arrive);
     }
+
+    @Override
+    public void onNext(BeamFnApi.LogControl value) {}
 
     @Override
     public void onError(Throwable t) {
@@ -306,7 +323,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     @Override
     public void onCompleted() {
-      inboundObserverCompletion.complete(null);
+      inboundObserverCompletion.complete(COMPLETED);
     }
   }
 }

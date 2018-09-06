@@ -25,20 +25,22 @@ we multiply our counts ratio by four to estimate π.
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import argparse
 import json
 import logging
 import random
-
+from builtins import object
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.typehints import Any
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import Tuple
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
@@ -56,7 +58,7 @@ def run_trials(runs):
   has same type for inputs and outputs (a requirement for combiner functions).
   """
   inside_runs = 0
-  for _ in xrange(runs):
+  for _ in range(runs):
     x = random.uniform(0, 1)
     y = random.uniform(0, 1)
     inside_runs += 1 if x * x + y * y <= 1.0 else 0

@@ -30,16 +30,11 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 
-/**
- * Matchers that are useful for working with Windowing, Timestamps, etc.
- */
+/** Matchers that are useful for working with Windowing, Timestamps, etc. */
 public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo) {
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
 
     Collection<Matcher<? super BoundedWindow>> windowMatchers =
         Lists.newArrayListWithCapacity(windows.size());
@@ -85,13 +80,13 @@ public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       T value, long timestamp, long windowStart, long windowEnd) {
-    return WindowMatchers.<T>isSingleWindowedValue(
+    return WindowMatchers.isSingleWindowedValue(
         Matchers.equalTo(value), timestamp, windowStart, windowEnd);
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return WindowMatchers.<T>isSingleWindowedValue(
+    return WindowMatchers.isSingleWindowedValue(
         Matchers.equalTo(value),
         Matchers.equalTo(timestamp),
         Matchers.equalTo(window),
@@ -100,7 +95,7 @@ public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       T value, Instant timestamp, BoundedWindow window) {
-    return WindowMatchers.<T>isSingleWindowedValue(
+    return WindowMatchers.isSingleWindowedValue(
         Matchers.equalTo(value), Matchers.equalTo(timestamp), Matchers.equalTo(window));
   }
 
@@ -108,10 +103,10 @@ public class WindowMatchers {
       Matcher<T> valueMatcher, long timestamp, long windowStart, long windowEnd) {
     IntervalWindow intervalWindow =
         new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
-    return WindowMatchers.<T>isSingleWindowedValue(
+    return WindowMatchers.isSingleWindowedValue(
         valueMatcher,
         Matchers.describedAs("%0", Matchers.equalTo(new Instant(timestamp)), timestamp),
-        Matchers.<BoundedWindow>equalTo(intervalWindow),
+        Matchers.equalTo(intervalWindow),
         Matchers.anything());
   }
 
@@ -123,10 +118,10 @@ public class WindowMatchers {
       PaneInfo paneInfo) {
     IntervalWindow intervalWindow =
         new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
-    return WindowMatchers.<T>isSingleWindowedValue(
+    return WindowMatchers.isSingleWindowedValue(
         valueMatcher,
         Matchers.describedAs("%0", Matchers.equalTo(new Instant(timestamp)), timestamp),
-        Matchers.<BoundedWindow>equalTo(intervalWindow),
+        Matchers.equalTo(intervalWindow),
         Matchers.equalTo(paneInfo));
   }
 
@@ -134,7 +129,7 @@ public class WindowMatchers {
       Matcher<? super T> valueMatcher,
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super BoundedWindow> windowMatcher) {
-    return new WindowedValueMatcher<T>(
+    return new WindowedValueMatcher<>(
         valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), Matchers.anything());
   }
 
@@ -143,7 +138,7 @@ public class WindowMatchers {
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super BoundedWindow> windowMatcher,
       Matcher<? super PaneInfo> paneInfoMatcher) {
-    return new WindowedValueMatcher<T>(
+    return new WindowedValueMatcher<>(
         valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), paneInfoMatcher);
   }
 
@@ -155,8 +150,7 @@ public class WindowMatchers {
     return new TypeSafeMatcher<WindowedValue<? extends T>>() {
       @Override
       public void describeTo(Description description) {
-        description
-            .appendText("WindowedValue(paneInfo = ").appendValue(paneInfo).appendText(")");
+        description.appendText("WindowedValue(paneInfo = ").appendValue(paneInfo).appendText(")");
       }
 
       @Override
@@ -176,7 +170,7 @@ public class WindowMatchers {
   @SafeVarargs
   public static final <W extends BoundedWindow> Matcher<Iterable<W>> ofWindows(
       Matcher<W>... windows) {
-    return (Matcher) Matchers.<W>containsInAnyOrder(windows);
+    return (Matcher) Matchers.containsInAnyOrder(windows);
   }
 
   private WindowMatchers() {}
@@ -202,10 +196,14 @@ public class WindowMatchers {
     @Override
     public void describeTo(Description description) {
       description
-          .appendText("a WindowedValue(").appendValue(valueMatcher)
-          .appendText(", ").appendValue(timestampMatcher)
-          .appendText(", ").appendValue(windowsMatcher)
-          .appendText(", ").appendValue(paneInfoMatcher)
+          .appendText("a WindowedValue(")
+          .appendValue(valueMatcher)
+          .appendText(", ")
+          .appendValue(timestampMatcher)
+          .appendText(", ")
+          .appendValue(windowsMatcher)
+          .appendText(", ")
+          .appendValue(paneInfoMatcher)
           .appendText(")");
     }
 

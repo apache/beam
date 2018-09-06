@@ -30,9 +30,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TransformExecutorServices}.
- */
+/** Tests for {@link TransformExecutorServices}. */
 @RunWith(JUnit4.class)
 public class TransformExecutorServicesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -47,12 +45,11 @@ public class TransformExecutorServicesTest {
   @Test
   public void parallelScheduleMultipleSchedulesBothImmediately() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> second = mock(DirectTransformExecutor.class);
 
-    TransformExecutorService parallel =
-        TransformExecutorServices.parallel(executorService);
+    TransformExecutorService parallel = TransformExecutorServices.parallel(executorService);
     parallel.schedule(first);
     parallel.schedule(second);
 
@@ -66,10 +63,9 @@ public class TransformExecutorServicesTest {
   @Test
   public void parallelRejectedStillActiveThrows() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
 
-    TransformExecutorService parallel =
-        TransformExecutorServices.parallel(executorService);
+    TransformExecutorService parallel = TransformExecutorServices.parallel(executorService);
     executorService.shutdown();
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("still active");
@@ -79,10 +75,9 @@ public class TransformExecutorServicesTest {
   @Test
   public void parallelRejectedShutdownSucceeds() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
 
-    TransformExecutorService parallel =
-        TransformExecutorServices.parallel(executorService);
+    TransformExecutorService parallel = TransformExecutorServices.parallel(executorService);
     executorService.shutdown();
     parallel.shutdown();
     parallel.schedule(first);
@@ -91,9 +86,9 @@ public class TransformExecutorServicesTest {
   @Test
   public void serialScheduleTwoWaitsForFirstToComplete() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
@@ -111,9 +106,9 @@ public class TransformExecutorServicesTest {
   @Test
   public void serialCompleteNotExecutingTaskThrows() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
@@ -130,9 +125,9 @@ public class TransformExecutorServicesTest {
   @Test
   public void serialShutdownCompleteActive() {
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> first = mock(DirectTransformExecutor.class);
     @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    DirectTransformExecutor<Object> second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);

@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
@@ -65,24 +66,25 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -95,19 +97,19 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
- * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
- * {@link Entity} objects. Read is only supported for Bounded PCollections while Write and Delete
- * are supported for both Bounded and Unbounded PCollections.
+ * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections} of
+ * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1 {@link
+ * Entity} objects. Read is only supported for Bounded PCollections while Write and Delete are
+ * supported for both Bounded and Unbounded PCollections.
  *
  * <p>This API currently requires an authentication workaround. To use {@link DatastoreV1}, users
  * must use the {@code gcloud} command line tool to get credentials for Cloud Datastore:
+ *
  * <pre>
  * $ gcloud auth login
  * </pre>
@@ -120,7 +122,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>For example:
  *
- * <pre> {@code
+ * <pre>{@code
  * // Read a query from Datastore
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
  * Query query = ...;
@@ -131,46 +133,46 @@ import org.slf4j.LoggerFactory;
  *     DatastoreIO.v1().read()
  *         .withProjectId(projectId)
  *         .withQuery(query));
- * } </pre>
+ * }</pre>
  *
- * <p><b>Note:</b> A runner may read from Cloud Datastore in parallel across
- * many workers. However, when the {@link Query} is configured with a limit using
- * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
- * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results
- * will be read by a single worker in order to ensure correct data. Since data is read from
- * a single worker, this could have a significant impact on the performance of the job.
+ * <p><b>Note:</b> A runner may read from Cloud Datastore in parallel across many workers. However,
+ * when the {@link Query} is configured with a limit using {@link
+ * com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains inequality
+ * filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results will be read by a
+ * single worker in order to ensure correct data. Since data is read from a single worker, this
+ * could have a significant impact on the performance of the job.
  *
- * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write},
- * specifying the Cloud Datastore project to write to:
+ * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write}, specifying
+ * the Cloud Datastore project to write to:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<Entity> entities = ...;
  * entities.apply(DatastoreIO.v1().write().withProjectId(projectId));
  * p.run();
- * } </pre>
+ * }</pre>
  *
- * <p>To delete a {@link PCollection} of {@link Entity Entities} from Cloud Datastore, use
- * {@link DatastoreV1#deleteEntity()}, specifying the Cloud Datastore project to write to:
+ * <p>To delete a {@link PCollection} of {@link Entity Entities} from Cloud Datastore, use {@link
+ * DatastoreV1#deleteEntity()}, specifying the Cloud Datastore project to write to:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<Entity> entities = ...;
  * entities.apply(DatastoreIO.v1().deleteEntity().withProjectId(projectId));
  * p.run();
- * } </pre>
+ * }</pre>
  *
  * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Cloud
  * Datastore, use {@link DatastoreV1#deleteKey}, specifying the Cloud Datastore project to write to:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<Entity> entities = ...;
  * entities.apply(DatastoreIO.v1().deleteKey().withProjectId(projectId));
  * p.run();
- * } </pre>
+ * }</pre>
  *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written or deleted must have complete
- * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
- * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
- * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
+ * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the {@code
+ * Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than {@code projectId}
+ * default may be used by specifying it in the {@code Entity} {@code Keys}.
  *
  * <pre>{@code
  * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
@@ -182,9 +184,10 @@ import org.slf4j.LoggerFactory;
  * and Keys</a> for more information about {@code Entity} keys.
  *
  * <h3>Permissions</h3>
+ *
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
- * pipeline. Please refer to the documentation of corresponding {@code PipelineRunner}s for
- * more details.
+ * pipeline. Please refer to the documentation of corresponding {@code PipelineRunner}s for more
+ * details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
  * </a>for security and permission related information specific to Cloud Datastore.
@@ -209,37 +212,43 @@ public class DatastoreV1 {
    * <p>Testing has found that a batch of 200 entities will generally finish within the timeout even
    * in adverse conditions.
    */
-  @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 200;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 200;
 
   /**
    * When choosing the number of updates in a single RPC, never exceed the maximum allowed by the
    * API.
    */
-  @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT = 500;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT = 500;
 
   /**
-   * When choosing the number of updates in a single RPC, do not go below this value.  The actual
+   * When choosing the number of updates in a single RPC, do not go below this value. The actual
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
    * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
-  @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
    * exceeds this limit. This is set lower than the 10MB limit on the RPC, as this only accounts for
    * the mutations themselves and not the CommitRequest wrapper around them.
    */
-  @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
+  @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
+
+  /**
+   * Non-retryable errors. See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes .
+   */
+  private static final Set<Code> NON_RETRYABLE_ERRORS =
+      ImmutableSet.of(
+          Code.FAILED_PRECONDITION,
+          Code.INVALID_ARGUMENT,
+          Code.PERMISSION_DENIED,
+          Code.UNAUTHENTICATED);
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
-   * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using
-   * {@link DatastoreV1.Read#withProjectId}, {@link DatastoreV1.Read#withQuery},
-   * {@link DatastoreV1.Read#withNamespace}, {@link DatastoreV1.Read#withNumQuerySplits}.
+   * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using {@link
+   * DatastoreV1.Read#withProjectId}, {@link DatastoreV1.Read#withQuery}, {@link
+   * DatastoreV1.Read#withNamespace}, {@link DatastoreV1.Read#withNumQuerySplits}.
    */
   public DatastoreV1.Read read() {
     return new AutoValue_DatastoreV1_Read.Builder().setNumQuerySplits(0).build();
@@ -262,7 +271,7 @@ public class DatastoreV1 {
     static final int NUM_QUERY_SPLITS_MIN = 12;
 
     /** Default bundle size of 64MB. */
-    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024;
+    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64L * 1024L * 1024L;
 
     /**
      * Maximum number of results to request per query.
@@ -271,12 +280,22 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable public abstract ValueProvider<String> getProjectId();
-    @Nullable public abstract Query getQuery();
-    @Nullable public abstract ValueProvider<String> getLiteralGqlQuery();
-    @Nullable public abstract ValueProvider<String> getNamespace();
+    @Nullable
+    public abstract ValueProvider<String> getProjectId();
+
+    @Nullable
+    public abstract Query getQuery();
+
+    @Nullable
+    public abstract ValueProvider<String> getLiteralGqlQuery();
+
+    @Nullable
+    public abstract ValueProvider<String> getNamespace();
+
     public abstract int getNumQuerySplits();
-    @Nullable public abstract String getLocalhost();
+
+    @Nullable
+    public abstract String getLocalhost();
 
     @Override
     public abstract String toString();
@@ -286,11 +305,17 @@ public class DatastoreV1 {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setProjectId(ValueProvider<String> projectId);
+
       abstract Builder setQuery(Query query);
+
       abstract Builder setLiteralGqlQuery(ValueProvider<String> literalGqlQuery);
+
       abstract Builder setNamespace(ValueProvider<String> namespace);
+
       abstract Builder setNumQuerySplits(int numQuerySplits);
+
       abstract Builder setLocalhost(String localhost);
+
       abstract Read build();
     }
 
@@ -303,8 +328,11 @@ public class DatastoreV1 {
       try {
         long estimatedSizeBytes = getEstimatedSizeBytes(datastore, query, namespace);
         LOG.info("Estimated size bytes for the query is: {}", estimatedSizeBytes);
-        numSplits = (int) Math.min(NUM_QUERY_SPLITS_MAX,
-            Math.round(((double) estimatedSizeBytes) / DEFAULT_BUNDLE_SIZE_BYTES));
+        numSplits =
+            (int)
+                Math.min(
+                    NUM_QUERY_SPLITS_MAX,
+                    Math.round(((double) estimatedSizeBytes) / DEFAULT_BUNDLE_SIZE_BYTES));
       } catch (Exception e) {
         LOG.warn("Failed the fetch estimatedSizeBytes for query: {}", query, e);
         // Fallback in case estimated size is unavailable.
@@ -318,8 +346,8 @@ public class DatastoreV1 {
      * the latest timestamp (in microseconds) of statistics update using the {@code __Stat_Total__}
      * table.
      */
-    private static long queryLatestStatisticsTimestamp(Datastore datastore,
-        @Nullable String namespace)  throws DatastoreException {
+    private static long queryLatestStatisticsTimestamp(
+        Datastore datastore, @Nullable String namespace) throws DatastoreException {
       Query.Builder query = Query.newBuilder();
       // Note: namespace either being null or empty represents the default namespace, in which
       // case we treat it as not provided by the user.
@@ -335,8 +363,7 @@ public class DatastoreV1 {
       RunQueryResponse response = datastore.runQuery(request);
       QueryResultBatch batch = response.getBatch();
       if (batch.getEntityResultsCount() == 0) {
-        throw new NoSuchElementException(
-            "Datastore total statistics unavailable");
+        throw new NoSuchElementException("Datastore total statistics unavailable");
       }
       Entity entity = batch.getEntityResults(0).getEntity();
       return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
@@ -346,8 +373,8 @@ public class DatastoreV1 {
      * Get the estimated size of the data returned by the given query.
      *
      * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
-     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
-     * is specified in the query.
+     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind is
+     * specified in the query.
      *
      * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
      */
@@ -364,9 +391,10 @@ public class DatastoreV1 {
         queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
       }
 
-      queryBuilder.setFilter(makeAndFilter(
-          makeFilter("kind_name", EQUAL, makeValue(ourKind).build()).build(),
-          makeFilter("timestamp", EQUAL, makeValue(latestTimestamp).build()).build()));
+      queryBuilder.setFilter(
+          makeAndFilter(
+              makeFilter("kind_name", EQUAL, makeValue(ourKind).build()).build(),
+              makeFilter("timestamp", EQUAL, makeValue(latestTimestamp).build()).build()));
 
       RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
 
@@ -398,7 +426,8 @@ public class DatastoreV1 {
     static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
       return RunQueryRequest.newBuilder()
           .setQuery(query)
-          .setPartitionId(forNamespace(namespace)).build();
+          .setPartitionId(forNamespace(namespace))
+          .build();
     }
 
     @VisibleForTesting
@@ -406,15 +435,21 @@ public class DatastoreV1 {
     static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
       return RunQueryRequest.newBuilder()
           .setGqlQuery(gqlQuery)
-          .setPartitionId(forNamespace(namespace)).build();
+          .setPartitionId(forNamespace(namespace))
+          .build();
     }
 
     /**
-     * A helper function to get the split queries, taking into account the optional
-     * {@code namespace}.
+     * A helper function to get the split queries, taking into account the optional {@code
+     * namespace}.
      */
-    private static List<Query> splitQuery(Query query, @Nullable String namespace,
-        Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
+    private static List<Query> splitQuery(
+        Query query,
+        @Nullable String namespace,
+        Datastore datastore,
+        QuerySplitter querySplitter,
+        int numSplits)
+        throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
       return querySplitter.getSplits(query, forNamespace(namespace).build(), numSplits, datastore);
     }
@@ -433,8 +468,8 @@ public class DatastoreV1 {
      * problem in practice.
      */
     @VisibleForTesting
-    static Query translateGqlQueryWithLimitCheck(String gql, Datastore datastore,
-        String namespace) throws DatastoreException {
+    static Query translateGqlQueryWithLimitCheck(String gql, Datastore datastore, String namespace)
+        throws DatastoreException {
       String gqlQueryWithZeroLimit = gql + " LIMIT 0";
       try {
         Query translatedQuery = translateGqlQuery(gqlQueryWithZeroLimit, datastore, namespace);
@@ -455,11 +490,10 @@ public class DatastoreV1 {
       }
     }
 
-    /** Translates a gql query string to {@link Query}.*/
+    /** Translates a gql query string to {@link Query}. */
     private static Query translateGqlQuery(String gql, Datastore datastore, String namespace)
         throws DatastoreException {
-      GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql)
-          .setAllowLiterals(true).build();
+      GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
       RunQueryRequest req = makeRequest(gqlQuery, namespace);
       return datastore.runQuery(req).getQuery();
     }
@@ -469,15 +503,13 @@ public class DatastoreV1 {
      * project.
      */
     public DatastoreV1.Read withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return toBuilder().setProjectId(StaticValueProvider.of(projectId)).build();
     }
 
-    /**
-     * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}. */
     public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return toBuilder().setProjectId(projectId).build();
     }
 
@@ -485,56 +517,55 @@ public class DatastoreV1 {
      * Returns a new {@link DatastoreV1.Read} that reads the results of the specified query.
      *
      * <p><b>Note:</b> Normally, {@code DatastoreIO} will read from Cloud Datastore in parallel
-     * across many workers. However, when the {@link Query} is configured with a limit using
-     * {@link Query.Builder#setLimit}, then all results will be read by a single worker in order
-     * to ensure correct results.
+     * across many workers. However, when the {@link Query} is configured with a limit using {@link
+     * Query.Builder#setLimit}, then all results will be read by a single worker in order to ensure
+     * correct results.
      */
     public DatastoreV1.Read withQuery(Query query) {
-      checkNotNull(query, "query");
-      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
-          "Invalid query limit %s: must be positive", query.getLimit().getValue());
+      checkArgument(query != null, "query can not be null");
+      checkArgument(
+          !query.hasLimit() || query.getLimit().getValue() > 0,
+          "Invalid query limit %s: must be positive",
+          query.getLimit().getValue());
       return toBuilder().setQuery(query).build();
     }
 
     /**
-     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query.
-     * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
-     * </a> to know more about GQL grammar.
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query. See
+     * <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference </a>
+     * to know more about GQL grammar.
      *
      * <p><b><i>Note:</i></b> This query is executed with literals allowed, so the users should
      * ensure that the query is originated from trusted sources to avoid any security
      * vulnerabilities via SQL Injection.
      *
-     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate
-     * a gql query string to {@link Query}, so we end up making a query to the service for
-     * translation but this may read the actual data, although it will be a small amount.
-     * It needs more validation through production use cases before marking it as stable.
+     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate a
+     * gql query string to {@link Query}, so we end up making a query to the service for translation
+     * but this may read the actual data, although it will be a small amount. It needs more
+     * validation through production use cases before marking it as stable.
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
-      checkNotNull(gqlQuery, "gqlQuery");
+      checkArgument(gqlQuery != null, "gqlQuery can not be null");
       return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
-    /**
-     * Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}. */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
-      checkNotNull(gqlQuery, "gqlQuery");
+      checkArgument(gqlQuery != null, "gqlQuery can not be null");
+      if (gqlQuery.isAccessible()) {
+        checkArgument(gqlQuery.get() != null, "gqlQuery can not be null");
+      }
       return toBuilder().setLiteralGqlQuery(gqlQuery).build();
     }
 
-    /**
-     * Returns a new {@link DatastoreV1.Read} that reads from the given namespace.
-     */
+    /** Returns a new {@link DatastoreV1.Read} that reads from the given namespace. */
     public DatastoreV1.Read withNamespace(String namespace) {
       return toBuilder().setNamespace(StaticValueProvider.of(namespace)).build();
     }
 
-    /**
-     * Same as {@link Read#withNamespace(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link Read#withNamespace(String)} but with a {@link ValueProvider}. */
     public DatastoreV1.Read withNamespace(ValueProvider<String> namespace) {
       return toBuilder().setNamespace(namespace).build();
     }
@@ -544,15 +575,16 @@ public class DatastoreV1 {
      * {@code numQuerySplits}.
      *
      * <p>The semantics for the query splitting is defined below:
+     *
      * <ul>
      *   <li>Any value less than or equal to 0 will be ignored, and the number of splits will be
-     *   chosen dynamically at runtime based on the query data size.
-     *   <li>Any value greater than {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at
-     *   {@code NUM_QUERY_SPLITS_MAX}.
-     *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be
-     *   ignored and no split will be performed.
+     *       chosen dynamically at runtime based on the query data size.
+     *   <li>Any value greater than {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at {@code
+     *       NUM_QUERY_SPLITS_MAX}.
+     *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be ignored
+     *       and no split will be performed.
      *   <li>Under certain cases Cloud Datastore is unable to split query to the requested number of
-     *   splits. In such cases we just use whatever the Cloud Datastore returns.
+     *       splits. In such cases we just use whatever the Cloud Datastore returns.
      * </ul>
      */
     public DatastoreV1.Read withNumQuerySplits(int numQuerySplits) {
@@ -566,13 +598,23 @@ public class DatastoreV1 {
      * given localhost address.
      */
     public DatastoreV1.Read withLocalhost(String localhost) {
-      return toBuilder()
-          .setLocalhost(localhost)
-          .build();
+      return toBuilder().setLocalhost(localhost).build();
     }
 
     @Override
     public PCollection<Entity> expand(PBegin input) {
+      checkArgument(getProjectId() != null, "projectId provider cannot be null");
+      if (getProjectId().isAccessible()) {
+        checkArgument(getProjectId().get() != null, "projectId cannot be null");
+      }
+
+      checkArgument(
+          getQuery() != null || getLiteralGqlQuery() != null,
+          "Either withQuery() or withLiteralGqlQuery() is required");
+      checkArgument(
+          getQuery() == null || getLiteralGqlQuery() == null,
+          "withQuery() and withLiteralGqlQuery() are exclusive");
+
       V1Options v1Options = V1Options.from(getProjectId(), getNamespace(), getLocalhost());
 
       /*
@@ -599,47 +641,16 @@ public class DatastoreV1 {
       if (getQuery() != null) {
         inputQuery = input.apply(Create.of(getQuery()));
       } else {
-        inputQuery = input
-            .apply(Create.of(getLiteralGqlQuery())
-                .withCoder(SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
-            .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
+        inputQuery =
+            input
+                .apply(Create.ofProvider(getLiteralGqlQuery(), StringUtf8Coder.of()))
+                .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
       }
 
-      PCollection<KV<Integer, Query>> splitQueries = inputQuery
-          .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
-
-      PCollection<Query> shardedQueries = splitQueries
-          .apply(GroupByKey.<Integer, Query>create())
-          .apply(Values.<Iterable<Query>>create())
-          .apply(Flatten.<Query>iterables());
-
-      PCollection<Entity> entities = shardedQueries
-          .apply(ParDo.of(new ReadFn(v1Options)));
-
-      return entities;
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getProjectId(), "projectId");
-
-      if (getProjectId().isAccessible() && getProjectId().get() == null) {
-        throw new IllegalArgumentException("Project id cannot be null");
-      }
-
-      if (getQuery() == null && getLiteralGqlQuery() == null) {
-        throw new IllegalArgumentException(
-            "Either query or gql query ValueProvider should be provided");
-      }
-
-      if (getQuery() != null && getLiteralGqlQuery() != null) {
-        throw new IllegalArgumentException(
-            "Only one of query or gql query ValueProvider should be provided");
-      }
-
-      if (getLiteralGqlQuery() != null && getLiteralGqlQuery().isAccessible()) {
-        checkNotNull(getLiteralGqlQuery().get(), "gqlQuery");
-      }
+      return inputQuery
+          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
+          .apply("Read", ParDo.of(new ReadFn(v1Options)));
     }
 
     @Override
@@ -647,38 +658,32 @@ public class DatastoreV1 {
       super.populateDisplayData(builder);
       String query = getQuery() == null ? null : getQuery().toString();
       builder
-          .addIfNotNull(DisplayData.item("projectId", getProjectId())
-              .withLabel("ProjectId"))
-          .addIfNotNull(DisplayData.item("namespace", getNamespace())
-              .withLabel("Namespace"))
-          .addIfNotNull(DisplayData.item("query", query)
-              .withLabel("Query"))
-          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery())
-              .withLabel("GqlQuery"));
+          .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("ProjectId"))
+          .addIfNotNull(DisplayData.item("namespace", getNamespace()).withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query).withLabel("Query"))
+          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery()).withLabel("GqlQuery"));
     }
 
     @VisibleForTesting
     static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
-      @Nullable
-      private final ValueProvider<String> namespace;
-      @Nullable
-      private final String localhost;
+      @Nullable private final ValueProvider<String> namespace;
+      @Nullable private final String localhost;
 
-      private V1Options(ValueProvider<String> project, ValueProvider<String> namespace,
-          String localhost) {
+      private V1Options(
+          ValueProvider<String> project, ValueProvider<String> namespace, String localhost) {
         this.project = project;
         this.namespace = namespace;
         this.localhost = localhost;
       }
 
       public static V1Options from(String projectId, String namespace, String localhost) {
-        return from(StaticValueProvider.of(projectId), StaticValueProvider.of(namespace),
-            localhost);
+        return from(
+            StaticValueProvider.of(projectId), StaticValueProvider.of(namespace), localhost);
       }
 
-      public static V1Options from(ValueProvider<String> project, ValueProvider<String> namespace,
-          String localhost) {
+      public static V1Options from(
+          ValueProvider<String> project, ValueProvider<String> namespace, String localhost) {
         return new V1Options(project, namespace, localhost);
       }
 
@@ -708,17 +713,15 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-            .addIfNotNull(DisplayData.item("projectId", getProjectValueProvider())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", getNamespaceValueProvider())
-                .withLabel("Namespace"));
+            .addIfNotNull(
+                DisplayData.item("projectId", getProjectValueProvider()).withLabel("ProjectId"))
+            .addIfNotNull(
+                DisplayData.item("namespace", getNamespaceValueProvider()).withLabel("Namespace"));
       }
     }
 
-    /**
-     * A DoFn that translates a Cloud Datastore gql query string to {@code Query}.
-     */
-    static class GqlQueryTranslateFn extends DoFn<ValueProvider<String>, Query> {
+    /** A DoFn that translates a Cloud Datastore gql query string to {@code Query}. */
+    static class GqlQueryTranslateFn extends DoFn<String, Query> {
       private final V1Options v1Options;
       private transient Datastore datastore;
       private final V1DatastoreFactory datastoreFactory;
@@ -734,26 +737,28 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
+        datastore =
+            datastoreFactory.getDatastore(
+                c.getPipelineOptions(), v1Options.getProjectId(), v1Options.getLocalhost());
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
-        ValueProvider<String> gqlQuery = c.element();
-        LOG.info("User query: '{}'", gqlQuery.get());
-        Query query = translateGqlQueryWithLimitCheck(gqlQuery.get(), datastore,
-            v1Options.getNamespace());
+        String gqlQuery = c.element();
+        LOG.info("User query: '{}'", gqlQuery);
+        Query query =
+            translateGqlQueryWithLimitCheck(gqlQuery, datastore, v1Options.getNamespace());
         LOG.info("User gql query translated to Query({})", query);
         c.output(query);
       }
     }
 
     /**
-     * A {@link DoFn} that splits a given query into multiple sub-queries, assigns them unique
-     * keys and outputs them as {@link KV}.
+     * A {@link DoFn} that splits a given query into multiple sub-queries, assigns them unique keys
+     * and outputs them as {@link KV}.
      */
     @VisibleForTesting
-    static class SplitQueryFn extends DoFn<Query, KV<Integer, Query>> {
+    static class SplitQueryFn extends DoFn<Query, Query> {
       private final V1Options options;
       // number of splits to make for a given query
       private final int numSplits;
@@ -769,8 +774,7 @@ public class DatastoreV1 {
       }
 
       @VisibleForTesting
-      SplitQueryFn(V1Options options, int numSplits,
-          V1DatastoreFactory datastoreFactory) {
+      SplitQueryFn(V1Options options, int numSplits, V1DatastoreFactory datastoreFactory) {
         this.options = options;
         this.numSplits = numSplits;
         this.datastoreFactory = datastoreFactory;
@@ -778,19 +782,19 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
-            options.getLocalhost());
+        datastore =
+            datastoreFactory.getDatastore(
+                c.getPipelineOptions(), options.getProjectId(), options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
-        int key = 1;
         Query query = c.element();
 
         // If query has a user set limit, then do not split.
         if (query.hasLimit()) {
-          c.output(KV.of(key, query));
+          c.output(query);
           return;
         }
 
@@ -805,8 +809,9 @@ public class DatastoreV1 {
         LOG.info("Splitting the query into {} splits", estimatedNumSplits);
         List<Query> querySplits;
         try {
-          querySplits = splitQuery(query, options.getNamespace(), datastore, querySplitter,
-              estimatedNumSplits);
+          querySplits =
+              splitQuery(
+                  query, options.getNamespace(), datastore, querySplitter, estimatedNumSplits);
         } catch (Exception e) {
           LOG.warn("Unable to parallelize the given query: {}", query, e);
           querySplits = ImmutableList.of(query);
@@ -814,7 +819,7 @@ public class DatastoreV1 {
 
         // assign unique keys to query splits.
         for (Query subquery : querySplits) {
-          c.output(KV.of(key++, subquery));
+          c.output(subquery);
         }
       }
 
@@ -823,21 +828,29 @@ public class DatastoreV1 {
         super.populateDisplayData(builder);
         builder.include("options", options);
         if (numSplits > 0) {
-          builder.add(DisplayData.item("numQuerySplits", numSplits)
-              .withLabel("Requested number of Query splits"));
+          builder.add(
+              DisplayData.item("numQuerySplits", numSplits)
+                  .withLabel("Requested number of Query splits"));
         }
       }
     }
 
-    /**
-     * A {@link DoFn} that reads entities from Cloud Datastore for each query.
-     */
+    /** A {@link DoFn} that reads entities from Cloud Datastore for each query. */
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
       private final V1Options options;
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
+      private final Counter rpcErrors =
+          Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
+      private final Counter rpcSuccesses =
+          Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+      private static final int MAX_RETRIES = 5;
+      private static final FluentBackoff RUNQUERY_BACKOFF =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RETRIES)
+              .withInitialBackoff(Duration.standardSeconds(5));
 
       public ReadFn(V1Options options) {
         this(options, new V1DatastoreFactory());
@@ -851,8 +864,31 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
-            options.getLocalhost());
+        datastore =
+            datastoreFactory.getDatastore(
+                c.getPipelineOptions(), options.getProjectId(), options.getLocalhost());
+      }
+
+      private RunQueryResponse runQueryWithRetries(RunQueryRequest request) throws Exception {
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = RUNQUERY_BACKOFF.backoff();
+        while (true) {
+          try {
+            RunQueryResponse response = datastore.runQuery(request);
+            rpcSuccesses.inc();
+            return response;
+          } catch (DatastoreException exception) {
+            rpcErrors.inc();
+
+            if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
+              throw exception;
+            }
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              LOG.error("Aborting after {} retries.", MAX_RETRIES);
+              throw exception;
+            }
+          }
+        }
       }
 
       /** Read and output entities for the given query. */
@@ -860,23 +896,22 @@ public class DatastoreV1 {
       public void processElement(ProcessContext context) throws Exception {
         Query query = context.element();
         String namespace = options.getNamespace();
-        int userLimit = query.hasLimit()
-            ? query.getLimit().getValue() : Integer.MAX_VALUE;
+        int userLimit = query.hasLimit() ? query.getLimit().getValue() : Integer.MAX_VALUE;
 
         boolean moreResults = true;
         QueryResultBatch currentBatch = null;
 
         while (moreResults) {
-          Query.Builder queryBuilder = query.toBuilder().clone();
-          queryBuilder.setLimit(Int32Value.newBuilder().setValue(
-              Math.min(userLimit, QUERY_BATCH_LIMIT)));
+          Query.Builder queryBuilder = query.toBuilder();
+          queryBuilder.setLimit(
+              Int32Value.newBuilder().setValue(Math.min(userLimit, QUERY_BATCH_LIMIT)));
 
           if (currentBatch != null && !currentBatch.getEndCursor().isEmpty()) {
             queryBuilder.setStartCursor(currentBatch.getEndCursor());
           }
 
           RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
-          RunQueryResponse response = datastore.runQuery(request);
+          RunQueryResponse response = runQueryWithRetries(request);
 
           currentBatch = response.getBatch();
 
@@ -885,9 +920,12 @@ public class DatastoreV1 {
           // use result count to determine if more results might exist.
           int numFetch = currentBatch.getEntityResultsCount();
           if (query.hasLimit()) {
-            verify(userLimit >= numFetch,
+            verify(
+                userLimit >= numFetch,
                 "Expected userLimit %s >= numFetch %s, because query limit %s must be <= userLimit",
-                userLimit, numFetch, query.getLimit());
+                userLimit,
+                numFetch,
+                query.getLimit());
             userLimit -= numFetch;
           }
 
@@ -902,7 +940,7 @@ public class DatastoreV1 {
               (userLimit > 0)
                   // All indications from the API are that there are/may be more results.
                   && ((numFetch == QUERY_BATCH_LIMIT)
-                  || (currentBatch.getMoreResults() == NOT_FINISHED));
+                      || (currentBatch.getMoreResults() == NOT_FINISHED));
         }
       }
 
@@ -915,24 +953,24 @@ public class DatastoreV1 {
   }
 
   /**
-   * Returns an empty {@link DatastoreV1.Write} builder. Configure the destination
-   * {@code projectId} using {@link DatastoreV1.Write#withProjectId}.
+   * Returns an empty {@link DatastoreV1.Write} builder. Configure the destination {@code projectId}
+   * using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
     return new Write(null, null);
   }
 
   /**
-   * Returns an empty {@link DeleteEntity} builder. Configure the destination
-   * {@code projectId} using {@link DeleteEntity#withProjectId}.
+   * Returns an empty {@link DeleteEntity} builder. Configure the destination {@code projectId}
+   * using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
     return new DeleteEntity(null, null);
   }
 
   /**
-   * Returns an empty {@link DeleteKey} builder. Configure the destination
-   * {@code projectId} using {@link DeleteKey#withProjectId}.
+   * Returns an empty {@link DeleteKey} builder. Configure the destination {@code projectId} using
+   * {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
     return new DeleteKey(null, null);
@@ -945,26 +983,22 @@ public class DatastoreV1 {
    */
   public static class Write extends Mutate<Entity> {
     /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
      */
     Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
       super(projectId, localhost, new UpsertFn());
     }
 
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
-     */
+    /** Returns a new {@link Write} that writes to the Cloud Datastore for the specified project. */
     public Write withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
-    /**
-     * Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new Write(projectId, localhost);
     }
 
@@ -973,7 +1007,7 @@ public class DatastoreV1 {
      * the specified host port.
      */
     public Write withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new Write(projectId, localhost);
     }
   }
@@ -985,8 +1019,8 @@ public class DatastoreV1 {
    */
   public static class DeleteEntity extends Mutate<Entity> {
     /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
      */
     DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
       super(projectId, localhost, new DeleteEntityFn());
@@ -997,15 +1031,13 @@ public class DatastoreV1 {
      * specified project.
      */
     public DeleteEntity withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
-    /**
-     * Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new DeleteEntity(projectId, localhost);
     }
 
@@ -1014,21 +1046,21 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteEntity withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new DeleteEntity(projectId, localhost);
     }
   }
 
   /**
-   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given
-   * {@link Key Keys} from Cloud Datastore.
+   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given {@link Key
+   * Keys} from Cloud Datastore.
    *
    * @see DatastoreIO
    */
   public static class DeleteKey extends Mutate<Key> {
     /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
      */
     DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
       super(projectId, localhost, new DeleteKeyFn());
@@ -1039,7 +1071,7 @@ public class DatastoreV1 {
      * specified project.
      */
     public DeleteKey withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
@@ -1048,15 +1080,13 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteKey withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new DeleteKey(projectId, localhost);
     }
 
-    /**
-     * Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}.
-     */
+    /** Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new DeleteKey(projectId, localhost);
     }
   }
@@ -1065,22 +1095,23 @@ public class DatastoreV1 {
    * A {@link PTransform} that writes mutations to Cloud Datastore.
    *
    * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
-   * {@code T} is usually either an {@link Entity} or a {@link Key}
-   * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
-   * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
+   * {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only idempotent
+   * Cloud Datastore mutation operations (upsert and delete) should be used by the {@code DoFn}
+   * provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     protected ValueProvider<String> projectId;
-    @Nullable
-    protected String localhost;
+    @Nullable protected String localhost;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
     /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
+     * is {@code null} at instantiation time, an error will be thrown.
      */
-    Mutate(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
+    Mutate(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn) {
       this.projectId = projectId;
       this.localhost = localhost;
@@ -1089,20 +1120,18 @@ public class DatastoreV1 {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply("Convert to Mutation", MapElements.via(mutationFn))
-          .apply("Write Mutation to Datastore", ParDo.of(
-              new DatastoreWriterFn(projectId, localhost)));
+      checkArgument(projectId != null, "withProjectId() is required");
+      if (projectId.isAccessible()) {
+        checkArgument(projectId.get() != null, "projectId can not be null");
+      }
+      checkArgument(mutationFn != null, "mutationFn can not be null");
+
+      input
+          .apply("Convert to Mutation", MapElements.via(mutationFn))
+          .apply(
+              "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(projectId, "projectId ValueProvider");
-      if (projectId.isAccessible()) {
-        checkNotNull(projectId.get(), "projectId");
-      }
-      checkNotNull(mutationFn, "mutationFn");
     }
 
     @Override
@@ -1117,8 +1146,7 @@ public class DatastoreV1 {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"))
+          .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
           .include("mutationFn", mutationFn);
     }
 
@@ -1145,8 +1173,8 @@ public class DatastoreV1 {
   /**
    * Determines batch sizes for commit RPCs based on past performance.
    *
-   * <p>It aims for a target response time per RPC: it uses the response times for previous RPCs
-   * and the number of entities contained in them, calculates a rolling average time-per-entity, and
+   * <p>It aims for a target response time per RPC: it uses the response times for previous RPCs and
+   * the number of entities contained in them, calculates a rolling average time-per-entity, and
    * chooses the number of entities for future writes to hit the target time.
    *
    * <p>This enables us to send large batches without sending over-large requests in the case of
@@ -1159,9 +1187,10 @@ public class DatastoreV1 {
 
     @Override
     public void start() {
-      meanLatencyPerEntityMs = new MovingAverage(
-          120000 /* sample period 2 minutes */, 10000 /* sample interval 10s */,
-          1 /* numSignificantBuckets */, 1 /* numSignificantSamples */);
+      meanLatencyPerEntityMs =
+          new MovingAverage(
+              120000 /* sample period 2 minutes */, 10000 /* sample interval 10s */,
+              1 /* numSignificantBuckets */, 1 /* numSignificantSamples */);
     }
 
     @Override
@@ -1175,9 +1204,12 @@ public class DatastoreV1 {
         return DATASTORE_BATCH_UPDATE_ENTITIES_START;
       }
       long recentMeanLatency = Math.max(meanLatencyPerEntityMs.get(timeSinceEpochMillis), 1);
-      return (int) Math.max(DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
-          Math.min(DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT,
-            DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency));
+      return (int)
+          Math.max(
+              DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
+              Math.min(
+                  DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT,
+                  DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency));
     }
 
     private transient MovingAverage meanLatencyPerEntityMs;
@@ -1187,36 +1219,45 @@ public class DatastoreV1 {
    * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
    * batches; see {@link DatastoreV1.WriteBatcherImpl}.
    *
-   * <p>See <a
-   * href="https://cloud.google.com/datastore/docs/concepts/entities">
-   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
+   * <p>See <a href="https://cloud.google.com/datastore/docs/concepts/entities">Datastore: Entities,
+   * Properties, and Keys</a> for information about entity keys and mutations.
    *
-   * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link DatastoreV1.DatastoreWriterFn#MAX_RETRIES}
-   * times). This means that the mutation operation should be idempotent. Thus, the writer should
-   * only be used for {@code upsert} and {@code delete} mutation operations, as these are the only
-   * two Cloud Datastore mutations that are idempotent.
+   * <p>Commits are non-transactional. If a commit fails because of a conflict over an entity group,
+   * the commit will be retried (up to {@link DatastoreV1.DatastoreWriterFn#MAX_RETRIES} times).
+   * This means that the mutation operation should be idempotent. Thus, the writer should only be
+   * used for {@code upsert} and {@code delete} mutation operations, as these are the only two Cloud
+   * Datastore mutations that are idempotent.
    */
   @VisibleForTesting
   static class DatastoreWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
-    @Nullable
-    private final String localhost;
+    @Nullable private final String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
-    private int mutationsSize = 0;  // Accumulated size of protos in mutations.
+    private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
+    private transient AdaptiveThrottler throttler;
+    private final Counter throttledSeconds =
+        Metrics.counter(DatastoreWriterFn.class, "cumulativeThrottlingSeconds");
+    private final Counter rpcErrors =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
+    private final Counter rpcSuccesses =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
         FluentBackoff.DEFAULT
-            .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+            .withMaxRetries(MAX_RETRIES)
+            .withInitialBackoff(Duration.standardSeconds(5));
 
     DatastoreWriterFn(String projectId, @Nullable String localhost) {
-      this(StaticValueProvider.of(projectId), localhost, new V1DatastoreFactory(),
+      this(
+          StaticValueProvider.of(projectId),
+          localhost,
+          new V1DatastoreFactory(),
           new WriteBatcherImpl());
     }
 
@@ -1225,8 +1266,11 @@ public class DatastoreV1 {
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost,
-        V1DatastoreFactory datastoreFactory, WriteBatcher writeBatcher) {
+    DatastoreWriterFn(
+        ValueProvider<String> projectId,
+        @Nullable String localhost,
+        V1DatastoreFactory datastoreFactory,
+        WriteBatcher writeBatcher) {
       this.projectId = checkNotNull(projectId, "projectId");
       this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
@@ -1237,6 +1281,10 @@ public class DatastoreV1 {
     public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
       writeBatcher.start();
+      if (throttler == null) {
+        // Initialize throttler at first use, because it is not serializable.
+        throttler = new AdaptiveThrottler(120000, 10000, 1.25);
+      }
     }
 
     @ProcessElement
@@ -1264,13 +1312,12 @@ public class DatastoreV1 {
     /**
      * Writes a batch of mutations to Cloud Datastore.
      *
-     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times. All
-     * mutations in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from Cloud Datastore will be
-     * thrown.
+     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times. All mutations in
+     * the batch will be committed again, even if the commit was partially successful. If the retry
+     * limit is exceeded, the last exception from Cloud Datastore will be thrown.
      *
      * @throws DatastoreException if the commit fails or IOException or InterruptedException if
-     * backing off between retries fails.
+     *     backing off between retries fails.
      */
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
       LOG.debug("Writing batch of {} mutations", mutations.size());
@@ -1284,11 +1331,20 @@ public class DatastoreV1 {
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         long startTime = System.currentTimeMillis(), endTime;
 
+        if (throttler.throttleRequest(startTime)) {
+          LOG.info("Delaying request due to previous failures");
+          throttledSeconds.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS / 1000);
+          sleeper.sleep(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
+          continue;
+        }
+
         try {
           datastore.commit(commitRequest.build());
           endTime = System.currentTimeMillis();
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+          throttler.successfulRequest(startTime);
+          rpcSuccesses.inc();
 
           // Break if the commit threw no exception.
           break;
@@ -1300,11 +1356,18 @@ public class DatastoreV1 {
             endTime = System.currentTimeMillis();
             writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           }
-
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
-          LOG.error("Error writing batch of {} mutations to Datastore ({}): {}", mutations.size(),
-              exception.getCode(), exception.getMessage());
+          LOG.error(
+              "Error writing batch of {} mutations to Datastore ({}): {}",
+              mutations.size(),
+              exception.getCode(),
+              exception.getMessage());
+          rpcErrors.inc();
+
+          if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
+            throw exception;
+          }
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;
@@ -1319,15 +1382,13 @@ public class DatastoreV1 {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"));
+      builder.addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"));
     }
   }
 
   /**
-   * Returns true if a Cloud Datastore key is complete. A key is complete if its last element
-   * has either an id or a name.
+   * Returns true if a Cloud Datastore key is complete. A key is complete if its last element has
+   * either an id or a name.
    */
   static boolean isValidKey(Key key) {
     List<PathElement> elementList = key.getPathList();
@@ -1338,66 +1399,66 @@ public class DatastoreV1 {
     return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
   }
 
-  /**
-   * A function that constructs an upsert {@link Mutation} from an {@link Entity}.
-   */
+  /** A function that constructs an upsert {@link Mutation} from an {@link Entity}. */
   @VisibleForTesting
   static class UpsertFn extends SimpleFunction<Entity, Mutation> {
     @Override
     public Mutation apply(Entity entity) {
       // Verify that the entity to write has a complete key.
-      checkArgument(isValidKey(entity.getKey()),
-          "Entities to be written to the Cloud Datastore must have complete keys:\n%s", entity);
+      checkArgument(
+          isValidKey(entity.getKey()),
+          "Entities to be written to the Cloud Datastore must have complete keys:\n%s",
+          entity);
 
       return makeUpsert(entity).build();
     }
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("upsertFn", this.getClass())
-          .withLabel("Create Upsert Mutation"));
+      builder.add(
+          DisplayData.item("upsertFn", this.getClass()).withLabel("Create Upsert Mutation"));
     }
   }
 
-  /**
-   * A function that constructs a delete {@link Mutation} from an {@link Entity}.
-   */
+  /** A function that constructs a delete {@link Mutation} from an {@link Entity}. */
   @VisibleForTesting
   static class DeleteEntityFn extends SimpleFunction<Entity, Mutation> {
     @Override
     public Mutation apply(Entity entity) {
       // Verify that the entity to delete has a complete key.
-      checkArgument(isValidKey(entity.getKey()),
-          "Entities to be deleted from the Cloud Datastore must have complete keys:\n%s", entity);
+      checkArgument(
+          isValidKey(entity.getKey()),
+          "Entities to be deleted from the Cloud Datastore must have complete keys:\n%s",
+          entity);
 
       return makeDelete(entity.getKey()).build();
     }
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("deleteEntityFn", this.getClass())
-          .withLabel("Create Delete Mutation"));
+      builder.add(
+          DisplayData.item("deleteEntityFn", this.getClass()).withLabel("Create Delete Mutation"));
     }
   }
 
-  /**
-   * A function that constructs a delete {@link Mutation} from a {@link Key}.
-   */
+  /** A function that constructs a delete {@link Mutation} from a {@link Key}. */
   @VisibleForTesting
   static class DeleteKeyFn extends SimpleFunction<Key, Mutation> {
     @Override
     public Mutation apply(Key key) {
       // Verify that the entity to delete has a complete key.
-      checkArgument(isValidKey(key),
-          "Keys to be deleted from the Cloud Datastore must be complete:\n%s", key);
+      checkArgument(
+          isValidKey(key),
+          "Keys to be deleted from the Cloud Datastore must be complete:\n%s",
+          key);
 
       return makeDelete(key).build();
     }
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("deleteKeyFn", this.getClass())
-          .withLabel("Create Delete Mutation"));
+      builder.add(
+          DisplayData.item("deleteKeyFn", this.getClass()).withLabel("Create Delete Mutation"));
     }
   }
 
@@ -1405,8 +1466,8 @@ public class DatastoreV1 {
    * A wrapper factory class for Cloud Datastore singleton classes {@link DatastoreFactory} and
    * {@link QuerySplitter}
    *
-   * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
-   * wrapping them under this class, which implements {@link Serializable}.
+   * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence wrapping
+   * them under this class, which implements {@link Serializable}.
    */
   @VisibleForTesting
   static class V1DatastoreFactory implements Serializable {
@@ -1420,22 +1481,20 @@ public class DatastoreV1 {
      * Builds a Cloud Datastore client for the given pipeline options, project and an optional
      * locahost.
      */
-    public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId,
-        @Nullable String localhost) {
+    public Datastore getDatastore(
+        PipelineOptions pipelineOptions, String projectId, @Nullable String localhost) {
       Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
       HttpRequestInitializer initializer;
       if (credential != null) {
-        initializer = new ChainingHttpRequestInitializer(
-            new HttpCredentialsAdapter(credential),
-            new RetryHttpRequestInitializer());
+        initializer =
+            new ChainingHttpRequestInitializer(
+                new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
       } else {
         initializer = new RetryHttpRequestInitializer();
       }
 
       DatastoreOptions.Builder builder =
-          new DatastoreOptions.Builder()
-              .projectId(projectId)
-              .initializer(initializer);
+          new DatastoreOptions.Builder().projectId(projectId).initializer(initializer);
 
       if (localhost != null) {
         builder.localHost(localhost);

@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Duration;
@@ -38,9 +39,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link DirectTimerInternals}.
- */
+/** Tests for {@link DirectTimerInternals}. */
 @RunWith(JUnit4.class)
 public class DirectTimerInternalsTest {
   private MockClock clock;

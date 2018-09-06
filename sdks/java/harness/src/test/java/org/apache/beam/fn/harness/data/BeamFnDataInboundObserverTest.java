@@ -21,23 +21,25 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
+import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,19 +49,21 @@ public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
 
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
-    CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        values::add,
-        readFuture);
+    InboundDataClient readFuture = CompletableFutureInboundDataClient.create();
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(CODER, values::add, readFuture);
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"));
-    assertThat(values, contains(
-        valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
+    assertThat(
+        values,
+        contains(
+            valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     values.clear();
 
     // Test empty message signaling end of stream
@@ -74,23 +78,18 @@ public class BeamFnDataInboundObserverTest {
 
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
-    CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        this::throwOnDefValue,
-        readFuture);
+    InboundDataClient readClient = CompletableFutureInboundDataClient.create();
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(CODER, this::throwOnDefValue, readClient);
 
-    assertFalse(readFuture.isDone());
+    assertFalse(readClient.isDone());
     observer.accept(dataWith("ABC", "DEF", "GHI"));
-    assertTrue(readFuture.isCompletedExceptionally());
+    assertTrue(readClient.isDone());
 
-    try {
-      readFuture.get();
-      fail("Expected failure");
-    } catch (ExecutionException e) {
-      assertThat(e.getCause(), instanceOf(RuntimeException.class));
-      assertEquals("Failure", e.getCause().getMessage());
-    }
+    thrown.expect(ExecutionException.class);
+    thrown.expectCause(instanceOf(RuntimeException.class));
+    thrown.expectMessage("Failure");
+    readClient.awaitCompletion();
   }
 
   private void throwOnDefValue(WindowedValue<String> value) {
@@ -99,12 +98,14 @@ public class BeamFnDataInboundObserverTest {
     }
   }
 
-  private BeamFnApi.Elements.Data dataWith(String ... values) throws Exception {
-    BeamFnApi.Elements.Data.Builder builder = BeamFnApi.Elements.Data.newBuilder()
-        .setInstructionReference("777L")
-        .setTarget(BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference("999L")
-            .setName("Test"));
+  private BeamFnApi.Elements.Data dataWith(String... values) throws Exception {
+    BeamFnApi.Elements.Data.Builder builder =
+        BeamFnApi.Elements.Data.newBuilder()
+            .setInstructionReference("777L")
+            .setTarget(
+                BeamFnApi.Target.newBuilder()
+                    .setPrimitiveTransformReference("999L")
+                    .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);

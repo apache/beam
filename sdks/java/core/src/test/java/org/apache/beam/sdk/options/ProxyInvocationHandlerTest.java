@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -62,7 +61,6 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -73,32 +71,40 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ProxyInvocationHandlerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
-  @Rule public TestRule resetPipelineOptionsRegistry = new ExternalResource() {
-    @Override
-    protected void before() {
-      PipelineOptionsFactory.resetRegistry();
-    }
-  };
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  @Rule
+  public TestRule resetPipelineOptionsRegistry =
+      new ExternalResource() {
+        @Override
+        protected void before() {
+          PipelineOptionsFactory.resetCache();
+        }
+      };
+
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** A test interface with some primitives and objects. */
   public interface Simple extends PipelineOptions {
     boolean isOptionEnabled();
+
     void setOptionEnabled(boolean value);
+
     int getPrimitive();
+
     void setPrimitive(int value);
+
     String getString();
+
     void setString(String value);
   }
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   public void testPropertySettingAndGetting() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy = handler.as(Simple.class);
     proxy.setString("OBJECT");
     proxy.setOptionEnabled(true);
@@ -111,28 +117,45 @@ public class ProxyInvocationHandlerTest {
   /** A test interface containing all the JLS default values. */
   public interface JLSDefaults extends PipelineOptions {
     boolean getBoolean();
+
     void setBoolean(boolean value);
+
     char getChar();
+
     void setChar(char value);
+
     byte getByte();
+
     void setByte(byte value);
+
     short getShort();
+
     void setShort(short value);
+
     int getInt();
+
     void setInt(int value);
+
     long getLong();
+
     void setLong(long value);
+
     float getFloat();
+
     void setFloat(float value);
+
     double getDouble();
+
     void setDouble(double value);
+
     Object getObject();
+
     void setObject(Object value);
   }
 
   @Test
   public void testGettingJLSDefaults() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     JLSDefaults proxy = handler.as(JLSDefaults.class);
     assertFalse(proxy.getBoolean());
     assertEquals('\0', proxy.getChar());
@@ -158,6 +181,7 @@ public class ProxyInvocationHandlerTest {
     MyEnum("MyTestEnum");
 
     private final String value;
+
     EnumType(String value) {
       this.value = value;
     }
@@ -172,45 +196,68 @@ public class ProxyInvocationHandlerTest {
   public interface DefaultAnnotations extends PipelineOptions {
     @Default.Boolean(true)
     boolean getBoolean();
+
     void setBoolean(boolean value);
+
     @Default.Character('a')
     char getChar();
+
     void setChar(char value);
+
     @Default.Byte((byte) 4)
     byte getByte();
+
     void setByte(byte value);
+
     @Default.Short((short) 5)
     short getShort();
+
     void setShort(short value);
+
     @Default.Integer(6)
     int getInt();
+
     void setInt(int value);
+
     @Default.Long(7L)
     long getLong();
+
     void setLong(long value);
+
     @Default.Float(8f)
     float getFloat();
+
     void setFloat(float value);
+
     @Default.Double(9d)
     double getDouble();
+
     void setDouble(double value);
+
     @Default.String("testString")
     String getString();
+
     void setString(String value);
+
     @Default.Class(DefaultAnnotations.class)
     Class<?> getClassOption();
+
     void setClassOption(Class<?> value);
+
     @Default.Enum("MyEnum")
     EnumType getEnum();
+
     void setEnum(EnumType value);
+
     @Default.InstanceFactory(TestOptionFactory.class)
     String getComplex();
+
     void setComplex(String value);
   }
 
   @Test
   public void testAnnotationDefaults() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     DefaultAnnotations proxy = handler.as(DefaultAnnotations.class);
     assertTrue(proxy.getBoolean());
     assertEquals('a', proxy.getChar());
@@ -228,10 +275,10 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testEqualsAndHashCode() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy = handler.as(Simple.class);
     JLSDefaults sameAsProxy = proxy.as(JLSDefaults.class);
-    ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy2 = handler2.as(Simple.class);
     JLSDefaults sameAsProxy2 = proxy2.as(JLSDefaults.class);
 
@@ -245,40 +292,43 @@ public class ProxyInvocationHandlerTest {
   public interface StringWithDefault extends PipelineOptions {
     @Default.String("testString")
     String getString();
+
     void setString(String value);
   }
 
   @Test
   public void testToString() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals("Current Settings:\n"
-            + "  long: 57\n"
-            + "  string: stringValue\n",
+    assertEquals(
+        String.format("Current Settings:%n" + "  long: 57%n" + "  string: stringValue%n"),
         proxy.toString());
   }
 
   @Test
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals(String.format("Current Settings:\n"
-            + "  long: 57\n"
-            + "  optionsId: %d\n"
-            + "  string: \"stringValue\"\n", optionsId),
+    assertEquals(
+        String.format(
+            "Current Settings:%n"
+                + "  long: 57%n"
+                + "  optionsId: %d%n"
+                + "  string: \"stringValue\"%n",
+            optionsId),
         serializeDeserialize(PipelineOptions.class, proxy2).toString());
   }
 
   @Test
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
@@ -286,10 +336,13 @@ public class ProxyInvocationHandlerTest {
     proxy2.setLong(57L);
     Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
     deserializedOptions.setString("overriddenValue");
-    assertEquals(String.format("Current Settings:\n"
-            + "  long: 57\n"
-            + "  optionsId: %d\n"
-            + "  string: overriddenValue\n", optionsId),
+    assertEquals(
+        String.format(
+            "Current Settings:%n"
+                + "  long: 57%n"
+                + "  optionsId: %d%n"
+                + "  string: overriddenValue%n",
+            optionsId),
         deserializedOptions.toString());
   }
 
@@ -301,23 +354,25 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testInvokeWithUnknownMethod() throws Exception {
     expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Unknown method [public abstract void "
-        + "org.apache.beam.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
-        + "invoked with args [null].");
+    expectedException.expectMessage(
+        "Unknown method [public abstract void "
+            + "org.apache.beam.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
+            + "invoked with args [null].");
 
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     handler.invoke(handler, UnknownMethod.class.getMethod("unknownMethod"), null);
   }
 
   /** A test interface that extends another interface. */
   public interface SubClass extends Simple {
     String getExtended();
+
     void setExtended(String value);
   }
 
   @Test
   public void testSubClassStoresSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -326,7 +381,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testUpCastRetainsSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -336,7 +391,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testUpCastRetainsSubClassValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setExtended("subClassValue");
@@ -347,12 +402,13 @@ public class ProxyInvocationHandlerTest {
   /** A test interface that is a sibling to {@link SubClass}. */
   public interface Sibling extends Simple {
     String getSibling();
+
     void setSibling(String value);
   }
 
   @Test
   public void testAsSiblingRetainsSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -364,13 +420,14 @@ public class ProxyInvocationHandlerTest {
   public interface MethodConflict extends Simple {
     @Override
     String getString();
+
     @Override
     void setString(String value);
   }
 
   @Test
   public void testMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     MethodConflict methodConflict = handler.as(MethodConflict.class);
 
     methodConflict.setString("conflictValue");
@@ -382,17 +439,20 @@ public class ProxyInvocationHandlerTest {
   public interface DeepMethodConflict extends MethodConflict {
     @Override
     String getString();
+
     @Override
     void setString(String value);
+
     @Override
     int getPrimitive();
+
     @Override
     void setPrimitive(int value);
   }
 
   @Test
   public void testDeepMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     DeepMethodConflict deepMethodConflict = handler.as(DeepMethodConflict.class);
 
     // Tests overriding an already overridden method
@@ -411,12 +471,13 @@ public class ProxyInvocationHandlerTest {
   /** A test interface that shares the same methods as {@link Sibling}. */
   public interface SimpleSibling extends PipelineOptions {
     String getString();
+
     void setString(String value);
   }
 
   @Test
   public void testDisjointSiblingsShareValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SimpleSibling proxy = handler.as(SimpleSibling.class);
     proxy.setString("siblingValue");
     assertEquals("siblingValue", proxy.getString());
@@ -424,12 +485,11 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that joins two sibling interfaces that have conflicting methods. */
-  public interface SiblingMethodConflict extends Simple, SimpleSibling {
-  }
+  public interface SiblingMethodConflict extends Simple, SimpleSibling {}
 
   @Test
   public void testSiblingMethodConflict() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SiblingMethodConflict siblingMethodConflict = handler.as(SiblingMethodConflict.class);
     siblingMethodConflict.setString("siblingValue");
     assertEquals("siblingValue", siblingMethodConflict.getString());
@@ -441,13 +501,14 @@ public class ProxyInvocationHandlerTest {
   public interface PartialMethodConflict extends Simple {
     @Override
     String getString();
+
     @Override
     void setPrimitive(int value);
   }
 
   @Test
   public void testPartialMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     PartialMethodConflict partialMethodConflict = handler.as(PartialMethodConflict.class);
 
     // Tests overriding a getter property that is only partially bound
@@ -470,7 +531,7 @@ public class ProxyInvocationHandlerTest {
     PipelineOptionsFactory.register(FooOptions.class);
     assertThat(PipelineOptionsFactory.getRegisteredOptions(), hasItem(FooOptions.class));
 
-    PipelineOptionsFactory.resetRegistry();
+    PipelineOptionsFactory.resetCache();
     assertEquals(defaultRegistry, PipelineOptionsFactory.getRegisteredOptions());
   }
 
@@ -483,8 +544,11 @@ public class ProxyInvocationHandlerTest {
   /** Test interface for JSON conversion of simple types. */
   private interface SimpleTypes extends PipelineOptions {
     int getInteger();
+
     void setInteger(int value);
+
     String getString();
+
     void setString(String value);
   }
 
@@ -507,8 +571,9 @@ public class ProxyInvocationHandlerTest {
     // type so that we handle the case when we don't know the types of certain
     // properties because the intermediate instance of PipelineOptions never
     // saw their interface.
-    SimpleTypes options2 = serializeDeserialize(SimpleTypes.class,
-        serializeDeserialize(PipelineOptions.class, options));
+    SimpleTypes options2 =
+        serializeDeserialize(
+            SimpleTypes.class, serializeDeserialize(PipelineOptions.class, options));
     assertEquals(5, options2.getInteger());
     assertEquals("TestValue", options2.getString());
   }
@@ -540,10 +605,15 @@ public class ProxyInvocationHandlerTest {
   /** Test interface for JSON conversion of container types. */
   private interface ContainerTypes extends PipelineOptions {
     List<String> getList();
+
     void setList(List<String> values);
+
     Map<String, String> getMap();
+
     void setMap(Map<String, String> values);
+
     Set<String> getSet();
+
     void setSet(Set<String> values);
   }
 
@@ -610,6 +680,7 @@ public class ProxyInvocationHandlerTest {
 
   private interface ComplexTypes extends PipelineOptions {
     ComplexType getComplexType();
+
     void setComplexType(ComplexType value);
   }
 
@@ -631,6 +702,7 @@ public class ProxyInvocationHandlerTest {
   private interface IgnoredProperty extends PipelineOptions {
     @JsonIgnore
     String getValue();
+
     void setValue(String value);
   }
 
@@ -646,6 +718,7 @@ public class ProxyInvocationHandlerTest {
   /** Test class that is not serializable by Jackson. */
   public static class NotSerializable {
     private String value;
+
     public NotSerializable(String value) {
       this.value = value;
     }
@@ -658,6 +731,7 @@ public class ProxyInvocationHandlerTest {
   /** Test interface containing a class that is not serializable by Jackson. */
   private interface NotSerializableProperty extends PipelineOptions {
     NotSerializable getValue();
+
     void setValue(NotSerializable value);
   }
 
@@ -672,12 +746,13 @@ public class ProxyInvocationHandlerTest {
   }
 
   /**
-   * Test interface that has {@link JsonIgnore @JsonIgnore} on a property that Jackson
-   * can't serialize.
+   * Test interface that has {@link JsonIgnore @JsonIgnore} on a property that Jackson can't
+   * serialize.
    */
   private interface IgnoredNotSerializableProperty extends PipelineOptions {
     @JsonIgnore
     NotSerializable getValue();
+
     void setValue(NotSerializable value);
   }
 
@@ -695,6 +770,7 @@ public class ProxyInvocationHandlerTest {
   /** Test class that is only serializable by Jackson with the added metadata. */
   public static class SerializableWithMetadata {
     private String value;
+
     public SerializableWithMetadata(@JsonProperty("value") String value) {
       this.value = value;
     }
@@ -706,11 +782,12 @@ public class ProxyInvocationHandlerTest {
   }
 
   /**
-   * Test interface containing a property that is serializable by Jackson only with
-   * the additional metadata.
+   * Test interface containing a property that is serializable by Jackson only with the additional
+   * metadata.
    */
   private interface SerializableWithMetadataProperty extends PipelineOptions {
     SerializableWithMetadata getValue();
+
     void setValue(SerializableWithMetadata value);
   }
 
@@ -731,12 +808,14 @@ public class ProxyInvocationHandlerTest {
     options.setTempLocation("myTemp");
     DisplayData displayData = DisplayData.from(options);
 
-    assertThat(displayData, hasDisplayItem(allOf(
-        hasKey("tempLocation"),
-        hasType(DisplayData.Type.STRING),
-        hasValue("myTemp"),
-        hasNamespace(PipelineOptions.class)
-    )));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tempLocation"),
+                hasType(DisplayData.Type.STRING),
+                hasValue("myTemp"),
+                hasNamespace(PipelineOptions.class))));
   }
 
   @Test
@@ -747,12 +826,13 @@ public class ProxyInvocationHandlerTest {
     options.setInteger(1234);
     options.setTimestamp(now);
     options.setJavaClass(ProxyInvocationHandlerTest.class);
-    options.setObject(new Serializable() {
-      @Override
-      public String toString() {
-        return "foobar";
-      }
-    });
+    options.setObject(
+        new Serializable() {
+          @Override
+          public String toString() {
+            return "foobar";
+          }
+        });
 
     DisplayData displayData = DisplayData.from(options);
 
@@ -764,32 +844,37 @@ public class ProxyInvocationHandlerTest {
 
   interface TypedOptions extends PipelineOptions {
     int getInteger();
+
     void setInteger(int value);
 
     Instant getTimestamp();
+
     void setTimestamp(Instant value);
 
     Class<?> getJavaClass();
+
     void setJavaClass(Class<?> value);
 
     Object getObject();
+
     void setObject(Object value);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void pipelineOptionsDisplayDataExceptionShouldFail() {
-    Object brokenValueType = new Object() {
-      @JsonValue
-      public int getValue () {
-        return 42;
-      }
+    Object brokenValueType =
+        new Object() {
+          @JsonValue
+          public int getValue() {
+            return 42;
+          }
 
-      @Override
-      public String toString() {
-        throw new RuntimeException("oh noes!!");
-      }
-    };
+          @Override
+          public String toString() {
+            throw new RuntimeException("oh noes!!");
+          }
+        };
 
     p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
 
@@ -797,13 +882,14 @@ public class ProxyInvocationHandlerTest {
 
     expectedException.expectMessage(
         ProxyInvocationHandler.PipelineOptionsDisplayData.class.getName());
-    expectedException.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    expectedException.expectMessage("oh noes!!");
     p.run();
   }
 
   /** {@link PipelineOptions} to inject bad object implementations. */
   public interface ObjectPipelineOptions extends PipelineOptions {
     Object getValue();
+
     void setValue(Object value);
   }
 
@@ -814,21 +900,24 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData displayData = DisplayData.from(options);
 
-    assertThat(displayData, hasDisplayItem(allOf(
-        hasKey("foo"),
-        hasValue("bar"),
-        hasNamespace(ExtendsBaseOptions.class)
-    )));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(hasKey("foo"), hasValue("bar"), hasNamespace(ExtendsBaseOptions.class))));
   }
 
   interface BaseOptions extends PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
   }
 
   interface ExtendsBaseOptions extends BaseOptions {
-    @Override String getFoo();
-    @Override void setFoo(String value);
+    @Override
+    String getFoo();
+
+    @Override
+    void setFoo(String value);
   }
 
   @Test
@@ -855,11 +944,13 @@ public class ProxyInvocationHandlerTest {
 
   interface FooOptions extends PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
   }
 
   interface BarOptions extends PipelineOptions {
     String getBar();
+
     void setBar(String value);
   }
 
@@ -874,6 +965,7 @@ public class ProxyInvocationHandlerTest {
   interface HasDefaults extends PipelineOptions {
     @Default.String("bar")
     String getFoo();
+
     void setFoo(String value);
   }
 
@@ -926,9 +1018,11 @@ public class ProxyInvocationHandlerTest {
 
   private interface ArrayOptions extends PipelineOptions {
     String[][] getDeepArray();
+
     void setDeepArray(String[][] value);
 
     int[][] getDeepPrimitiveArray();
+
     void setDeepPrimitiveArray(int[][] value);
   }
 
@@ -943,12 +1037,13 @@ public class ProxyInvocationHandlerTest {
     assertThat("main pipeline options data keyed as 'options'", map, Matchers.hasKey("options"));
     assertThat("display data keyed as 'display_data'", map, Matchers.hasKey("display_data"));
 
-    Map<?, ?> expectedDisplayItem = ImmutableMap.<String, String>builder()
-        .put("namespace", FooOptions.class.getName())
-        .put("key", "foo")
-        .put("value", "bar")
-        .put("type", "STRING")
-        .build();
+    Map<?, ?> expectedDisplayItem =
+        ImmutableMap.<String, String>builder()
+            .put("namespace", FooOptions.class.getName())
+            .put("key", "foo")
+            .put("value", "bar")
+            .put("type", "STRING")
+            .build();
 
     @SuppressWarnings("unchecked")
     List<Map<?, ?>> deserializedDisplayData = (List<Map<?, ?>>) map.get("display_data");
@@ -991,6 +1086,7 @@ public class ProxyInvocationHandlerTest {
 
   interface HasClassOptions extends PipelineOptions {
     Class<?> getClassOption();
+
     void setClassOption(Class<?> value);
   }
 
@@ -1028,13 +1124,13 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testOptionsAreNotSerializable() {
-    expectedException.expectCause(Matchers.<Throwable>instanceOf(NotSerializableException.class));
+    expectedException.expectCause(Matchers.instanceOf(NotSerializableException.class));
     SerializableUtils.clone(new CapturesOptions());
   }
 
   @Test
   public void testGetOptionNameFromMethod() throws NoSuchMethodException {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     handler.as(BaseOptions.class);
     assertEquals("foo", handler.getOptionName(BaseOptions.class.getMethod("getFoo")));
   }

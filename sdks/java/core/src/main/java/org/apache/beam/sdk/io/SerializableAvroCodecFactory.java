@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.avro.file.CodecFactory;
 
 /**
@@ -42,15 +43,14 @@ import org.apache.avro.file.CodecFactory;
  */
 class SerializableAvroCodecFactory implements Externalizable {
   private static final long serialVersionUID = 7445324844109564303L;
-  private static final List<String> noOptAvroCodecs = Arrays.asList(NULL_CODEC,
-                                                                    SNAPPY_CODEC,
-                                                                    BZIP2_CODEC);
+  private static final List<String> noOptAvroCodecs =
+      Arrays.asList(NULL_CODEC, SNAPPY_CODEC, BZIP2_CODEC);
   private static final Pattern deflatePattern = Pattern.compile(DEFLATE_CODEC + "-(?<level>-?\\d)");
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
 
-  private CodecFactory codecFactory;
+  private @Nullable CodecFactory codecFactory;
 
-  // For java.io.Serializable only
+  // For java.io.Externalizable
   public SerializableAvroCodecFactory() {}
 
   public SerializableAvroCodecFactory(CodecFactory codecFactory) {
@@ -85,15 +85,13 @@ class SerializableAvroCodecFactory implements Externalizable {
 
     Matcher deflateMatcher = deflatePattern.matcher(codecStr);
     if (deflateMatcher.find()) {
-      codecFactory = CodecFactory.deflateCodec(
-          Integer.parseInt(deflateMatcher.group("level")));
+      codecFactory = CodecFactory.deflateCodec(Integer.parseInt(deflateMatcher.group("level")));
       return;
     }
 
     Matcher xzMatcher = xzPattern.matcher(codecStr);
     if (xzMatcher.find()) {
-      codecFactory = CodecFactory.xzCodec(
-          Integer.parseInt(xzMatcher.group("level")));
+      codecFactory = CodecFactory.xzCodec(Integer.parseInt(xzMatcher.group("level")));
       return;
     }
 

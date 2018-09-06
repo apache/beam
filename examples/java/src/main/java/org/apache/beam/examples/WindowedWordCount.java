@@ -40,21 +40,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-
 /**
  * An example that counts words in text, and can run over either unbounded or bounded input
  * collections.
  *
  * <p>This class, {@link WindowedWordCount}, is the last in a series of four successively more
- * detailed 'word count' examples. First take a look at {@link MinimalWordCount},
- * {@link WordCount}, and {@link DebuggingWordCount}.
+ * detailed 'word count' examples. First take a look at {@link MinimalWordCount}, {@link WordCount},
+ * and {@link DebuggingWordCount}.
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
- * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using a selected runner; defining DoFns;
- * user-defined PTransforms; defining PipelineOptions.
+ * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally and
+ * using a selected runner; defining DoFns; user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
+ *
  * <pre>
  *   1. Unbounded and bounded pipeline input modes
  *   2. Adding timestamps to data
@@ -64,41 +63,42 @@ import org.joda.time.Instant;
  *   6. Writing data to per-window text files
  * </pre>
  *
- * <p>By default, the examples will run with the {@code DirectRunner}.
- * To change the runner, specify:
- * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
- * See examples/java/README.md for instructions about how to configure different runners.
+ * <p>By default, the examples will run with the {@code DirectRunner}. To change the runner,
+ * specify:
  *
- * <p>To execute this pipeline locally, specify a local output file (if using the
- * {@code DirectRunner}) or output prefix on a supported distributed file system.
  * <pre>{@code
- *   --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
+ * --runner=YOUR_SELECTED_RUNNER
  * }</pre>
  *
- * <p>The input file defaults to a public data set containing the text of of King Lear,
- * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
- * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
- * for 10-minute windows.
+ * <p>To execute this pipeline locally, specify a local output file (if using the {@code
+ * DirectRunner}) or output prefix on a supported distributed file system.
+ *
+ * <pre>{@code
+ * --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
+ * }</pre>
+ *
+ * <p>The input file defaults to a public data set containing the text of of King Lear, by William
+ * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
+ *
+ * <p>By default, the pipeline will do fixed windowing, on 10-minute windows. You can change this
+ * interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=15} for
+ * 15-minute windows.
  *
  * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class WindowedWordCount {
-    static final int WINDOW_SIZE = 10;  // Default window duration in minutes
+  static final int WINDOW_SIZE = 10; // Default window duration in minutes
   /**
-   * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
-   * this example, for the bounded data case.
+   * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for this
+   * example, for the bounded data case.
    *
    * <p>Imagine that many ghosts of Shakespeare are all typing madly at the same time to recreate
    * his masterworks. Each line of the corpus will get a random associated timestamp somewhere in a
    * 2-hour period.
    */
   static class AddTimestampFn extends DoFn<String, String> {
-    private static final Duration RAND_RANGE = Duration.standardHours(1);
     private final Instant minTimestamp;
     private final Instant maxTimestamp;
 
@@ -108,16 +108,16 @@ public class WindowedWordCount {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
       Instant randomTimestamp =
           new Instant(
               ThreadLocalRandom.current()
                   .nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
 
-      /**
+      /*
        * Concept #2: Set the data element with that timestamp.
        */
-      c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
+      receiver.outputWithTimestamp(element, new Instant(randomTimestamp));
     }
   }
 
@@ -141,52 +141,56 @@ public class WindowedWordCount {
   /**
    * Options for {@link WindowedWordCount}.
    *
-   * <p>Inherits standard example configuration options, which allow specification of the
-   * runner, as well as the {@link WordCount.WordCountOptions} support for
-   * specification of the input and output files.
+   * <p>Inherits standard example configuration options, which allow specification of the runner, as
+   * well as the {@link WordCount.WordCountOptions} support for specification of the input and
+   * output files.
    */
-  public interface Options extends WordCount.WordCountOptions,
-      ExampleOptions, ExampleBigQueryTableOptions {
+  public interface Options
+      extends WordCount.WordCountOptions, ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)
     Integer getWindowSize();
+
     void setWindowSize(Integer value);
 
     @Description("Minimum randomly assigned timestamp, in milliseconds-since-epoch")
     @Default.InstanceFactory(DefaultToCurrentSystemTime.class)
     Long getMinTimestampMillis();
+
     void setMinTimestampMillis(Long value);
 
     @Description("Maximum randomly assigned timestamp, in milliseconds-since-epoch")
     @Default.InstanceFactory(DefaultToMinTimestampPlusOneHour.class)
     Long getMaxTimestampMillis();
+
     void setMaxTimestampMillis(Long value);
 
-    @Description("Fixed number of shards to produce per window, or null for runner-chosen sharding")
+    @Description("Fixed number of shards to produce per window")
     Integer getNumShards();
+
     void setNumShards(Integer numShards);
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  static void runWindowedWordCount(Options options) throws IOException {
     final String output = options.getOutput();
     final Instant minTimestamp = new Instant(options.getMinTimestampMillis());
     final Instant maxTimestamp = new Instant(options.getMaxTimestampMillis());
 
     Pipeline pipeline = Pipeline.create(options);
 
-    /**
+    /*
      * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
-    PCollection<String> input = pipeline
-      /** Read from the GCS file. */
-      .apply(TextIO.read().from(options.getInputFile()))
-      // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
-      // See AddTimestampFn for more detail on this.
-      .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
+    PCollection<String> input =
+        pipeline
+            /* Read from the GCS file. */
+            .apply(TextIO.read().from(options.getInputFile()))
+            // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
+            // See AddTimestampFn for more detail on this.
+            .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 
-    /**
+    /*
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
      * minute (you can change this with a command-line option). See the documentation for more
      * information on how fixed windows work, and for information on the other types of windowing
@@ -194,16 +198,15 @@ public class WindowedWordCount {
      */
     PCollection<String> windowedWords =
         input.apply(
-            Window.<String>into(
-                FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
+            Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
-    /**
+    /*
      * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
      * windows over a PCollection containing windowed values.
      */
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 
-    /**
+    /*
      * Concept #5: Format the results and write to a sharded file partitioned by window, using a
      * simple ParDo operation. Because there may be failures followed by retries, the
      * writes must be idempotent, but the details of writing to files is elided here.
@@ -220,4 +223,9 @@ public class WindowedWordCount {
     }
   }
 
+  public static void main(String[] args) throws IOException {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runWindowedWordCount(options);
+  }
 }

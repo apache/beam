@@ -18,7 +18,9 @@
 
 package org.apache.beam.runners.core.construction;
 
+import com.google.common.collect.Iterables;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -31,36 +33,38 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-/**
- * An implementation of {@link Create} that returns a primitive {@link PCollection}.
- */
+/** An implementation of {@link Create} that returns a primitive {@link PCollection}. */
 public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
   private final Create.Values<T> transform;
+  private final Coder<T> coder;
 
-  private PrimitiveCreate(Create.Values<T> transform) {
+  private PrimitiveCreate(Create.Values<T> transform, Coder<T> coder) {
     this.transform = transform;
+    this.coder = coder;
   }
 
   @Override
   public PCollection<T> expand(PBegin input) {
     return PCollection.createPrimitiveOutputInternal(
-        input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+        input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.BOUNDED, coder);
   }
 
   public Iterable<T> getElements() {
     return transform.getElements();
   }
 
-  /**
-   * A {@link PTransformOverrideFactory} that creates instances of {@link PrimitiveCreate}.
-   */
+  /** A {@link PTransformOverrideFactory} that creates instances of {@link PrimitiveCreate}. */
   public static class Factory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Values<T>> {
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Values<T>> transform) {
       return PTransformReplacement.of(
-          transform.getPipeline().begin(), new PrimitiveCreate<T>(transform.getTransform()));
+          transform.getPipeline().begin(),
+          new PrimitiveCreate<>(
+              transform.getTransform(),
+              ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()))
+                  .getCoder()));
     }
 
     @Override
@@ -70,4 +74,3 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
     }
   }
 }
-

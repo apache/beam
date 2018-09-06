@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
+import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.junit.Test;
@@ -32,7 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExposedByteArrayOutputStreamTest {
 
-  private static final byte[] TEST_DATA = "Hello World!".getBytes();
+  private static final byte[] TEST_DATA = "Hello World!".getBytes(Charsets.UTF_8);
 
   private ExposedByteArrayOutputStream exposedStream = new ExposedByteArrayOutputStream();
   private ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -49,7 +50,7 @@ public class ExposedByteArrayOutputStreamTest {
   }
 
   @Test
-  public void testWriteZeroLengthArrayWithOffset(){
+  public void testWriteZeroLengthArrayWithOffset() {
     writeToBoth(new byte[0], 0, 0);
     assertStreamContentsEquals(stream, exposedStream);
   }
@@ -80,7 +81,6 @@ public class ExposedByteArrayOutputStreamTest {
     assertStreamContentsEquals(stream, exposedStream);
     assertSame(TEST_DATA, exposedStream.toByteArray());
   }
-
 
   @Test
   public void testWriteSingleArrayTwice() throws IOException {
@@ -242,5 +242,4 @@ public class ExposedByteArrayOutputStreamTest {
     exposedStream.reset();
     stream.reset();
   }
-
 }

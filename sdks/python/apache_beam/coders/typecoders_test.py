@@ -16,8 +16,10 @@
 #
 
 """Unit tests for the typecoders module."""
+from __future__ import absolute_import
 
 import unittest
+from builtins import object
 
 from apache_beam.coders import coders
 from apache_beam.coders import typecoders
@@ -32,6 +34,9 @@ class CustomClass(object):
 
   def __eq__(self, other):
     return self.number == other.number
+
+  def __hash__(self):
+    return self.number
 
 
 class CustomCoder(coders.Coder):
@@ -75,7 +80,7 @@ class TypeCodersTest(unittest.TestCase):
 
   def test_get_coder_with_standard_coder(self):
     self.assertEqual(coders.BytesCoder,
-                     typecoders.registry.get_coder(str).__class__)
+                     typecoders.registry.get_coder(bytes).__class__)
 
   def test_fallbackcoder(self):
     coder = typecoders.registry.get_coder(typehints.Any)
@@ -100,22 +105,16 @@ class TypeCodersTest(unittest.TestCase):
                      real_coder.decode(real_coder.encode(0x040404040404)))
 
   def test_standard_str_coder(self):
-    real_coder = typecoders.registry.get_coder(str)
-    expected_coder = coders.BytesCoder()
-    self.assertEqual(
-        real_coder.encode('abc'), expected_coder.encode('abc'))
-    self.assertEqual('abc', real_coder.decode(real_coder.encode('abc')))
-
     real_coder = typecoders.registry.get_coder(bytes)
     expected_coder = coders.BytesCoder()
     self.assertEqual(
-        real_coder.encode('abc'), expected_coder.encode('abc'))
-    self.assertEqual('abc', real_coder.decode(real_coder.encode('abc')))
+        real_coder.encode(b'abc'), expected_coder.encode(b'abc'))
+    self.assertEqual(b'abc', real_coder.decode(real_coder.encode(b'abc')))
 
   def test_iterable_coder(self):
-    real_coder = typecoders.registry.get_coder(typehints.Iterable[str])
+    real_coder = typecoders.registry.get_coder(typehints.Iterable[bytes])
     expected_coder = coders.IterableCoder(coders.BytesCoder())
-    values = ['abc', 'xyz']
+    values = [b'abc', b'xyz']
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
 

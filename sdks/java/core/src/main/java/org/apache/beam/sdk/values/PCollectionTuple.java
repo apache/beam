@@ -24,22 +24,20 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 
 /**
- * A {@link PCollectionTuple} is an immutable tuple of
- * heterogeneously-typed {@link PCollection PCollections}, "keyed" by
- * {@link TupleTag TupleTags}. A {@link PCollectionTuple} can be used as the input or
- * output of a
- * {@link PTransform} taking
- * or producing multiple PCollection inputs or outputs that can be of
- * different types, for instance a
- * {@link ParDo} with multiple outputs.
+ * A {@link PCollectionTuple} is an immutable tuple of heterogeneously-typed {@link PCollection
+ * PCollections}, "keyed" by {@link TupleTag TupleTags}. A {@link PCollectionTuple} can be used as
+ * the input or output of a {@link PTransform} taking or producing multiple PCollection inputs or
+ * outputs that can be of different types, for instance a {@link ParDo} with multiple outputs.
  *
  * <p>A {@link PCollectionTuple} can be created and accessed like follows:
- * <pre> {@code
+ *
+ * <pre>{@code
  * PCollection<String> pc1 = ...;
  * PCollection<Integer> pc2 = ...;
  * PCollection<Iterable<String>> pc3 = ...;
@@ -69,48 +67,48 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  *
  * // Get a map of all PCollections in a PCollectionTuple:
  * Map<TupleTag<?>, PCollection<?>> allPcs = pcs.getAll();
- * } </pre>
+ * }</pre>
  */
 public class PCollectionTuple implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionTuple} that is part of the given {@link Pipeline}.
    *
-   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling
-   * {@link #and} on the result.
+   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling {@link
+   * #and} on the result.
    */
   public static PCollectionTuple empty(Pipeline pipeline) {
     return new PCollectionTuple(pipeline);
   }
 
   /**
-   * Returns a singleton {@link PCollectionTuple} containing the given
-   * {@link PCollection} keyed by the given {@link TupleTag}.
+   * Returns a singleton {@link PCollectionTuple} containing the given {@link PCollection} keyed by
+   * the given {@link TupleTag}.
    *
-   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling
-   * {@link #and} on the result.
+   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling {@link
+   * #and} on the result.
    */
   public static <T> PCollectionTuple of(TupleTag<T> tag, PCollection<T> pc) {
     return empty(pc.getPipeline()).and(tag, pc);
   }
 
   /**
-   * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and
-   * {@link TupleTag} of this {@link PCollectionTuple} plus the given {@link PCollection}
-   * associated with the given {@link TupleTag}.
+   * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and {@link TupleTag}
+   * of this {@link PCollectionTuple} plus the given {@link PCollection} associated with the given
+   * {@link TupleTag}.
    *
-   * <p>The given {@link TupleTag} should not already be mapped to a
-   * {@link PCollection} in this {@link PCollectionTuple}.
+   * <p>The given {@link TupleTag} should not already be mapped to a {@link PCollection} in this
+   * {@link PCollectionTuple}.
    *
-   * <p>Each {@link PCollection} in the resulting {@link PCollectionTuple} must be
-   * part of the same {@link Pipeline}.
+   * <p>Each {@link PCollection} in the resulting {@link PCollectionTuple} must be part of the same
+   * {@link Pipeline}.
    */
   public <T> PCollectionTuple and(TupleTag<T> tag, PCollection<T> pc) {
     if (pc.getPipeline() != pipeline) {
-      throw new IllegalArgumentException(
-          "PCollections come from different Pipelines");
+      throw new IllegalArgumentException("PCollections come from different Pipelines");
     }
 
-    return new PCollectionTuple(pipeline,
+    return new PCollectionTuple(
+        pipeline,
         new ImmutableMap.Builder<TupleTag<?>, PCollection<?>>()
             .putAll(pcollectionMap)
             .put(tag, pc)
@@ -118,60 +116,56 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with
-   * the given tag.
+   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
+   * tag.
    */
   public <T> boolean has(TupleTag<T> tag) {
     return pcollectionMap.containsKey(tag);
   }
 
   /**
-   * Returns the {@link PCollection} associated with the given {@link TupleTag}
-   * in this {@link PCollectionTuple}. Throws {@link IllegalArgumentException} if there is no
-   * such {@link PCollection}, i.e., {@code !has(tag)}.
+   * Returns the {@link PCollection} associated with the given {@link TupleTag} in this {@link
+   * PCollectionTuple}. Throws {@link IllegalArgumentException} if there is no such {@link
+   * PCollection}, i.e., {@code !has(tag)}.
    */
   public <T> PCollection<T> get(TupleTag<T> tag) {
     @SuppressWarnings("unchecked")
     PCollection<T> pcollection = (PCollection<T>) pcollectionMap.get(tag);
     if (pcollection == null) {
-      throw new IllegalArgumentException(
-          "TupleTag not found in this PCollectionTuple tuple");
+      throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
     }
     return pcollection;
   }
 
   /**
-   * Returns an immutable Map from {@link TupleTag} to corresponding
-   * {@link PCollection}, for all the members of this {@link PCollectionTuple}.
+   * Returns an immutable Map from {@link TupleTag} to corresponding {@link PCollection}, for all
+   * the members of this {@link PCollectionTuple}.
    */
   public Map<TupleTag<?>, PCollection<?>> getAll() {
     return pcollectionMap;
   }
 
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * of the {@link PTransform}.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name of the {@link PTransform}.
    *
    * @return the output of the applied {@link PTransform}
    */
-  public <OutputT extends POutput> OutputT apply(
-      PTransform<PCollectionTuple, OutputT> t) {
+  public <OutputT extends POutput> OutputT apply(PTransform<? super PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 
   /**
-   * Applies the given {@link PTransform} to this input {@link PCollectionTuple},
-   * using {@code name} to identify this specific application of the transform.
-   * This name is used in various places, including the monitoring UI, logging,
-   * and to stably identify this application node in the job graph.
+   * Applies the given {@link PTransform} to this input {@link PCollectionTuple}, using {@code name}
+   * to identify this specific application of the transform. This name is used in various places,
+   * including the monitoring UI, logging, and to stably identify this application node in the job
+   * graph.
    *
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<PCollectionTuple, OutputT> t) {
+      String name, PTransform<? super PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(name, this, t);
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
@@ -180,11 +174,10 @@ public class PCollectionTuple implements PInput, POutput {
   final Map<TupleTag<?>, PCollection<?>> pcollectionMap;
 
   PCollectionTuple(Pipeline pipeline) {
-    this(pipeline, new LinkedHashMap<TupleTag<?>, PCollection<?>>());
+    this(pipeline, new LinkedHashMap<>());
   }
 
-  PCollectionTuple(Pipeline pipeline,
-                   Map<TupleTag<?>, PCollection<?>> pcollectionMap) {
+  PCollectionTuple(Pipeline pipeline, Map<TupleTag<?>, PCollection<?>> pcollectionMap) {
     this.pipeline = pipeline;
     this.pcollectionMap = Collections.unmodifiableMap(pcollectionMap);
   }
@@ -192,8 +185,8 @@ public class PCollectionTuple implements PInput, POutput {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>Returns a {@link PCollectionTuple} with each of the given tags mapping to a new
-   * output {@link PCollection}.
+   * <p>Returns a {@link PCollectionTuple} with each of the given tags mapping to a new output
+   * {@link PCollection}.
    *
    * <p>For use by primitive transformations only.
    */
@@ -201,13 +194,13 @@ public class PCollectionTuple implements PInput, POutput {
   public static PCollectionTuple ofPrimitiveOutputsInternal(
       Pipeline pipeline,
       TupleTagList outputTags,
+      Map<TupleTag<?>, Coder<?>> coders,
       WindowingStrategy<?, ?> windowingStrategy,
       IsBounded isBounded) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
-        throw new IllegalArgumentException(
-            "TupleTag already present in this tuple");
+        throw new IllegalArgumentException("TupleTag already present in this tuple");
       }
 
       // In fact, `token` and `outputCollection` should have
@@ -217,10 +210,10 @@ public class PCollectionTuple implements PInput, POutput {
       // erasure as the correct type. When a transform adds
       // elements to `outputCollection` they will be of type T.
       @SuppressWarnings("unchecked")
-      TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
-      PCollection<Object> outputCollection = PCollection
-          .createPrimitiveOutputInternal(pipeline, windowingStrategy, isBounded)
-          .setTypeDescriptor(token);
+      PCollection outputCollection =
+          PCollection.createPrimitiveOutputInternal(
+                  pipeline, windowingStrategy, isBounded, coders.get(outputTag))
+              .setTypeDescriptor((TypeDescriptor) outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);
     }
@@ -234,7 +227,7 @@ public class PCollectionTuple implements PInput, POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>copyOf(pcollectionMap);
+    return ImmutableMap.copyOf(pcollectionMap);
   }
 
   @Override
@@ -243,8 +236,7 @@ public class PCollectionTuple implements PInput, POutput {
     // All component PCollections will already have been finished. Update their names if
     // appropriate.
     int i = 0;
-    for (Map.Entry<TupleTag<?>, PCollection<?>> entry
-        : pcollectionMap.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> entry : pcollectionMap.entrySet()) {
       TupleTag<?> tag = entry.getKey();
       PCollection<?> pc = entry.getValue();
       if (pc.getName().equals(PValueBase.defaultName(transformName))) {

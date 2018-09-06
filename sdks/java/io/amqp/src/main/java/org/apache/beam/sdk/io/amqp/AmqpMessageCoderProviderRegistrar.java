@@ -19,26 +19,20 @@ package org.apache.beam.sdk.io.amqp;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-
 import java.util.List;
-
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.qpid.proton.message.Message;
 
-/**
- * A {@link CoderProviderRegistrar} for standard types used with {@link AmqpIO}.
- */
+/** A {@link CoderProviderRegistrar} for standard types used with {@link AmqpIO}. */
 @AutoService(CoderProviderRegistrar.class)
 public class AmqpMessageCoderProviderRegistrar implements CoderProviderRegistrar {
 
   @Override
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
-        CoderProviders.forCoder(TypeDescriptor.of(Message.class),
-            AmqpMessageCoder.of()));
+        CoderProviders.forCoder(TypeDescriptor.of(Message.class), AmqpMessageCoder.of()));
   }
-
 }

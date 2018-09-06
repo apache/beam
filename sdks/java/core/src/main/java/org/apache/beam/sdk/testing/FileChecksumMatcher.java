@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NumberedShardedFile;
@@ -44,16 +45,19 @@ import org.slf4j.LoggerFactory;
  * Matcher to verify file checksum in E2E test.
  *
  * <p>For example:
+ *
  * <pre>{@code
- *   assertThat(job, new FileChecksumMatcher(checksumString, filePath));
- * }</pre>
- * or
- * <pre>{@code
- *   assertThat(job, new FileChecksumMatcher(checksumString, filePath, shardTemplate));
+ * assertThat(job, new FileChecksumMatcher(checksumString, filePath));
  * }</pre>
  *
- * <p>Checksum of outputs is generated based on SHA-1 algorithm. If output file is empty,
- * SHA-1 hash of empty string (da39a3ee5e6b4b0d3255bfef95601890afd80709) is used as expected.
+ * or
+ *
+ * <pre>{@code
+ * assertThat(job, new FileChecksumMatcher(checksumString, filePath, shardTemplate));
+ * }</pre>
+ *
+ * <p>Checksum of outputs is generated based on SHA-1 algorithm. If output file is empty, SHA-1 hash
+ * of empty string (da39a3ee5e6b4b0d3255bfef95601890afd80709) is used as expected.
  */
 public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     implements SerializableMatcher<PipelineResult> {
@@ -71,8 +75,10 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)");
 
   private final String expectedChecksum;
-  private String actualChecksum;
   private final ShardedFile shardedFile;
+
+  /** Access via {@link #getActualChecksum()}. */
+  @Nullable private String actualChecksum;
 
   /**
    * Constructor that uses default shard template.
@@ -89,18 +95,15 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
    *
    * @param checksum expected checksum string used to verify file content.
    * @param filePath path of files that's to be verified.
-   * @param shardTemplate template of shard name to parse out the total number of shards
-   *                      which is used in I/O retry to avoid inconsistency of filesystem.
-   *                      Customized template should assign name "numshards" to capturing
-   *                      group - total shard number.
+   * @param shardTemplate template of shard name to parse out the total number of shards which is
+   *     used in I/O retry to avoid inconsistency of filesystem. Customized template should assign
+   *     name "numshards" to capturing group - total shard number.
    */
   public FileChecksumMatcher(String checksum, String filePath, Pattern shardTemplate) {
     checkArgument(
-        !Strings.isNullOrEmpty(checksum),
-        "Expected valid checksum, but received %s", checksum);
+        !Strings.isNullOrEmpty(checksum), "Expected valid checksum, but received %s", checksum);
     checkArgument(
-        !Strings.isNullOrEmpty(filePath),
-        "Expected valid file path, but received %s", filePath);
+        !Strings.isNullOrEmpty(filePath), "Expected valid file path, but received %s", filePath);
     checkNotNull(
         shardTemplate,
         "Expected non-null shard pattern. "
@@ -123,20 +126,29 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Override
   public boolean matchesSafely(PipelineResult pipelineResult) {
-    // Load output data
-    List<String> outputs;
-    try {
-      outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
-    } catch (Exception e) {
-      throw new RuntimeException(
-          String.format("Failed to read from: %s", shardedFile), e);
+    return getActualChecksum().equals(expectedChecksum);
+  }
+
+  /**
+   * Computes a checksum of the sharded file specified in the constructor. Not safe to call until
+   * the writing is complete.
+   */
+  private String getActualChecksum() {
+    if (actualChecksum == null) {
+      // Load output data
+      List<String> outputs;
+      try {
+        outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
+      } catch (Exception e) {
+        throw new RuntimeException(String.format("Failed to read from: %s", shardedFile), e);
+      }
+
+      // Verify outputs. Checksum is computed using SHA-1 algorithm
+      actualChecksum = computeHash(outputs);
+      LOG.debug("Generated checksum: {}", actualChecksum);
     }
 
-    // Verify outputs. Checksum is computed using SHA-1 algorithm
-    actualChecksum = computeHash(outputs);
-    LOG.debug("Generated checksum: {}", actualChecksum);
-
-    return actualChecksum.equals(expectedChecksum);
+    return actualChecksum;
   }
 
   private String computeHash(@Nonnull List<String> strs) {
@@ -153,17 +165,11 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Override
   public void describeTo(Description description) {
-    description
-        .appendText("Expected checksum is (")
-        .appendText(expectedChecksum)
-        .appendText(")");
+    description.appendText("Expected checksum is (").appendText(expectedChecksum).appendText(")");
   }
 
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
-    description
-        .appendText("was (")
-        .appendText(actualChecksum)
-        .appendText(")");
+    description.appendText("was (").appendText(getActualChecksum()).appendText(")");
   }
 }

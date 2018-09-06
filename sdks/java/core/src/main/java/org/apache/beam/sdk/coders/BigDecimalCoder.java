@@ -27,10 +27,10 @@ import java.math.BigInteger;
 import java.math.MathContext;
 
 /**
- * A {@link BigDecimalCoder} encodes a {@link BigDecimal} as an integer scale encoded with
- * {@link VarIntCoder} and a {@link BigInteger} encoded using {@link BigIntegerCoder}. The
- * {@link BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}),
- * yields the expected {@link BigDecimal}.
+ * A {@link BigDecimalCoder} encodes a {@link BigDecimal} as an integer scale encoded with {@link
+ * VarIntCoder} and a {@link BigInteger} encoded using {@link BigIntegerCoder}. The {@link
+ * BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}), yields
+ * the expected {@link BigDecimal}.
  */
 public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
@@ -48,8 +48,7 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   private BigDecimalCoder() {}
 
   @Override
-  public void encode(BigDecimal value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(BigDecimal value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -104,8 +103,8 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    * {@inheritDoc}
    *
    * @return {@code 4} (the size of an integer denoting the scale) plus {@code 4} (the size of an
-   * integer length prefix for the following bytes) plus the size of the two's-complement
-   * representation of the {@link BigInteger} that, when scaled, equals the given value.
+   *     integer length prefix for the following bytes) plus the size of the two's-complement
+   *     representation of the {@link BigInteger} that, when scaled, equals the given value.
    */
   @Override
   protected long getEncodedElementByteSize(BigDecimal value) throws Exception {

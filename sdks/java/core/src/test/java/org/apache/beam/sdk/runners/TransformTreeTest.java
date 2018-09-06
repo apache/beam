@@ -27,8 +27,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -52,9 +51,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}.
- */
+/** Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
 public class TransformTreeTest {
 
@@ -70,8 +67,8 @@ public class TransformTreeTest {
   /**
    * INVALID TRANSFORM, DO NOT COPY.
    *
-   * <p>This is an invalid composite transform that returns unbound outputs.
-   * This should never happen, and is here to test that it is properly rejected.
+   * <p>This is an invalid composite transform that returns unbound outputs. This should never
+   * happen, and is here to test that it is properly rejected.
    */
   private static class InvalidCompositeTransform
       extends PTransform<PBegin, PCollectionList<String>> {
@@ -85,30 +82,25 @@ public class TransformTreeTest {
       // Issue below: PCollection.createPrimitiveOutput should not be used
       // from within a composite transform.
       return PCollectionList.of(
-          Arrays.asList(result, PCollection.<String>createPrimitiveOutputInternal(
-              b.getPipeline(),
-              WindowingStrategy.globalDefault(),
-              result.isBounded())));
+          Arrays.asList(
+              result,
+              PCollection.createPrimitiveOutputInternal(
+                  b.getPipeline(),
+                  WindowingStrategy.globalDefault(),
+                  result.isBounded(),
+                  StringUtf8Coder.of())));
     }
   }
 
-  /**
-   * A composite transform that returns an output that is unbound.
-   */
-  private static class UnboundOutputCreator
-      extends PTransform<PCollection<Integer>, PDone> {
+  /** A composite transform that returns an output that is unbound. */
+  private static class UnboundOutputCreator extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
     public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
-      input.apply(Count.<Integer>perElement());
+      input.apply(Count.perElement());
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 
@@ -123,13 +115,11 @@ public class TransformTreeTest {
         Sample.fixedSizeGlobally(10);
     p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
         .apply(sample)
-        .apply(Flatten.<String>iterables())
+        .apply(Flatten.iterables())
         .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
-    final EnumSet<TransformsSeen> visited =
-        EnumSet.noneOf(TransformsSeen.class);
-    final EnumSet<TransformsSeen> left =
-        EnumSet.noneOf(TransformsSeen.class);
+    final EnumSet<TransformsSeen> visited = EnumSet.noneOf(TransformsSeen.class);
+    final EnumSet<TransformsSeen> left = EnumSet.noneOf(TransformsSeen.class);
 
     p.traverseTopologically(
         new Pipeline.PipelineVisitor.Defaults() {
@@ -188,8 +178,7 @@ public class TransformTreeTest {
   @Test
   @Category(NeedsRunner.class)
   public void testMultiGraphSetup() {
-    PCollection<Integer> input = p.begin()
-        .apply(Create.of(1, 2, 3));
+    PCollection<Integer> input = p.begin().apply(Create.of(1, 2, 3));
 
     input.apply(new UnboundOutputCreator());
 

@@ -38,7 +38,9 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,10 +65,23 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
-  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext) {
+  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
     this.delegateFactory =
         new ParDoEvaluatorFactory<>(
-            evaluationContext, ParDoEvaluator.<KV<K, InputT>, OutputT>defaultRunnerFactory());
+            evaluationContext,
+            ParDoEvaluator.<KV<K, InputT>, OutputT>defaultRunnerFactory(),
+            new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
+              @Override
+              public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> appliedStatefulParDo)
+                  throws Exception {
+                // StatefulParDo is overridden after the portable pipeline is received, so we
+                // do not go through the portability translation layers
+                StatefulParDo<?, ?, ?> statefulParDo =
+                    (StatefulParDo<?, ?, ?>) appliedStatefulParDo.getTransform();
+                return DoFnLifecycleManager.of(statefulParDo.getDoFn());
+              }
+            },
+            options);
     this.cleanupRegistry =
         CacheBuilder.newBuilder()
             .weakValues()
@@ -97,8 +112,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       CommittedBundle<KeyedWorkItem<K, KV<K, InputT>>> inputBundle)
       throws Exception {
 
-    final DoFn<KV<K, InputT>, OutputT> doFn =
-        application.getTransform().getDoFn();
+    final DoFn<KV<K, InputT>, OutputT> doFn = application.getTransform().getDoFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // If the DoFn is stateful, schedule state clearing.
@@ -119,7 +133,6 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             (AppliedPTransform) application,
             (PCollection) inputBundle.getPCollection(),
             inputBundle.getKey(),
-            doFn,
             application.getTransform().getSideInputs(),
             application.getTransform().getMainOutputTag(),
             application.getTransform().getAdditionalOutputTags().getAll());
@@ -147,16 +160,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         taggedValues.put(pv.getKey(), (PCollection<?>) pv.getValue());
       }
       PCollection<?> pc =
-          taggedValues
-              .get(
-                  transformOutputWindow
-                      .getTransform()
-                      .getTransform()
-                      .getMainOutputTag());
+          taggedValues.get(transformOutputWindow.getTransform().getTransform().getMainOutputTag());
       WindowingStrategy<?, ?> windowingStrategy = pc.getWindowingStrategy();
       BoundedWindow window = transformOutputWindow.getWindow();
-      final DoFn<?, ?> doFn =
-          transformOutputWindow.getTransform().getTransform().getDoFn();
+      final DoFn<?, ?> doFn = transformOutputWindow.getTransform().getTransform().getDoFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
       final DirectStepContext stepContext =
@@ -170,26 +177,21 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
               (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(), window);
 
       Runnable cleanup =
-          new Runnable() {
-            @Override
-            public void run() {
-              for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-                StateTag<?> tag;
-                try {
-                  tag =
-                      StateTags.tagForSpec(
-                          stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(
-                      String.format(
-                          "Error accessing %s for %s",
-                          StateSpec.class.getName(), doFn.getClass().getName()),
-                      e);
-                }
-                stepContext.stateInternals().state(namespace, tag).clear();
+          () -> {
+            for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
+              StateTag<?> tag;
+              try {
+                tag = StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+              } catch (IllegalAccessException e) {
+                throw new RuntimeException(
+                    String.format(
+                        "Error accessing %s for %s",
+                        StateSpec.class.getName(), doFn.getClass().getName()),
+                    e);
               }
-              cleanupRegistry.invalidate(transformOutputWindow);
+              stepContext.stateInternals().state(namespace, tag).clear();
             }
+            cleanupRegistry.invalidate(transformOutputWindow);
           };
 
       evaluationContext.scheduleAfterWindowExpiration(

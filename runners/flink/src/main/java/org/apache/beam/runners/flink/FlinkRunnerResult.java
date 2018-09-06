@@ -29,8 +29,8 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
 /**
- * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
- * has methods to query to job runtime and the final values of the accumulators.
+ * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This has methods to query
+ * to job runtime and the final values of the accumulators.
  */
 public class FlinkRunnerResult implements PipelineResult {
 
@@ -39,9 +39,10 @@ public class FlinkRunnerResult implements PipelineResult {
   private final long runtime;
 
   FlinkRunnerResult(Map<String, Object> accumulators, long runtime) {
-    this.accumulators = (accumulators == null || accumulators.isEmpty())
-        ? Collections.<String, Object>emptyMap()
-        : Collections.unmodifiableMap(accumulators);
+    this.accumulators =
+        (accumulators == null || accumulators.isEmpty())
+            ? Collections.emptyMap()
+            : Collections.unmodifiableMap(accumulators);
     this.runtime = runtime;
   }
 
@@ -52,10 +53,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public String toString() {
-    return "FlinkRunnerResult{"
-        + "accumulators=" + accumulators
-        + ", runtime=" + runtime
-        + '}';
+    return "FlinkRunnerResult{" + "accumulators=" + accumulators + ", runtime=" + runtime + '}';
   }
 
   @Override
@@ -75,7 +73,10 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(
-        (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME));
+    return asAttemptedOnlyMetricResults(getMetricsContainerStepMap());
+  }
+
+  MetricsContainerStepMap getMetricsContainerStepMap() {
+    return (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME);
   }
 }

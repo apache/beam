@@ -29,8 +29,8 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * {@link ModelEnforcement} that enforces elements are not modified over the course of processing
- * an element.
+ * {@link ModelEnforcement} that enforces elements are not modified over the course of processing an
+ * element.
  */
 class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   public static ModelEnforcementFactory create() {
@@ -40,7 +40,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   @Override
   public <T> ModelEnforcement<T> forBundle(
       CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-    return new ImmutabilityCheckingEnforcement<T>(input, consumer);
+    return new ImmutabilityCheckingEnforcement<>(input, consumer);
   }
 
   private static class ImmutabilityCheckingEnforcement<T> extends AbstractModelEnforcement<T> {
@@ -88,9 +88,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
             String.format(
                 "PTransform %s illegaly mutated value %s of class %s."
                     + " Input values must not be mutated in any way.",
-                transform.getFullName(),
-                e.getSavedValue(),
-                e.getSavedValue().getClass()),
+                transform.getFullName(), e.getSavedValue(), e.getSavedValue().getClass()),
             e.getSavedValue(),
             e.getNewValue());
       }

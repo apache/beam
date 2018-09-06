@@ -31,6 +31,7 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -46,7 +47,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,9 +54,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CloningBundleFactory}.
- */
+/** Tests for {@link CloningBundleFactory}. */
 @RunWith(JUnit4.class)
 public class CloningBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -79,7 +77,7 @@ public class CloningBundleFactoryTest {
     PCollection<Integer> created = p.apply(Create.of(1, 3).withCoder(VarIntCoder.of()));
     PCollection<KV<String, Integer>> kvs =
         created
-            .apply(WithKeys.<String, Integer>of("foo"))
+            .apply(WithKeys.of("foo"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
     WindowedValue<KV<String, Integer>> fooOne = WindowedValue.valueInGlobalWindow(KV.of("foo", 1));
     WindowedValue<KV<String, Integer>> fooThree =
@@ -104,9 +102,9 @@ public class CloningBundleFactoryTest {
 
     PCollection<KV<String, Iterable<Integer>>> keyed =
         created
-            .apply(WithKeys.<String, Integer>of("foo"))
+            .apply(WithKeys.of("foo"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-            .apply(GroupByKey.<String, Integer>create());
+            .apply(GroupByKey.create());
     WindowedValue<KV<String, Iterable<Integer>>> foos =
         WindowedValue.valueInGlobalWindow(
             KV.<String, Iterable<Integer>>of("foo", ImmutableList.of(1, 3)));
@@ -121,9 +119,7 @@ public class CloningBundleFactoryTest {
         Iterables.getOnlyElement(keyedBundle.getElements()).getValue(),
         not(theInstance(foos.getValue())));
     assertThat(keyedBundle.getPCollection(), equalTo(keyed));
-    assertThat(
-        keyedBundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+    assertThat(keyedBundle.getKey(), equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
   }
 
   @Test
@@ -173,50 +169,36 @@ public class CloningBundleFactoryTest {
   }
 
   static class Record {}
+
   static class RecordNoEncodeCoder extends AtomicCoder<Record> {
 
     @Override
-    public void encode(
-        Record value,
-        OutputStream outStream)
-        throws IOException {
+    public void encode(Record value, OutputStream outStream) throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
-    public Record decode(
-        InputStream inStream)
-        throws IOException {
+    public Record decode(InputStream inStream) throws IOException {
       return null;
     }
   }
 
   static class RecordNoDecodeCoder extends AtomicCoder<Record> {
     @Override
-    public void encode(
-        Record value,
-        OutputStream outStream)
-        throws IOException {}
+    public void encode(Record value, OutputStream outStream) throws IOException {}
 
     @Override
-    public Record decode(
-        InputStream inStream)
-        throws IOException {
+    public Record decode(InputStream inStream) throws IOException {
       throw new CoderException("Decode not allowed");
     }
   }
 
   private static class RecordStructuralValueCoder extends AtomicCoder<Record> {
     @Override
-    public void encode(
-        Record value,
-        OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
-    public Record decode(
-        InputStream inStream)
-        throws CoderException, IOException {
+    public Record decode(InputStream inStream) throws CoderException, IOException {
       return new Record() {
         @Override
         public String toString() {
@@ -239,15 +221,10 @@ public class CloningBundleFactoryTest {
   private static class RecordNotConsistentWithEqualsStructuralValueCoder
       extends AtomicCoder<Record> {
     @Override
-    public void encode(
-        Record value,
-        OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
-    public Record decode(
-        InputStream inStream)
-        throws CoderException, IOException {
+    public Record decode(InputStream inStream) throws CoderException, IOException {
       return new Record() {
         @Override
         public String toString() {

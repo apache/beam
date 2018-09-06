@@ -26,11 +26,12 @@ import java.lang.reflect.TypeVariable;
 /**
  * Captures a free type variable that can be used in {@link TypeDescriptor#where}. For example:
  *
- * <pre>   {@code
- *   static <T> TypeDescriptor<List<T>> listOf(Class<T> elementType) {
- *     return new TypeDescriptor<List<T>>() {}
- *         .where(new TypeParameter<T>() {}, elementType);
- *   }}</pre>
+ * <pre>{@code
+ * static <T> TypeDescriptor<List<T>> listOf(Class<T> elementType) {
+ *   return new TypeDescriptor<List<T>>() {}
+ *       .where(new TypeParameter<T>() {}, elementType);
+ * }
+ * }</pre>
  */
 public abstract class TypeParameter<T> {
   final TypeVariable<?> typeVariable;

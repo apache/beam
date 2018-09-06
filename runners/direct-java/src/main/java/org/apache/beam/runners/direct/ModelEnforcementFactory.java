@@ -20,9 +20,9 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
- * Creates {@link ModelEnforcement} instances for an {@link AppliedPTransform} on an input
- * {@link CommittedBundle bundle}. {@link ModelEnforcement} instances are created before the
- * {@link TransformEvaluator} is created.
+ * Creates {@link ModelEnforcement} instances for an {@link AppliedPTransform} on an input {@link
+ * CommittedBundle bundle}. {@link ModelEnforcement} instances are created before the {@link
+ * TransformEvaluator} is created.
  */
 interface ModelEnforcementFactory {
   <T> ModelEnforcement<T> forBundle(CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer);

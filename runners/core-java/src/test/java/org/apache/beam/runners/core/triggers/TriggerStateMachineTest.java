@@ -27,9 +27,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link TriggerStateMachine}.
- */
+/** Tests for {@link TriggerStateMachine}. */
 @RunWith(JUnit4.class)
 public class TriggerStateMachineTest {
 
@@ -46,12 +44,14 @@ public class TriggerStateMachineTest {
   @Test
   public void testIsCompatible() throws Exception {
     assertTrue(new Trigger1(null).isCompatible(new Trigger1(null)));
-    assertTrue(new Trigger1(Arrays.<TriggerStateMachine>asList(new Trigger2(null)))
-        .isCompatible(new Trigger1(Arrays.<TriggerStateMachine>asList(new Trigger2(null)))));
+    assertTrue(
+        new Trigger1(Arrays.asList(new Trigger2(null)))
+            .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
 
     assertFalse(new Trigger1(null).isCompatible(new Trigger2(null)));
-    assertFalse(new Trigger1(Arrays.<TriggerStateMachine>asList(new Trigger1(null)))
-        .isCompatible(new Trigger1(Arrays.<TriggerStateMachine>asList(new Trigger2(null)))));
+    assertFalse(
+        new Trigger1(Arrays.asList(new Trigger1(null)))
+            .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
   }
 
   private static class Trigger1 extends TriggerStateMachine {
@@ -61,10 +61,10 @@ public class TriggerStateMachineTest {
     }
 
     @Override
-    public void onElement(TriggerStateMachine.OnElementContext c) { }
+    public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
-    public void onMerge(TriggerStateMachine.OnMergeContext c) { }
+    public void onMerge(TriggerStateMachine.OnMergeContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -72,7 +72,7 @@ public class TriggerStateMachineTest {
     }
 
     @Override
-    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception { }
+    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {}
   }
 
   private static class Trigger2 extends TriggerStateMachine {
@@ -82,10 +82,10 @@ public class TriggerStateMachineTest {
     }
 
     @Override
-    public void onElement(TriggerStateMachine.OnElementContext c) { }
+    public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
-    public void onMerge(TriggerStateMachine.OnMergeContext c) { }
+    public void onMerge(TriggerStateMachine.OnMergeContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -93,6 +93,6 @@ public class TriggerStateMachineTest {
     }
 
     @Override
-    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception { }
+    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {}
   }
 }

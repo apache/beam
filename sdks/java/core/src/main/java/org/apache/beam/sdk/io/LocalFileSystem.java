@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -34,30 +32,56 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileSystem} implementation for local files.
+ *
+ * <p>{@link #match} should interpret {@code spec} and resolve paths correctly according to OS being
+ * used. In order to do that specs should be defined in one of the below formats:
+ *
+ * <p>Linux/Mac:
+ *
+ * <ul>
+ *   <li>pom.xml
+ *   <li>/Users/beam/Documents/pom.xml
+ *   <li>file:/Users/beam/Documents/pom.xml
+ *   <li>file:///Users/beam/Documents/pom.xml
+ * </ul>
+ *
+ * <p>Windows OS:
+ *
+ * <ul>
+ *   <li>pom.xml
+ *   <li>C:/Users/beam/Documents/pom.xml
+ *   <li>C:\\Users\\beam\\Documents\\pom.xml
+ *   <li>file:/C:/Users/beam/Documents/pom.xml
+ *   <li>file:///C:/Users/beam/Documents/pom.xml
+ * </ul>
  */
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
-  LocalFileSystem() {
-  }
+  LocalFileSystem() {}
 
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
@@ -79,8 +103,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         && !absoluteFile.getParentFile().exists()) {
       throw new IOException("Unable to create parent directories for '" + resourceId + "'");
     }
-    return Channels.newChannel(
-        new BufferedOutputStream(new FileOutputStream(absoluteFile)));
+    return Channels.newChannel(new BufferedOutputStream(new FileOutputStream(absoluteFile)));
   }
 
   @Override
@@ -94,9 +117,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   @Override
-  protected void copy(
-      List<LocalResourceId> srcResourceIds,
-      List<LocalResourceId> destResourceIds) throws IOException {
+  protected void copy(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
+      throws IOException {
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source files %s must equal number of destination files %s",
@@ -126,9 +148,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   @Override
-  protected void rename(
-      List<LocalResourceId> srcResourceIds,
-      List<LocalResourceId> destResourceIds) throws IOException {
+  protected void rename(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
+      throws IOException {
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source files %s must equal number of destination files %s",
@@ -159,8 +180,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {
-      LOG.debug("Deleting file {}", resourceId);
-      Files.delete(resourceId.getPath());
+      try {
+        Files.delete(resourceId.getPath());
+      } catch (NoSuchFileException e) {
+        LOG.info(
+            "Ignoring failed deletion of file {} which already does not exist: {}", resourceId, e);
+      }
     }
   }
 
@@ -176,15 +201,27 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
-    File file = Paths.get(spec).toFile();
+    if (spec.toLowerCase().startsWith("file:")) {
+      spec = spec.substring("file:".length());
+    }
 
+    if (SystemUtils.IS_OS_WINDOWS) {
+      List<String> prefixes = Arrays.asList("///", "/");
+      for (String prefix : prefixes) {
+        if (spec.toLowerCase().startsWith(prefix)) {
+          spec = spec.substring(prefix.length());
+        }
+      }
+    }
+
+    File file = Paths.get(spec).toFile();
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      return MatchResult.create(Status.NOT_FOUND, Collections.<Metadata>emptyList());
+      return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
 
     // Method getAbsolutePath() on Windows platform may return something like
@@ -194,23 +231,23 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // We perform the replacement on all platforms, even those that allow
     // backslash as a part of the filename, because Globs.toRegexPattern will
     // eat one backslash.
-    String pathToMatch = file.getAbsolutePath().replaceAll(Matcher.quoteReplacement("\\"),
-        Matcher.quoteReplacement("\\\\"));
+    String pathToMatch =
+        file.getAbsolutePath()
+            .replaceAll(Matcher.quoteReplacement("\\"), Matcher.quoteReplacement("\\\\"));
 
     final PathMatcher matcher =
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
     Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
-    Iterable<File> matchedFiles = Iterables.filter(files,
-        Predicates.and(
-            com.google.common.io.Files.isFile(),
-            new Predicate<File>() {
-              @Override
-              public boolean apply(File input) {
-                return matcher.matches(input.toPath());
-              }
-            }));
+    Iterable<File> matchedFiles =
+        StreamSupport.stream(files.spliterator(), false)
+            .filter(
+                Predicates.and(
+                        com.google.common.io.Files.isFile(),
+                        input -> matcher.matches(input.toPath()))
+                    ::apply)
+            .collect(Collectors.toList());
 
     List<Metadata> result = Lists.newLinkedList();
     for (File match : matchedFiles) {

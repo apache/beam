@@ -74,8 +74,6 @@ public abstract class BoundedWindow {
     }
   }
 
-  /**
-   * Returns the inclusive upper bound of timestamps for values in this window.
-   */
+  /** Returns the inclusive upper bound of timestamps for values in this window. */
   public abstract Instant maxTimestamp();
 }

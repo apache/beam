@@ -22,12 +22,16 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -38,15 +42,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -56,8 +56,8 @@ import org.joda.time.Duration;
  * {@link Pipeline}.
  *
  * <p>The {@link DirectRunner} is suitable for running a {@link Pipeline} on small scale, example,
- * and test data, and should be used for ensuring that processing logic is correct. It also
- * is appropriate for executing unit tests and performs additional work to ensure that behavior
+ * and test data, and should be used for ensuring that processing logic is correct. It also is
+ * appropriate for executing unit tests and performs additional work to ensure that behavior
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
@@ -73,16 +73,17 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     IMMUTABILITY {
       @Override
       public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
-        return CONTAINS_UDF.contains(graph.getProducer(collection).getTransform().getClass());
+        return CONTAINS_UDF.contains(
+            PTransformTranslation.urnForTransform(graph.getProducer(collection).getTransform()));
       }
     };
 
     /**
      * The set of {@link PTransform PTransforms} that execute a UDF. Useful for some enforcements.
      */
-    private static final Set<Class<? extends PTransform>> CONTAINS_UDF =
+    private static final Set<String> CONTAINS_UDF =
         ImmutableSet.of(
-            Read.Bounded.class, Read.Unbounded.class, ParDo.SingleOutput.class, MultiOutput.class);
+            PTransformTranslation.READ_TRANSFORM_URN, PTransformTranslation.PAR_DO_TRANSFORM_URN);
 
     public abstract boolean appliesTo(PCollection<?> collection, DirectGraph graph);
 
@@ -99,8 +100,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return Collections.unmodifiableSet(enabled);
     }
 
-    static BundleFactory bundleFactoryFor(
-        Set<Enforcement> enforcements, DirectGraph graph) {
+    static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements, DirectGraph graph) {
       BundleFactory bundleFactory =
           enforcements.contains(Enforcement.ENCODABILITY)
               ? CloningBundleFactory.create()
@@ -111,22 +111,19 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return bundleFactory;
     }
 
-    @SuppressWarnings("rawtypes")
-    private static Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-        defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
-      ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-          enforcements = ImmutableMap.builder();
+    private static Map<String, Collection<ModelEnforcementFactory>> defaultModelEnforcements(
+        Set<Enforcement> enabledEnforcements) {
+      ImmutableMap.Builder<String, Collection<ModelEnforcementFactory>> enforcements =
+          ImmutableMap.builder();
       ImmutableList.Builder<ModelEnforcementFactory> enabledParDoEnforcements =
           ImmutableList.builder();
       if (enabledEnforcements.contains(Enforcement.IMMUTABILITY)) {
         enabledParDoEnforcements.add(ImmutabilityEnforcementFactory.create());
       }
       Collection<ModelEnforcementFactory> parDoEnforcements = enabledParDoEnforcements.build();
-      enforcements.put(ParDo.SingleOutput.class, parDoEnforcements);
-      enforcements.put(MultiOutput.class, parDoEnforcements);
+      enforcements.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDoEnforcements);
       return enforcements.build();
     }
-
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,9 +131,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
-  /**
-   * Construct a {@link DirectRunner} from the provided options.
-   */
+  /** Construct a {@link DirectRunner} from the provided options. */
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
   }
@@ -144,13 +139,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
-  }
-
-  /**
-   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
   }
 
   Supplier<Clock> getClockSupplier() {
@@ -165,50 +153,61 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   public DirectPipelineResult run(Pipeline pipeline) {
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
-    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
-    pipeline.traverseTopologically(graphVisitor);
+    try {
+      DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+      pipeline.traverseTopologically(graphVisitor);
 
-    @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
-    pipeline.traverseTopologically(keyedPValueVisitor);
+      @SuppressWarnings("rawtypes")
+      KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
+      pipeline.traverseTopologically(keyedPValueVisitor);
 
-    DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+      DisplayDataValidator.validatePipeline(pipeline);
+      DisplayDataValidator.validateOptions(options);
 
-    DirectGraph graph = graphVisitor.getGraph();
-    EvaluationContext context =
-        EvaluationContext.create(
-            getPipelineOptions(),
-            clockSupplier.get(),
-            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph,
-            keyedPValueVisitor.getKeyedPValues());
+      ExecutorService metricsPool =
+          Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                  .setThreadFactory(MoreExecutors.platformThreadFactory())
+                  .setDaemon(false) // otherwise you say you want to leak, please don't!
+                  .setNameFormat("direct-metrics-counter-committer")
+                  .build());
+      DirectGraph graph = graphVisitor.getGraph();
+      EvaluationContext context =
+          EvaluationContext.create(
+              clockSupplier.get(),
+              Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+              graph,
+              keyedPValueVisitor.getKeyedPValues(),
+              metricsPool);
 
-    RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
-    PipelineExecutor executor =
-        ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(), graph,
-            rootInputProvider,
-            registry,
-            Enforcement.defaultModelEnforcements(enabledEnforcements),
-            context);
-    executor.start(graph.getRootTransforms());
+      TransformEvaluatorRegistry registry =
+          TransformEvaluatorRegistry.javaSdkNativeRegistry(context, options);
+      PipelineExecutor executor =
+          ExecutorServiceParallelExecutor.create(
+              options.getTargetParallelism(),
+              registry,
+              Enforcement.defaultModelEnforcements(enabledEnforcements),
+              context,
+              metricsPool);
+      executor.start(graph, RootProviderRegistry.javaNativeRegistry(context, options));
 
-    DirectPipelineResult result = new DirectPipelineResult(executor, context);
-    if (options.isBlockOnRun()) {
-      try {
-        result.waitUntilFinish();
-      } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException.getCause());
-      } catch (Throwable t) {
-        if (t instanceof RuntimeException) {
-          throw (RuntimeException) t;
+      DirectPipelineResult result = new DirectPipelineResult(executor, context);
+      if (options.isBlockOnRun()) {
+        try {
+          result.waitUntilFinish();
+        } catch (UserCodeException userException) {
+          throw new PipelineExecutionException(userException.getCause());
+        } catch (Throwable t) {
+          if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+          }
+          throw new RuntimeException(t);
         }
-        throw new RuntimeException(t);
       }
+      return result;
+    } finally {
+      MetricsEnvironment.setMetricsSupported(false);
     }
-    return result;
   }
 
   /**
@@ -222,58 +221,59 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @SuppressWarnings("rawtypes")
   @VisibleForTesting
   List<PTransformOverride> defaultTransformOverrides() {
-    TestPipelineOptions testOptions = options.as(TestPipelineOptions.class);
+    DirectTestOptions testOptions = options.as(DirectTestOptions.class);
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
-    if (!testOptions.isUnitTest()) {
+    if (testOptions.isRunnerDeterminedSharding()) {
       builder.add(
           PTransformOverride.of(
               PTransformMatchers.writeWithRunnerDeterminedSharding(),
               new WriteWithShardingFactory())); /* Uses a view internally. */
     }
-    builder = builder.add(
-        PTransformOverride.of(
-            PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-            new ViewOverrideFactory())) /* Uses pardos and GBKs */
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
-                new DirectTestStreamFactory(this))) /* primitive */
-        // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
-        // primitives
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory()))
-        // state and timer pardos are implemented in terms of simple ParDos and extra primitives
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(
-                    SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
-                new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(SplittableParDo.SPLITTABLE_GBKIKWI_URN),
-                new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
-        .add(
-            PTransformOverride.of(
-    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
-                new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
+    builder =
+        builder
+            .add(
+                PTransformOverride.of(
+                    MultiStepCombine.matcher(), MultiStepCombine.Factory.create()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+                    new ViewOverrideFactory())) /* Uses pardos and GBKs */
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
+                    new DirectTestStreamFactory(this))) /* primitive */
+            // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
+            // primitives
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory()))
+            // state and timer pardos are implemented in terms of simple ParDos and extra primitives
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(
+                        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
+                    new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(SplittableParDo.SPLITTABLE_GBKIKWI_URN),
+                    new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
+                    new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
     return builder.build();
   }
 
-  /**
-   * The result of running a {@link Pipeline} with the {@link DirectRunner}.
-   */
+  /** The result of running a {@link Pipeline} with the {@link DirectRunner}. */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
     private State state;
 
-    private DirectPipelineResult(
-        PipelineExecutor executor,
-        EvaluationContext evaluationContext) {
+    private DirectPipelineResult(PipelineExecutor executor, EvaluationContext evaluationContext) {
       this.executor = executor;
       this.evaluationContext = evaluationContext;
       // Only ever constructed after the executor has started.
@@ -344,9 +344,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
   }
 
-  /**
-   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
-   */
+  /** A {@link Supplier} that creates a {@link NanosOffsetClock}. */
   private static class NanosOffsetClockSupplier implements Supplier<Clock> {
     @Override
     public Clock get() {

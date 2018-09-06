@@ -36,6 +36,7 @@ public final class WeightedValue<T> implements Weighted {
     return new WeightedValue<>(value, weight);
   }
 
+  @Override
   public long getWeight() {
     return weight;
   }

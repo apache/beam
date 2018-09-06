@@ -23,8 +23,8 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link Coder} that encodes {@code Integer Integers} as the ASCII bytes of
- * their textual, decimal, representation.
+ * A {@link Coder} that encodes {@code Integer Integers} as the ASCII bytes of their textual,
+ * decimal, representation.
  */
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
 
@@ -39,8 +39,7 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   protected TextualIntegerCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Integer value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -60,8 +59,7 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  public Integer decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+  public Integer decode(InputStream inStream, Context context) throws IOException, CoderException {
     String textualValue = StringUtf8Coder.of().decode(inStream, context);
     try {
       return Integer.valueOf(textualValue);

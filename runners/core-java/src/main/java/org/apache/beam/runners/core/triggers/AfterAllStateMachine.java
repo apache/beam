@@ -26,8 +26,8 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * A {@link TriggerStateMachine} that fires and finishes once after all of its sub-triggers
- * have fired.
+ * A {@link TriggerStateMachine} that fires and finishes once after all of its sub-triggers have
+ * fired.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterAllStateMachine extends TriggerStateMachine {
@@ -37,12 +37,10 @@ public class AfterAllStateMachine extends TriggerStateMachine {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterAll} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
   public static TriggerStateMachine of(TriggerStateMachine... triggers) {
-    return new AfterAllStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
+    return new AfterAllStateMachine(Arrays.asList(triggers));
   }
 
   public static TriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {

@@ -15,22 +15,29 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
 import math
 import random
 import unittest
+from builtins import object
+from builtins import range
 
 from apache_beam import coders
+from apache_beam.runners.worker import opcounters
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import counters
 from apache_beam.utils.counters import CounterFactory
-
 
 # Classes to test that we can handle a variety of objects.
 # These have to be at top level so the pickler can find them.
 
 
-class OldClassThatDoesNotImplementLen:  # pylint: disable=old-style-class
+class OldClassThatDoesNotImplementLen(object):  # pylint: disable=old-style-class
 
   def __init__(self):
     pass
@@ -40,6 +47,49 @@ class ObjectThatDoesNotImplementLen(object):
 
   def __init__(self):
     pass
+
+
+class TransformIoCounterTest(unittest.TestCase):
+
+  def test_basic_counters(self):
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler('stage1', counter_factory)
+    sampler.start()
+
+    with sampler.scoped_state('step1', 'stateA'):
+      counter = opcounters.SideInputReadCounter(counter_factory, sampler,
+                                                declaring_step='step1',
+                                                input_index=1)
+    with sampler.scoped_state('step2', 'stateB'):
+      with counter:
+        counter.add_bytes_read(10)
+
+      counter.update_current_step()
+
+    sampler.stop()
+    sampler.commit_counters()
+
+    actual_counter_names = set([c.name for c in counter_factory.get_counters()])
+    expected_counter_names = set([
+        # Counter names for STEP 1
+        counters.CounterName('read-sideinput-msecs',
+                             stage_name='stage1',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step1', 1)),
+        counters.CounterName('read-sideinput-byte-count',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step1', 1)),
+
+        # Counter names for STEP 2
+        counters.CounterName('read-sideinput-msecs',
+                             stage_name='stage1',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step2', 1)),
+        counters.CounterName('read-sideinput-byte-count',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step2', 1)),
+    ])
+    self.assertTrue(actual_counter_names.issuperset(expected_counter_names))
 
 
 class OperationCountersTest(unittest.TestCase):
@@ -104,11 +154,11 @@ class OperationCountersTest(unittest.TestCase):
     value = GlobalWindows.windowed_value('defghij')
     opcounts.update_from(value)
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 2, float(total_size) / 2)
+    self.verify_counters(opcounts, 2, (float(total_size) / 2))
     value = GlobalWindows.windowed_value('klmnop')
     opcounts.update_from(value)
     total_size += coder.estimate_size(value)
-    self.verify_counters(opcounts, 3, float(total_size) / 3)
+    self.verify_counters(opcounts, 3, (float(total_size) / 3))
 
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
@@ -121,17 +171,17 @@ class OperationCountersTest(unittest.TestCase):
     total_runs = 10 * len(buckets)
 
     # Fill the buckets.
-    for _ in xrange(total_runs):
+    for _ in range(total_runs):
       opcounts = OperationCounters(CounterFactory(), 'some-name',
                                    coders.PickleCoder(), 0)
-      for i in xrange(len(buckets)):
+      for i in range(len(buckets)):
         if opcounts.should_sample():
           buckets[i] += 1
 
     # Look at the buckets to see if they are likely.
-    for i in xrange(10):
+    for i in range(10):
       self.assertEqual(total_runs, buckets[i])
-    for i in xrange(10, len(buckets)):
+    for i in range(10, len(buckets)):
       self.assertTrue(buckets[i] > 7 * total_runs / i,
                       'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
                           i, buckets[i],

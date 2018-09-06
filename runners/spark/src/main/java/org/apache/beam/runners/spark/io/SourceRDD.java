@@ -28,9 +28,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -52,38 +52,34 @@ import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.collection.JavaConversions;
 
-/**
- * Classes implementing Beam {@link Source} {@link RDD}s.
- */
+/** Classes implementing Beam {@link Source} {@link RDD}s. */
 public class SourceRDD {
 
   /**
-   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource}
-   * and creates a Spark {@link RDD}.
-   * This is the default way for the SparkRunner to read data from Beam's BoundedSources.
+   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource} and creates a Spark {@link
+   * RDD}. This is the default way for the SparkRunner to read data from Beam's BoundedSources.
    */
   public static class Bounded<T> extends RDD<WindowedValue<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(SourceRDD.Bounded.class);
 
     private final BoundedSource<T> source;
-    private final SparkRuntimeContext runtimeContext;
+    private final SerializablePipelineOptions options;
     private final int numPartitions;
     private final String stepName;
     private final Accumulator<MetricsContainerStepMap> metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
-        scala.collection.JavaConversions
-          .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Bounded(
         SparkContext sc,
         BoundedSource<T> source,
-        SparkRuntimeContext runtimeContext,
+        SerializablePipelineOptions options,
         String stepName) {
-      super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+      super(sc, NIL, JavaSparkContext$.MODULE$.fakeClassTag());
       this.source = source;
-      this.runtimeContext = runtimeContext;
+      this.options = options;
       // the input parallelism is determined by Spark's scheduler backend.
       // when running on YARN/SparkDeploy it's the result of max(totalCores, 2).
       // when running on Mesos it's 8.
@@ -96,44 +92,45 @@ public class SourceRDD {
       this.metricsAccum = MetricsAccumulator.getInstance();
     }
 
-    private static final long DEFAULT_BUNDLE_SIZE = 64 * 1024 * 1024;
+    private static final long DEFAULT_BUNDLE_SIZE = 64L * 1024L * 1024L;
 
     @Override
     public Partition[] getPartitions() {
       long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
       try {
-        desiredSizeBytes = source.getEstimatedSizeBytes(
-            runtimeContext.getPipelineOptions()) / numPartitions;
+        desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
       } catch (Exception e) {
-        LOG.warn("Failed to get estimated bundle size for source {}, using default bundle "
-            + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
+        LOG.warn(
+            "Failed to get estimated bundle size for source {}, using default bundle "
+                + "size of {} bytes.",
+            source,
+            DEFAULT_BUNDLE_SIZE);
       }
       try {
-        List<? extends Source<T>> partitionedSources = source.split(desiredSizeBytes,
-            runtimeContext.getPipelineOptions());
+        List<? extends Source<T>> partitionedSources =
+            source.split(desiredSizeBytes, options.get());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));
         }
         return partitions;
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create partitions for source "
-            + source.getClass().getSimpleName(), e);
+        throw new RuntimeException(
+            "Failed to create partitions for source " + source.getClass().getSimpleName(), e);
       }
     }
 
     private BoundedSource.BoundedReader<T> createReader(SourcePartition<T> partition) {
       try {
-        return ((BoundedSource<T>) partition.source).createReader(
-            runtimeContext.getPipelineOptions());
+        return ((BoundedSource<T>) partition.source).createReader(options.get());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create reader from a BoundedSource.", e);
       }
     }
 
     @Override
-    public scala.collection.Iterator<WindowedValue<T>> compute(final Partition split,
-                                                               final TaskContext context) {
+    public scala.collection.Iterator<WindowedValue<T>> compute(
+        final Partition split, final TaskContext context) {
       final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
 
       @SuppressWarnings("unchecked")
@@ -146,19 +143,16 @@ public class SourceRDD {
     }
 
     /**
-     * Exposes an <code>Iterator</code>&lt;{@link WindowedValue}&gt; interface on top of a
-     * {@link Source.Reader}.
-     * <p>
-     *   <code>hasNext</code> is idempotent and returns <code>true</code> iff further items are
-     *   available for reading using the underlying reader.
-     *   Consequently, when the reader is closed, or when the reader has no further elements
-     *   available (i.e, {@link Source.Reader#advance()} returned <code>false</code>),
-     *   <code>hasNext</code> returns <code>false</code>.
-     * </p>
-     * <p>
-     *   Since this is a read-only iterator, an attempt to call <code>remove</code> will throw an
-     *   <code>UnsupportedOperationException</code>.
-     * </p>
+     * Exposes an <code>Iterator</code>&lt;{@link WindowedValue}&gt; interface on top of a {@link
+     * Source.Reader}.
+     *
+     * <p><code>hasNext</code> is idempotent and returns <code>true</code> iff further items are
+     * available for reading using the underlying reader. Consequently, when the reader is closed,
+     * or when the reader has no further elements available (i.e, {@link Source.Reader#advance()}
+     * returned <code>false</code>), <code>hasNext</code> returns <code>false</code>.
+     *
+     * <p>Since this is a read-only iterator, an attempt to call <code>remove</code> will throw an
+     * <code>UnsupportedOperationException</code>.
      */
     @VisibleForTesting
     static class ReaderToIteratorAdapter<T> implements Iterator<WindowedValue<T>> {
@@ -173,8 +167,8 @@ public class SourceRDD {
       private boolean closed = false;
       private WindowedValue<T> next = null;
 
-      ReaderToIteratorAdapter(final MetricsContainer metricsContainer,
-                              final Source.Reader<T> reader) {
+      ReaderToIteratorAdapter(
+          final MetricsContainer metricsContainer, final Source.Reader<T> reader) {
         this.metricsContainer = metricsContainer;
         this.reader = reader;
       }
@@ -186,8 +180,9 @@ public class SourceRDD {
           } else {
             checkState(next == null, "unexpected non-null value for next");
             if (seekNext()) {
-              next = WindowedValue.timestampedValueInGlobalWindow(reader.getCurrent(),
-                                                                  reader.getCurrentTimestamp());
+              next =
+                  WindowedValue.timestampedValueInGlobalWindow(
+                      reader.getCurrent(), reader.getCurrentTimestamp());
               return SUCCESSFULLY_OBTAINED_NEXT;
             } else {
               close();
@@ -248,13 +243,10 @@ public class SourceRDD {
       public void remove() {
         throw new UnsupportedOperationException();
       }
-
     }
   }
 
-  /**
-   * An input {@link Partition} wrapping the partitioned {@link Source}.
-   */
+  /** An input {@link Partition} wrapping the partitioned {@link Source}. */
   private static class SourcePartition<T> implements Partition {
 
     private final int rddId;
@@ -283,31 +275,30 @@ public class SourceRDD {
   }
 
   /**
-   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch
-   * in a {@link SourceDStream}.
+   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch in a {@link
+   * SourceDStream}.
    *
    * <p>This RDD is made of P partitions, each containing a single pair-element of the partitioned
    * {@link MicrobatchSource} and an optional starting {@link UnboundedSource.CheckpointMark}.
    */
-  public static class Unbounded<T, CheckpointMarkT extends
-        UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
+  public static class Unbounded<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
 
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
-    private final SparkRuntimeContext runtimeContext;
+    private final SerializablePipelineOptions options;
     private final Partitioner partitioner;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        scala.collection.JavaConversions
-            .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
-    public Unbounded(SparkContext sc,
-        SparkRuntimeContext runtimeContext,
+    public Unbounded(
+        SparkContext sc,
+        SerializablePipelineOptions options,
         MicrobatchSource<T, CheckpointMarkT> microbatchSource,
         int initialNumPartitions) {
-      super(sc, NIL,
-          JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
-      this.runtimeContext = runtimeContext;
+      super(sc, NIL, JavaSparkContext$.MODULE$.fakeClassTag());
+      this.options = options;
       this.microbatchSource = microbatchSource;
       this.partitioner = new HashPartitioner(initialNumPartitions);
     }
@@ -315,8 +306,7 @@ public class SourceRDD {
     @Override
     public Partition[] getPartitions() {
       try {
-        final List<? extends Source<T>> partitionedSources =
-            microbatchSource.split(runtimeContext.getPipelineOptions());
+        final List<? extends Source<T>> partitionedSources = microbatchSource.split(options.get());
         final Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] =
@@ -337,27 +327,25 @@ public class SourceRDD {
     }
 
     @Override
-    public scala.collection.Iterator<scala.Tuple2<Source<T>, CheckpointMarkT>>
-    compute(Partition split, TaskContext context) {
+    public scala.collection.Iterator<scala.Tuple2<Source<T>, CheckpointMarkT>> compute(
+        Partition split, TaskContext context) {
       @SuppressWarnings("unchecked")
       CheckpointableSourcePartition<T, CheckpointMarkT> partition =
           (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
       scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
           new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
-      return scala.collection.JavaConversions.asScalaIterator(
-          Collections.singleton(tuple2).iterator());
+      return JavaConversions.asScalaIterator(Collections.singleton(tuple2).iterator());
     }
   }
 
   /** A {@link SourcePartition} with a {@link UnboundedSource.CheckpointMark}. */
-  private static class CheckpointableSourcePartition<T, CheckpointMarkT extends
-      UnboundedSource.CheckpointMark> extends SourcePartition<T> {
+  private static class CheckpointableSourcePartition<
+          T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      extends SourcePartition<T> {
     private final CheckpointMarkT checkpointMark;
 
-    CheckpointableSourcePartition(int rddId,
-                                  int index,
-                                  Source<T> source,
-                                  CheckpointMarkT checkpointMark) {
+    CheckpointableSourcePartition(
+        int rddId, int index, Source<T> source, CheckpointMarkT checkpointMark) {
       super(rddId, index, source);
       this.checkpointMark = checkpointMark;
     }

@@ -26,33 +26,27 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**
- * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the
- * {@link DataflowRunner}.
+ * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the {@link
+ * DataflowRunner}.
  */
 public class DataflowPipelineRegistrar {
-  private DataflowPipelineRegistrar() { }
+  private DataflowPipelineRegistrar() {}
 
-  /**
-   * Register the {@link DataflowPipelineOptions}.
-   */
+  /** Register the {@link DataflowPipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(
-          DataflowPipelineOptions.class);
+      return ImmutableList.of(DataflowPipelineOptions.class);
     }
   }
 
-  /**
-   * Register the {@link DataflowRunner}.
-   */
+  /** Register the {@link DataflowRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          DataflowRunner.class, TestDataflowRunner.class);
+      return ImmutableList.of(DataflowRunner.class, TestDataflowRunner.class);
     }
   }
 }

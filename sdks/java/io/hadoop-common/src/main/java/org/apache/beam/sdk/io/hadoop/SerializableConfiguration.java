@@ -21,6 +21,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
@@ -35,8 +36,7 @@ public class SerializableConfiguration implements Externalizable {
 
   private transient Configuration conf;
 
-  public SerializableConfiguration() {
-  }
+  public SerializableConfiguration() {}
 
   public SerializableConfiguration(Configuration conf) {
     if (conf == null) {
@@ -49,7 +49,6 @@ public class SerializableConfiguration implements Externalizable {
     return conf;
   }
 
-
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
     out.writeUTF(conf.getClass().getCanonicalName());
@@ -60,16 +59,17 @@ public class SerializableConfiguration implements Externalizable {
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String className = in.readUTF();
     try {
-      conf = (Configuration) Class.forName(className).newInstance();
+      conf = (Configuration) Class.forName(className).getDeclaredConstructor().newInstance();
       conf.readFields(in);
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw new IOException("Unable to create configuration: " + e);
     }
   }
 
-  /**
-   * Returns new configured {@link Job} object.
-   */
+  /** Returns new configured {@link Job} object. */
   public static Job newJob(@Nullable SerializableConfiguration conf) throws IOException {
     if (conf == null) {
       return Job.getInstance();
@@ -83,9 +83,7 @@ public class SerializableConfiguration implements Externalizable {
     }
   }
 
-  /**
-   * Returns new populated {@link Configuration} object.
-   */
+  /** Returns new populated {@link Configuration} object. */
   public static Configuration newConfiguration(@Nullable SerializableConfiguration conf) {
     if (conf == null) {
       return new Configuration();
@@ -93,5 +91,4 @@ public class SerializableConfiguration implements Externalizable {
       return conf.get();
     }
   }
-
 }

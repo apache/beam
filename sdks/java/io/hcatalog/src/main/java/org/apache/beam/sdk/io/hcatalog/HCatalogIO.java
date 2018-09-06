@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.hcatalog;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -98,7 +97,7 @@ import org.slf4j.LoggerFactory;
  *
  * pipeline
  *   .apply(...)
- *   .apply(HiveIO.write()
+ *   .apply(HCatalogIO.write()
  *       .withConfigProperties(configProperties)
  *       .withDatabase("default") //optional, assumes default if none specified
  *       .withTable("employee")
@@ -130,22 +129,40 @@ public class HCatalogIO {
   @VisibleForTesting
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
-    @Nullable abstract Map<String, String> getConfigProperties();
-    @Nullable abstract String getDatabase();
-    @Nullable abstract String getTable();
-    @Nullable abstract String getFilter();
-    @Nullable abstract ReaderContext getContext();
-    @Nullable abstract Integer getSplitId();
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @Nullable
+    abstract String getDatabase();
+
+    @Nullable
+    abstract String getTable();
+
+    @Nullable
+    abstract String getFilter();
+
+    @Nullable
+    abstract ReaderContext getContext();
+
+    @Nullable
+    abstract Integer getSplitId();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfigProperties(Map<String, String> configProperties);
+
       abstract Builder setDatabase(String database);
+
       abstract Builder setTable(String table);
+
       abstract Builder setFilter(String filter);
+
       abstract Builder setSplitId(Integer splitId);
+
       abstract Builder setContext(ReaderContext context);
+
       abstract Read build();
     }
 
@@ -180,13 +197,10 @@ public class HCatalogIO {
 
     @Override
     public PCollection<HCatRecord> expand(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
-    }
+      checkArgument(getTable() != null, "withTable() is required");
+      checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
 
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getTable(), "table");
-      checkNotNull(getConfigProperties(), "configProperties");
+      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
     }
 
     @Override
@@ -210,13 +224,8 @@ public class HCatalogIO {
 
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Coder<HCatRecord> getDefaultOutputCoder() {
+    public Coder<HCatRecord> getOutputCoder() {
       return (Coder) WritableCoder.of(DefaultHCatRecord.class);
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override
@@ -349,20 +358,34 @@ public class HCatalogIO {
   /** A {@link PTransform} to write to a HCatalog managed source. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
-    @Nullable abstract Map<String, String> getConfigProperties();
-    @Nullable abstract String getDatabase();
-    @Nullable abstract String getTable();
-    @Nullable abstract Map<String, String> getPartition();
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @Nullable
+    abstract String getDatabase();
+
+    @Nullable
+    abstract String getTable();
+
+    @Nullable
+    abstract Map<String, String> getPartition();
+
     abstract long getBatchSize();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfigProperties(Map<String, String> configProperties);
+
       abstract Builder setDatabase(String database);
+
       abstract Builder setTable(String table);
+
       abstract Builder setPartition(Map<String, String> partition);
+
       abstract Builder setBatchSize(long batchSize);
+
       abstract Write build();
     }
 
@@ -396,14 +419,10 @@ public class HCatalogIO {
 
     @Override
     public PDone expand(PCollection<HCatRecord> input) {
+      checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
+      checkArgument(getTable() != null, "withTable() is required");
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getConfigProperties(), "configProperties");
-      checkNotNull(getTable(), "table");
     }
 
     private static class WriteFn extends DoFn<HCatRecord, Void> {

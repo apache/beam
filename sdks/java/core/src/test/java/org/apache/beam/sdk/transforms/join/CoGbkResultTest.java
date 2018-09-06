@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the CoGbkResult.
- */
+/** Tests the CoGbkResult. */
 @RunWith(JUnit4.class)
 public class CoGbkResultTest {
 
@@ -51,12 +49,12 @@ public class CoGbkResultTest {
     TestUnionValues values = new TestUnionValues(0, 1, 0, 3, 0, 3, 3);
     CoGbkResult result = new CoGbkResult(createSchema(5), values, cacheSize);
     assertThat(values.maxPos(), equalTo(Math.min(cacheSize, valueLen)));
-    assertThat(result.getAll(new TupleTag<Integer>("tag0")), contains(0, 2, 4));
+    assertThat(result.getAll(new TupleTag<>("tag0")), contains(0, 2, 4));
     assertThat(values.maxPos(), equalTo(valueLen));
-    assertThat(result.getAll(new TupleTag<Integer>("tag3")), contains(3, 5, 6));
+    assertThat(result.getAll(new TupleTag<>("tag3")), contains(3, 5, 6));
     assertThat(result.getAll(new TupleTag<Integer>("tag2")), emptyIterable());
-    assertThat(result.getOnly(new TupleTag<Integer>("tag1")), equalTo(1));
-    assertThat(result.getAll(new TupleTag<Integer>("tag0")), contains(0, 2, 4));
+    assertThat(result.getOnly(new TupleTag<>("tag1")), equalTo(1));
+    assertThat(result.getAll(new TupleTag<>("tag0")), contains(0, 2, 4));
   }
 
   private CoGbkResultSchema createSchema(int size) {
@@ -73,17 +71,14 @@ public class CoGbkResultTest {
     int maxPos = 0;
 
     /**
-     * This will create a list of RawUnionValues whose tags are as given and
-     * values are increasing starting at 0 (i.e. the index in the constructor).
+     * This will create a list of RawUnionValues whose tags are as given and values are increasing
+     * starting at 0 (i.e. the index in the constructor).
      */
     public TestUnionValues(int... tags) {
       this.tags = tags;
     }
 
-    /**
-     * Returns the highest position iterated to so far, useful for ensuring
-     * laziness.
-     */
+    /** Returns the highest position iterated to so far, useful for ensuring laziness. */
     public int maxPos() {
       return maxPos;
     }

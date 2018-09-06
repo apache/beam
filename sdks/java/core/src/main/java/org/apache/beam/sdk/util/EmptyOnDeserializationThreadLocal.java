@@ -23,17 +23,14 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows
- * for Kryo to serialize a {@link Coder} as a final field.
+ * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows for
+ * Kryo to serialize a {@link Coder} as a final field.
  */
 public class EmptyOnDeserializationThreadLocal<T> extends ThreadLocal<T> implements Serializable {
-    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-    }
+  private void writeObject(java.io.ObjectOutputStream out) throws IOException {}
 
-    private void readObject(java.io.ObjectInputStream in)
-            throws IOException, ClassNotFoundException {
-    }
+  private void readObject(java.io.ObjectInputStream in)
+      throws IOException, ClassNotFoundException {}
 
-    private void readObjectNoData() throws ObjectStreamException {
-    }
+  private void readObjectNoData() throws ObjectStreamException {}
 }

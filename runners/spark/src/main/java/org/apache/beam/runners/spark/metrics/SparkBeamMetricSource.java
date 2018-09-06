@@ -21,10 +21,9 @@ package org.apache.beam.runners.spark.metrics;
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.metrics.source.Source;
 
-
 /**
- * A Spark {@link Source} that is tailored to expose a {@link SparkBeamMetric},
- * wrapping an underlying {@link org.apache.beam.sdk.metrics.MetricResults} instance.
+ * A Spark {@link Source} that is tailored to expose a {@link SparkBeamMetric}, wrapping an
+ * underlying {@link org.apache.beam.sdk.metrics.MetricResults} instance.
  */
 public class SparkBeamMetricSource implements Source {
   private static final String METRIC_NAME = "Metrics";

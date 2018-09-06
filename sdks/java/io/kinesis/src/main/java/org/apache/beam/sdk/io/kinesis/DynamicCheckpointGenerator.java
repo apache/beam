@@ -18,39 +18,58 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.transform;
 
 import com.amazonaws.services.kinesis.model.Shard;
-import com.google.common.base.Function;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream.
- * List of shards is obtained dynamically on call to {@link #generate(SimplifiedKinesisClient)}.
+ * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream. List of
+ * shards is obtained dynamically on call to {@link #generate(SimplifiedKinesisClient)}.
  */
 class DynamicCheckpointGenerator implements CheckpointGenerator {
-    private final String streamName;
-    private final StartingPoint startingPoint;
 
-    public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
-        this.streamName = checkNotNull(streamName, "streamName");
-        this.startingPoint = checkNotNull(startingPoint, "startingPoint");
-    }
+  private static final Logger LOG = LoggerFactory.getLogger(DynamicCheckpointGenerator.class);
+  private final String streamName;
+  private final StartingPoint startingPoint;
+  private final StartingPointShardsFinder startingPointShardsFinder;
 
-    @Override
-    public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
-            throws TransientKinesisException {
-        return new KinesisReaderCheckpoint(
-                transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
-                    @Override
-                    public ShardCheckpoint apply(Shard shard) {
-                        return new ShardCheckpoint(streamName, shard.getShardId(), startingPoint);
-                    }
-                })
-        );
-    }
+  public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
+    this.streamName = streamName;
+    this.startingPoint = startingPoint;
+    this.startingPointShardsFinder = new StartingPointShardsFinder();
+  }
 
-    @Override
-    public String toString() {
-        return String.format("Checkpoint generator for %s: %s", streamName, startingPoint);
-    }
+  public DynamicCheckpointGenerator(
+      String streamName,
+      StartingPoint startingPoint,
+      StartingPointShardsFinder startingPointShardsFinder) {
+    this.streamName = checkNotNull(streamName, "streamName");
+    this.startingPoint = checkNotNull(startingPoint, "startingPoint");
+    this.startingPointShardsFinder =
+        checkNotNull(startingPointShardsFinder, "startingPointShardsFinder");
+  }
+
+  @Override
+  public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
+      throws TransientKinesisException {
+    Set<Shard> shardsAtStartingPoint =
+        startingPointShardsFinder.findShardsAtStartingPoint(kinesis, streamName, startingPoint);
+    LOG.info(
+        "Creating a checkpoint with following shards {} at {}",
+        shardsAtStartingPoint,
+        startingPoint.getTimestamp());
+    return new KinesisReaderCheckpoint(
+        shardsAtStartingPoint
+            .stream()
+            .map(shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
+            .collect(Collectors.toList()));
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Checkpoint generator for %s: %s", streamName, startingPoint);
+  }
 }

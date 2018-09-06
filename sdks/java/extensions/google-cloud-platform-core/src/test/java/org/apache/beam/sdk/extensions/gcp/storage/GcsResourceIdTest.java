@@ -28,20 +28,18 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link GcsResourceId}.
- */
+/** Tests for {@link GcsResourceId}. */
 @RunWith(JUnit4.class)
 public class GcsResourceIdTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testResolve() throws Exception {
@@ -66,8 +64,7 @@ public class GcsResourceIdTest {
     // Tests bucket with no ending '/'.
     assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp"),
-        toResourceIdentifier("gs://my_bucket")
-            .resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
+        toResourceIdentifier("gs://my_bucket").resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
@@ -93,8 +90,9 @@ public class GcsResourceIdTest {
 
   @Test
   public void testResolveInvalidNotDirectory() throws Exception {
-    ResourceId tmpDir = toResourceIdentifier("gs://my_bucket/")
-        .resolve("tmp dir", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId tmpDir =
+        toResourceIdentifier("gs://my_bucket/")
+            .resolve("tmp dir", StandardResolveOptions.RESOLVE_FILE);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Expected the gcsPath is a directory, but had [gs://my_bucket/tmp dir].");
@@ -147,26 +145,22 @@ public class GcsResourceIdTest {
   @Test
   public void testEquals() throws Exception {
     assertEquals(
-        toResourceIdentifier("gs://my_bucket/tmp/"),
-        toResourceIdentifier("gs://my_bucket/tmp/"));
+        toResourceIdentifier("gs://my_bucket/tmp/"), toResourceIdentifier("gs://my_bucket/tmp/"));
 
     assertNotEquals(
-        toResourceIdentifier("gs://my_bucket/tmp"),
-        toResourceIdentifier("gs://my_bucket/tmp/"));
+        toResourceIdentifier("gs://my_bucket/tmp"), toResourceIdentifier("gs://my_bucket/tmp/"));
   }
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), null);
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc").getFilename(),
-        "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/").getFilename(),
-        "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
-        "xyz.txt");
+    assertEquals(null, toResourceIdentifier("gs://my_bucket/").getFilename());
+    assertEquals("abc", toResourceIdentifier("gs://my_bucket/abc").getFilename());
+    assertEquals("abc", toResourceIdentifier("gs://my_bucket/abc/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename());
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4143")
   public void testResourceIdTester() throws Exception {
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("gs://bucket/foo/"));

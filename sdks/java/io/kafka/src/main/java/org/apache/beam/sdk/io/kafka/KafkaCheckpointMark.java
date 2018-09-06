@@ -18,26 +18,33 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.common.base.Joiner;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
+import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
- * Checkpoint for an unbounded KafkaIO.Read. Consists of Kafka topic name, partition id,
- * and the latest offset consumed so far.
+ * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id, and
+ * the latest offset consumed so far.
  */
 @DefaultCoder(AvroCoder.class)
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private List<PartitionMark> partitions;
 
+  @AvroIgnore
+  private Optional<KafkaUnboundedReader<?, ?>> reader; // Present when offsets need to be committed.
+
   private KafkaCheckpointMark() {} // for Avro
 
-  public KafkaCheckpointMark(List<PartitionMark> partitions) {
+  public KafkaCheckpointMark(
+      List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {
     this.partitions = partitions;
+    this.reader = reader;
   }
 
   public List<PartitionMark> getPartitions() {
@@ -45,11 +52,12 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   }
 
   @Override
-  public void finalizeCheckpoint() throws IOException {
-    /* nothing to do */
-
-    // We might want to support committing offset in Kafka for better resume point when the job
-    // is restarted (checkpoint is not available for job restarts).
+  public void finalizeCheckpoint() {
+    reader.ifPresent(r -> r.finalizeCheckpointMarkAsync(this));
+    // Is it ok to commit asynchronously, or should we wait till this (or newer) is committed?
+    // Often multiple marks would be finalized at once, since we only need to finalize the latest,
+    // it is better to wait a little while. Currently maximum delay is same as KAFKA_POLL_TIMEOUT
+    // in the reader (1 second).
   }
 
   @Override
@@ -58,20 +66,24 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   }
 
   /**
-   * A tuple to hold topic, partition, and offset that comprise the checkpoint
-   * for a single partition.
+   * A tuple to hold topic, partition, and offset that comprise the checkpoint for a single
+   * partition.
    */
   public static class PartitionMark implements Serializable {
+    private static final long MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+
     private String topic;
     private int partition;
     private long nextOffset;
+    private long watermarkMillis = MIN_WATERMARK_MILLIS;
 
     private PartitionMark() {} // for Avro
 
-    public PartitionMark(String topic, int partition, long offset) {
+    public PartitionMark(String topic, int partition, long offset, long watermarkMillis) {
       this.topic = topic;
       this.partition = partition;
       this.nextOffset = offset;
+      this.watermarkMillis = watermarkMillis;
     }
 
     public String getTopic() {
@@ -86,14 +98,23 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
       return nextOffset;
     }
 
+    public long getWatermarkMillis() {
+      return watermarkMillis;
+    }
+
     @Override
     public String toString() {
       return "PartitionMark{"
-          + "topic='" + topic + '\''
-          + ", partition=" + partition
-          + ", nextOffset=" + nextOffset
+          + "topic='"
+          + topic
+          + '\''
+          + ", partition="
+          + partition
+          + ", nextOffset="
+          + nextOffset
+          + ", watermarkMillis="
+          + watermarkMillis
           + '}';
     }
   }
 }
-

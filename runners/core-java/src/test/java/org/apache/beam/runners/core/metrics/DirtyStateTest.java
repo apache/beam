@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DirtyStateTest}.
- */
+/** Tests for {@link DirtyStateTest}. */
 @RunWith(JUnit4.class)
 public class DirtyStateTest {
 
@@ -50,7 +48,9 @@ public class DirtyStateTest {
     assertThat("Should start dirty", dirty.beforeCommit(), is(true));
     dirty.afterModification();
     dirty.afterCommit();
-    assertThat("Changes after beforeCommit should be dirty after afterCommit",
-        dirty.beforeCommit(), is(true));
+    assertThat(
+        "Changes after beforeCommit should be dirty after afterCommit",
+        dirty.beforeCommit(),
+        is(true));
   }
 }

@@ -57,10 +57,7 @@ public class ValueWithRecordId<ValueT> {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("id", id)
-        .add("value", value)
-        .toString();
+    return MoreObjects.toStringHelper(this).add("id", id).add("value", value).toString();
   }
 
   @Override
@@ -72,8 +69,7 @@ public class ValueWithRecordId<ValueT> {
       return false;
     }
     ValueWithRecordId<?> otherRecord = (ValueWithRecordId<?>) other;
-    return Objects.deepEquals(id, otherRecord.id)
-        && Objects.deepEquals(value, otherRecord.value);
+    return Objects.deepEquals(id, otherRecord.id) && Objects.deepEquals(value, otherRecord.value);
   }
 
   @Override
@@ -81,9 +77,7 @@ public class ValueWithRecordId<ValueT> {
     return Objects.hash(Arrays.hashCode(id), value);
   }
 
-  /**
-   * A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}.
-   */
+  /** A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}. */
   public static class ValueWithRecordIdCoder<ValueT>
       extends StructuredCoder<ValueWithRecordId<ValueT>> {
     public static <ValueT> ValueWithRecordIdCoder<ValueT> of(Coder<ValueT> valueCoder) {
@@ -101,8 +95,7 @@ public class ValueWithRecordId<ValueT> {
     }
 
     @Override
-    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream)
-        throws IOException {
+    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream) throws IOException {
       encode(value, outStream, Context.NESTED);
     }
 
@@ -121,9 +114,8 @@ public class ValueWithRecordId<ValueT> {
     @Override
     public ValueWithRecordId<ValueT> decode(InputStream inStream, Context context)
         throws IOException {
-      return new ValueWithRecordId<ValueT>(
-          valueCoder.decode(inStream),
-          idCoder.decode(inStream, context));
+      return new ValueWithRecordId<>(
+          valueCoder.decode(inStream), idCoder.decode(inStream, context));
     }
 
     @Override

@@ -33,7 +33,6 @@ import java.util.Collections;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
-import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
@@ -41,6 +40,7 @@ import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
@@ -60,64 +60,68 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Apex operator for Beam {@link GroupByKey}.
- * This operator expects the input stream already partitioned by K,
- * which is determined by the {@link StreamCodec} on the input port.
+ * Apex operator for Beam {@link GroupByKey}. This operator expects the input stream already
+ * partitioned by K, which is determined by the {@link StreamCodec} on the input port.
  *
  * @param <K> key type
  * @param <V> value type
  */
-public class ApexGroupByKeyOperator<K, V> implements Operator,
-    ApexTimerInternals.TimerProcessor<K> {
+public class ApexGroupByKeyOperator<K, V>
+    implements Operator, ApexTimerInternals.TimerProcessor<K> {
   private static final Logger LOG = LoggerFactory.getLogger(ApexGroupByKeyOperator.class);
   private boolean traceTuples = true;
 
   @Bind(JavaSerializer.class)
   private WindowingStrategy<V, BoundedWindow> windowingStrategy;
+
   @Bind(JavaSerializer.class)
   private Coder<K> keyCoder;
+
   @Bind(JavaSerializer.class)
   private Coder<V> valueCoder;
 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions serializedOptions;
+
   @Bind(JavaSerializer.class)
   private final StateInternalsFactory<K> stateInternalsFactory;
+
   private final ApexTimerInternals<K> timerInternals;
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input =
       new DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>>() {
-    @Override
-    public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t) {
-      try {
-        if (t instanceof ApexStreamTuple.WatermarkTuple) {
-          ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>) t;
-          processWatermark(mark);
-          if (traceTuples) {
-            LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+        @Override
+        public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t) {
+          try {
+            if (t instanceof ApexStreamTuple.WatermarkTuple) {
+              ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>) t;
+              processWatermark(mark);
+              if (traceTuples) {
+                LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+              }
+              output.emit(ApexStreamTuple.WatermarkTuple.of(mark.getTimestamp()));
+              return;
+            }
+            if (traceTuples) {
+              LOG.debug("\ninput {}\n", t.getValue());
+            }
+            processElement(t.getValue());
+          } catch (Exception e) {
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
           }
-          output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(
-              mark.getTimestamp()));
-          return;
         }
-        if (traceTuples) {
-          LOG.debug("\ninput {}\n", t.getValue());
-        }
-        processElement(t.getValue());
-      } catch (Exception e) {
-        Throwables.throwIfUnchecked(e);
-        throw new RuntimeException(e);
-      }
-    }
-  };
+      };
 
   @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<KV<K, Iterable<V>>>>>
       output = new DefaultOutputPort<>();
 
   @SuppressWarnings("unchecked")
-  public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input,
+  public ApexGroupByKeyOperator(
+      ApexPipelineOptions pipelineOptions,
+      PCollection<KV<K, V>> input,
       ApexStateBackend stateBackend) {
     checkNotNull(pipelineOptions);
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
@@ -138,24 +142,23 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
   }
 
   @Override
-  public void beginWindow(long l) {
-  }
+  public void beginWindow(long l) {}
 
   @Override
   public void endWindow() {
-    timerInternals.fireReadyTimers(timerInternals.currentProcessingTime().getMillis(),
-        this, TimeDomain.PROCESSING_TIME);
+    timerInternals.fireReadyTimers(
+        timerInternals.currentProcessingTime().getMillis(), this, TimeDomain.PROCESSING_TIME);
   }
 
   @Override
   public void setup(OperatorContext context) {
-    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(serializedOptions.get(), this);
+    this.traceTuples =
+        ApexStreamTuple.Logging.isDebugEnabled(
+            serializedOptions.get().as(ApexPipelineOptions.class), this);
   }
 
   @Override
-  public void teardown() {
-  }
-
+  public void teardown() {}
 
   private ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> newReduceFnRunner(K key) {
     return new ReduceFnRunner<>(
@@ -192,16 +195,18 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
           }
         },
         NullSideInputReader.empty(),
-        SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder),
+        SystemReduceFn.buffering(this.valueCoder),
         serializedOptions.get());
   }
 
   private void processElement(WindowedValue<KV<K, V>> windowedValue) throws Exception {
     final KV<K, V> kv = windowedValue.getValue();
-    final WindowedValue<V> updatedWindowedValue = WindowedValue.of(kv.getValue(),
-        windowedValue.getTimestamp(),
-        windowedValue.getWindows(),
-        windowedValue.getPane());
+    final WindowedValue<V> updatedWindowedValue =
+        WindowedValue.of(
+            kv.getValue(),
+            windowedValue.getTimestamp(),
+            windowedValue.getWindows(),
+            windowedValue.getPane());
     timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
         newReduceFnRunner(kv.getKey());
@@ -224,8 +229,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
 
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
     this.inputWatermark = new Instant(mark.getTimestamp());
-    timerInternals.fireReadyTimers(this.inputWatermark.getMillis(),
-        this, TimeDomain.EVENT_TIME);
+    timerInternals.fireReadyTimers(this.inputWatermark.getMillis(), this, TimeDomain.EVENT_TIME);
   }
-
 }

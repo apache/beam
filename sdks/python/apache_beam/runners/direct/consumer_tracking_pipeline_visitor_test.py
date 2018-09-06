@@ -16,13 +16,14 @@
 #
 
 """Tests for consumer_tracking_pipeline_visitor."""
+from __future__ import absolute_import
 
 import logging
 import unittest
 
 from apache_beam import pvalue
-from apache_beam.io import iobase
 from apache_beam.io import Read
+from apache_beam.io import iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner

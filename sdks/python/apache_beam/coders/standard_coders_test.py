@@ -17,21 +17,24 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+from __future__ import absolute_import
+from __future__ import print_function
 
 import json
 import logging
 import os.path
 import sys
 import unittest
+from builtins import map
 
 import yaml
 
-from apache_beam.coders import coders
 from apache_beam.coders import coder_impl
+from apache_beam.coders import coders
+from apache_beam.transforms import window
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
@@ -53,29 +56,29 @@ def _load_test_cases(test_yaml):
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
-      'urn:beam:coders:bytes:0.1': coders.BytesCoder,
-      'urn:beam:coders:varint:0.1': coders.VarIntCoder,
-      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
-      'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
-      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
-      'urn:beam:coders:windowed_value:0.1':
+      'beam:coder:bytes:v1': coders.BytesCoder,
+      'beam:coder:varint:v1': coders.VarIntCoder,
+      'beam:coder:kv:v1': lambda k, v: coders.TupleCoder((k, v)),
+      'beam:coder:interval_window:v1': coders.IntervalWindowCoder,
+      'beam:coder:iterable:v1': lambda t: coders.IterableCoder(t),
+      'beam:coder:global_window:v1': coders.GlobalWindowCoder,
+      'beam:coder:windowed_value:v1':
           lambda v, w: coders.WindowedValueCoder(v, w)
   }
 
   _urn_to_json_value_parser = {
-      'urn:beam:coders:bytes:0.1': lambda x: x,
-      'urn:beam:coders:varint:0.1': lambda x: x,
-      'urn:beam:coders:kv:0.1':
+      'beam:coder:bytes:v1': lambda x: x,
+      'beam:coder:varint:v1': lambda x: x,
+      'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:interval_window:0.1':
+      'beam:coder:interval_window:v1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
-      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
-      'urn:beam:coders:windowed_value:0.1':
+      'beam:coder:iterable:v1': lambda x, parser: list(map(parser, x)),
+      'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
+      'beam:coder:windowed_value:v1':
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
               tuple([window_parser(w) for w in x['windows']]))
@@ -125,14 +128,14 @@ class StandardCodersTest(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     if cls.fix and cls.to_fix:
-      print "FIXING", len(cls.to_fix), "TESTS"
+      print("FIXING", len(cls.to_fix), "TESTS")
       doc_sep = '\n---\n'
       docs = open(STANDARD_CODERS_YAML).read().split(doc_sep)
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
-        print quote(expected_encoded), "->", quote(actual_encoded)
+        print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')
       open(STANDARD_CODERS_YAML, 'w').write(doc_sep.join(docs))

@@ -27,11 +27,13 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Collections;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.LocalResources;
@@ -51,8 +53,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Materialization;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -60,16 +60,15 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -81,9 +80,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PTransformMatcher}.
- */
+/** Tests for {@link PTransformMatcher}. */
 @RunWith(JUnit4.class)
 public class PTransformMatchersTest implements Serializable {
   @Rule
@@ -96,15 +93,16 @@ public class PTransformMatchersTest implements Serializable {
   private AppliedPTransform<?, ?, ?> getAppliedTransform(PTransform pardo) {
     PCollection<KV<String, Integer>> input =
         PCollection.createPrimitiveOutputInternal(
-            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            p,
+            WindowingStrategy.globalDefault(),
+            IsBounded.BOUNDED,
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
     input.setName("dummy input");
-    input.setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     PCollection<Integer> output =
         PCollection.createPrimitiveOutputInternal(
-            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
     output.setName("dummy output");
-    output.setCoder(VarIntCoder.of());
 
     return AppliedPTransform.of("pardo", input.expand(), output.expand(), pardo, p);
   }
@@ -129,17 +127,17 @@ public class PTransformMatchersTest implements Serializable {
       @Override
       public PCollection<Integer> expand(PCollection<KV<String, Integer>> input) {
         return PCollection.createPrimitiveOutputInternal(
-            input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+            input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), VarIntCoder.of());
       }
     }
+
     PTransformMatcher matcher = PTransformMatchers.classEqualTo(MyPTransform.class);
     MyPTransform subclass = new MyPTransform() {};
 
     assertThat(subclass.getClass(), not(Matchers.<Class<?>>equalTo(MyPTransform.class)));
     assertThat(subclass, instanceOf(MyPTransform.class));
 
-    AppliedPTransform<?, ?, ?> application =
-        getAppliedTransform(subclass);
+    AppliedPTransform<?, ?, ?> application = getAppliedTransform(subclass);
 
     assertThat(matcher.matches(application), is(false));
   }
@@ -160,7 +158,9 @@ public class PTransformMatchersTest implements Serializable {
           ctxt.output(ctxt.element().getValue() + 1);
         }
       };
-  private abstract static class SomeTracker implements RestrictionTracker<Void> {}
+
+  private abstract static class SomeTracker extends RestrictionTracker<Void, Void> {}
+
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
@@ -181,8 +181,7 @@ public class PTransformMatchersTest implements Serializable {
         private final String stateId = "mystate";
 
         @StateId(stateId)
-        private final StateSpec<ValueState<Integer>> intState =
-            StateSpecs.value(VarIntCoder.of());
+        private final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
         @ProcessElement
         public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
@@ -210,9 +209,7 @@ public class PTransformMatchersTest implements Serializable {
         }
       };
 
-  /**
-   * Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher.
-   */
+  /** Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher. */
   @Test
   public void parDoSingle() {
     AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFn));
@@ -245,8 +242,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoSingleWithTimers() {
-    AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(ParDo.of(doFnWithTimers));
+    AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFnWithTimers));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
@@ -257,8 +253,7 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void parDoMulti() {
     AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(
-            ParDo.of(doFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -270,7 +265,7 @@ public class PTransformMatchersTest implements Serializable {
   public void parDoMultiSplittable() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -282,7 +277,7 @@ public class PTransformMatchersTest implements Serializable {
   public void parDoSplittable() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -294,7 +289,7 @@ public class PTransformMatchersTest implements Serializable {
   public void parDoMultiWithState() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(doFnWithState).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(doFnWithState).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
@@ -306,12 +301,12 @@ public class PTransformMatchersTest implements Serializable {
   public void parDoWithState() {
     AppliedPTransform<?, ?, ?> statefulApplication =
         getAppliedTransform(
-            ParDo.of(doFnWithState).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(doFnWithState).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.stateOrTimerParDo().matches(statefulApplication), is(true));
 
     AppliedPTransform<?, ?, ?> splittableApplication =
         getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.stateOrTimerParDo().matches(splittableApplication), is(false));
   }
 
@@ -319,7 +314,7 @@ public class PTransformMatchersTest implements Serializable {
   public void parDoMultiWithTimers() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
-            ParDo.of(doFnWithTimers).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+            ParDo.of(doFnWithTimers).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
@@ -328,16 +323,42 @@ public class PTransformMatchersTest implements Serializable {
   }
 
   @Test
+  public void parDoRequiresStableInput() {
+    DoFn<Object, Object> doFnRSI =
+        new DoFn<Object, Object>() {
+          @RequiresStableInput
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
+
+    AppliedPTransform<?, ?, ?> single = getAppliedTransform(ParDo.of(doFn));
+    AppliedPTransform<?, ?, ?> singleRSI = getAppliedTransform(ParDo.of(doFnRSI));
+    AppliedPTransform<?, ?, ?> multi =
+        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+    AppliedPTransform<?, ?, ?> multiRSI =
+        getAppliedTransform(
+            ParDo.of(doFnRSI).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(singleRSI), is(true));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multiRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(singleRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multiRSI), is(true));
+  }
+
+  @Test
   public void parDoWithFnTypeWithMatchingType() {
-    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
-      @ProcessElement
-      public void process(ProcessContext ctxt) {
-      }
-    };
+    DoFn<Object, Object> fn =
+        new DoFn<Object, Object>() {
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
-        getAppliedTransform(
-            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
     assertThat(matcher.matches(parDoSingle), is(true));
@@ -346,15 +367,14 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoWithFnTypeWithNoMatch() {
-    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
-      @ProcessElement
-      public void process(ProcessContext ctxt) {
-      }
-    };
+    DoFn<Object, Object> fn =
+        new DoFn<Object, Object>() {
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
-        getAppliedTransform(
-            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
     assertThat(matcher.matches(parDoSingle), is(false));
@@ -371,9 +391,8 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFn() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn = view.getViewFn();
+    PCollectionView<Iterable<Integer>> view = input.apply(View.asIterable());
+    ViewFn<?, ?> viewFn = view.getViewFn();
     CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
 
     PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
@@ -383,23 +402,10 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFnDifferentViewFn() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn =
-        new ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>>() {
-          @Override
-          public Materialization<Iterable<WindowedValue<?>>> getMaterialization() {
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            Materialization<Iterable<WindowedValue<?>>> materialization =
-                (Materialization) Materializations.iterable();
-            return materialization;
-          }
+    PCollectionView<Iterable<Integer>> view = input.apply(View.asIterable());
 
-          @Override
-          public Iterable<Integer> apply(Iterable<WindowedValue<?>> contents) {
-            return Collections.emptyList();
-          }
-        };
+    // Purposely create a subclass to get a different class then what was expected.
+    ViewFn<?, ?> viewFn = new PCollectionViews.IterableViewFn() {};
     CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
 
     PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
@@ -409,9 +415,7 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFnNotCreatePCollectionView() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-
+    PCollectionView<Iterable<Integer>> view = input.apply(View.asIterable());
     PTransformMatcher matcher =
         PTransformMatchers.createViewWithViewFn(view.getViewFn().getClass());
     assertThat(matcher.matches(getAppliedTransform(View.asIterable())), is(false));
@@ -420,16 +424,15 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void emptyFlattenWithEmptyFlatten() {
     AppliedPTransform application =
-        AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>of(
-                "EmptyFlatten",
-                Collections.<TupleTag<?>, PValue>emptyMap(),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.pCollections(),
-                p);
+        AppliedPTransform.of(
+            "EmptyFlatten",
+            Collections.emptyMap(),
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Flatten.pCollections(),
+            p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(true));
   }
@@ -437,19 +440,18 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void emptyFlattenWithNonEmptyFlatten() {
     AppliedPTransform application =
-        AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>of(
-                "Flatten",
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.pCollections(),
-                p);
+        AppliedPTransform.of(
+            "Flatten",
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Flatten.pCollections(),
+            p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
   }
@@ -458,15 +460,15 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithNonFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.Iterables<Object>>of(
+            .<PCollection<Iterable<Integer>>, PCollection<Integer>, Flatten.Iterables<Integer>>of(
                 "EmptyFlatten",
-                Collections.<TupleTag<?>, PValue>emptyMap(),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
+                Collections.emptyMap(),
+                Collections.singletonMap(
+                    new TupleTag<Integer>(),
                     PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.iterables() /* This isn't actually possible to construct,
-                                 * but for the sake of example */,
+                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+                /* This isn't actually possible to construct, but for the sake of example */
+                Flatten.iterables(),
                 p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
@@ -475,42 +477,40 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void flattenWithDuplicateInputsWithoutDuplicates() {
     AppliedPTransform application =
-        AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>of(
-                "Flatten",
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.pCollections(),
-                p);
+        AppliedPTransform.of(
+            "Flatten",
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Flatten.pCollections(),
+            p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
   }
 
   @Test
   public void flattenWithDuplicateInputsWithDuplicates() {
-    PCollection<Object> duplicate =
+    PCollection<Integer> duplicate =
         PCollection.createPrimitiveOutputInternal(
-            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
     AppliedPTransform application =
-        AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>of(
-                "Flatten",
-                ImmutableMap.<TupleTag<?>, PValue>builder()
-                    .put(new TupleTag<Object>(), duplicate)
-                    .put(new TupleTag<Object>(), duplicate)
-                    .build(),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
-                    PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.pCollections(),
-                p);
+        AppliedPTransform.of(
+            "Flatten",
+            ImmutableMap.<TupleTag<?>, PValue>builder()
+                .put(new TupleTag<Integer>(), duplicate)
+                .put(new TupleTag<Integer>(), duplicate)
+                .build(),
+            Collections.singletonMap(
+                new TupleTag<Integer>(),
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+            Flatten.pCollections(),
+            p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(true));
   }
@@ -519,15 +519,15 @@ public class PTransformMatchersTest implements Serializable {
   public void flattenWithDuplicateInputsNonFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.Iterables<Object>>of(
+            .<PCollection<Iterable<Integer>>, PCollection<Integer>, Flatten.Iterables<Integer>>of(
                 "EmptyFlatten",
-                Collections.<TupleTag<?>, PValue>emptyMap(),
-                Collections.<TupleTag<?>, PValue>singletonMap(
-                    new TupleTag<Object>(),
+                Collections.emptyMap(),
+                Collections.singletonMap(
+                    new TupleTag<Integer>(),
                     PCollection.createPrimitiveOutputInternal(
-                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
-                Flatten.iterables() /* This isn't actually possible to construct,
-                                 * but for the sake of example */,
+                        p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of())),
+                /* This isn't actually possible to construct, but for the sake of example */
+                Flatten.iterables(),
                 p);
 
     assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
@@ -537,16 +537,17 @@ public class PTransformMatchersTest implements Serializable {
   public void writeWithRunnerDeterminedSharding() {
     ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
     FilenamePolicy policy =
-        DefaultFilenamePolicy.constructUsingStandardParameters(
+        DefaultFilenamePolicy.fromStandardParameters(
             StaticValueProvider.of(outputDirectory),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",
             false);
-    WriteFiles<Integer> write =
+    WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
-            new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
+            new FileBasedSink<Integer, Void, Integer>(
+                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(policy)) {
               @Override
-              public WriteOperation<Integer> createWriteOperation() {
+              public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;
               }
             });
@@ -554,13 +555,13 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    WriteFiles<Integer> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer, Void, Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    WriteFiles<Integer> withCustomSharding =
+    WriteFiles<Integer, Void, Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -568,12 +569,27 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer>>of(
-        "WriteFiles",
-        Collections.<TupleTag<?>, PValue>emptyMap(),
-        Collections.<TupleTag<?>, PValue>emptyMap(),
-        write,
-        p);
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {
+    return AppliedPTransform.of(
+        "WriteFiles", Collections.emptyMap(), Collections.emptyMap(), write, p);
+  }
+
+  private static class FakeFilenamePolicy extends FilenamePolicy {
+    @Override
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        FileBasedSink.OutputFileHints outputFileHints) {
+      throw new UnsupportedOperationException("should not be called");
+    }
+
+    @Nullable
+    @Override
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
+      throw new UnsupportedOperationException("should not be called");
+    }
   }
 }

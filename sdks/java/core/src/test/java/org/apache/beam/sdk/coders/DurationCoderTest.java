@@ -59,25 +59,19 @@ public class DurationCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AA",
-      "AQ",
-      "____________AQ",
-      "gf7_________AQ",
-      "gAI",
-      "gICAgICAgICAAQ",
-      "__________9_");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "AA", "AQ", "____________AQ", "gf7_________AQ", "gAI", "gICAgICAgICAAQ", "__________9_");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

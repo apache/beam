@@ -21,8 +21,10 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import argparse
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -37,7 +39,7 @@ def get_julia_set_point_color(element, c, n, max_iterations):
   """Given an pixel, convert it into a point in our julia set."""
   x, y = element
   z = from_pixel(x, y, n)
-  for i in xrange(max_iterations):
+  for i in range(max_iterations):
     if z.real * z.real + z.imag * z.imag > 2.0:
       break
     z = z * z + c
@@ -70,7 +72,7 @@ def generate_julia_set_visualization(data, n, max_iterations):
 
   xy = np.zeros((n, n, 3), dtype=np.uint8)
   for x, y, iteration in data:
-    xy[x, y] = colors[iteration * len(colors) / max_iterations]
+    xy[x, y] = colors[iteration * len(colors) // max_iterations]
 
   return xy
 
@@ -104,14 +106,18 @@ def run(argv=None):  # pylint: disable=missing-docstring
 
     coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
 
+    def x_coord_key(x_y_i):
+      (x, y, i) = x_y_i
+      return (x, (x, y, i))
+
     # Group each coordinate triplet by its x value, then write the coordinates
     # to the output file with an x-coordinate grouping per line.
     # pylint: disable=expression-not-assigned
     (coordinates
-     | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
+     | 'x coord key' >> beam.Map(x_coord_key)
      | 'x coord' >> beam.GroupByKey()
      | 'format' >> beam.Map(
-         lambda (k, coords): ' '.join('(%s, %s, %s)' % c for c in coords))
+         lambda k_coords: ' '.join('(%s, %s, %s)' % c for c in k_coords[1]))
      | WriteToText(known_args.coordinate_output))
 
     # Optionally render the image and save it to a file.

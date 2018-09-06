@@ -17,6 +17,8 @@
 
 """Cloud Datastore query splitter test."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from mock import MagicMock

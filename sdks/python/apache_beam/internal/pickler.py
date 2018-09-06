@@ -28,6 +28,8 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
+from __future__ import absolute_import
+
 import base64
 import logging
 import sys
@@ -36,6 +38,18 @@ import types
 import zlib
 
 import dill
+
+# Dill 0.28.0 renamed dill.dill to dill._dill:
+# https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
+# TODO: Remove this once Beam depends on dill >= 0.2.8
+if not getattr(dill, 'dill', None):
+  dill.dill = dill._dill
+  sys.modules['dill.dill'] = dill._dill
+
+# TODO: Remove once Dataflow has containers with a preinstalled dill >= 0.2.8
+if not getattr(dill, '_dill', None):
+  dill._dill = dill.dill
+  sys.modules['dill._dill'] = dill.dill
 
 
 def _is_nested_class(cls):
@@ -46,13 +60,18 @@ def _is_nested_class(cls):
 
 
 def _find_containing_class(nested_class):
-  """Finds containing class of a nestec class passed as argument."""
+  """Finds containing class of a nested class passed as argument."""
+
+  seen = set()
 
   def _find_containing_class_inner(outer):
+    if outer in seen:
+      return None
+    seen.add(outer)
     for k, v in outer.__dict__.items():
       if v is nested_class:
         return outer, k
-      elif isinstance(v, (type, types.ClassType)) and hasattr(v, '__dict__'):
+      elif isinstance(v, type) and hasattr(v, '__dict__'):
         res = _find_containing_class_inner(v)
         if res: return res
 

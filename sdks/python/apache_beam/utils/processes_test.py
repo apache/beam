@@ -16,8 +16,9 @@
 #
 """Unit tests for the processes module."""
 
-import unittest
+from __future__ import absolute_import
 
+import unittest
 
 import mock
 

@@ -16,25 +16,30 @@
 #
 
 """Unit tests for BigQuery sources and sinks."""
+from __future__ import absolute_import
 
 import datetime
+import decimal
 import json
 import logging
+import re
 import time
 import unittest
 
 import hamcrest as hc
 import mock
+from future.utils import iteritems
 
 import apache_beam as beam
+from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.gcp.bigquery import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -53,12 +58,26 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     test_value = {'s': 'abc', 'i': 123, 'f': 123.456, 'b': True}
     self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
 
+  def test_decimal_in_row_as_dict(self):
+    decimal_value = decimal.Decimal('123456789.987654321')
+    coder = RowAsDictJsonCoder()
+    # Bigquery IO uses decimals to represent NUMERIC types.
+    # To export to BQ, it's necessary to convert to strings, due to the
+    # lower precision of JSON numbers. This means that we can't recognize
+    # a NUMERIC when we decode from JSON, thus we match the string here.
+    test_value = {'f': 123.456,
+                  'b': True,
+                  'numerico': decimal_value}
+    output_value = {'f': 123.456,
+                    'b': True,
+                    'numerico': str(decimal_value)}
+    self.assertEqual(output_value, coder.decode(coder.encode(test_value)))
+
   def json_compliance_exception(self, value):
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       coder = RowAsDictJsonCoder()
       test_value = {'s': value}
-      self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
-      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+      coder.decode(coder.encode(test_value))
 
   def test_invalid_json_nan(self):
     self.json_compliance_exception(float('nan'))
@@ -79,20 +98,35 @@ class TestTableRowJsonCoder(unittest.TestCase):
         ('i', 'INTEGER'),
         ('f', 'FLOAT'),
         ('b', 'BOOLEAN'),
+        ('n', 'NUMERIC'),
         ('r', 'RECORD')]
-    data_defination = [
+    data_definition = [
         'abc',
         123,
         123.456,
         True,
+        decimal.Decimal('987654321.987654321'),
         {'a': 'b'}]
-    str_def = '{"s": "abc", "i": 123, "f": 123.456, "b": true, "r": {"a": "b"}}'
+    str_def = ('{"s": "abc", '
+               '"i": 123, '
+               '"f": 123.456, '
+               '"b": true, '
+               '"n": "987654321.987654321", '
+               '"r": {"a": "b"}}')
     schema = bigquery.TableSchema(
         fields=[bigquery.TableFieldSchema(name=k, type=v)
                 for k, v in schema_definition])
     coder = TableRowJsonCoder(table_schema=schema)
+
+    def value_or_decimal_to_json(val):
+      if isinstance(val, decimal.Decimal):
+        return to_json_value(str(val))
+      else:
+        return to_json_value(val)
+
     test_row = bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in data_defination])
+        f=[bigquery.TableCell(v=value_or_decimal_to_json(e))
+           for e in data_definition])
 
     self.assertEqual(str_def, coder.encode(test_row))
     self.assertEqual(test_row, coder.decode(coder.encode(test_row)))
@@ -105,13 +139,12 @@ class TestTableRowJsonCoder(unittest.TestCase):
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
            for e in ['abc', 123, 123.456, True]])
-    with self.assertRaises(AttributeError) as ctx:
+    with self.assertRaisesRegexp(AttributeError,
+                                 r'^The TableRowJsonCoder requires'):
       coder.encode(test_row)
-    self.assertTrue(
-        ctx.exception.message.startswith('The TableRowJsonCoder requires'))
 
   def json_compliance_exception(self, value):
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       schema_definition = [('f', 'FLOAT')]
       schema = bigquery.TableSchema(
           fields=[bigquery.TableFieldSchema(name=k, type=v)
@@ -120,7 +153,6 @@ class TestTableRowJsonCoder(unittest.TestCase):
       test_row = bigquery.TableRow(
           f=[bigquery.TableCell(v=to_json_value(value))])
       coder.encode(test_row)
-      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
 
   def test_invalid_json_nan(self):
     self.json_compliance_exception(float('nan'))
@@ -475,17 +507,16 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertFalse(reader.flatten_results)
 
   def test_using_both_query_and_table_fails(self):
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaisesRegexp(
+        ValueError,
+        r'Both a BigQuery table and a query were specified\. Please specify '
+        r'only one of these'):
       beam.io.BigQuerySource(table='dataset.table', query='query')
-      self.assertEqual(exn.exception.message, 'Both a BigQuery table and a'
-                       ' query were specified. Please specify only one of '
-                       'these.')
 
   def test_using_neither_query_nor_table_fails(self):
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaisesRegexp(
+        ValueError, r'A BigQuery table or a query must be specified'):
       beam.io.BigQuerySource()
-      self.assertEqual(exn.exception.message, 'A BigQuery table or a query'
-                       ' must be specified')
 
   def test_read_from_table_as_tablerows(self):
     client = mock.Mock()
@@ -566,15 +597,13 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
-    with self.assertRaises(RuntimeError) as exn:
+    with self.assertRaisesRegexp(
+        RuntimeError, r'Table project:dataset\.table not found but create '
+                      r'disposition is CREATE_NEVER'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
         pass
-    self.assertEqual(
-        exn.exception.message,
-        'Table project:dataset.table not found but create disposition is '
-        'CREATE_NEVER.')
 
   def test_no_table_and_create_if_needed(self):
     client = mock.Mock()
@@ -601,15 +630,13 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-    with self.assertRaises(RuntimeError) as exn:
+    with self.assertRaisesRegexp(
+        RuntimeError, r'Table project:dataset\.table requires a schema\. None '
+                      r'can be inferred because the table does not exist'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
         pass
-    self.assertEqual(
-        exn.exception.message,
-        'Table project:dataset.table requires a schema. None can be inferred '
-        'because the table does not exist.')
 
   @mock.patch('time.sleep', return_value=None)
   def test_table_not_empty_and_write_disposition_empty(
@@ -621,15 +648,13 @@ class TestBigQueryWriter(unittest.TestCase):
         schema=bigquery.TableSchema())
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=1)
     write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
-    with self.assertRaises(RuntimeError) as exn:
+    with self.assertRaisesRegexp(
+        RuntimeError, r'Table project:dataset\.table is not empty but write '
+                      r'disposition is WRITE_EMPTY'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           write_disposition=write_disposition).writer(client):
         pass
-    self.assertEqual(
-        exn.exception.message,
-        'Table project:dataset.table is not empty but write disposition is '
-        'WRITE_EMPTY.')
 
   def test_table_empty_and_write_disposition_empty(self):
     client = mock.Mock()
@@ -650,7 +675,8 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertFalse(client.tables.Delete.called)
     self.assertFalse(client.tables.Insert.called)
 
-  def test_table_with_write_disposition_truncate(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_table_with_write_disposition_truncate(self, _patched_sleep):
     client = mock.Mock()
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -705,7 +731,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in sample_row.iteritems():
+    for k, v in iteritems(sample_row):
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(
               key=k, value=to_json_value(v)))
@@ -744,7 +770,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
     client.datasets.Delete.side_effect = ValueError("Cannot delete")
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
-    with self.assertRaises(ValueError) as _:
+    with self.assertRaises(ValueError):
       wrapper._delete_dataset('', '')
     self.assertEqual(
         beam.io.gcp.bigquery.MAX_RETRIES + 1,
@@ -764,7 +790,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
     client.tables.Delete.side_effect = ValueError("Cannot delete")
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
-    with self.assertRaises(ValueError) as _:
+    with self.assertRaises(ValueError):
       wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
@@ -799,7 +825,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         datasetReference=bigquery.DatasetReference(
             projectId='project_id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
-    with self.assertRaises(RuntimeError) as _:
+    with self.assertRaises(RuntimeError):
       wrapper.create_temporary_dataset('project_id')
     self.assertTrue(client.datasets.Get.called)
 
@@ -834,12 +860,15 @@ class WriteToBigQuery(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -855,13 +884,15 @@ class WriteToBigQuery(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -879,13 +910,15 @@ class WriteToBigQuery(unittest.TestCase):
         bigquery.TableDataInsertAllResponse(insertErrors=[])
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -906,13 +939,15 @@ class WriteToBigQuery(unittest.TestCase):
         bigquery.TableDataInsertAllResponse(insertErrors=[]))
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -933,13 +968,15 @@ class WriteToBigQuery(unittest.TestCase):
         bigquery.TableDataInsertAllResponse(insertErrors=[])
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -964,13 +1001,15 @@ class WriteToBigQuery(unittest.TestCase):
         bigquery.TableDataInsertAllResponse(insertErrors=[])
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
 
     fn = beam.io.gcp.bigquery.BigQueryWriteFn(
         table_id='table_id',
         dataset_id='dataset_id',
         project_id='project_id',
         batch_size=2,
-        schema='month:INTEGER',
+        schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         client=client)
@@ -984,16 +1023,90 @@ class WriteToBigQuery(unittest.TestCase):
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
 
-  def test_simple_schema_parsing(self):
+  def test_noop_schema_parsing(self):
+    expected_table_schema = None
     table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
-        schema='s:STRING, n:INTEGER')
+        schema=None)
+    self.assertEqual(expected_table_schema, table_schema)
+
+  def test_dict_schema_parsing(self):
+    schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+        {'name': 'r', 'type': 'RECORD', 'mode': 'NULLABLE', 'fields': [
+            {'name': 'x', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}]}
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(schema)
     string_field = bigquery.TableFieldSchema(
         name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
     number_field = bigquery.TableFieldSchema(
         name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
     expected_table_schema = bigquery.TableSchema(
-        fields=[string_field, number_field])
+        fields=[string_field, number_field, record_field])
     self.assertEqual(expected_table_schema, table_schema)
+
+  def test_string_schema_parsing(self):
+    schema = 's:STRING, n:INTEGER'
+    expected_dict_schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_table_schema_parsing(self):
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
+    schema = bigquery.TableSchema(
+        fields=[string_field, number_field, record_field])
+    expected_dict_schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+        {'name': 'r', 'type': 'RECORD', 'mode': 'NULLABLE', 'fields': [
+            {'name': 'x', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}]}
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_table_schema_parsing_end_to_end(self):
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
+    schema = bigquery.TableSchema(
+        fields=[string_field, number_field, record_field])
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(table_schema, schema)
+
+  def test_none_schema_parsing(self):
+    schema = None
+    expected_dict_schema = None
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_noop_dict_schema_parsing(self):
+    schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+    expected_dict_schema = schema
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
 
 
 if __name__ == '__main__':

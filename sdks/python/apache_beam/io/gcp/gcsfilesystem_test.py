@@ -18,11 +18,17 @@
 
 """Unit tests for GCS File System."""
 
+from __future__ import absolute_import
+
+import logging
 import unittest
+from builtins import zip
 
 import mock
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
+from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,46 +42,47 @@ except ImportError:
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
 
+  def setUp(self):
+    pipeline_options = PipelineOptions()
+    self.fs = gcsfilesystem.GCSFileSystem(pipeline_options=pipeline_options)
+
   def test_scheme(self):
-    file_system = gcsfilesystem.GCSFileSystem()
-    self.assertEqual(file_system.scheme(), 'gs')
+    self.assertEqual(self.fs.scheme(), 'gs')
     self.assertEqual(gcsfilesystem.GCSFileSystem.scheme(), 'gs')
 
   def test_join(self):
-    file_system = gcsfilesystem.GCSFileSystem()
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path', 'to', 'file'))
+                     self.fs.join('gs://bucket/path', 'to', 'file'))
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path', 'to/file'))
+                     self.fs.join('gs://bucket/path', 'to/file'))
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path', '/to/file'))
+                     self.fs.join('gs://bucket/path', '/to/file'))
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path/', 'to', 'file'))
+                     self.fs.join('gs://bucket/path/', 'to', 'file'))
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path/', 'to/file'))
+                     self.fs.join('gs://bucket/path/', 'to/file'))
     self.assertEqual('gs://bucket/path/to/file',
-                     file_system.join('gs://bucket/path/', '/to/file'))
+                     self.fs.join('gs://bucket/path/', '/to/file'))
     with self.assertRaises(ValueError):
-      file_system.join('/bucket/path/', '/to/file')
+      self.fs.join('/bucket/path/', '/to/file')
 
   def test_split(self):
-    file_system = gcsfilesystem.GCSFileSystem()
     self.assertEqual(('gs://foo/bar', 'baz'),
-                     file_system.split('gs://foo/bar/baz'))
+                     self.fs.split('gs://foo/bar/baz'))
     self.assertEqual(('gs://foo', ''),
-                     file_system.split('gs://foo/'))
+                     self.fs.split('gs://foo/'))
     self.assertEqual(('gs://foo', ''),
-                     file_system.split('gs://foo'))
+                     self.fs.split('gs://foo'))
 
     with self.assertRaises(ValueError):
-      file_system.split('/no/gcs/prefix')
+      self.fs.split('/no/gcs/prefix')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.return_value = {
+    gcsio_mock.list_prefix.return_value = {
         'gs://bucket/file1': 1,
         'gs://bucket/file2': 2
     }
@@ -83,13 +90,11 @@ class GCSFileSystemTest(unittest.TestCase):
         FileMetadata('gs://bucket/file1', 1),
         FileMetadata('gs://bucket/file2', 2)
     ])
-    file_system = gcsfilesystem.GCSFileSystem()
-    match_result = file_system.match(['gs://bucket/'])[0]
+    match_result = self.fs.match(['gs://bucket/'])[0]
     self.assertEqual(
         set(match_result.metadata_list),
         expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', None)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples_limit(self, mock_gcsio):
@@ -97,22 +102,20 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     limit = 1
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.return_value = {
+    gcsio_mock.list_prefix.return_value = {
         'gs://bucket/file1': 1
     }
     expected_results = set([
         FileMetadata('gs://bucket/file1', 1)
     ])
-    file_system = gcsfilesystem.GCSFileSystem()
-    match_result = file_system.match(['gs://bucket/'], [limit])[0]
+    match_result = self.fs.match(['gs://bucket/'], [limit])[0]
     self.assertEqual(
         set(match_result.metadata_list),
         expected_results)
     self.assertEqual(
         len(match_result.metadata_list),
         limit)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', 1)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples_error(self, mock_gcsio):
@@ -120,24 +123,21 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     exception = IOError('Failed')
-    gcsio_mock.size_of_files_in_glob.side_effect = exception
-    expected_results = {'gs://bucket/': exception}
+    gcsio_mock.list_prefix.side_effect = exception
 
-    file_system = gcsfilesystem.GCSFileSystem()
-    with self.assertRaises(BeamIOError) as error:
-      file_system.match(['gs://bucket/'])
-    self.assertTrue(
-        error.exception.message.startswith('Match operation failed'))
-    self.assertEqual(error.exception.exception_details, expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
-        'gs://bucket/*', None)
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Match operation failed') as error:
+      self.fs.match(['gs://bucket/'])
+    self.assertRegexpMatches(str(error.exception.exception_details),
+                             r'gs://bucket/.*%s' % exception)
+    gcsio_mock.list_prefix.assert_called_once_with('gs://bucket/')
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiple_patterns(self, mock_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
-    gcsio_mock.size_of_files_in_glob.side_effect = [
+    gcsio_mock.list_prefix.side_effect = [
         {'gs://bucket/file1': 1},
         {'gs://bucket/file2': 2},
     ]
@@ -145,8 +145,7 @@ class GCSFileSystemTest(unittest.TestCase):
         [FileMetadata('gs://bucket/file1', 1)],
         [FileMetadata('gs://bucket/file2', 2)]
     ]
-    file_system = gcsfilesystem.GCSFileSystem()
-    result = file_system.match(['gs://bucket/file1*', 'gs://bucket/file2*'])
+    result = self.fs.match(['gs://bucket/file1*', 'gs://bucket/file2*'])
     self.assertEqual(
         [mr.metadata_list for mr in result],
         expected_results)
@@ -157,8 +156,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     # Issue file copy
-    file_system = gcsfilesystem.GCSFileSystem()
-    _ = file_system.create('gs://bucket/from1', 'application/octet-stream')
+    _ = self.fs.create('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
         'gs://bucket/from1', 'wb', mime_type='application/octet-stream')
@@ -169,8 +167,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     # Issue file copy
-    file_system = gcsfilesystem.GCSFileSystem()
-    _ = file_system.open('gs://bucket/from1', 'application/octet-stream')
+    _ = self.fs.open('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
         'gs://bucket/from1', 'rb', mime_type='application/octet-stream')
@@ -184,8 +181,7 @@ class GCSFileSystemTest(unittest.TestCase):
     destinations = ['gs://bucket/to1']
 
     # Issue file copy
-    file_system = gcsfilesystem.GCSFileSystem()
-    file_system.copy(sources, destinations)
+    self.fs.copy(sources, destinations)
 
     gcsio_mock.copy.assert_called_once_with(
         'gs://bucket/from1', 'gs://bucket/to1')
@@ -205,11 +201,9 @@ class GCSFileSystemTest(unittest.TestCase):
     expected_results = {(s, d):exception for s, d in zip(sources, destinations)}
 
     # Issue batch copy.
-    file_system = gcsfilesystem.GCSFileSystem()
-    with self.assertRaises(BeamIOError) as error:
-      file_system.copy(sources, destinations)
-    self.assertTrue(
-        error.exception.message.startswith('Copy operation failed'))
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Copy operation failed') as error:
+      self.fs.copy(sources, destinations)
     self.assertEqual(error.exception.exception_details, expected_results)
 
     gcsio_mock.copy.assert_called_once_with(
@@ -224,8 +218,7 @@ class GCSFileSystemTest(unittest.TestCase):
     destinations = ['gs://bucket2/']
 
     # Issue directory copy
-    file_system = gcsfilesystem.GCSFileSystem()
-    file_system.copy(sources, destinations)
+    self.fs.copy(sources, destinations)
 
     gcsio_mock.copytree.assert_called_once_with(
         'gs://bucket1/', 'gs://bucket2/')
@@ -257,8 +250,7 @@ class GCSFileSystemTest(unittest.TestCase):
     ]]
 
     # Issue batch rename.
-    file_system = gcsfilesystem.GCSFileSystem()
-    file_system.rename(sources, destinations)
+    self.fs.rename(sources, destinations)
 
     gcsio_mock.copy_batch.assert_called_once_with([
         ('gs://bucket/from1', 'gs://bucket/to1'),
@@ -298,11 +290,9 @@ class GCSFileSystemTest(unittest.TestCase):
     expected_results = {(s, d):exception for s, d in zip(sources, destinations)}
 
     # Issue batch rename.
-    file_system = gcsfilesystem.GCSFileSystem()
-    with self.assertRaises(BeamIOError) as error:
-      file_system.rename(sources, destinations)
-    self.assertTrue(
-        error.exception.message.startswith('Rename operation failed'))
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Rename operation failed') as error:
+      self.fs.rename(sources, destinations)
     self.assertEqual(error.exception.exception_details, expected_results)
 
     gcsio_mock.copy_batch.assert_called_once_with([
@@ -321,6 +311,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
+    gcsio_mock.size.return_value = 0
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -328,8 +319,7 @@ class GCSFileSystemTest(unittest.TestCase):
     ]
 
     # Issue batch delete.
-    file_system = gcsfilesystem.GCSFileSystem()
-    file_system.delete(files)
+    self.fs.delete(files)
     gcsio_mock.delete_batch.assert_called()
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
@@ -339,6 +329,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsfilesystem.gcsio.GcsIO = lambda: gcsio_mock
     exception = IOError('Failed')
     gcsio_mock.delete_batch.side_effect = exception
+    gcsio_mock.size.return_value = 0
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -347,10 +338,13 @@ class GCSFileSystemTest(unittest.TestCase):
     expected_results = {f:exception for f in files}
 
     # Issue batch delete.
-    file_system = gcsfilesystem.GCSFileSystem()
-    with self.assertRaises(BeamIOError) as error:
-      file_system.delete(files)
-    self.assertTrue(
-        error.exception.message.startswith('Delete operation failed'))
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Delete operation failed') as error:
+      self.fs.delete(files)
     self.assertEqual(error.exception.exception_details, expected_results)
     gcsio_mock.delete_batch.assert_called()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

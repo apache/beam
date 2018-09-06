@@ -46,17 +46,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for the {@link ZipFiles} class. These tests make sure that the handling
- * of zip-files works fine.
+ * Tests for the {@link ZipFiles} class. These tests make sure that the handling of zip-files works
+ * fine.
  */
 @RunWith(JUnit4.class)
 public class ZipFilesTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   private File tmpDir;
 
-  @Rule
-  public TemporaryFolder tmpOutputFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpOutputFolder = new TemporaryFolder();
   private File zipFile;
 
   @Before
@@ -66,9 +64,8 @@ public class ZipFilesTest {
   }
 
   /**
-   * Verify that zipping and unzipping works fine. We zip a directory having
-   * some subdirectories, unzip it again and verify the structure to be in
-   * place.
+   * Verify that zipping and unzipping works fine. We zip a directory having some subdirectories,
+   * unzip it again and verify the structure to be in place.
    */
   @Test
   public void testZipWithSubdirectories() throws Exception {
@@ -81,9 +78,7 @@ public class ZipFilesTest {
     assertZipAndUnzipOfDirectoryMatchesOriginal(tmpDir);
   }
 
-  /**
-   * An empty subdirectory must have its own zip-entry.
-   */
+  /** An empty subdirectory must have its own zip-entry. */
   @Test
   public void testEmptySubdirectoryHasZipEntry() throws Exception {
     File zipDir = new File(tmpDir, "zip");
@@ -94,9 +89,7 @@ public class ZipFilesTest {
     assertZipOnlyContains("zip/subDirEmpty/");
   }
 
-  /**
-   * A directory with contents should not have a zip entry.
-   */
+  /** A directory with contents should not have a zip entry. */
   @Test
   public void testSubdirectoryWithContentsHasNoZipEntry() throws Exception {
     File zipDir = new File(tmpDir, "zip");
@@ -142,8 +135,7 @@ public class ZipFilesTest {
 
     ZipFiles.zipDirectory(tmpDir, zipFile);
 
-    ZipFile zip = new ZipFile(zipFile);
-    try {
+    try (ZipFile zip = new ZipFile(zipFile)) {
       Enumeration<? extends ZipEntry> entries = zip.entries();
       for (ZipEntry entry : ZipFiles.entries(zip)) {
         assertTrue(entries.hasMoreElements());
@@ -151,8 +143,6 @@ public class ZipFilesTest {
         assertEquals(entry.getName(), entries.nextElement().getName());
       }
       assertFalse(entries.hasMoreElements());
-    } finally {
-      zip.close();
     }
   }
 
@@ -197,9 +187,7 @@ public class ZipFilesTest {
     }
   }
 
-  /**
-   * try to unzip to a non-existent directory and make sure that it fails.
-   */
+  /** try to unzip to a non-existent directory and make sure that it fails. */
   @Test
   public void testInvalidTargetDirectory() throws IOException {
     File zipDir = new File(tmpDir, "zipdir");
@@ -215,9 +203,7 @@ public class ZipFilesTest {
     }
   }
 
-  /**
-   * Try to unzip to an existing directory, but failing to create directories.
-   */
+  /** Try to unzip to an existing directory, but failing to create directories. */
   @Test
   public void testDirectoryCreateFailed() throws IOException {
     File zipDir = new File(tmpDir, "zipdir");
@@ -235,8 +221,8 @@ public class ZipFilesTest {
   }
 
   /**
-   * zip and unzip a certain directory, and verify the content afterward to be
-   * identical.
+   * zip and unzip a certain directory, and verify the content afterward to be identical.
+   *
    * @param sourceDir the directory to zip
    */
   private void assertZipAndUnzipOfDirectoryMatchesOriginal(File sourceDir) throws IOException {
@@ -261,6 +247,7 @@ public class ZipFilesTest {
 
   /**
    * Compare the content of two files or directories recursively.
+   *
    * @param expected the expected directory or file content
    * @param actual the actual directory or file content
    */
@@ -283,9 +270,7 @@ public class ZipFilesTest {
     }
   }
 
-  /**
-   * Create a File object to which we can safely zip a file.
-   */
+  /** Create a File object to which we can safely zip a file. */
   private File createZipFileHandle() throws IOException {
     File zipFile = File.createTempFile("test", "zip", tmpOutputFolder.getRoot());
     assertTrue(zipFile.delete());

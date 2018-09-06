@@ -26,9 +26,9 @@ import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 
-
 /**
  * A {@link KryoSerializable} holder that uses the specified {@link Coder}.
+ *
  * @param <T> element type
  */
 public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
@@ -42,8 +42,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
   }
 
   @SuppressWarnings("unused") // for Kryo
-  private ValueAndCoderKryoSerializable() {
-  }
+  private ValueAndCoderKryoSerializable() {}
 
   public T get() {
     return value;
@@ -71,5 +70,4 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
       throw new RuntimeException(e);
     }
   }
-
 }

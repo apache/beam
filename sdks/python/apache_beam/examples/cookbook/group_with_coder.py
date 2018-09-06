@@ -30,15 +30,16 @@ from __future__ import absolute_import
 import argparse
 import logging
 import sys
+from builtins import object
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
-from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import with_output_types
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.typehints import typehints
+from apache_beam.typehints.decorators import with_output_types
 
 
 class Player(object):
@@ -114,7 +115,7 @@ def run(args=None):
      # is registered for the Player class above, a PlayerCoder will be used to
      # encode Player objects as keys for this combine operation.
      | beam.CombinePerKey(sum)
-     | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
+     | beam.Map(lambda k_v: '%s,%d' % (k_v[0].name, k_v[1]))
      | WriteToText(known_args.output))
 
 

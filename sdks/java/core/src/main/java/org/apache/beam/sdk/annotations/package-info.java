@@ -15,7 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines annotations used across the SDK.
- */
+/** Defines annotations used across the SDK. */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.annotations;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

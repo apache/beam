@@ -39,37 +39,32 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link RepeatedlyStateMachine}.
- */
+/** Tests for {@link RepeatedlyStateMachine}. */
 @RunWith(JUnit4.class)
 public class RepeatedlyStateMachineTest {
 
   @Mock private TriggerStateMachine mockTrigger;
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
+
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
 
   public void setUp(WindowFn<Object, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerStateMachineTester
-        .forTrigger(RepeatedlyStateMachine.forever(mockTrigger), windowFn);
+    tester =
+        TriggerStateMachineTester.forTrigger(RepeatedlyStateMachine.forever(mockTrigger), windowFn);
   }
 
-  /**
-   * Tests that onElement correctly passes the data on to the subtrigger.
-   */
+  /** Tests that onElement correctly passes the data on to the subtrigger. */
   @Test
   public void testOnElement() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
     tester.injectElements(37);
-    verify(mockTrigger).onElement(Mockito.<TriggerStateMachine.OnElementContext>any());
+    verify(mockTrigger).onElement(Mockito.any());
   }
 
-  /**
-   * Tests that the repeatedly is ready to fire whenever the subtrigger is ready.
-   */
+  /** Tests that the repeatedly is ready to fire whenever the subtrigger is ready. */
   @Test
   public void testShouldFire() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
@@ -77,16 +72,16 @@ public class RepeatedlyStateMachineTest {
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    when(mockTrigger.shouldFire(Mockito.<TriggerStateMachine.TriggerContext>any()))
-        .thenReturn(false);
+    when(mockTrigger.shouldFire(Mockito.any())).thenReturn(false);
     assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 
   @Test
   public void testShouldFireAfterMerge() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
     IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
@@ -169,8 +164,8 @@ public class RepeatedlyStateMachineTest {
     SimpleTriggerStateMachineTester<GlobalWindow> tester =
         TriggerStateMachineTester.forTrigger(
             RepeatedlyStateMachine.forever(
-                    AfterProcessingTimeStateMachine.pastFirstElementInPane()
-                        .plusDelayOf(Duration.standardMinutes(15))),
+                AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                    .plusDelayOf(Duration.standardMinutes(15))),
             new GlobalWindows());
 
     GlobalWindow window = GlobalWindow.INSTANCE;
@@ -184,17 +179,17 @@ public class RepeatedlyStateMachineTest {
     assertFalse(tester.shouldFire(window));
   }
 
-
   @Test
   public void testToString() {
-    TriggerStateMachine trigger = RepeatedlyStateMachine.forever(new StubTriggerStateMachine() {
-        @Override
-        public String toString() {
-          return "innerTrigger";
-        }
-      });
+    TriggerStateMachine trigger =
+        RepeatedlyStateMachine.forever(
+            new StubTriggerStateMachine() {
+              @Override
+              public String toString() {
+                return "innerTrigger";
+              }
+            });
 
     assertEquals("Repeatedly.forever(innerTrigger)", trigger.toString());
   }
-
 }

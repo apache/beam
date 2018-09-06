@@ -30,20 +30,16 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for TypeDescriptor.
- */
+/** Tests for TypeDescriptor. */
 @RunWith(JUnit4.class)
 public class TypeDescriptorTest {
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTypeDescriptorOfRawType() throws Exception {
     assertEquals(
-        TypeToken.of(String.class).getRawType(),
-        TypeDescriptor.of(String.class).getRawType());
+        TypeToken.of(String.class).getRawType(), TypeDescriptor.of(String.class).getRawType());
   }
 
   @Test
@@ -59,8 +55,8 @@ public class TypeDescriptorTest {
 
   @Test
   public void testTypeDescriptorGeneric() throws Exception {
-    TypeDescriptor<List<String>> descriptor = new TypeDescriptor<List<String>>(){};
-    TypeToken<List<String>> token = new TypeToken<List<String>>(){};
+    TypeDescriptor<List<String>> descriptor = new TypeDescriptor<List<String>>() {};
+    TypeToken<List<String>> token = new TypeToken<List<String>>() {};
     assertEquals(token.getType(), descriptor.getType());
   }
 
@@ -69,21 +65,22 @@ public class TypeDescriptorTest {
     public final TypeDescriptor<T> descriptorByInstance;
 
     public TypeRememberer() {
-      descriptorByClass = new TypeDescriptor<T>(getClass()){};
+      descriptorByClass = new TypeDescriptor<T>(getClass()) {};
       descriptorByInstance = new TypeDescriptor<T>(this) {};
     }
   }
 
   @Test
   public void testTypeDescriptorNested() throws Exception {
-    TypeRememberer<String> rememberer = new TypeRememberer<String>(){};
+    TypeRememberer<String> rememberer = new TypeRememberer<String>() {};
     assertEquals(new TypeToken<String>() {}.getType(), rememberer.descriptorByClass.getType());
     assertEquals(new TypeToken<String>() {}.getType(), rememberer.descriptorByInstance.getType());
 
-    TypeRememberer<List<String>> genericRememberer = new TypeRememberer<List<String>>(){};
-    assertEquals(new TypeToken<List<String>>() {}.getType(),
-        genericRememberer.descriptorByClass.getType());
-    assertEquals(new TypeToken<List<String>>() {}.getType(),
+    TypeRememberer<List<String>> genericRememberer = new TypeRememberer<List<String>>() {};
+    assertEquals(
+        new TypeToken<List<String>>() {}.getType(), genericRememberer.descriptorByClass.getType());
+    assertEquals(
+        new TypeToken<List<String>>() {}.getType(),
         genericRememberer.descriptorByInstance.getType());
   }
 
@@ -98,14 +95,14 @@ public class TypeDescriptorTest {
   public void testGetArgumentTypes() throws Exception {
     Method identity = Id.class.getDeclaredMethod("identity", Object.class);
 
-    TypeToken<Id<String>> token = new TypeToken <Id<String>>(){};
-    TypeDescriptor<Id<String>> descriptor = new TypeDescriptor <Id<String>>(){};
+    TypeToken<Id<String>> token = new TypeToken<Id<String>>() {};
+    TypeDescriptor<Id<String>> descriptor = new TypeDescriptor<Id<String>>() {};
     assertEquals(
         token.method(identity).getParameters().get(0).getType().getType(),
         descriptor.getArgumentTypes(identity).get(0).getType());
 
-    TypeToken<Id<List<String>>> genericToken = new TypeToken <Id<List<String>>>(){};
-    TypeDescriptor<Id<List<String>>> genericDescriptor = new TypeDescriptor <Id<List<String>>>(){};
+    TypeToken<Id<List<String>>> genericToken = new TypeToken<Id<List<String>>>() {};
+    TypeDescriptor<Id<List<String>>> genericDescriptor = new TypeDescriptor<Id<List<String>>>() {};
     assertEquals(
         genericToken.method(identity).getParameters().get(0).getType().getType(),
         genericDescriptor.getArgumentTypes(identity).get(0).getType());
@@ -116,26 +113,26 @@ public class TypeDescriptorTest {
     public TypeDescriptor<T2> descriptor2;
 
     public TypeRemembererer() {
-      descriptor1 = new TypeDescriptor<T1>(getClass()){};
-      descriptor2 = new TypeDescriptor<T2>(getClass()){};
+      descriptor1 = new TypeDescriptor<T1>(getClass()) {};
+      descriptor2 = new TypeDescriptor<T2>(getClass()) {};
     }
   }
 
   @Test
   public void testTypeDescriptorNested2() throws Exception {
-    TypeRemembererer<String, Integer> remembererer = new TypeRemembererer<String, Integer>(){};
+    TypeRemembererer<String, Integer> remembererer = new TypeRemembererer<String, Integer>() {};
     assertEquals(new TypeToken<String>() {}.getType(), remembererer.descriptor1.getType());
     assertEquals(new TypeToken<Integer>() {}.getType(), remembererer.descriptor2.getType());
 
     TypeRemembererer<List<String>, Set<Integer>> genericRemembererer =
-        new TypeRemembererer<List<String>, Set<Integer>>(){};
-    assertEquals(new TypeToken<List<String>>() {}.getType(),
-        genericRemembererer.descriptor1.getType());
-    assertEquals(new TypeToken<Set<Integer>>() {}.getType(),
-        genericRemembererer.descriptor2.getType());
+        new TypeRemembererer<List<String>, Set<Integer>>() {};
+    assertEquals(
+        new TypeToken<List<String>>() {}.getType(), genericRemembererer.descriptor1.getType());
+    assertEquals(
+        new TypeToken<Set<Integer>>() {}.getType(), genericRemembererer.descriptor2.getType());
   }
 
-  private static class GenericClass<BizzleT> { }
+  private static class GenericClass<BizzleT> {}
 
   @Test
   public void testGetTypeParameterGood() throws Exception {
@@ -166,7 +163,7 @@ public class TypeDescriptorTest {
 
   @Test
   public void testEnclosing() throws Exception {
-    TypeRememberer<List<String>> rememberer = new GenericMaker<String>(){}.getRememberer();
+    TypeRememberer<List<String>> rememberer = new GenericMaker<String>() {}.getRememberer();
     assertEquals(
         new TypeToken<List<String>>() {}.getType(), rememberer.descriptorByInstance.getType());
 
@@ -185,14 +182,15 @@ public class TypeDescriptorTest {
     //    rememberer.descriptorByInstance.getType());
 
     // If we've overridden the getGenericMaker we can determine the types.
-    TypeRememberer<List<Set<String>>> rememberer = new GenericMaker2<String>() {
-      @Override public GenericMaker<Set<String>> getGenericMaker() {
-        return new GenericMaker<Set<String>>() {};
-      }
-    }.getGenericMaker().getRememberer();
+    TypeRememberer<List<Set<String>>> rememberer =
+        new GenericMaker2<String>() {
+          @Override
+          public GenericMaker<Set<String>> getGenericMaker() {
+            return new GenericMaker<Set<String>>() {};
+          }
+        }.getGenericMaker().getRememberer();
     assertEquals(
-        new TypeToken<List<Set<String>>>() {}.getType(),
-        rememberer.descriptorByInstance.getType());
+        new TypeToken<List<Set<String>>>() {}.getType(), rememberer.descriptorByInstance.getType());
   }
 
   @Test
@@ -201,9 +199,8 @@ public class TypeDescriptorTest {
   }
 
   private <T> void useWhereMethodToDefineTypeParam(TypeDescriptor<T> parameterType) {
-    TypeDescriptor<Set<T>> typeDescriptor = new TypeDescriptor<Set<T>>() {}.where(
-        new TypeParameter<T>() {}, parameterType);
-    assertEquals(new TypeToken<Set<String>>() {}.getType(),
-        typeDescriptor.getType());
+    TypeDescriptor<Set<T>> typeDescriptor =
+        new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, parameterType);
+    assertEquals(new TypeToken<Set<String>>() {}.getType(), typeDescriptor.getType());
   }
 }

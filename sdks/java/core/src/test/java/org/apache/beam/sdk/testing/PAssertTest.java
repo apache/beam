@@ -63,17 +63,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link PAssert}.
- */
+/** Test case for {@link PAssert}. */
 @RunWith(JUnit4.class)
 public class PAssertTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private static class NotSerializableObject {
 
@@ -89,7 +85,8 @@ public class PAssertTest implements Serializable {
   }
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
-    private NotSerializableObjectCoder() { }
+    private NotSerializableObjectCoder() {}
+
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
     @JsonCreator
@@ -99,12 +96,10 @@ public class PAssertTest implements Serializable {
 
     @Override
     public void encode(NotSerializableObject value, OutputStream outStream)
-        throws CoderException, IOException {
-    }
+        throws CoderException, IOException {}
 
     @Override
-    public NotSerializableObject decode(InputStream inStream)
-        throws CoderException, IOException {
+    public NotSerializableObject decode(InputStream inStream) throws CoderException, IOException {
       return new NotSerializableObject();
     }
 
@@ -115,33 +110,39 @@ public class PAssertTest implements Serializable {
 
     @Override
     public void registerByteSizeObserver(
-        NotSerializableObject value, ElementByteSizeObserver observer)
-        throws Exception {
+        NotSerializableObject value, ElementByteSizeObserver observer) throws Exception {
       observer.update(0L);
     }
   }
 
-  @Test
-  public void testFailureEncodedDecoded() throws IOException {
-    AssertionError error = null;
+  private void throwNestedError() {
+    throw new RuntimeException("Nested error");
+  }
+
+  private void throwWrappedError() {
     try {
-      assertEquals(0, 1);
-    } catch (AssertionError e) {
+      throwNestedError();
+    } catch (Exception e) {
+      throw new RuntimeException("Wrapped error", e);
+    }
+  }
+
+  @Test
+  public void testFailureWithExceptionEncodedDecoded() throws IOException {
+    Throwable error;
+    try {
+      throwWrappedError();
+      throw new IllegalStateException("Should have failed");
+    } catch (Throwable e) {
       error = e;
     }
-    SuccessOrFailure failure = SuccessOrFailure.failure(
-        new PAssert.PAssertionSite(error.getMessage(), error.getStackTrace()));
-    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
-
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
-    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
-
-    // Should compare strings, because throwables are not directly comparable.
-    assertEquals("Encode-decode failed SuccessOrFailure",
-        failure.assertionError().toString(), res.assertionError().toString());
-    String resultStacktrace = Throwables.getStackTraceAsString(res.assertionError());
-    String failureStacktrace = Throwables.getStackTraceAsString(failure.assertionError());
-    assertThat(resultStacktrace, is(failureStacktrace));
+    SuccessOrFailure failure =
+        SuccessOrFailure.failure(PAssert.PAssertionSite.capture("here"), error);
+    SuccessOrFailure res = CoderUtils.clone(SerializableCoder.of(SuccessOrFailure.class), failure);
+    assertEquals(
+        "Encode-decode failed SuccessOrFailure",
+        Throwables.getStackTraceAsString(failure.assertionError()),
+        Throwables.getStackTraceAsString(res.assertionError()));
   }
 
   @Test
@@ -152,101 +153,94 @@ public class PAssertTest implements Serializable {
     byte[] encoded = CoderUtils.encodeToByteArray(coder, success);
     SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
 
-    assertEquals("Encode-decode successful SuccessOrFailure",
-        success.isSuccess(), res.isSuccess());
-    assertEquals("Encode-decode successful SuccessOrFailure",
+    assertEquals("Encode-decode successful SuccessOrFailure", success.isSuccess(), res.isSuccess());
+    assertEquals(
+        "Encode-decode successful SuccessOrFailure",
         success.assertionError(),
         res.assertionError());
   }
 
   /**
-   * A {@link PAssert} about the contents of a {@link PCollection}
-   * must not require the contents of the {@link PCollection} to be
-   * serializable.
+   * A {@link PAssert} about the contents of a {@link PCollection} must not require the contents of
+   * the {@link PCollection} to be serializable.
    */
   @Test
   @Category(ValidatesRunner.class)
   public void testContainsInAnyOrderNotSerializable() throws Exception {
-    PCollection<NotSerializableObject> pcollection = pipeline
-        .apply(Create.of(
-          new NotSerializableObject(),
-          new NotSerializableObject())
-            .withCoder(NotSerializableObjectCoder.of()));
+    PCollection<NotSerializableObject> pcollection =
+        pipeline.apply(
+            Create.of(new NotSerializableObject(), new NotSerializableObject())
+                .withCoder(NotSerializableObjectCoder.of()));
 
-    PAssert.that(pcollection).containsInAnyOrder(
-      new NotSerializableObject(),
-      new NotSerializableObject());
+    PAssert.that(pcollection)
+        .containsInAnyOrder(new NotSerializableObject(), new NotSerializableObject());
 
     pipeline.run();
   }
 
   /**
-   * A {@link PAssert} about the contents of a {@link PCollection}
-   * is allows to be verified by an arbitrary {@link SerializableFunction},
-   * though.
+   * A {@link PAssert} about the contents of a {@link PCollection} is allows to be verified by an
+   * arbitrary {@link SerializableFunction}, though.
    */
   @Test
   @Category(ValidatesRunner.class)
   public void testSerializablePredicate() throws Exception {
-    PCollection<NotSerializableObject> pcollection = pipeline
-        .apply(Create.of(
-          new NotSerializableObject(),
-          new NotSerializableObject())
-            .withCoder(NotSerializableObjectCoder.of()));
+    PCollection<NotSerializableObject> pcollection =
+        pipeline.apply(
+            Create.of(new NotSerializableObject(), new NotSerializableObject())
+                .withCoder(NotSerializableObjectCoder.of()));
 
-    PAssert.that(pcollection).satisfies(
-        new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            return null; // no problem!
-          }
-        });
+    PAssert.that(pcollection)
+        .satisfies(
+            contents -> {
+              return null; // no problem!
+            });
 
     pipeline.run();
   }
 
   /**
-   * A {@link PAssert} about the contents of a {@link PCollection}
-   * is allows to be verified by an arbitrary {@link SerializableFunction},
-   * though.
+   * A {@link PAssert} about the contents of a {@link PCollection} is allows to be verified by an
+   * arbitrary {@link SerializableFunction}, though.
    */
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowedSerializablePredicate() throws Exception {
-    PCollection<NotSerializableObject> pcollection = pipeline
-        .apply(Create.timestamped(
-            TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
-            TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
-            .withCoder(NotSerializableObjectCoder.of()))
-        .apply(Window.<NotSerializableObject>into(FixedWindows.of(Duration.millis(300L))));
+    PCollection<NotSerializableObject> pcollection =
+        pipeline
+            .apply(
+                Create.timestamped(
+                        TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
+                        TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
+                    .withCoder(NotSerializableObjectCoder.of()))
+            .apply(Window.into(FixedWindows.of(Duration.millis(300L))));
 
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
-        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            assertThat(Iterables.isEmpty(contents), is(false));
-            return null; // no problem!
-          }
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(300L), new Instant(600L)))
-        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            assertThat(Iterables.isEmpty(contents), is(false));
-            return null; // no problem!
-          }
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
 
     pipeline.run();
   }
 
   /**
-   * Test that we throw an error at pipeline construction time when the user mistakenly uses
-   * {@code PAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
+   * Test that we throw an error at pipeline construction time when the user mistakenly uses {@code
+   * PAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "EqualsIncompatibleType"
+  })
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -257,10 +251,13 @@ public class PAssertTest implements Serializable {
   }
 
   /**
-   * Test that we throw an error at pipeline construction time when the user mistakenly uses
-   * {@code PAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
+   * Test that we throw an error at pipeline construction time when the user mistakenly uses {@code
+   * PAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "EqualsIncompatibleType"
+  })
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -271,8 +268,8 @@ public class PAssertTest implements Serializable {
   }
 
   /**
-   * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported.
-   * See {@link #testPAssertEqualsSingletonUnsupported}.
+   * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported. See {@link
+   * #testPAssertEqualsSingletonUnsupported}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
@@ -285,8 +282,8 @@ public class PAssertTest implements Serializable {
   }
 
   /**
-   * Test that {@code PAssert.thatIterable().hashCode()} is unsupported.
-   * See {@link #testPAssertEqualsIterableUnsupported}.
+   * Test that {@code PAssert.thatIterable().hashCode()} is unsupported. See {@link
+   * #testPAssertEqualsIterableUnsupported}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
@@ -298,9 +295,7 @@ public class PAssertTest implements Serializable {
     PAssert.that(pcollection).hashCode();
   }
 
-  /**
-   * Basic test for {@code isEqualTo}.
-   */
+  /** Basic test for {@code isEqualTo}. */
   @Test
   @Category(ValidatesRunner.class)
   public void testIsEqualTo() throws Exception {
@@ -309,16 +304,17 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Basic test for {@code isEqualTo}.
-   */
+  /** Basic test for {@code isEqualTo}. */
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
-        pipeline.apply(Create.timestamped(TimestampedValue.of(43, new Instant(250L)),
-            TimestampedValue.of(22, new Instant(-250L))))
-            .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(500L))));
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(43, new Instant(250L)),
+                    TimestampedValue.of(22, new Instant(-250L))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
     PAssert.thatSingleton(pcollection)
         .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
@@ -328,9 +324,7 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Basic test for {@code notEqualTo}.
-   */
+  /** Basic test for {@code notEqualTo}. */
   @Test
   @Category(ValidatesRunner.class)
   public void testNotEqualTo() throws Exception {
@@ -339,9 +333,7 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Test that we throw an error for false assertion on singleton.
-   */
+  /** Test that we throw an error for false assertion on singleton. */
   @Test
   @Category(ValidatesRunner.class)
   public void testPAssertEqualsSingletonFalse() throws Exception {
@@ -357,9 +349,7 @@ public class PAssertTest implements Serializable {
     assertThat(message, containsString("but: was <42>"));
   }
 
-  /**
-   * Test that we throw an error for false assertion on singleton.
-   */
+  /** Test that we throw an error for false assertion on singleton. */
   @Test
   @Category(ValidatesRunner.class)
   public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
@@ -375,9 +365,7 @@ public class PAssertTest implements Serializable {
     assertThat(message, containsString("but: was <42>"));
   }
 
-  /**
-   * Tests that {@code containsInAnyOrder} is actually order-independent.
-   */
+  /** Tests that {@code containsInAnyOrder} is actually order-independent. */
   @Test
   @Category(ValidatesRunner.class)
   public void testContainsInAnyOrder() throws Exception {
@@ -386,9 +374,7 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Tests that {@code containsInAnyOrder} is actually order-independent.
-   */
+  /** Tests that {@code containsInAnyOrder} is actually order-independent. */
   @Test
   @Category(ValidatesRunner.class)
   public void testGlobalWindowContainsInAnyOrder() throws Exception {
@@ -397,23 +383,27 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Tests that windowed {@code containsInAnyOrder} is actually order-independent.
-   */
+  /** Tests that windowed {@code containsInAnyOrder} is actually order-independent. */
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowedContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection =
-        pipeline.apply(Create.timestamped(TimestampedValue.of(1, new Instant(100L)),
-            TimestampedValue.of(2, new Instant(200L)),
-            TimestampedValue.of(3, new Instant(300L)),
-            TimestampedValue.of(4, new Instant(400L))))
-            .apply(Window.<Integer>into(SlidingWindows.of(Duration.millis(200L))
-                .every(Duration.millis(100L))
-                .withOffset(Duration.millis(50L))));
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(100L)),
+                    TimestampedValue.of(2, new Instant(200L)),
+                    TimestampedValue.of(3, new Instant(300L)),
+                    TimestampedValue.of(4, new Instant(400L))))
+            .apply(
+                Window.into(
+                    SlidingWindows.of(Duration.millis(200L))
+                        .every(Duration.millis(100L))
+                        .withOffset(Duration.millis(50L))));
 
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(-50L), new Instant(150L))).containsInAnyOrder(1);
+        .inWindow(new IntervalWindow(new Instant(-50L), new Instant(150L)))
+        .containsInAnyOrder(1);
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(50L), new Instant(250L)))
         .containsInAnyOrder(2, 1);
@@ -432,28 +422,25 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmpty() {
-    PCollection<Long> vals =
-        pipeline.apply(Create.empty(VarLongCoder.of()));
+    PCollection<Long> vals = pipeline.apply(Create.empty(VarLongCoder.of()));
 
     PAssert.that(vals).empty();
 
     pipeline.run();
   }
 
-  /**
-   * Tests that {@code containsInAnyOrder} fails when and how it should.
-   */
+  /** Tests that {@code containsInAnyOrder} fails when and how it should. */
   @Test
   @Category(ValidatesRunner.class)
   public void testContainsInAnyOrderFalse() throws Exception {
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(1, 2, 3, 4));
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
 
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
     Throwable exc = runExpectingAssertionFailure(pipeline);
-    Pattern expectedPattern = Pattern.compile(
-        "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
+    Pattern expectedPattern =
+        Pattern.compile(
+            "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
     // A loose pattern, but should get the job done.
     assertTrue(
         "Expected error message from PAssert with substring matching "
@@ -488,21 +475,21 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message,
-        containsString("GenerateSequence/Read(BoundedCountingSource).out"));
+    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource).out"));
     assertThat(message, containsString("Expected: iterable over [] in any order"));
   }
 
   @Test
   public void testAssertionSiteIsCaptured() {
     // This check should return a failure.
-    SuccessOrFailure res = PAssert.doChecks(
-        PAssert.PAssertionSite.capture("Captured assertion message."),
-        new Integer(10),
-        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+    SuccessOrFailure res =
+        PAssert.doChecks(
+            PAssert.PAssertionSite.capture("Captured assertion message."),
+            10,
+            new MatcherCheckerFn(SerializableMatchers.contains(11)));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
-    assertEquals(res.isSuccess(), false);
+    assertEquals(false, res.isSuccess());
     assertThat(stacktrace, containsString("PAssertionSite.capture"));
   }
 
@@ -514,12 +501,8 @@ public class PAssertTest implements Serializable {
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(
-        thrown.getMessage(),
-        containsString("Should be empty"));
-    assertThat(
-        thrown.getMessage(),
-        containsString("Expected: iterable over [] in any order"));
+    assertThat(thrown.getMessage(), containsString("Should be empty"));
+    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
     String stacktrace = Throwables.getStackTraceAsString(thrown);
     assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithMessage"));
     assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithMessage"));
@@ -533,9 +516,7 @@ public class PAssertTest implements Serializable {
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(
-        thrown.getMessage(),
-        containsString("Expected: iterable over [] in any order"));
+    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
     String stacktrace = Throwables.getStackTraceAsString(thrown);
     assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithoutMessage"));
     assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithoutMessage"));

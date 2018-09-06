@@ -19,11 +19,10 @@ package org.apache.beam.sdk.coders;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link Coder} for {@link Void}. Uses zero bytes per {@link Void}.
- */
+/** A {@link Coder} for {@link Void}. Uses zero bytes per {@link Void}. */
 public class VoidCoder extends AtomicCoder<Void> {
 
   public static VoidCoder of() {
@@ -34,6 +33,7 @@ public class VoidCoder extends AtomicCoder<Void> {
 
   private static final VoidCoder INSTANCE = new VoidCoder();
   private static final TypeDescriptor<Void> TYPE_DESCRIPTOR = new TypeDescriptor<Void>() {};
+  private static final Object STRUCTURAL_VOID_VALUE = new Object();
 
   private VoidCoder() {}
 
@@ -43,6 +43,7 @@ public class VoidCoder extends AtomicCoder<Void> {
   }
 
   @Override
+  @Nullable
   public Void decode(InputStream inStream) {
     // Nothing to read!
     return null;
@@ -51,14 +52,9 @@ public class VoidCoder extends AtomicCoder<Void> {
   @Override
   public void verifyDeterministic() {}
 
-  /**
-   * {@inheritDoc}
-   *
-   * @return  {@code true}. {@link VoidCoder} is (vacuously) injective.
-   */
   @Override
-  public boolean consistentWithEquals() {
-    return true;
+  public Object structuralValue(Void value) {
+    return STRUCTURAL_VOID_VALUE;
   }
 
   /**
@@ -77,8 +73,7 @@ public class VoidCoder extends AtomicCoder<Void> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Void value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Void value) throws Exception {
     return 0;
   }
 }

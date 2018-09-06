@@ -23,8 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -64,44 +62,33 @@ class DirectGroupByKey<K, V>
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
-        .apply(new DirectGroupByKeyOnly<K, V>())
+        .apply(new DirectGroupByKeyOnly<>())
 
         // Group each key's values by window, merging windows as needed.
         .apply(
             "GroupAlsoByWindow",
-            new DirectGroupAlsoByWindow<K, V>(inputWindowingStrategy, outputWindowingStrategy));
+            new DirectGroupAlsoByWindow<>(inputWindowingStrategy, outputWindowingStrategy));
   }
 
   static final class DirectGroupByKeyOnly<K, V>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
     public PCollection<KeyedWorkItem<K, V>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          input.isBounded(),
+          KeyedWorkItemCoder.of(
+              GroupByKey.getKeyCoder(input.getCoder()),
+              GroupByKey.getInputValueCoder(input.getCoder()),
+              input.getWindowingStrategy().getWindowFn().windowCoder()));
     }
 
     DirectGroupByKeyOnly() {}
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder(
-        @SuppressWarnings("unused") PCollection<KV<K, V>> input)
-        throws CannotProvideCoderException {
-      return KeyedWorkItemCoder.of(
-          GroupByKey.getKeyCoder(input.getCoder()),
-          GroupByKey.getInputValueCoder(input.getCoder()),
-          input.getWindowingStrategy().getWindowFn().windowCoder());
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GBKO_URN;
-    }
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+      extends PTransform<PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> inputWindowingStrategy;
     private final WindowingStrategy<?, ?> outputWindowingStrategy;
@@ -135,22 +122,13 @@ class DirectGroupByKey<K, V>
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder(
-        @SuppressWarnings("unused") PCollection<KeyedWorkItem<K, V>> input)
-        throws CannotProvideCoderException {
-      KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
-      return KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder()));
-    }
-
-    @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KeyedWorkItem<K, V>> input) {
+      KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputWindowingStrategy, input.isBounded());
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GABW_URN;
+          input.getPipeline(),
+          outputWindowingStrategy,
+          input.isBounded(),
+          KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
     }
   }
 }

@@ -16,15 +16,21 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+from __future__ import absolute_import
+from __future__ import division
 
+import itertools
+import random
 import unittest
 
 import hamcrest as hc
+from future.builtins import range
 
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 import apache_beam.transforms.combiners as combine
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
@@ -156,14 +162,11 @@ class CombineTest(unittest.TestCase):
 
   def test_combine_sample_display_data(self):
     def individual_test_per_key_dd(sampleFn, args, kwargs):
-      trs = [beam.CombinePerKey(sampleFn(*args, **kwargs)),
-             beam.CombineGlobally(sampleFn(*args, **kwargs))]
+      trs = [sampleFn(*args, **kwargs)]
       for transform in trs:
         dd = DisplayData.create_from(transform)
         expected_items = [
-            DisplayDataItemMatcher('fn', sampleFn.fn.__name__),
-            DisplayDataItemMatcher('combine_fn',
-                                   transform.fn.__class__)]
+            DisplayDataItemMatcher('fn', transform._fn.__name__)]
         if args:
           expected_items.append(
               DisplayDataItemMatcher('args', str(args)))
@@ -223,7 +226,7 @@ class CombineTest(unittest.TestCase):
 
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      for ix in xrange(9):
+      for ix in range(9):
         assert_that(
             pcoll | 'sample-%d' % ix >> combine.Sample.FixedSizeGlobally(3),
             is_good_sample,
@@ -232,7 +235,7 @@ class CombineTest(unittest.TestCase):
   def test_per_key_sample(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
-        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(9)), []))
+        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in range(9)), []))
     result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():
@@ -286,7 +289,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(actual[0].items())
       return match
     assert_that(result, matcher())
     pipeline.run()
@@ -312,6 +315,37 @@ class CombineTest(unittest.TestCase):
       result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> SideInputCombine()
       assert_that(result1, equal_to([0]), label='r1')
       assert_that(result2, equal_to([10]), label='r2')
+
+  def test_hot_key_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(itertools.product(['hot', 'cold'], range(10)))
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: (key == 'hot') * 5))
+      assert_that(result, equal_to([('hot', 4.5), ('cold', 4.5)]))
+
+  def test_hot_key_fanout_sharded(self):
+    # Lots of elements with the same key with varying/no fanout.
+    with TestPipeline() as p:
+      elements = [(None, e) for e in range(1000)]
+      random.shuffle(elements)
+      shards = [p | "Shard%s" % shard >> beam.Create(elements[shard::20])
+                for shard in range(20)]
+      result = (
+          shards
+          | beam.Flatten()
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: random.randrange(0, 5)))
+      assert_that(result, equal_to([(None, 499.5)]))
+
+  def test_global_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(range(100))
+          | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
+      assert_that(result, equal_to([49.5]))
 
 
 if __name__ == '__main__':

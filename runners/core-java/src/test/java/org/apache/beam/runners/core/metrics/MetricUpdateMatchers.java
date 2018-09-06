@@ -24,9 +24,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
-/**
- * Matchers for {@link MetricUpdate}.
- */
+/** Matchers for {@link MetricUpdate}. */
 public class MetricUpdateMatchers {
 
   /**
@@ -38,15 +36,17 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(name, item.getKey().metricName().name())
+        return Objects.equals(name, item.getKey().metricName().getName())
             && Objects.equals(update, item.getUpdate());
       }
 
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricUpdate{name=").appendValue(name)
-            .appendText(", update=").appendValue(update)
+            .appendText("MetricUpdate{name=")
+            .appendValue(name)
+            .appendText(", update=")
+            .appendValue(update)
             .appendText("}");
       }
     };
@@ -62,8 +62,8 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(namespace, item.getKey().metricName().namespace())
-            && Objects.equals(name, item.getKey().metricName().name())
+        return Objects.equals(namespace, item.getKey().metricName().getNamespace())
+            && Objects.equals(name, item.getKey().metricName().getName())
             && Objects.equals(step, item.getKey().stepName())
             && Objects.equals(update, item.getUpdate());
       }
@@ -71,10 +71,14 @@ public class MetricUpdateMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricUpdate{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(", update=").appendValue(update)
+            .appendText("MetricUpdate{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(", update=")
+            .appendValue(update)
             .appendText("}");
       }
     };

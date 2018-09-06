@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -44,7 +43,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
-    PCollection<ElemT>, PCollection<ElemT>,
+        PCollection<ElemT>, PCollection<ElemT>,
         PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
 
   @Override
@@ -65,9 +64,8 @@ class ViewOverrideFactory<ElemT, ViewT>
           exc);
     }
 
-      return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        new GroupAndWriteView<ElemT, ViewT>(view));
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform), new GroupAndWriteView<>(view));
   }
 
   @Override
@@ -88,11 +86,11 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     public PCollection<ElemT> expand(final PCollection<ElemT> input) {
       input
-          .apply(WithKeys.<Void, ElemT>of((Void) null))
+          .apply(WithKeys.of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(GroupByKey.<Void, ElemT>create())
-          .apply(Values.<Iterable<ElemT>>create())
-          .apply(new WriteView<ElemT, ViewT>(view));
+          .apply(GroupByKey.create())
+          .apply(Values.create())
+          .apply(new WriteView<>(view));
       return input;
     }
   }
@@ -105,7 +103,7 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
+      extends PTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
     private final PCollectionView<ViewT> view;
 
     WriteView(PCollectionView<ViewT> view) {
@@ -115,19 +113,13 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     @SuppressWarnings("deprecation")
     public PCollection<Iterable<ElemT>> expand(PCollection<Iterable<ElemT>> input) {
-      return PCollection.<Iterable<ElemT>>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
 
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
       return view;
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_WRITE_VIEW_URN;
     }
   }
 

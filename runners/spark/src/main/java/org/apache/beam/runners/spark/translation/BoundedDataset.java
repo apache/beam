@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
@@ -53,8 +53,7 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues =
-        Iterables.transform(values, WindowingHelpers.<T>windowValueFunction());
+    this.windowedValues = Iterables.transform(values, WindowingHelpers.windowValueFunction());
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -64,54 +63,62 @@ public class BoundedDataset<T> implements Dataset {
     if (rdd == null) {
       WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
           WindowedValue.getValueOnlyCoder(coder);
-      rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-          .map(CoderHelpers.fromByteFunction(windowCoder));
+      rdd =
+          jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+              .map(CoderHelpers.fromByteFunction(windowCoder));
     }
     return rdd;
   }
 
   Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
     if (windowedValues == null) {
-      WindowFn<?, ?> windowFn =
-          pcollection.getWindowingStrategy().getWindowFn();
+      WindowFn<?, ?> windowFn = pcollection.getWindowingStrategy().getWindowFn();
       Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
       final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
       if (windowFn instanceof GlobalWindows) {
-        windowedValueCoder =
-            WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
+        windowedValueCoder = WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
       } else {
         windowedValueCoder =
             WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
       }
-      JavaRDDLike<byte[], ?> bytesRDD =
-          rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
+      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
-      windowedValues = Iterables.transform(clientBytes,
-          new Function<byte[], WindowedValue<T>>() {
-            @Override
-            public WindowedValue<T> apply(byte[] bytes) {
-              return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
-            }
-          });
+      windowedValues =
+          clientBytes
+              .stream()
+              .map(bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder))
+              .collect(Collectors.toList());
     }
     return windowedValues;
   }
 
   @Override
-  public void cache(String storageLevel) {
-    // populate the rdd if needed
-    getRDD().persist(StorageLevel.fromString(storageLevel));
+  @SuppressWarnings("unchecked")
+  public void cache(String storageLevel, Coder<?> coder) {
+    StorageLevel level = StorageLevel.fromString(storageLevel);
+    if (TranslationUtils.avoidRddSerialization(level)) {
+      // if it is memory only reduce the overhead of moving to bytes
+      this.rdd = getRDD().persist(level);
+    } else {
+      // Caching can cause Serialization, we need to code to bytes
+      // more details in https://issues.apache.org/jira/browse/BEAM-2669
+      Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
+      this.rdd =
+          getRDD()
+              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .persist(level)
+              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+    }
   }
 
   @Override
   public void action() {
     // Empty function to force computation of RDD.
-    rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
+    rdd.foreach(TranslationUtils.emptyVoidFunction());
   }
 
   @Override
   public void setName(String name) {
     rdd.setName(name);
   }
-
 }

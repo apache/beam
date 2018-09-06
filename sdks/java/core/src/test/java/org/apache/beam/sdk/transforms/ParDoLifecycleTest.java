@@ -27,9 +27,14 @@ import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -39,37 +44,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence.
- */
+/** Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence. */
 @RunWith(JUnit4.class)
 public class ParDoLifecycleTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testOldFnCallSequence() {
-    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
-        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>()));
-
-    p.run();
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testOldFnCallSequenceMulti() {
-    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
-        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>())
-            .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
-
-    p.run();
-  }
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static class CallSequenceEnforcingDoFn<T> extends DoFn<T, T> {
     private boolean setupCalled = false;
@@ -128,25 +107,40 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testFnCallSequence() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>()));
+        .apply(Flatten.pCollections())
+        .apply(ParDo.of(new CallSequenceEnforcingFn<>()));
 
     p.run();
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testFnCallSequenceMulti() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>())
-            .withOutputTags(new TupleTag<Integer>() {
-            }, TupleTagList.empty()));
+        .apply(Flatten.pCollections())
+        .apply(
+            ParDo.of(new CallSequenceEnforcingFn<Integer>())
+                .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
+
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
+  public void testFnCallSequenceStateful() {
+    PCollectionList.of(p.apply("Impolite", Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 4))))
+        .and(
+            p.apply(
+                "Polite", Create.of(KV.of("b", 3), KV.of("a", 5), KV.of("c", 6), KV.of("c", 7))))
+        .apply(Flatten.pCollections())
+        .apply(
+            ParDo.of(new CallSequenceEnforcingStatefulFn<String, Integer>())
+                .withOutputTags(new TupleTag<KV<String, Integer>>() {}, TupleTagList.empty()));
 
     p.run();
   }
@@ -169,7 +163,8 @@ public class ParDoLifecycleTest implements Serializable {
     @StartBundle
     public void begin() {
       assertThat("setup should have been called", setupCalled, is(true));
-      assertThat("Even number of startBundle and finishBundle calls in startBundle",
+      assertThat(
+          "Even number of startBundle and finishBundle calls in startBundle",
           startBundleCalls,
           equalTo(finishBundleCalls));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -179,7 +174,8 @@ public class ParDoLifecycleTest implements Serializable {
     @ProcessElement
     public void process(ProcessContext c) throws Exception {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat("there should be one startBundle call with no call to finishBundle",
+      assertThat(
+          "there should be one startBundle call with no call to finishBundle",
           startBundleCalls,
           equalTo(finishBundleCalls + 1));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -188,7 +184,8 @@ public class ParDoLifecycleTest implements Serializable {
     @FinishBundle
     public void end() {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat("there should be one bundle that has been started but not finished",
+      assertThat(
+          "there should be one bundle that has been started but not finished",
           startBundleCalls,
           equalTo(finishBundleCalls + 1));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -204,33 +201,19 @@ public class ParDoLifecycleTest implements Serializable {
     }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testTeardownCalledAfterExceptionInSetup() {
-    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingOldFn.teardownCalled.get(),
-          is(true));
-    }
+  private static class CallSequenceEnforcingStatefulFn<K, V>
+      extends CallSequenceEnforcingDoFn<KV<K, V>> {
+    private static final String STATE_ID = "foo";
+
+    @StateId(STATE_ID)
+    private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
   }
 
-
-
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -243,12 +226,10 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElement() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -261,12 +242,10 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -279,7 +258,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testWithContextTeardownCalledAfterExceptionInSetup() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -287,14 +266,15 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testWithContextTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -302,14 +282,15 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testWithContextTeardownCalledAfterExceptionInProcessElement() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -317,14 +298,15 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testWithContextTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -332,7 +314,8 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
@@ -383,7 +366,6 @@ public class ParDoLifecycleTest implements Serializable {
       teardownCalled.set(true);
     }
   }
-
 
   private static class ExceptionThrowingFn extends DoFn<Object, Object> {
     static AtomicBoolean teardownCalled = new AtomicBoolean(false);

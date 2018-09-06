@@ -17,18 +17,22 @@
 
 """Unit tests for the test pipeline verifiers"""
 
+from __future__ import absolute_import
+
 import logging
 import tempfile
 import unittest
+from builtins import range
 
 from hamcrest import assert_that as hc_assert_that
-from mock import Mock, patch
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.localfilesystem import LocalFileSystem
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
-from apache_beam.testing.test_utils import patch_retry
 from apache_beam.testing import pipeline_verifiers as verifiers
+from apache_beam.testing.test_utils import patch_retry
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -126,7 +130,7 @@ class PipelineVerifiersTest(unittest.TestCase):
       verifiers.FileChecksumMatcher('file_path',
                                     'expected_checksum',
                                     'invalid_sleep_time')
-    self.assertEqual(cm.exception.message,
+    self.assertEqual(cm.exception.args[0],
                      'Sleep seconds, if received, must be int. '
                      'But received: \'invalid_sleep_time\', '
                      '<type \'str\'>')

@@ -18,75 +18,86 @@
 package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ColumnMetadata;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
-import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
-
-import java.io.IOException;
+import com.google.common.collect.Iterators;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An implementation of the {@link CassandraService} that actually use a Cassandra instance.
- */
+/** An implementation of the {@link CassandraService} that actually use a Cassandra instance. */
 public class CassandraServiceImpl<T> implements CassandraService<T> {
-
   private static final Logger LOG = LoggerFactory.getLogger(CassandraServiceImpl.class);
+  private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
-  private static final long MIN_TOKEN = Long.MIN_VALUE;
-  private static final long MAX_TOKEN = Long.MAX_VALUE;
-  private static final BigInteger TOTAL_TOKEN_COUNT =
-      BigInteger.valueOf(MAX_TOKEN).subtract(BigInteger.valueOf(MIN_TOKEN));
-
-  private class CassandraReaderImpl<T> extends BoundedSource.BoundedReader<T> {
-
+  private class CassandraReaderImpl extends BoundedSource.BoundedReader<T> {
     private final CassandraIO.CassandraSource<T> source;
-
     private Cluster cluster;
     private Session session;
-    private ResultSet resultSet;
     private Iterator<T> iterator;
     private T current;
 
-    public CassandraReaderImpl(CassandraIO.CassandraSource<T> source) {
+    CassandraReaderImpl(CassandraIO.CassandraSource<T> source) {
       this.source = source;
     }
 
     @Override
-    public boolean start() throws IOException {
+    public boolean start() {
       LOG.debug("Starting Cassandra reader");
-      cluster = getCluster(source.spec.hosts(), source.spec.port(), source.spec.username(),
-          source.spec.password(), source.spec.localDc(), source.spec.consistencyLevel());
+      cluster =
+          getCluster(
+              source.spec.hosts(),
+              source.spec.port(),
+              source.spec.username(),
+              source.spec.password(),
+              source.spec.localDc(),
+              source.spec.consistencyLevel());
       session = cluster.connect();
-      LOG.debug("Query: " + source.splitQuery);
-      resultSet = session.execute(source.splitQuery);
+      LOG.debug("Queries: " + source.splitQueries);
+      List<ResultSetFuture> futures = new ArrayList<>();
+      for (String query : source.splitQueries) {
+        futures.add(session.executeAsync(query));
+      }
 
       final MappingManager mappingManager = new MappingManager(session);
       Mapper mapper = mappingManager.mapper(source.spec.entity());
-      iterator = mapper.map(resultSet).iterator();
+
+      for (ResultSetFuture result : futures) {
+        if (iterator == null) {
+          iterator = mapper.map(result.getUninterruptibly()).iterator();
+        } else {
+          iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()).iterator());
+        }
+      }
+
       return advance();
     }
 
     @Override
-    public boolean advance() throws IOException {
+    public boolean advance() {
       if (iterator.hasNext()) {
         current = iterator.next();
         return true;
@@ -118,23 +129,26 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     public CassandraIO.CassandraSource<T> getCurrentSource() {
       return source;
     }
-
   }
 
   @Override
-  public CassandraReaderImpl<T> createReader(CassandraIO.CassandraSource<T> source) {
-    return new CassandraReaderImpl<>(source);
+  public CassandraReaderImpl createReader(CassandraIO.CassandraSource<T> source) {
+    return new CassandraReaderImpl(source);
   }
 
   @Override
   public long getEstimatedSizeBytes(CassandraIO.Read<T> spec) {
-    try (Cluster cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
-        spec.localDc(), spec.consistencyLevel())) {
+    try (Cluster cluster =
+        getCluster(
+            spec.hosts(),
+            spec.port(),
+            spec.username(),
+            spec.password(),
+            spec.localDc(),
+            spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
         try {
-          List<TokenRange> tokenRanges = getTokenRanges(cluster,
-              spec.keyspace(),
-              spec.table());
+          List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec.table());
           return getEstimatedSizeBytes(tokenRanges);
         } catch (Exception e) {
           LOG.warn("Can't estimate the size", e);
@@ -148,11 +162,11 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   /**
-   * Actually estimate the size of the data to read on the cluster, based on the given token
-   * ranges to address.
+   * Actually estimate the size of the data to read on the cluster, based on the given token ranges
+   * to address.
    */
   @VisibleForTesting
-  protected static long getEstimatedSizeBytes(List<TokenRange> tokenRanges) {
+  static long getEstimatedSizeBytes(List<TokenRange> tokenRanges) {
     long size = 0L;
     for (TokenRange tokenRange : tokenRanges) {
       size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
@@ -161,20 +175,25 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   @Override
-  public List<BoundedSource<T>> split(CassandraIO.Read<T> spec,
-      long desiredBundleSizeBytes) {
-    try (Cluster cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
-        spec.localDc(), spec.consistencyLevel())) {
+  public List<BoundedSource<T>> split(CassandraIO.Read<T> spec, long desiredBundleSizeBytes) {
+    try (Cluster cluster =
+        getCluster(
+            spec.hosts(),
+            spec.port(),
+            spec.username(),
+            spec.password(),
+            spec.localDc(),
+            spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
         LOG.info("Murmur3Partitioner detected, splitting");
-        return split(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(spec));
+        return split(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(spec), cluster);
       } else {
-        LOG.warn("Only Murmur3Partitioner is supported for splitting, using an unique source for "
-            + "the read");
+        LOG.warn(
+            "Only Murmur3Partitioner is supported for splitting, using an unique source for "
+                + "the read");
         String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
-        List<BoundedSource<T>> sources = new ArrayList<>();
-        sources.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
-        return sources;
+        return Collections.singletonList(
+            new CassandraIO.CassandraSource<>(spec, Collections.singletonList(splitQuery)));
       }
     }
   }
@@ -183,70 +202,102 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    * Compute the number of splits based on the estimated size and the desired bundle size, and
    * create several sources.
    */
-  @VisibleForTesting
-  protected List<BoundedSource<T>> split(CassandraIO.Read<T> spec,
-                                                long desiredBundleSizeBytes,
-                                                long estimatedSizeBytes) {
-    long numSplits = 1;
-    List<BoundedSource<T>> sourceList = new ArrayList<>();
-    if (desiredBundleSizeBytes > 0) {
-      numSplits = estimatedSizeBytes / desiredBundleSizeBytes;
+  private List<BoundedSource<T>> split(
+      CassandraIO.Read<T> spec,
+      long desiredBundleSizeBytes,
+      long estimatedSizeBytes,
+      Cluster cluster) {
+    long numSplits =
+        getNumSplits(desiredBundleSizeBytes, estimatedSizeBytes, spec.minNumberOfSplits());
+    LOG.info("Number of desired splits is {}", numSplits);
+
+    SplitGenerator splitGenerator = new SplitGenerator(cluster.getMetadata().getPartitioner());
+    List<BigInteger> tokens =
+        cluster
+            .getMetadata()
+            .getTokenRanges()
+            .stream()
+            .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
+            .collect(Collectors.toList());
+    List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
+    LOG.info("{} splits were actually generated", splits.size());
+
+    final String partitionKey =
+        cluster
+            .getMetadata()
+            .getKeyspace(spec.keyspace())
+            .getTable(spec.table())
+            .getPartitionKey()
+            .stream()
+            .map(ColumnMetadata::getName)
+            .collect(Collectors.joining(","));
+
+    List<BoundedSource<T>> sources = new ArrayList<>();
+    for (List<RingRange> split : splits) {
+      List<String> queries = new ArrayList<>();
+      for (RingRange range : split) {
+        Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
+        if (range.isWrapping()) {
+          // A wrapping range is one that overlaps from the end of the partitioner range and its
+          // start (ie : when the start token of the split is greater than the end token)
+          // We need to generate two queries here : one that goes from the start token to the end of
+          // the partitioner range, and the other from the start of the partitioner range to the
+          // end token of the split.
+          builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+          String query = builder.toString();
+          LOG.debug("Cassandra generated read query : {}", query);
+          queries.add(query);
+
+          // Generation of the second query of the wrapping range
+          builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
+          builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
+          query = builder.toString();
+          LOG.debug("Cassandra generated read query : {}", query);
+          queries.add(query);
+        } else {
+          builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+          builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
+          String query = builder.toString();
+          LOG.debug("Cassandra generated read query : {}", query);
+          queries.add(query);
+        }
+      }
+      sources.add(new CassandraIO.CassandraSource(spec, queries));
     }
+    return sources;
+  }
+
+  private static long getNumSplits(
+      long desiredBundleSizeBytes, long estimatedSizeBytes, @Nullable Integer minNumberOfSplits) {
+    long numSplits = desiredBundleSizeBytes > 0 ? (estimatedSizeBytes / desiredBundleSizeBytes) : 1;
     if (numSplits <= 0) {
       LOG.warn("Number of splits is less than 0 ({}), fallback to 1", numSplits);
       numSplits = 1;
     }
-
-    LOG.info("Number of splits is {}", numSplits);
-
-    double startRange = MIN_TOKEN;
-    double endRange = MAX_TOKEN;
-    double startToken, endToken;
-
-    endToken = startRange;
-    double incrementValue = endRange - startRange / numSplits;
-    String splitQuery;
-    if (numSplits == 1) {
-      // we have an unique split
-      splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
-      sourceList.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
-    } else {
-      // we have more than one split
-      for (int i = 0; i < numSplits; i++) {
-        startToken = endToken;
-        endToken = (i == numSplits) ? endRange : (startToken + incrementValue);
-        Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
-        if (i > 0) {
-          builder = builder.and(QueryBuilder.gte("token($pk)", startToken));
-        }
-        if (i < (numSplits - 1)) {
-          builder = builder.and(QueryBuilder.lt("token($pk)", endToken));
-        }
-        sourceList.add(new CassandraIO.CassandraSource(spec, builder.toString()));
-      }
-    }
-    return sourceList;
+    return minNumberOfSplits != null ? Math.max(numSplits, minNumberOfSplits) : numSplits;
   }
 
-  /**
-   * Get a Cassandra cluster using hosts and port.
-   */
-  private Cluster getCluster(List<String> hosts, int port, String username, String password,
-                             String localDc, String consistencyLevel) {
-    Cluster.Builder builder = Cluster.builder()
-        .addContactPoints(hosts.toArray(new String[0]))
-        .withPort(port);
+  /** Get a Cassandra cluster using hosts and port. */
+  private Cluster getCluster(
+      List<String> hosts,
+      int port,
+      String username,
+      String password,
+      String localDc,
+      String consistencyLevel) {
+    Cluster.Builder builder =
+        Cluster.builder().addContactPoints(hosts.toArray(new String[0])).withPort(port);
 
     if (username != null) {
       builder.withAuthProvider(new PlainTextAuthProvider(username, password));
     }
 
+    DCAwareRoundRobinPolicy.Builder dcAwarePolicyBuilder = new DCAwareRoundRobinPolicy.Builder();
     if (localDc != null) {
-      builder.withLoadBalancingPolicy(
-          new TokenAwarePolicy(new DCAwareRoundRobinPolicy.Builder().withLocalDc(localDc).build()));
-    } else {
-      builder.withLoadBalancingPolicy(new TokenAwarePolicy(new RoundRobinPolicy()));
+      dcAwarePolicyBuilder.withLocalDc(localDc);
     }
+
+    builder.withLoadBalancingPolicy(new TokenAwarePolicy(dcAwarePolicyBuilder.build()));
 
     if (consistencyLevel != null) {
       builder.withQueryOptions(
@@ -276,8 +327,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             new TokenRange(
                 row.getLong("partitions_count"),
                 row.getLong("mean_partition_size"),
-                row.getLong("range_start"),
-                row.getLong("range_end"));
+                new BigInteger(row.getString("range_start")),
+                new BigInteger(row.getString("range_end")));
         tokenRanges.add(tokenRange);
       }
       // The table may not contain the estimates yet
@@ -293,38 +344,33 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     }
   }
 
-  /**
-   * Compute the percentage of token addressed compared with the whole tokens in the cluster.
-   */
+  /** Compute the percentage of token addressed compared with the whole tokens in the cluster. */
   @VisibleForTesting
-  protected static double getRingFraction(List<TokenRange> tokenRanges) {
+  static double getRingFraction(List<TokenRange> tokenRanges) {
     double ringFraction = 0;
     for (TokenRange tokenRange : tokenRanges) {
-      ringFraction = ringFraction + (distance(tokenRange.rangeStart, tokenRange.rangeEnd)
-          .doubleValue() / TOTAL_TOKEN_COUNT.doubleValue());
+      ringFraction =
+          ringFraction
+              + (distance(tokenRange.rangeStart, tokenRange.rangeEnd).doubleValue()
+                  / SplitGenerator.getRangeSize(MURMUR3PARTITIONER).doubleValue());
     }
     return ringFraction;
   }
 
-  /**
-   * Measure distance between two tokens.
-   */
+  /** Measure distance between two tokens. */
   @VisibleForTesting
-  protected static BigInteger distance(long left, long right) {
-    if (right > left) {
-      return BigInteger.valueOf(right).subtract(BigInteger.valueOf(left));
-    } else {
-      return BigInteger.valueOf(right).subtract(BigInteger.valueOf(left)).add(TOTAL_TOKEN_COUNT);
-    }
+  static BigInteger distance(BigInteger left, BigInteger right) {
+    return (right.compareTo(left) > 0)
+        ? right.subtract(left)
+        : right.subtract(left).add(SplitGenerator.getRangeSize(MURMUR3PARTITIONER));
   }
 
   /**
    * Check if the current partitioner is the Murmur3 (default in Cassandra version newer than 2).
    */
   @VisibleForTesting
-  protected static boolean isMurmur3Partitioner(Cluster cluster) {
-    return cluster.getMetadata().getPartitioner()
-        .equals("org.apache.cassandra.dht.Murmur3Partitioner");
+  static boolean isMurmur3Partitioner(Cluster cluster) {
+    return MURMUR3PARTITIONER.equals(cluster.getMetadata().getPartitioner());
   }
 
   /**
@@ -332,15 +378,14 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    * range.
    */
   @VisibleForTesting
-  protected static class TokenRange {
+  static class TokenRange {
     private final long partitionCount;
     private final long meanPartitionSize;
-    private final long rangeStart;
-    private final long rangeEnd;
+    private final BigInteger rangeStart;
+    private final BigInteger rangeEnd;
 
     public TokenRange(
-        long partitionCount, long meanPartitionSize, long rangeStart, long
-        rangeEnd) {
+        long partitionCount, long meanPartitionSize, BigInteger rangeStart, BigInteger rangeEnd) {
       this.partitionCount = partitionCount;
       this.meanPartitionSize = meanPartitionSize;
       this.rangeStart = rangeStart;
@@ -348,38 +393,65 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     }
   }
 
-  /**
-   * Writer storing an entity into Apache Cassandra database.
-   */
-  protected class WriterImpl<T> implements Writer<T> {
+  /** Writer storing an entity into Apache Cassandra database. */
+  protected class WriterImpl implements Writer<T> {
+    /**
+     * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
+     * Cassandra community. There is no real gain to expect in tuning this value.
+     */
+    private static final int CONCURRENT_ASYNC_QUERIES = 100;
 
     private final CassandraIO.Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
     private final MappingManager mappingManager;
+    private List<ListenableFuture<Void>> writeFutures;
 
-    public WriterImpl(CassandraIO.Write<T> spec) {
+    WriterImpl(CassandraIO.Write<T> spec) {
       this.spec = spec;
-      this.cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
-          spec.localDc(), spec.consistencyLevel());
+      this.cluster =
+          getCluster(
+              spec.hosts(),
+              spec.port(),
+              spec.username(),
+              spec.password(),
+              spec.localDc(),
+              spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.mappingManager = new MappingManager(session);
+      this.writeFutures = new ArrayList<>();
     }
 
     /**
-     * Write the entity to the Cassandra instance, using {@link Mapper} obtained with the
-     * {@link MappingManager}. This method use {@link Mapper#save(Object)} method, which is
-     * synchronous. It means the entity is guaranteed to be reliably committed to Cassandra.
+     * Write the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
+     * MappingManager}. This method uses {@link Mapper#saveAsync(Object)} method, which is
+     * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
+     * succeeded.
      */
     @Override
-    public void write(T entity) {
+    public void write(T entity) throws ExecutionException, InterruptedException {
       Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
-      mapper.save(entity);
+      this.writeFutures.add(mapper.saveAsync(entity));
+      if (this.writeFutures.size() == CONCURRENT_ASYNC_QUERIES) {
+        // We reached the max number of allowed in flight queries.
+        // Write methods are synchronous in Beam as stated by the CassandraService interface,
+        // so we wait for each async query to return before exiting.
+        LOG.debug(
+            "Waiting for a batch of {} Cassandra writes to be executed...",
+            CONCURRENT_ASYNC_QUERIES);
+        waitForFuturesToFinish();
+        this.writeFutures = new ArrayList<>();
+      }
     }
 
     @Override
-    public void close() {
+    public void close() throws ExecutionException, InterruptedException {
+      if (this.writeFutures.size() > 0) {
+        // Waiting for the last in flight async queries to return before finishing the bundle.
+        waitForFuturesToFinish();
+      }
+
       if (session != null) {
         session.close();
       }
@@ -388,11 +460,15 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       }
     }
 
+    private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
+      for (ListenableFuture<Void> future : writeFutures) {
+        future.get();
+      }
+    }
   }
 
   @Override
   public Writer createWriter(CassandraIO.Write<T> spec) {
     return new WriterImpl(spec);
   }
-
 }

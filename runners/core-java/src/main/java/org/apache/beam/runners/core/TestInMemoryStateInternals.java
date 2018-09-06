@@ -24,18 +24,15 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
-/**
- * Simulates state like {@link InMemoryStateInternals} and provides some extra helper methods.
- */
+/** Simulates state like {@link InMemoryStateInternals} and provides some extra helper methods. */
 public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
   public TestInMemoryStateInternals(K key) {
     super(key);
   }
 
-  public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
-    Set<StateTag<?>> inUse = new HashSet<>();
-    for (Map.Entry<StateTag<?>, State> entry :
-      inMemoryState.getTagsInUse(namespace).entrySet()) {
+  public Set<StateTag> getTagsInUse(StateNamespace namespace) {
+    Set<StateTag> inUse = new HashSet<>();
+    for (Map.Entry<StateTag, State> entry : inMemoryState.getTagsInUse(namespace).entrySet()) {
       if (!isEmptyForTesting(entry.getValue())) {
         inUse.add(entry.getKey());
       }

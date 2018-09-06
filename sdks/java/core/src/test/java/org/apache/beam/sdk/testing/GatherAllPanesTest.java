@@ -24,7 +24,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
@@ -55,38 +54,27 @@ public class GatherAllPanesTest implements Serializable {
   public void singlePaneSingleReifiedPane() {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         p.apply(GenerateSequence.from(0).to(20000))
-            .apply(
-                WithTimestamps.of(
-                    new SerializableFunction<Long, Instant>() {
-                      @Override
-                      public Instant apply(Long input) {
-                        return new Instant(input * 10);
-                      }
-                    }))
+            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(AfterWatermark.pastEndOfWindow())
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes())
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-            .apply(GroupByKey.<Void, Long>create())
-            .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>globally());
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(GatherAllPanes.globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(
-            new SerializableFunction<
-                Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>>, Void>() {
-              @Override
-              public Void apply(Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>> input) {
-                for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
-                  if (Iterables.size(windowedInput) > 1) {
-                    fail("Expected all windows to have exactly one pane, got " + windowedInput);
-                    return null;
-                  }
+            input -> {
+              for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
+                if (Iterables.size(windowedInput) > 1) {
+                  fail("Expected all windows to have exactly one pane, got " + windowedInput);
+                  return null;
                 }
-                return null;
               }
+              return null;
             });
 
     p.run();
@@ -100,15 +88,8 @@ public class GatherAllPanesTest implements Serializable {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         PCollectionList.of(someElems)
             .and(otherElems)
-            .apply(Flatten.<Long>pCollections())
-            .apply(
-                WithTimestamps.of(
-                    new SerializableFunction<Long, Instant>() {
-                      @Override
-                      public Instant apply(Long input) {
-                        return new Instant(input * 10);
-                      }
-                    }))
+            .apply(Flatten.pCollections())
+            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(
@@ -117,24 +98,20 @@ public class GatherAllPanesTest implements Serializable {
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes())
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-            .apply(GroupByKey.<Void, Long>create())
-            .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>globally());
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(GatherAllPanes.globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(
-            new SerializableFunction<
-                Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>>, Void>() {
-              @Override
-              public Void apply(Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>> input) {
-                for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
-                  if (Iterables.size(windowedInput) > 1) {
-                    return null;
-                  }
+            input -> {
+              for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
+                if (Iterables.size(windowedInput) > 1) {
+                  return null;
                 }
-                fail("Expected at least one window to have multiple panes");
-                return null;
               }
+              fail("Expected at least one window to have multiple panes");
+              return null;
             });
 
     p.run();

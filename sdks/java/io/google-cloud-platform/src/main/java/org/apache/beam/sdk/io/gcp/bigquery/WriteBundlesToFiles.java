@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -29,6 +30,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -40,21 +42,19 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writes each bundle of {@link TableRow} elements out to separate file using {@link
- * TableRowWriter}. Elements destined to different destinations are written to separate files.
- * The transform will not write an element to a file if it is already writing to
- * {@link #maxNumWritersPerBundle} files and the element is destined to a new destination. In this
- * case, the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles}
- * transform will take care of writing it to a file.
+ * TableRowWriter}. Elements destined to different destinations are written to separate files. The
+ * transform will not write an element to a file if it is already writing to {@link
+ * #maxNumWritersPerBundle} files and the element is destined to a new destination. In this case,
+ * the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles} transform
+ * will take care of writing it to a file.
  */
 class WriteBundlesToFiles<DestinationT>
     extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
   // 10TB of data have shown a sharding of 10 to be a good choice.
@@ -64,15 +64,16 @@ class WriteBundlesToFiles<DestinationT>
   private transient Map<DestinationT, TableRowWriter> writers;
   private transient Map<DestinationT, BoundedWindow> writerWindows;
   private final PCollectionView<String> tempFilePrefixView;
-  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag;
+  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag;
   private int maxNumWritersPerBundle;
   private long maxFileSize;
+  private int spilledShardNumber;
 
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  public static final class Result<DestinationT> implements Serializable {
+  static final class Result<DestinationT> implements Serializable {
     private static final long serialVersionUID = 1L;
     public final String filename;
     public final Long fileByteSize;
@@ -83,6 +84,35 @@ class WriteBundlesToFiles<DestinationT>
       this.filename = filename;
       this.fileByteSize = fileByteSize;
       this.destination = destination;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof Result) {
+        Result<DestinationT> o = (Result<DestinationT>) other;
+        return Objects.equals(this.filename, o.filename)
+            && Objects.equals(this.fileByteSize, o.fileByteSize)
+            && Objects.equals(this.destination, o.destination);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(filename, fileByteSize, destination);
+    }
+
+    @Override
+    public String toString() {
+      return "Result{"
+          + "filename='"
+          + filename
+          + '\''
+          + ", fileByteSize="
+          + fileByteSize
+          + ", destination="
+          + destination
+          + '}';
     }
   }
 
@@ -102,8 +132,7 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     @Override
-    public void encode(Result<DestinationT> value, OutputStream outStream)
-        throws IOException {
+    public void encode(Result<DestinationT> value, OutputStream outStream) throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
@@ -131,11 +160,11 @@ class WriteBundlesToFiles<DestinationT>
 
   WriteBundlesToFiles(
       PCollectionView<String> tempFilePrefixView,
-      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag,
+      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag,
       int maxNumWritersPerBundle,
       long maxFileSize) {
     this.tempFilePrefixView = tempFilePrefixView;
-    this.unwrittedRecordsTag = unwrittedRecordsTag;
+    this.unwrittenRecordsTag = unwrittenRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
     this.maxFileSize = maxFileSize;
   }
@@ -146,10 +175,11 @@ class WriteBundlesToFiles<DestinationT>
     // bundles.
     this.writers = Maps.newHashMap();
     this.writerWindows = Maps.newHashMap();
+    this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
   }
 
-  TableRowWriter createAndInsertWriter(DestinationT destination, String tempFilePrefix,
-                                       BoundedWindow window) throws Exception {
+  TableRowWriter createAndInsertWriter(
+      DestinationT destination, String tempFilePrefix, BoundedWindow window) throws Exception {
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
     writers.put(destination, writer);
     writerWindows.put(destination, window);
@@ -172,9 +202,10 @@ class WriteBundlesToFiles<DestinationT>
       } else {
         // This means that we already had too many writers open in this bundle. "spill" this record
         // into the output. It will be grouped and written to a file in a subsequent stage.
-        c.output(unwrittedRecordsTag,
-            KV.of(ShardedKey.of(destination,
-                ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR)),
+        c.output(
+            unwrittenRecordsTag,
+            KV.of(
+                ShardedKey.of(destination, (++spilledShardNumber) % SPILLED_RECORD_SHARDING_FACTOR),
                 c.element().getValue()));
         return;
       }
@@ -235,6 +266,5 @@ class WriteBundlesToFiles<DestinationT>
       }
     }
     writers.clear();
-
   }
 }

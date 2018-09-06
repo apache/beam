@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 
-/**
- * Encapsulates a {@link TableRow} along with a unique insertion id.
- */
+/** Encapsulates a {@link TableRow} along with a unique insertion id. */
 class TableRowInfo {
   TableRowInfo(TableRow tableRow, String uniqueId) {
     this.tableRow = tableRow;

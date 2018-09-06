@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Control service client and individual request handlers.
- */
+/** Control service client and individual request handlers. */
 package org.apache.beam.fn.harness.control;

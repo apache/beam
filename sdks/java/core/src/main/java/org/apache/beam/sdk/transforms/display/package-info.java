@@ -18,9 +18,13 @@
 
 /**
  * Defines {@link org.apache.beam.sdk.transforms.display.HasDisplayData} for annotating components
- * which provide {@link org.apache.beam.sdk.transforms.display.DisplayData display data} used
- * within UIs and diagnostic tools.
+ * which provide {@link org.apache.beam.sdk.transforms.display.DisplayData display data} used within
+ * UIs and diagnostic tools.
  *
  * @see org.apache.beam.sdk.transforms.display.HasDisplayData
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.display;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

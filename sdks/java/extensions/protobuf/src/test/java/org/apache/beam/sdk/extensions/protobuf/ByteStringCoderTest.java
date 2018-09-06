@@ -39,43 +39,46 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link ByteStringCoder}.
- */
+/** Test case for {@link ByteStringCoder}. */
 @RunWith(JUnit4.class)
 public class ByteStringCoderTest {
 
   private static final ByteStringCoder TEST_CODER = ByteStringCoder.of();
 
-  private static final List<String> TEST_STRING_VALUES = Arrays.asList(
-      "", "a", "13", "hello",
-      "a longer string with spaces and all that",
-      "a string with a \n newline",
-      "???????????????");
+  private static final List<String> TEST_STRING_VALUES =
+      Arrays.asList(
+          "",
+          "a",
+          "13",
+          "hello",
+          "a longer string with spaces and all that",
+          "a string with a \n newline",
+          "???????????????");
   private static final ImmutableList<ByteString> TEST_VALUES;
+
   static {
-    ImmutableList.Builder<ByteString> builder = ImmutableList.<ByteString>builder();
+    ImmutableList.Builder<ByteString> builder = ImmutableList.builder();
     for (String s : TEST_STRING_VALUES) {
-      builder.add(ByteString.copyFrom(s.getBytes()));
+      builder.add(ByteString.copyFromUtf8(s));
     }
     TEST_VALUES = builder.build();
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "",
-      "YQ",
-      "MTM",
-      "aGVsbG8",
-      "YSBsb25nZXIgc3RyaW5nIHdpdGggc3BhY2VzIGFuZCBhbGwgdGhhdA",
-      "YSBzdHJpbmcgd2l0aCBhIAogbmV3bGluZQ",
-      "Pz8_Pz8_Pz8_Pz8_Pz8_");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "",
+          "YQ",
+          "MTM",
+          "aGVsbG8",
+          "YSBsb25nZXIgc3RyaW5nIHdpdGggc3BhY2VzIGFuZCBhbGwgdGhhdA",
+          "YSBzdHJpbmcgd2l0aCBhIAogbmV3bGluZQ",
+          "Pz8_Pz8_Pz8_Pz8_Pz8_");
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDecodeEncodeEqualInAllContexts() throws Exception {

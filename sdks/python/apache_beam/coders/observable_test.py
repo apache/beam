@@ -16,10 +16,10 @@
 #
 
 """Tests for the Observable mixin class."""
+from __future__ import absolute_import
 
 import logging
 import unittest
-
 
 from apache_beam.coders import observable
 

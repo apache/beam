@@ -26,9 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian.
- */
+/** A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian. */
 public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
 
   public static BigEndianIntegerCoder of() {
@@ -43,8 +41,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   private BigEndianIntegerCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Integer value, OutputStream outStream) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
@@ -52,8 +49,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  public Integer decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Integer decode(InputStream inStream) throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readInt();
     } catch (EOFException | UTFDataFormatException exn) {
@@ -97,8 +93,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
    * @return {@code 4}, the size in bytes of an integer's big endian encoding.
    */
   @Override
-  protected long getEncodedElementByteSize(Integer value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Integer value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }

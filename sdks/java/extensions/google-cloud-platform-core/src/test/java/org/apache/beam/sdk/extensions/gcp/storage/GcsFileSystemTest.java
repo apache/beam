@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import java.io.FileNotFoundException;
@@ -38,7 +37,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -53,16 +51,12 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link GcsFileSystem}.
- */
+/** Tests for {@link GcsFileSystem}. */
 @RunWith(JUnit4.class)
 public class GcsFileSystemTest {
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
-  @Mock
-  private GcsUtil mockGcsUtil;
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Mock private GcsUtil mockGcsUtil;
   private GcsFileSystem gcsFileSystem;
 
   @Before
@@ -92,20 +86,23 @@ public class GcsFileSystemTest {
     when(mockGcsUtil.listObjects(eq("testbucket"), anyString(), isNull(String.class)))
         .thenReturn(modelObjects);
 
-    List<GcsPath> gcsPaths = ImmutableList.of(
-        GcsPath.fromUri("gs://testbucket/testdirectory/non-exist-file"),
-        GcsPath.fromUri("gs://testbucket/testdirectory/otherfile"));
-
-    when(mockGcsUtil.getObjects(eq(gcsPaths))).thenReturn(
+    List<GcsPath> gcsPaths =
         ImmutableList.of(
-            StorageObjectOrIOException.create(new FileNotFoundException()),
-            StorageObjectOrIOException.create(
-                createStorageObject("gs://testbucket/testdirectory/otherfile", 4L))));
+            GcsPath.fromUri("gs://testbucket/testdirectory/non-exist-file"),
+            GcsPath.fromUri("gs://testbucket/testdirectory/otherfile"));
 
-    List<String> specs = ImmutableList.of(
-        "gs://testbucket/testdirectory/file[1-3]*",
-        "gs://testbucket/testdirectory/non-exist-file",
-        "gs://testbucket/testdirectory/otherfile");
+    when(mockGcsUtil.getObjects(eq(gcsPaths)))
+        .thenReturn(
+            ImmutableList.of(
+                StorageObjectOrIOException.create(new FileNotFoundException()),
+                StorageObjectOrIOException.create(
+                    createStorageObject("gs://testbucket/testdirectory/otherfile", 4L))));
+
+    List<String> specs =
+        ImmutableList.of(
+            "gs://testbucket/testdirectory/file[1-3]*",
+            "gs://testbucket/testdirectory/non-exist-file",
+            "gs://testbucket/testdirectory/otherfile");
     List<MatchResult> matchResults = gcsFileSystem.match(specs);
     assertEquals(3, matchResults.size());
     assertEquals(Status.OK, matchResults.get(0).status());
@@ -120,7 +117,6 @@ public class GcsFileSystemTest {
     assertThat(
         ImmutableList.of("gs://testbucket/testdirectory/otherfile"),
         contains(toFilenames(matchResults.get(2)).toArray()));
-
   }
 
   @Test
@@ -136,8 +132,8 @@ public class GcsFileSystemTest {
     items.add(createStorageObject("gs://testbucket/testdirectory/file3name", 3L /* fileSize */));
     items.add(createStorageObject("gs://testbucket/testdirectory/otherfile", 4L /* fileSize */));
     items.add(createStorageObject("gs://testbucket/testdirectory/anotherfile", 5L /* fileSize */));
-    items.add(createStorageObject(
-        "gs://testbucket/testotherdirectory/file4name", 6L /* fileSize */));
+    items.add(
+        createStorageObject("gs://testbucket/testotherdirectory/file4name", 6L /* fileSize */));
 
     modelObjects.setItems(items);
 
@@ -147,63 +143,58 @@ public class GcsFileSystemTest {
     // Test patterns.
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<String> expectedFiles = ImmutableList.of(
-          "gs://testbucket/testdirectory/file1name",
-          "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name");
+      List<String> expectedFiles =
+          ImmutableList.of(
+              "gs://testbucket/testdirectory/file1name",
+              "gs://testbucket/testdirectory/file2name",
+              "gs://testbucket/testdirectory/file3name");
 
-      assertThat(
-          expectedFiles,
-          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<String> expectedFiles = ImmutableList.of(
-          "gs://testbucket/testdirectory/file1name",
-          "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name");
+      List<String> expectedFiles =
+          ImmutableList.of(
+              "gs://testbucket/testdirectory/file1name",
+              "gs://testbucket/testdirectory/file2name",
+              "gs://testbucket/testdirectory/file3name");
 
-      assertThat(
-          expectedFiles,
-          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file[1-3]*");
-      List<String> expectedFiles = ImmutableList.of(
-          "gs://testbucket/testdirectory/file1name",
-          "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name");
+      List<String> expectedFiles =
+          ImmutableList.of(
+              "gs://testbucket/testdirectory/file1name",
+              "gs://testbucket/testdirectory/file2name",
+              "gs://testbucket/testdirectory/file3name");
 
-      assertThat(
-          expectedFiles,
-          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file?name");
-      List<String> expectedFiles = ImmutableList.of(
-          "gs://testbucket/testdirectory/file1name",
-          "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name");
+      List<String> expectedFiles =
+          ImmutableList.of(
+              "gs://testbucket/testdirectory/file1name",
+              "gs://testbucket/testdirectory/file2name",
+              "gs://testbucket/testdirectory/file3name");
 
-      assertThat(
-          expectedFiles,
-          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
     }
 
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/test*ectory/fi*name");
-      List<String> expectedFiles = ImmutableList.of(
-          "gs://testbucket/testdirectory/file1name",
-          "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name",
-          "gs://testbucket/testotherdirectory/file4name");
+      List<String> expectedFiles =
+          ImmutableList.of(
+              "gs://testbucket/testdirectory/file1name",
+              "gs://testbucket/testdirectory/file2name",
+              "gs://testbucket/testdirectory/file3name",
+              "gs://testbucket/testotherdirectory/file4name");
 
-      assertThat(
-          expectedFiles,
-          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
     }
   }
 
@@ -218,21 +209,25 @@ public class GcsFileSystemTest {
   public void testMatchNonGlobs() throws Exception {
     List<StorageObjectOrIOException> items = new ArrayList<>();
     // Files within the directory
-    items.add(StorageObjectOrIOException.create(
-        createStorageObject("gs://testbucket/testdirectory/file1name", 1L /* fileSize */)));
-    items.add(StorageObjectOrIOException.create(
-        createStorageObject("gs://testbucket/testdirectory/dir2name/", 0L /* fileSize */)));
+    items.add(
+        StorageObjectOrIOException.create(
+            createStorageObject("gs://testbucket/testdirectory/file1name", 1L /* fileSize */)));
+    items.add(
+        StorageObjectOrIOException.create(
+            createStorageObject("gs://testbucket/testdirectory/dir2name/", 0L /* fileSize */)));
     items.add(StorageObjectOrIOException.create(new FileNotFoundException()));
     items.add(StorageObjectOrIOException.create(new IOException()));
-    items.add(StorageObjectOrIOException.create(
-        createStorageObject("gs://testbucket/testdirectory/file4name", 4L /* fileSize */)));
+    items.add(
+        StorageObjectOrIOException.create(
+            createStorageObject("gs://testbucket/testdirectory/file4name", 4L /* fileSize */)));
 
-    List<GcsPath> gcsPaths = ImmutableList.of(
-        GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
-        GcsPath.fromUri("gs://testbucket/testdirectory/dir2name/"),
-        GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
-        GcsPath.fromUri("gs://testbucket/testdirectory/file3name"),
-        GcsPath.fromUri("gs://testbucket/testdirectory/file4name"));
+    List<GcsPath> gcsPaths =
+        ImmutableList.of(
+            GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+            GcsPath.fromUri("gs://testbucket/testdirectory/dir2name/"),
+            GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+            GcsPath.fromUri("gs://testbucket/testdirectory/file3name"),
+            GcsPath.fromUri("gs://testbucket/testdirectory/file4name"));
 
     when(mockGcsUtil.getObjects(eq(gcsPaths))).thenReturn(items);
     List<MatchResult> matchResults = gcsFileSystem.matchNonGlobs(gcsPaths);
@@ -262,13 +257,8 @@ public class GcsFileSystemTest {
   }
 
   private List<String> toFilenames(MatchResult matchResult) throws IOException {
-    return FluentIterable
-        .from(matchResult.metadata())
-        .transform(new Function<Metadata, String>() {
-          @Override
-          public String apply(Metadata metadata) {
-            return ((GcsResourceId) metadata.resourceId()).getGcsPath().toString();
-          }})
+    return FluentIterable.from(matchResult.metadata())
+        .transform(metadata -> ((GcsResourceId) metadata.resourceId()).getGcsPath().toString())
         .toList();
   }
 }

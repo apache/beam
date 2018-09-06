@@ -51,8 +51,7 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
-      new ThreadLocal<MetricsContainer>();
+  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD = new ThreadLocal<>();
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
@@ -83,8 +82,8 @@ public class MetricsEnvironment {
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
-   * @return A {@link Closeable} that will reset the current container to the previous
-   * {@link MetricsContainer} when closed.
+   * @return A {@link Closeable} that will reset the current container to the previous {@link
+   *     MetricsContainer} when closed.
    */
   public static Closeable scopedMetricsContainer(MetricsContainer container) {
     return new ScopedContainer(container);
@@ -92,8 +91,7 @@ public class MetricsEnvironment {
 
   private static class ScopedContainer implements Closeable {
 
-    @Nullable
-    private final MetricsContainer oldContainer;
+    @Nullable private final MetricsContainer oldContainer;
 
     private ScopedContainer(MetricsContainer newContainer) {
       this.oldContainer = setCurrentContainer(newContainer);

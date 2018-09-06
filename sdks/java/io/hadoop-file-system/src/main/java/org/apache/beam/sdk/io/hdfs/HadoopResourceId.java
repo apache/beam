@@ -26,9 +26,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
 
-/**
- * {@link ResourceId} implementation for the {@link HadoopFileSystem}.
- */
+/** {@link ResourceId} implementation for the {@link HadoopFileSystem}. */
 class HadoopResourceId implements ResourceId {
   private final URI uri;
 
@@ -40,7 +38,7 @@ class HadoopResourceId implements ResourceId {
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
       if (!other.endsWith("/")) {
-        other += '/';
+        other += "/";
       }
       return new HadoopResourceId(uri.resolve(other));
     } else if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
@@ -57,6 +55,7 @@ class HadoopResourceId implements ResourceId {
     return new HadoopResourceId(uri.getPath().endsWith("/") ? uri : uri.resolve("."));
   }
 
+  @Override
   public boolean isDirectory() {
     return uri.getPath().endsWith("/");
   }

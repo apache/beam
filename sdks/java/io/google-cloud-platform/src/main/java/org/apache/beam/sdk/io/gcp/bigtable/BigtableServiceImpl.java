@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import com.google.bigtable.admin.v2.GetTableRequest;
-import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
@@ -30,19 +30,23 @@ import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
-import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,31 +97,36 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private class BigtableReaderImpl implements Reader {
+  @VisibleForTesting
+  static class BigtableReaderImpl implements Reader {
     private BigtableSession session;
     private final BigtableSource source;
     private ResultScanner<Row> results;
     private Row currentRow;
 
-    public BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+    @VisibleForTesting
+    BigtableReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
       this.source = source;
     }
 
     @Override
     public boolean start() throws IOException {
-      RowRange range =
-          RowRange.newBuilder()
-              .setStartKeyClosed(ByteString.copyFrom(source.getRange().getStartKey().getValue()))
-              .setEndKeyOpen(ByteString.copyFrom(source.getRange().getEndKey().getValue()))
-              .build();
-      RowSet rowSet = RowSet.newBuilder()
-          .addRowRanges(range)
-          .build();
+      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
+      for (ByteKeyRange sourceRange : source.getRanges()) {
+        rowSetBuilder =
+            rowSetBuilder.addRowRanges(
+                RowRange.newBuilder()
+                    .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
+                    .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+      }
+      RowSet rowSet = rowSetBuilder.build();
+
+      String tableNameSr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+
       ReadRowsRequest.Builder requestB =
-          ReadRowsRequest.newBuilder()
-              .setRows(rowSet)
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()));
+          ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
@@ -164,24 +173,26 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private static class BigtableWriterImpl implements Writer {
+  @VisibleForTesting
+  static class BigtableWriterImpl implements Writer {
     private BigtableSession session;
-    private AsyncExecutor executor;
     private BulkMutation bulkMutation;
-    private final String tableName;
 
-    public BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
+    BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
-      executor = session.createAsyncExecutor();
-      bulkMutation = session.createBulkMutation(tableName, executor);
-      this.tableName = tableName.toString();
+      bulkMutation = session.createBulkMutation(tableName);
     }
 
     @Override
     public void flush() throws IOException {
       if (bulkMutation != null) {
-        bulkMutation.flush();
-        executor.flush();
+        try {
+          bulkMutation.flush();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // We fail since flush() operation was interrupted.
+          throw new IOException(e);
+        }
       }
     }
 
@@ -189,10 +200,14 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       try {
         if (bulkMutation != null) {
-          bulkMutation.flush();
+          try {
+            bulkMutation.flush();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // We fail since flush() operation was interrupted.
+            throw new IOException(e);
+          }
           bulkMutation = null;
-          executor.flush();
-          executor = null;
         }
       } finally {
         if (session != null) {
@@ -203,25 +218,35 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public ListenableFuture<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record)
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
-      MutateRowRequest r =
-          MutateRowRequest.newBuilder()
-              .setTableName(tableName)
+      MutateRowsRequest.Entry request =
+          MutateRowsRequest.Entry.newBuilder()
               .setRowKey(record.getKey())
               .addAllMutations(record.getValue())
               .build();
-      return bulkMutation.add(r);
+
+      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+      Futures.addCallback(
+          bulkMutation.add(request),
+          new FutureCallback<MutateRowResponse>() {
+            @Override
+            public void onSuccess(MutateRowResponse mutateRowResponse) {
+              result.complete(mutateRowResponse);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+              result.completeExceptionally(throwable);
+            }
+          });
+      return result;
     }
   }
 
   @Override
   public String toString() {
-    return MoreObjects
-        .toStringHelper(BigtableServiceImpl.class)
-        .add("options", options)
-        .toString();
+    return MoreObjects.toStringHelper(BigtableServiceImpl.class).add("options", options).toString();
   }
 
   @Override
@@ -235,7 +260,7 @@ class BigtableServiceImpl implements BigtableService {
     try (BigtableSession session = new BigtableSession(options)) {
       SampleRowKeysRequest request =
           SampleRowKeysRequest.newBuilder()
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()))
+              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()))
               .build();
       return session.getDataClient().sampleRowKeys(request);
     }

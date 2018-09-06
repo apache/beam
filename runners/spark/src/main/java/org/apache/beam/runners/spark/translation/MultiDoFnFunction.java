@@ -34,12 +34,15 @@ import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -47,7 +50,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
-
 
 /**
  * DoFunctions ignore outputs that are not the main output. MultiDoFunctions deal with additional
@@ -59,54 +61,63 @@ import scala.Tuple2;
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
 
-  private final Accumulator<NamedAggregators> aggAccum;
   private final Accumulator<MetricsContainerStepMap> metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
-  private final SparkRuntimeContext runtimeContext;
+  private transient boolean wasSetupCalled;
+  private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
+  private final Coder<InputT> inputCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final boolean stateful;
 
   /**
-   * @param aggAccum       The Spark {@link Accumulator} that backs the Beam Aggregators.
-   * @param metricsAccum       The Spark {@link Accumulator} that backs the Beam metrics.
-   * @param doFn              The {@link DoFn} to be wrapped.
-   * @param runtimeContext    The {@link SparkRuntimeContext}.
-   * @param mainOutputTag     The main output {@link TupleTag}.
+   * @param metricsAccum The Spark {@link Accumulator} that backs the Beam metrics.
+   * @param doFn The {@link DoFn} to be wrapped.
+   * @param options The {@link SerializablePipelineOptions}.
+   * @param mainOutputTag The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
-   * @param sideInputs        Side inputs used in this {@link DoFn}.
+   * @param inputCoder The coder for the input.
+   * @param outputCoders A map of all output coders.
+   * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
-   * @param stateful          Stateful {@link DoFn}.
+   * @param stateful Stateful {@link DoFn}.
    */
   public MultiDoFnFunction(
-      Accumulator<NamedAggregators> aggAccum,
       Accumulator<MetricsContainerStepMap> metricsAccum,
       String stepName,
       DoFn<InputT, OutputT> doFn,
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful) {
-    this.aggAccum = aggAccum;
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
-    this.doFn = doFn;
-    this.runtimeContext = runtimeContext;
+    this.doFn = SerializableUtils.clone(doFn);
+    this.options = options;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
+    this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
     this.stateful = stateful;
   }
 
   @Override
-  public Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> call(
-      Iterator<WindowedValue<InputT>> iter) throws Exception {
+  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
+      throws Exception {
+    if (!wasSetupCalled) {
+      DoFnInvokers.invokerFor(doFn).invokeSetup();
+      wasSetupCalled = true;
+    }
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
@@ -122,17 +133,18 @@ public class MultiDoFnFunction<InputT, OutputT>
       }
       final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
       timerInternals = new InMemoryTimerInternals();
-      context = new StepContext(){
-        @Override
-        public StateInternals stateInternals() {
-          return stateInternals;
-        }
+      context =
+          new StepContext() {
+            @Override
+            public StateInternals stateInternals() {
+              return stateInternals;
+            }
 
-        @Override
-        public TimerInternals timerInternals() {
-          return timerInternals;
-        }
-      };
+            @Override
+            public TimerInternals timerInternals() {
+              return timerInternals;
+            }
+          };
     } else {
       timerInternals = null;
       context = new SparkProcessContext.NoOpStepContext();
@@ -140,22 +152,27 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
-            runtimeContext.getPipelineOptions(),
+            options.get(),
             doFn,
             new SparkSideInputReader(sideInputs),
             outputManager,
             mainOutputTag,
             additionalOutputTags,
             context,
+            inputCoder,
+            outputCoders,
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
     return new SparkProcessContext<>(
-        doFn, doFnRunnerWithMetrics, outputManager,
-        stateful ? new TimerDataIterator(timerInternals) :
-            Collections.<TimerInternals.TimerData>emptyIterator()).processPartition(iter);
+            doFn,
+            doFnRunnerWithMetrics,
+            outputManager,
+            stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
+        .processPartition(iter)
+        .iterator();
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {
@@ -178,8 +195,7 @@ public class MultiDoFnFunction<InputT, OutputT>
           timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
           // Finally, advance the processing time to infinity to fire any timers.
           timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
-          timerInternals.advanceSynchronizedProcessingTime(
-              BoundedWindow.TIMESTAMP_MAX_VALUE);
+          timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
@@ -205,7 +221,6 @@ public class MultiDoFnFunction<InputT, OutputT>
     public void remove() {
       throw new RuntimeException("TimerDataIterator not support remove!");
     }
-
   }
 
   private class DoFnOutputManager
@@ -221,16 +236,11 @@ public class MultiDoFnFunction<InputT, OutputT>
     @Override
     public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
       Iterator<Map.Entry<TupleTag<?>, WindowedValue<?>>> entryIter = outputs.entries().iterator();
-      return Iterators.transform(entryIter, this.<TupleTag<?>, WindowedValue<?>>entryToTupleFn());
+      return Iterators.transform(entryIter, this.entryToTupleFn());
     }
 
     private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return new Function<Map.Entry<K, V>, Tuple2<K, V>>() {
-        @Override
-        public Tuple2<K, V> apply(Map.Entry<K, V> en) {
-          return new Tuple2<>(en.getKey(), en.getValue());
-        }
-      };
+      return en -> new Tuple2<>(en.getKey(), en.getValue());
     }
 
     @Override

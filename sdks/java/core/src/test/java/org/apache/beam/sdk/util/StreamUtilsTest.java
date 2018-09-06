@@ -46,7 +46,7 @@ public class StreamUtilsTest {
   @Test
   public void testGetBytesFromExposedByteArrayInputStream() throws IOException {
     InputStream stream = new ExposedByteArrayInputStream(testData);
-    byte[] bytes = StreamUtils.getBytes(stream);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
     assertArrayEquals(testData, bytes);
     assertSame(testData, bytes);
     assertEquals(0, stream.available());
@@ -55,7 +55,7 @@ public class StreamUtilsTest {
   @Test
   public void testGetBytesFromByteArrayInputStream() throws IOException {
     InputStream stream = new ByteArrayInputStream(testData);
-    byte[] bytes = StreamUtils.getBytes(stream);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
     assertArrayEquals(testData, bytes);
     assertEquals(0, stream.available());
   }
@@ -63,9 +63,8 @@ public class StreamUtilsTest {
   @Test
   public void testGetBytesFromInputStream() throws IOException {
     // Any stream which is not a ByteArrayInputStream.
-    InputStream stream =
-        new BufferedInputStream(new ByteArrayInputStream(testData));
-    byte[] bytes = StreamUtils.getBytes(stream);
+    InputStream stream = new BufferedInputStream(new ByteArrayInputStream(testData));
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
     assertArrayEquals(testData, bytes);
     assertEquals(0, stream.available());
   }

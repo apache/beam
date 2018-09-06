@@ -37,16 +37,12 @@ public class AfterPane extends OnceTrigger {
     this.countElems = countElems;
   }
 
-  /**
-   * The number of elements after which this trigger may fire.
-   */
+  /** The number of elements after which this trigger may fire. */
   public int getElementCount() {
     return countElems;
   }
 
-  /**
-   * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
-   */
+  /** Creates a trigger that fires when the pane contains at least {@code countElems} elements. */
   public static AfterPane elementCountAtLeast(int countElems) {
     return new AfterPane(countElems);
   }

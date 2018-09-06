@@ -17,6 +17,8 @@
 
 """Bigquery data verifier for end-to-end test."""
 
+from __future__ import absolute_import
+
 import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -52,6 +54,13 @@ class BigqueryMatcher(BaseMatcher):
   """
 
   def __init__(self, project, query, checksum):
+    """Initialize BigQueryMatcher object.
+    Args:
+      project: The name (string) of the project.
+      query: The query (string) to perform.
+      checksum: SHA-1 hash generated from a sorted list of lines
+        read from expected output.
+    """
     if bigquery is None:
       raise ImportError(
           'Bigquery dependencies are not installed.')
@@ -92,9 +101,9 @@ class BigqueryMatcher(BaseMatcher):
     page_token = None
     results = []
     while True:
-      rows, _, page_token = query.fetch_data(page_token=page_token)
-      results.extend(rows)
-      if not page_token:
+      for row in query.fetch_data(page_token=page_token):
+        results.append(row)
+      if results:
         break
 
     return results

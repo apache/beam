@@ -17,6 +17,13 @@
 
 """JSON conversion utility functions."""
 
+from __future__ import absolute_import
+
+from past.builtins import long
+from past.builtins import unicode
+
+from apache_beam.options.value_provider import ValueProvider
+
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -24,8 +31,6 @@ try:
 except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
-
-from apache_beam.options.value_provider import ValueProvider
 
 
 _MAXINT64 = (1 << 63) - 1
@@ -41,13 +46,14 @@ def get_typed_value_descriptor(obj):
     obj: A basestring, bool, int, or float to be converted.
 
   Returns:
-    A dictionary containing the keys '@type' and 'value' with the value for
-    the @type of appropriate type.
+    A dictionary containing the keys ``@type`` and ``value`` with the value for
+    the ``@type`` of appropriate type.
 
   Raises:
-    TypeError: if the Python object has a type that is not supported.
+    ~exceptions.TypeError: if the Python object has a type that is not
+      supported.
   """
-  if isinstance(obj, basestring):
+  if isinstance(obj, (str, unicode)):
     type_name = 'Text'
   elif isinstance(obj, bool):
     type_name = 'Boolean'
@@ -66,21 +72,23 @@ def to_json_value(obj, with_type=False):
   Converts Python objects into extra_types.JsonValue objects.
 
   Args:
-    obj: Python object to be converted. Can be 'None'.
-    with_type: If true then the basic types (string, int, float, bool) will
-      be wrapped in @type/value dictionaries. Otherwise the straight value is
-      encoded into a JsonValue.
+    obj: Python object to be converted. Can be :data:`None`.
+    with_type: If true then the basic types (``string``, ``int``, ``float``,
+      ``bool``) will be wrapped in ``@type:value`` dictionaries. Otherwise the
+      straight value is encoded into a ``JsonValue``.
 
   Returns:
-    A JsonValue object using JsonValue, JsonArray and JsonObject types for the
-    corresponding values, lists, or dictionaries.
+    A ``JsonValue`` object using ``JsonValue``, ``JsonArray`` and ``JsonObject``
+    types for the corresponding values, lists, or dictionaries.
 
   Raises:
-    TypeError: if the Python object contains a type that is not supported.
+    ~exceptions.TypeError: if the Python object contains a type that is not
+      supported.
 
-  The types supported are str, bool, list, tuple, dict, and None. The Dataflow
-  API requires JsonValue(s) in many places, and it is quite convenient to be
-  able to specify these hierarchical objects using Python syntax.
+  The types supported are ``str``, ``bool``, ``list``, ``tuple``, ``dict``, and
+  ``None``. The Dataflow API requires JsonValue(s) in many places, and it is
+  quite convenient to be able to specify these hierarchical objects using
+  Python syntax.
   """
   if obj is None:
     return extra_types.JsonValue(is_null=True)
@@ -90,20 +98,18 @@ def to_json_value(obj, with_type=False):
             entries=[to_json_value(o, with_type=with_type) for o in obj]))
   elif isinstance(obj, dict):
     json_object = extra_types.JsonObject()
-    for k, v in obj.iteritems():
+    for k, v in obj.items():
       json_object.properties.append(
           extra_types.JsonObject.Property(
               key=k, value=to_json_value(v, with_type=with_type)))
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
     return to_json_value(get_typed_value_descriptor(obj), with_type=False)
-  elif isinstance(obj, basestring):
+  elif isinstance(obj, (str, unicode)):
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
-  elif isinstance(obj, int):
-    return extra_types.JsonValue(integer_value=obj)
-  elif isinstance(obj, long):
+  elif isinstance(obj, (int, long)):
     if _MININT64 <= obj <= _MAXINT64:
       return extra_types.JsonValue(integer_value=obj)
     else:
@@ -121,21 +127,23 @@ def to_json_value(obj, with_type=False):
 def from_json_value(v):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Converts extra_types.JsonValue objects into Python objects.
+  Converts ``extra_types.JsonValue`` objects into Python objects.
 
   Args:
-    v: JsonValue object to be converted.
+    v: ``JsonValue`` object to be converted.
 
   Returns:
     A Python object structured as values, lists, and dictionaries corresponding
-    to JsonValue, JsonArray and JsonObject types.
+    to ``JsonValue``, ``JsonArray`` and ``JsonObject`` types.
 
   Raises:
-    TypeError: if the JsonValue object contains a type that is not supported.
+    ~exceptions.TypeError: if the ``JsonValue`` object contains a type that is
+      not supported.
 
-  The types supported are str, bool, list, dict, and None. The Dataflow API
-  returns JsonValue(s) in many places and it is quite convenient to be able to
-  convert these hierarchical objects to much simpler Python objects.
+  The types supported are ``str``, ``bool``, ``list``, ``dict``, and ``None``.
+  The Dataflow API returns JsonValue(s) in many places and it is quite
+  convenient to be able to convert these hierarchical objects to much simpler
+  Python objects.
   """
   if isinstance(v, extra_types.JsonValue):
     if v.string_value is not None:

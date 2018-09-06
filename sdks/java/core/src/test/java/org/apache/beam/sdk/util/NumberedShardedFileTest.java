@@ -45,20 +45,20 @@ import org.junit.runners.JUnit4;
 public class NumberedShardedFileTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private Sleeper fastClock = new Sleeper() {
-    @Override
-    public void sleep(long millis) throws InterruptedException {
-      // No sleep.
-    }
-  };
+  private Sleeper fastClock =
+      millis -> {
+        // No sleep.
+      };
 
   private final BackOff backOff = NumberedShardedFile.BACK_OFF_FACTORY.backoff();
   private String filePattern;
 
   @Before
   public void setup() throws IOException {
-    filePattern = LocalResources.fromFile(tmpFolder.getRoot(), true).resolve(
-            "*", StandardResolveOptions.RESOLVE_FILE).toString();
+    filePattern =
+        LocalResources.fromFile(tmpFolder.getRoot(), true)
+            .resolve("*", StandardResolveOptions.RESOLVE_FILE)
+            .toString();
   }
 
   @Test
@@ -77,8 +77,7 @@ public class NumberedShardedFileTest {
 
   @Test
   public void testReadMultipleShards() throws Exception {
-    String
-        contents1 = "To be or not to be, ",
+    String contents1 = "To be or not to be, ",
         contents2 = "it is not a question.",
         contents3 = "should not be included";
 
@@ -89,8 +88,10 @@ public class NumberedShardedFileTest {
     Files.write(contents2, tmpFile2, StandardCharsets.UTF_8);
     Files.write(contents3, tmpFile3, StandardCharsets.UTF_8);
 
-    filePattern = LocalResources.fromFile(tmpFolder.getRoot(), true).resolve(
-        "result-*", StandardResolveOptions.RESOLVE_FILE).toString();
+    filePattern =
+        LocalResources.fromFile(tmpFolder.getRoot(), true)
+            .resolve("result-*", StandardResolveOptions.RESOLVE_FILE)
+            .toString();
     NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     assertThat(shardedFile.readFilesWithRetries(), containsInAnyOrder(contents1, contents2));
@@ -127,8 +128,8 @@ public class NumberedShardedFileTest {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
 
-    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern,
-        Pattern.compile("incorrect-template"));
+    NumberedShardedFile shardedFile =
+        new NumberedShardedFile(filePattern, Pattern.compile("incorrect-template"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -142,9 +143,7 @@ public class NumberedShardedFileTest {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
     NumberedShardedFile shardedFile = spy(new NumberedShardedFile(filePattern));
-    doThrow(IOException.class)
-        .when(shardedFile)
-        .readLines(anyCollection());
+    doThrow(IOException.class).when(shardedFile).readLines(anyCollection());
 
     thrown.expect(IOException.class);
     thrown.expectMessage(

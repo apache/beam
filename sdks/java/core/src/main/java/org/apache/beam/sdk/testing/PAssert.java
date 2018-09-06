@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -31,7 +32,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -74,8 +75,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An assertion on the contents of a {@link PCollection} incorporated into the pipeline. Such an
@@ -83,7 +82,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note that the {@code PAssert} call must precede the call to {@link Pipeline#run}.
  *
- * <p>Examples of use: <pre>{@code
+ * <p>Examples of use:
+ *
+ * <pre>{@code
  * Pipeline p = TestPipeline.create();
  * ...
  * PCollection<String> output =
@@ -105,14 +106,12 @@ import org.slf4j.LoggerFactory;
  * <p>JUnit and Hamcrest must be linked in by any code that uses PAssert.
  */
 public class PAssert {
-
-  private static final Logger LOG = LoggerFactory.getLogger(PAssert.class);
   public static final String SUCCESS_COUNTER = "PAssertSuccess";
   public static final String FAILURE_COUNTER = "PAssertFailure";
-  private static final Counter successCounter = Metrics.counter(
-      PAssert.class, PAssert.SUCCESS_COUNTER);
-  private static final Counter failureCounter = Metrics.counter(
-      PAssert.class, PAssert.FAILURE_COUNTER);
+  private static final Counter successCounter =
+      Metrics.counter(PAssert.class, PAssert.SUCCESS_COUNTER);
+  private static final Counter failureCounter =
+      Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
 
   private static int assertCount = 0;
 
@@ -124,9 +123,9 @@ public class PAssert {
   private PAssert() {}
 
   /**
-   * A {@link DoFn} that counts the number of successful {@link SuccessOrFailure} in the
-   * input {@link PCollection} and counts them. If a failed {@link SuccessOrFailure} is
-   * encountered, it is counted and immediately raised.
+   * A {@link DoFn} that counts the number of successful {@link SuccessOrFailure} in the input
+   * {@link PCollection} and counts them. If a failed {@link SuccessOrFailure} is encountered, it is
+   * counted and immediately raised.
    */
   private static final class DefaultConcludeFn extends DoFn<SuccessOrFailure, Void> {
 
@@ -143,24 +142,23 @@ public class PAssert {
   }
 
   /**
-   * Default transform to check that a PAssert was successful. This transform
-   * relies on two {@link Counter} objects from the Metrics API to count the number of
-   * successful and failed asserts.
-   * Runners that do not support the Metrics API should replace this transform with
-   * their own implementation.
+   * Default transform to check that a PAssert was successful. This transform relies on two {@link
+   * Counter} objects from the Metrics API to count the number of successful and failed asserts.
+   * Runners that do not support the Metrics API should replace this transform with their own
+   * implementation.
    */
   public static class DefaultConcludeTransform
       extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
+    @Override
     public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
       return input.apply(ParDo.of(new DefaultConcludeFn()));
     }
   }
 
   /**
-   * Track the place where an assertion is defined.
-   * This is necessary because the stack trace of a Throwable is a transient attribute, and can't
-   * be serialized. {@link PAssertionSite} helps track the stack trace
-   * of the place where an assertion is issued.
+   * Track the place where an assertion is defined. This is necessary because the stack trace of a
+   * Throwable is a transient attribute, and can't be serialized. {@link PAssertionSite} helps track
+   * the stack trace of the place where an assertion is issued.
    */
   public static class PAssertionSite implements Serializable {
     private final String message;
@@ -168,10 +166,6 @@ public class PAssert {
 
     static PAssertionSite capture(String message) {
       return new PAssertionSite(message, new Throwable().getStackTrace());
-    }
-
-    PAssertionSite() {
-      this(null, new StackTraceElement[0]);
     }
 
     PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
@@ -188,29 +182,47 @@ public class PAssert {
     }
 
     public AssertionError wrap(String message) {
-      String outputMessage = (this.message == null || this.message.isEmpty())
-          ? message : (this.message + ": " + message);
+      String outputMessage =
+          (this.message == null || this.message.isEmpty())
+              ? message
+              : (this.message + ": " + message);
       AssertionError res = new AssertionError(outputMessage);
       res.setStackTrace(creationStackTrace);
       return res;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PAssertionSite that = (PAssertionSite) o;
+      return Objects.equal(message, that.message)
+          && Arrays.equals(creationStackTrace, that.creationStackTrace);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(message, Arrays.asList(creationStackTrace));
+    }
   }
 
-  /**
-   * Builder interface for assertions applicable to iterables and PCollection contents.
-   */
+  /** Builder interface for assertions applicable to iterables and PCollection contents. */
   public interface IterableAssert<T> {
     /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window.
      *
-     * <p>The assertion will concatenate all panes present in the provided window if the
-     * {@link Trigger} produces multiple panes. If the windowing strategy accumulates fired panes
-     * and triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)}
-     * or {@link #inOnTimePane(BoundedWindow)}.
+     * <p>The assertion will concatenate all panes present in the provided window if the {@link
+     * Trigger} produces multiple panes. If the windowing strategy accumulates fired panes and
+     * triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)} or
+     * {@link #inOnTimePane(BoundedWindow)}.
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
+     *     specified window.
      */
     IterableAssert<T> inWindow(BoundedWindow window);
 
@@ -221,11 +233,11 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
-     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting {@link
+     * ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
+     *     specified window.
      */
     IterableAssert<T> inFinalPane(BoundedWindow window);
 
@@ -234,7 +246,7 @@ public class PAssert {
      * run on the provided window.
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
+     *     specified window.
      */
     IterableAssert<T> inOnTimePane(BoundedWindow window);
 
@@ -244,7 +256,7 @@ public class PAssert {
      * data.
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
+     *     specified window.
      */
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
 
@@ -277,28 +289,26 @@ public class PAssert {
     IterableAssert<T> empty();
 
     /**
-     * Applies the provided checking function (presumably containing assertions) to the
-     * iterable in question.
+     * Applies the provided checking function (presumably containing assertions) to the iterable in
+     * question.
      *
      * @return the same {@link IterableAssert} builder for further assertions
      */
     IterableAssert<T> satisfies(SerializableFunction<Iterable<T>, Void> checkerFn);
   }
 
-  /**
-   * Builder interface for assertions applicable to a single value.
-   */
+  /** Builder interface for assertions applicable to a single value. */
   public interface SingletonAssert<T> {
     /**
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
      * only run on the provided window.
      *
      * <p>The assertion will expect outputs to be produced to the provided window exactly once. If
-     * the upstream {@link Trigger} may produce output multiple times, consider instead using
-     * {@link #inFinalPane(BoundedWindow)} or {@link #inOnTimePane(BoundedWindow)}.
+     * the upstream {@link Trigger} may produce output multiple times, consider instead using {@link
+     * #inFinalPane(BoundedWindow)} or {@link #inOnTimePane(BoundedWindow)}.
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
-     * the specified window.
+     *     the specified window.
      */
     SingletonAssert<T> inOnlyPane(BoundedWindow window);
 
@@ -309,11 +319,11 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
-     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting {@link
+     * ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
-     * the specified window.
+     *     the specified window.
      */
     SingletonAssert<T> inFinalPane(BoundedWindow window);
 
@@ -322,45 +332,43 @@ public class PAssert {
      * only run on the provided window, running the checker only on the on-time pane for each key.
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
-     * the specified window.
+     *     the specified window.
      */
     SingletonAssert<T> inOnTimePane(BoundedWindow window);
 
     /**
-     * Asserts that the value in question is equal to the provided value, according to
-     * {@link Object#equals}.
+     * Asserts that the value in question is equal to the provided value, according to {@link
+     * Object#equals}.
      *
      * @return the same {@link SingletonAssert} builder for further assertions
      */
     SingletonAssert<T> isEqualTo(T expected);
 
     /**
-     * Asserts that the value in question is not equal to the provided value, according
-     * to {@link Object#equals}.
+     * Asserts that the value in question is not equal to the provided value, according to {@link
+     * Object#equals}.
      *
      * @return the same {@link SingletonAssert} builder for further assertions
      */
     SingletonAssert<T> notEqualTo(T notExpected);
 
     /**
-     * Applies the provided checking function (presumably containing assertions) to the
-     * value in question.
+     * Applies the provided checking function (presumably containing assertions) to the value in
+     * question.
      *
      * @return the same {@link SingletonAssert} builder for further assertions
      */
     SingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn);
   }
 
-  /**
-   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}.
-   */
+  /** Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}. */
   public static <T> IterableAssert<T> that(PCollection<T> actual) {
     return that(actual.getName(), actual);
   }
 
   /**
-   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}
-   * with the specified reason.
+   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection} with
+   * the specified reason.
    */
   public static <T> IterableAssert<T> that(String reason, PCollection<T> actual) {
     return new PCollectionContentsAssert<>(actual, PAssertionSite.capture(reason));
@@ -381,15 +389,6 @@ public class PAssert {
    */
   public static <T> IterableAssert<T> thatSingletonIterable(
       String reason, PCollection<? extends Iterable<T>> actual) {
-
-    try {
-    } catch (NoSuchElementException | IllegalArgumentException exc) {
-      throw new IllegalArgumentException(
-          "PAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
-              + " with a Coder<Iterable<T>> where getCoderArguments() yields a"
-              + " single Coder<T> to apply to the elements.");
-    }
-
     @SuppressWarnings("unchecked") // Safe covariant cast
     PCollection<Iterable<T>> actualIterables = (PCollection<Iterable<T>>) actual;
 
@@ -398,29 +397,27 @@ public class PAssert {
   }
 
   /**
-   * Constructs a {@link SingletonAssert} for the value of the provided
-   * {@code PCollection PCollection<T>}, which must be a singleton.
+   * Constructs a {@link SingletonAssert} for the value of the provided {@code PCollection
+   * PCollection<T>}, which must be a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(PCollection<T> actual) {
     return thatSingleton(actual.getName(), actual);
   }
 
   /**
-   * Constructs a {@link SingletonAssert} for the value of the provided
-   * {@code PCollection PCollection<T>} with the specified reason. The provided PCollection must be
-   * a singleton.
+   * Constructs a {@link SingletonAssert} for the value of the provided {@code PCollection
+   * PCollection<T>} with the specified reason. The provided PCollection must be a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
     return new PCollectionViewAssert<>(
-        actual, View.<T>asSingleton(), actual.getCoder(), PAssertionSite.capture(reason)
-    );
+        actual, View.asSingleton(), actual.getCoder(), PAssertionSite.capture(reason));
   }
 
   /**
    * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}.
    *
-   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
-   * {@code Coder<K, V>}.
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any {@code Coder<K,
+   * V>}.
    */
   public static <K, V> SingletonAssert<Map<K, Iterable<V>>> thatMultimap(
       PCollection<KV<K, V>> actual) {
@@ -431,8 +428,8 @@ public class PAssert {
    * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with the
    * specified reason.
    *
-   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
-   * {@code Coder<K, V>}.
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any {@code Coder<K,
+   * V>}.
    */
   public static <K, V> SingletonAssert<Map<K, Iterable<V>>> thatMultimap(
       String reason, PCollection<KV<K, V>> actual) {
@@ -440,7 +437,7 @@ public class PAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
         actual,
-        View.<K, V>asMultimap(),
+        View.asMultimap(),
         MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())),
         PAssertionSite.capture(reason));
   }
@@ -449,19 +446,19 @@ public class PAssert {
    * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}, which
    * must have at most one value per key.
    *
-   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
-   * {@code Coder<K, V>}.
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any {@code Coder<K,
+   * V>}.
    */
   public static <K, V> SingletonAssert<Map<K, V>> thatMap(PCollection<KV<K, V>> actual) {
     return thatMap(actual.getName(), actual);
   }
 
   /**
-   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with
-   * the specified reason. The {@link PCollection} must have at most one value per key.
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with the
+   * specified reason. The {@link PCollection} must have at most one value per key.
    *
-   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
-   * {@code Coder<K, V>}.
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any {@code Coder<K,
+   * V>}.
    */
   public static <K, V> SingletonAssert<Map<K, V>> thatMap(
       String reason, PCollection<KV<K, V>> actual) {
@@ -469,7 +466,7 @@ public class PAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
         actual,
-        View.<K, V>asMap(),
+        View.asMap(),
         MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()),
         PAssertionSite.capture(reason));
   }
@@ -487,7 +484,7 @@ public class PAssert {
     private final PAssertionSite site;
 
     public PCollectionContentsAssert(PCollection<T> actual, PAssertionSite site) {
-      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes(), site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
     }
 
     public PCollectionContentsAssert(
@@ -503,27 +500,27 @@ public class PAssert {
 
     @Override
     public PCollectionContentsAssert<T> inWindow(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>allPanes());
+      return withPane(window, PaneExtractors.allPanes());
     }
 
     @Override
     public PCollectionContentsAssert<T> inFinalPane(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>finalPane());
+      return withPane(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionContentsAssert<T> inOnTimePane(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>onTimePane());
+      return withPane(window, PaneExtractors.onTimePane());
     }
 
     @Override
     public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>nonLatePanes());
+      return withPane(window, PaneExtractors.nonLatePanes());
     }
 
     @Override
     public IterableAssert<T> inEarlyGlobalWindowPanes() {
-      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
     }
 
     private PCollectionContentsAssert<T> withPane(
@@ -533,7 +530,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionContentsAssert<>(
-          actual, IntoStaticWindows.<T>of(windowCoder, window), paneExtractor, site);
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
     }
 
     /**
@@ -554,12 +551,12 @@ public class PAssert {
      */
     @Override
     public PCollectionContentsAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
     public PCollectionContentsAssert<T> empty() {
-      containsInAnyOrder(Collections.<T>emptyList());
+      containsInAnyOrder(Collections.emptyList());
       return this;
     }
 
@@ -581,7 +578,7 @@ public class PAssert {
     @SafeVarargs
     final PCollectionContentsAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
-      return satisfies(SerializableMatchers.<T>containsInAnyOrder(elementMatchers));
+      return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
     }
 
     /**
@@ -592,7 +589,7 @@ public class PAssert {
     private PCollectionContentsAssert<T> satisfies(
         AssertRelation<Iterable<T>, Iterable<T>> relation, Iterable<T> expectedElements) {
       return satisfies(
-          new CheckRelationAgainstExpected<Iterable<T>>(
+          new CheckRelationAgainstExpected<>(
               relation, expectedElements, IterableCoder.of(actual.getCoder())));
     }
 
@@ -623,6 +620,7 @@ public class PAssert {
       }
 
       @Override
+      @Nullable
       public Void apply(T actual) {
         assertThat(actual, matcher);
         return null;
@@ -632,7 +630,7 @@ public class PAssert {
     /**
      * @throws UnsupportedOperationException always
      * @deprecated {@link Object#equals(Object)} is not supported on PAssert objects. If you meant
-     * to test object equality, use a variant of {@link #containsInAnyOrder} instead.
+     *     to test object equality, use a variant of {@link #containsInAnyOrder} instead.
      */
     @Deprecated
     @Override
@@ -667,8 +665,7 @@ public class PAssert {
 
     public PCollectionSingletonIterableAssert(
         PCollection<Iterable<T>> actual, PAssertionSite site) {
-      this(
-          actual, IntoGlobalWindow.<Iterable<T>>of(), PaneExtractors.<Iterable<T>>onlyPane(), site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
     }
 
     public PCollectionSingletonIterableAssert(
@@ -690,27 +687,27 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> inWindow(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>allPanes());
+      return withPanes(window, PaneExtractors.allPanes());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inFinalPane(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>finalPane());
+      return withPanes(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inOnTimePane(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>onTimePane());
+      return withPanes(window, PaneExtractors.onTimePane());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+      return withPanes(window, PaneExtractors.nonLatePanes());
     }
 
     @Override
     public IterableAssert<T> inEarlyGlobalWindowPanes() {
-      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -721,7 +718,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionSingletonIterableAssert<>(
-          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window), paneExtractor, site);
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
     }
 
     @Override
@@ -732,12 +729,12 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> empty() {
-      return containsInAnyOrder(Collections.<T>emptyList());
+      return containsInAnyOrder(Collections.emptyList());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
@@ -745,22 +742,21 @@ public class PAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssertForSingleton<>(
-              checkerFn, rewindowingStrategy, paneExtractor, site));
+          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
 
     private PCollectionSingletonIterableAssert<T> satisfies(
         AssertRelation<Iterable<T>, Iterable<T>> relation, Iterable<T> expectedElements) {
       return satisfies(
-          new CheckRelationAgainstExpected<Iterable<T>>(
+          new CheckRelationAgainstExpected<>(
               relation, expectedElements, IterableCoder.of(elementCoder)));
     }
   }
 
   /**
-   * An assertion about the contents of a {@link PCollection} when it is viewed as a single value
-   * of type {@code ViewT}. This requires side input support from the runner.
+   * An assertion about the contents of a {@link PCollection} when it is viewed as a single value of
+   * type {@code ViewT}. This requires side input support from the runner.
    */
   private static class PCollectionViewAssert<ElemT, ViewT> implements SingletonAssert<ViewT> {
     private final PCollection<ElemT> actual;
@@ -776,9 +772,7 @@ public class PAssert {
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         Coder<ViewT> coder,
         PAssertionSite site) {
-      this(
-          actual, view, IntoGlobalWindow.<ElemT>of(), PaneExtractors.<ElemT>onlyPane(), coder, site
-      );
+      this(actual, view, IntoGlobalWindow.of(), PaneExtractors.allPanes(), coder, site);
     }
 
     private PCollectionViewAssert(
@@ -798,17 +792,17 @@ public class PAssert {
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inOnlyPane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>onlyPane());
+      return inPane(window, PaneExtractors.onlyPane(site));
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inFinalPane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>finalPane());
+      return inPane(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inOnTimePane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>onTimePane());
+      return inPane(window, PaneExtractors.onTimePane());
     }
 
     private PCollectionViewAssert<ElemT, ViewT> inPane(
@@ -826,12 +820,12 @@ public class PAssert {
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> isEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertIsEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertIsEqualToRelation<>(), expectedValue);
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> notEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertNotEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertNotEqualToRelation<>(), expectedValue);
     }
 
     @Override
@@ -841,9 +835,9 @@ public class PAssert {
           .getPipeline()
           .apply(
               "PAssert$" + (assertCount++),
-              new OneSideInputAssert<ViewT>(
+              new OneSideInputAssert<>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
-                  rewindowActuals.<Integer>windowDummy(),
+                  rewindowActuals.windowDummy(),
                   checkerFn,
                   site));
       return this;
@@ -857,12 +851,13 @@ public class PAssert {
      */
     private PCollectionViewAssert<ElemT, ViewT> satisfies(
         AssertRelation<ViewT, ViewT> relation, final ViewT expectedValue) {
-      return satisfies(new CheckRelationAgainstExpected<ViewT>(relation, expectedValue, coder));
+      return satisfies(new CheckRelationAgainstExpected<>(relation, expectedValue, coder));
     }
 
     /**
-     * Always throws an {@link UnsupportedOperationException}: users are probably looking for
-     * {@link #isEqualTo}.
+     * @throws UnsupportedOperationException always
+     * @deprecated {@link Object#equals(Object)} is not supported on PAssert objects. If you meant
+     *     to test object equality, use {@link #isEqualTo} instead.
      */
     @Deprecated
     @Override
@@ -920,12 +915,12 @@ public class PAssert {
     public PCollectionView<ActualT> expand(PBegin input) {
       final Coder<T> coder = actual.getCoder();
       return actual
-          .apply("FilterActuals", rewindowActuals.<T>prepareActuals())
-          .apply("GatherPanes", GatherAllPanes.<T>globally())
+          .apply("FilterActuals", rewindowActuals.prepareActuals())
+          .apply("GatherPanes", GatherAllPanes.globally())
           .apply("ExtractPane", MapElements.via(extractPane))
           .setCoder(IterableCoder.of(actual.getCoder()))
-          .apply(Flatten.<T>iterables())
-          .apply("RewindowActuals", rewindowActuals.<T>windowActuals())
+          .apply(Flatten.iterables())
+          .apply("RewindowActuals", rewindowActuals.windowActuals())
           .apply(
               ParDo.of(
                   new DoFn<T, T>() {
@@ -1005,14 +1000,10 @@ public class PAssert {
           // TODO: Split the filtering from the rewindowing, and apply filtering before the Gather
           // if the grouping of extra records
           input
-              .apply(rewindowingStrategy.<T>prepareActuals())
-              .apply("GatherAllOutputs", GatherAllPanes.<T>globally())
-              .apply(
-                  "RewindowActuals",
-                  rewindowingStrategy.<Iterable<ValueInSingleWindow<T>>>windowActuals())
-              .apply(
-                  "KeyForDummy",
-                  WithKeys.<Integer, Iterable<ValueInSingleWindow<T>>>of(combinedKey))
+              .apply(rewindowingStrategy.prepareActuals())
+              .apply("GatherAllOutputs", GatherAllPanes.globally())
+              .apply("RewindowActuals", rewindowingStrategy.windowActuals())
+              .apply("KeyForDummy", WithKeys.of(combinedKey))
               .apply("RemoveActualsTriggering", removeTriggering);
 
       // Create another non-empty PCollection that is keyed with a distinct dummy key
@@ -1026,31 +1017,23 @@ public class PAssert {
                               (Iterable<ValueInSingleWindow<T>>)
                                   Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
-              .apply(
-                  "WindowIntoDummy",
-                  rewindowingStrategy.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>windowDummy())
+              .apply("WindowIntoDummy", rewindowingStrategy.windowDummy())
               .apply("RemoveDummyTriggering", removeTriggering);
 
       // Flatten them together and group by the combined key to get a single element
       PCollection<KV<Integer, Iterable<Iterable<ValueInSingleWindow<T>>>>> dummyAndContents =
           PCollectionList.of(groupedContents)
               .and(keyedDummy)
-              .apply(
-                  "FlattenDummyAndContents",
-                  Flatten.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>pCollections())
+              .apply("FlattenDummyAndContents", Flatten.pCollections())
               .apply(
                   "NeverTrigger",
                   Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
                       .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
-              .apply(
-                  "GroupDummyAndContents",
-                  GroupByKey.<Integer, Iterable<ValueInSingleWindow<T>>>create());
+              .apply("GroupDummyAndContents", GroupByKey.create());
 
-      return dummyAndContents
-          .apply(Values.<Iterable<Iterable<ValueInSingleWindow<T>>>>create())
-          .apply(ParDo.of(new ConcatFn<ValueInSingleWindow<T>>()));
+      return dummyAndContents.apply(Values.create()).apply(ParDo.of(new ConcatFn<>()));
     }
   }
 
@@ -1086,7 +1069,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<T> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)))
@@ -1123,7 +1106,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<Iterable<T>> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)))
@@ -1134,9 +1117,8 @@ public class PAssert {
   }
 
   /**
-   * An assertion checker that takes a single {@link PCollectionView
-   * PCollectionView&lt;ActualT&gt;} and an assertion over {@code ActualT}, and checks it within a
-   * Beam pipeline.
+   * An assertion checker that takes a single {@link PCollectionView PCollectionView&lt;ActualT&gt;}
+   * and an assertion over {@code ActualT}, and checks it within a Beam pipeline.
    *
    * <p>Note that the entire assertion must be serializable.
    *
@@ -1177,8 +1159,8 @@ public class PAssert {
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of a
-   * {@link PCollectionView}, and adjusts counters and thrown exceptions for use in testing.
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of a {@link
+   * PCollectionView}, and adjusts counters and thrown exceptions for use in testing.
    *
    * <p>The input is ignored, but is {@link Integer} to be usable on runners that do not support
    * null values.
@@ -1205,9 +1187,9 @@ public class PAssert {
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
-   * the single iterable element of the input {@link PCollection} and adjusts counters and
-   * thrown exceptions for use in testing.
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of the single
+   * iterable element of the input {@link PCollection} and adjusts counters and thrown exceptions
+   * for use in testing.
    *
    * <p>The singleton property is presumed, not enforced.
    */
@@ -1223,18 +1205,14 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      try {
-        c.output(doChecks(site, c.element(), checkerFn));
-      } catch (Throwable t) {
-        throw t;
-      }
+      c.output(doChecks(site, c.element(), checkerFn));
     }
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
-   * the single item contained within the single iterable on input and
-   * adjusts counters and thrown exceptions for use in testing.
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of the single
+   * item contained within the single iterable on input and adjusts counters and thrown exceptions
+   * for use in testing.
    *
    * <p>The singleton property of the input {@link PCollection} is presumed, not enforced. However,
    * each input element must be a singleton iterable, or this will fail.
@@ -1258,16 +1236,12 @@ public class PAssert {
   }
 
   protected static <ActualT> SuccessOrFailure doChecks(
-      PAssertionSite site,
-      ActualT actualContents,
-      SerializableFunction<ActualT, Void> checkerFn) {
-    SuccessOrFailure result = SuccessOrFailure.success();
+      PAssertionSite site, ActualT actualContents, SerializableFunction<ActualT, Void> checkerFn) {
     try {
       checkerFn.apply(actualContents);
+      return SuccessOrFailure.success();
     } catch (Throwable t) {
-      result = SuccessOrFailure.failure(site, t.getMessage());
-    } finally {
-      return result;
+      return SuccessOrFailure.failure(site, t);
     }
   }
 
@@ -1285,6 +1259,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, equalTo(expected));
       return null;
@@ -1303,6 +1278,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, not(equalTo(expected)));
       return null;
@@ -1328,10 +1304,11 @@ public class PAssert {
     }
 
     public AssertContainsInAnyOrder(Iterable<T> expected) {
-      this(Lists.<T>newArrayList(expected));
+      this(Lists.newArrayList(expected));
     }
 
     @Override
+    @Nullable
     public Void apply(Iterable<T> actual) {
       assertThat(actual, containsInAnyOrder(expected));
       return null;
@@ -1349,23 +1326,19 @@ public class PAssert {
     SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
-  /**
-   * An {@link AssertRelation} implementing the binary predicate that two objects are equal.
-   */
+  /** An {@link AssertRelation} implementing the binary predicate that two objects are equal. */
   private static class AssertIsEqualToRelation<T> implements AssertRelation<T, T> {
     @Override
     public SerializableFunction<T, Void> assertFor(T expected) {
-      return new AssertIsEqualTo<T>(expected);
+      return new AssertIsEqualTo<>(expected);
     }
   }
 
-  /**
-   * An {@link AssertRelation} implementing the binary predicate that two objects are not equal.
-   */
+  /** An {@link AssertRelation} implementing the binary predicate that two objects are not equal. */
   private static class AssertNotEqualToRelation<T> implements AssertRelation<T, T> {
     @Override
     public SerializableFunction<T, Void> assertFor(T expected) {
-      return new AssertNotEqualTo<T>(expected);
+      return new AssertNotEqualTo<>(expected);
     }
   }
 
@@ -1377,7 +1350,7 @@ public class PAssert {
       implements AssertRelation<Iterable<T>, Iterable<T>> {
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
-      return new AssertContainsInAnyOrder<T>(expectedElements);
+      return new AssertContainsInAnyOrder<>(expectedElements);
     }
   }
 
@@ -1390,13 +1363,13 @@ public class PAssert {
    * <p>This must ensure that the windowing strategies of the output of {@link #windowActuals()} and
    * {@link #windowDummy()} are compatible (and can be {@link Flatten Flattened}).
    *
-   * <p>The {@link PCollection} produced by {@link #prepareActuals()} will be a parent (though not
-   * a direct parent) of the transform provided to {@link #windowActuals()}.
+   * <p>The {@link PCollection} produced by {@link #prepareActuals()} will be a parent (though not a
+   * direct parent) of the transform provided to {@link #windowActuals()}.
    */
   private interface AssertionWindows {
     /**
-     * Returns a transform that assigns the dummy element into the appropriate
-     * {@link BoundedWindow windows}.
+     * Returns a transform that assigns the dummy element into the appropriate {@link BoundedWindow
+     * windows}.
      */
     <T> PTransform<PCollection<T>, PCollection<T>> windowDummy();
 
@@ -1406,15 +1379,13 @@ public class PAssert {
     <T> PTransform<PCollection<T>, PCollection<T>> prepareActuals();
 
     /**
-     * Returns a transform that assigns the actual elements into the appropriate
-     * {@link BoundedWindow windows}. Will be called after {@link #prepareActuals()}.
+     * Returns a transform that assigns the actual elements into the appropriate {@link
+     * BoundedWindow windows}. Will be called after {@link #prepareActuals()}.
      */
     <T> PTransform<PCollection<T>, PCollection<T>> windowActuals();
   }
 
-  /**
-   * An {@link AssertionWindows} which assigns all elements to the {@link GlobalWindow}.
-   */
+  /** An {@link AssertionWindows} which assigns all elements to the {@link GlobalWindow}. */
   private static class IntoGlobalWindow implements AssertionWindows, Serializable {
     public static AssertionWindows of() {
       return new IntoGlobalWindow();
@@ -1472,9 +1443,7 @@ public class PAssert {
     }
   }
 
-  /**
-   * A DoFn that filters elements based on their presence in a static collection of windows.
-   */
+  /** A DoFn that filters elements based on their presence in a static collection of windows. */
   private static final class FilterWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final StaticWindows windows;
 
@@ -1504,8 +1473,8 @@ public class PAssert {
   }
 
   /**
-   * A {@link PipelineVisitor} that counts the number of total {@link PAssert PAsserts} in a
-   * {@link Pipeline}.
+   * A {@link PipelineVisitor} that counts the number of total {@link PAssert PAsserts} in a {@link
+   * Pipeline}.
    */
   private static class AssertionCountingVisitor extends PipelineVisitor.Defaults {
     private int assertCount;
@@ -1526,13 +1495,14 @@ public class PAssert {
       }
       if (!node.isRootNode()
           && (node.getTransform() instanceof PAssert.OneSideInputAssert
-          || node.getTransform() instanceof PAssert.GroupThenAssert
-          || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
+              || node.getTransform() instanceof PAssert.GroupThenAssert
+              || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
         assertCount++;
       }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
+    @Override
     public void leaveCompositeTransform(Node node) {
       if (node.isRootNode()) {
         pipelineVisited = true;
@@ -1541,17 +1511,14 @@ public class PAssert {
 
     @Override
     public void visitPrimitiveTransform(Node node) {
-      if
-          (node.getTransform() instanceof PAssert.OneSideInputAssert
+      if (node.getTransform() instanceof PAssert.OneSideInputAssert
           || node.getTransform() instanceof PAssert.GroupThenAssert
           || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton) {
         assertCount++;
       }
     }
 
-    /**
-     * Gets the number of {@link PAssert PAsserts} in the pipeline.
-     */
+    /** Gets the number of {@link PAssert PAsserts} in the pipeline. */
     int getPAssertCount() {
       checkState(pipelineVisited);
       return assertCount;

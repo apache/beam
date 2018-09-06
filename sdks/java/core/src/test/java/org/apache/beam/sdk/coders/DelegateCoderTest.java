@@ -40,54 +40,56 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DelegateCoderTest implements Serializable {
 
-  private static final List<Set<Integer>> TEST_VALUES = Arrays.<Set<Integer>>asList(
-      Collections.<Integer>emptySet(),
-      Collections.singleton(13),
-      new HashSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Set<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptySet(),
+          Collections.singleton(13),
+          new HashSet<>(Arrays.asList(31, -5, 83)));
 
   private static final TypeDescriptor<Set<Integer>> SET_INTEGER_TYPE_DESCRIPTOR =
       new TypeDescriptor<Set<Integer>>() {};
 
-  private static final DelegateCoder<Set<Integer>, List<Integer>> TEST_CODER = DelegateCoder.of(
-      ListCoder.of(VarIntCoder.of()),
-      new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
-        @Override
-        public List<Integer> apply(Set<Integer> input) {
-          return Lists.newArrayList(input);
-        }
+  private static final DelegateCoder<Set<Integer>, List<Integer>> TEST_CODER =
+      DelegateCoder.of(
+          ListCoder.of(VarIntCoder.of()),
+          new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
+            @Override
+            public List<Integer> apply(Set<Integer> input) {
+              return Lists.newArrayList(input);
+            }
 
-        @Override
-        public boolean equals(Object o) {
-          return o != null && this.getClass() == o.getClass();
-        }
+            @Override
+            public boolean equals(Object o) {
+              return o != null && this.getClass() == o.getClass();
+            }
 
-        @Override
-        public int hashCode() {
-          return this.getClass().hashCode();
-        }
-      },
-      new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
-        @Override
-        public Set<Integer> apply(List<Integer> input) {
-          return Sets.newHashSet(input);
-        }
+            @Override
+            public int hashCode() {
+              return this.getClass().hashCode();
+            }
+          },
+          new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
+            @Override
+            public Set<Integer> apply(List<Integer> input) {
+              return Sets.newHashSet(input);
+            }
 
-        @Override
-        public boolean equals(Object o) {
-          return o != null && this.getClass() == o.getClass();
-        }
+            @Override
+            public boolean equals(Object o) {
+              return o != null && this.getClass() == o.getClass();
+            }
 
-        @Override
-        public int hashCode() {
-          return this.getClass().hashCode();
-        }
-      }, SET_INTEGER_TYPE_DESCRIPTOR);
+            @Override
+            public int hashCode() {
+              return this.getClass().hashCode();
+            }
+          },
+          SET_INTEGER_TYPE_DESCRIPTOR);
 
   @Test
   public void testDeterministic() throws Exception {
     for (Set<Integer> value : TEST_VALUES) {
-      CoderProperties.coderDeterministic(
-          TEST_CODER, value, Sets.newHashSet(value));
+      CoderProperties.coderDeterministic(TEST_CODER, value, Sets.newHashSet(value));
     }
   }
 
@@ -103,18 +105,9 @@ public class DelegateCoderTest implements Serializable {
     CoderProperties.coderSerializable(TEST_CODER);
   }
 
-  private static final String TEST_ENCODING_ID = "test-encoding-id";
-  private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
-
   @Test
   public void testCoderEquals() throws Exception {
-    DelegateCoder.CodingFunction<Integer, Integer> identityFn =
-        new DelegateCoder.CodingFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        };
+    DelegateCoder.CodingFunction<Integer, Integer> identityFn = input -> input;
     Coder<Integer> varIntCoder1 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> varIntCoder2 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> bigEndianIntegerCoder =
@@ -130,20 +123,11 @@ public class DelegateCoderTest implements Serializable {
   public void testEncodedTypeDescriptorSimpleEncodedType() throws Exception {
     assertThat(
         DelegateCoder.of(
-            StringUtf8Coder.of(),
-            new DelegateCoder.CodingFunction<Integer, String>() {
-              @Override
-              public String apply(Integer input) {
-                return String.valueOf(input);
-              }
-            },
-            new DelegateCoder.CodingFunction<String, Integer>() {
-              @Override
-              public Integer apply(String input) {
-                return Integer.valueOf(input);
-              }
-            },
-            new TypeDescriptor<Integer>(){}).getEncodedTypeDescriptor(),
+                StringUtf8Coder.of(),
+                String::valueOf,
+                Integer::valueOf,
+                new TypeDescriptor<Integer>() {})
+            .getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(Integer.class)));
   }
 

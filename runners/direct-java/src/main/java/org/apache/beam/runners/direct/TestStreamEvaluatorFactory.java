@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -176,7 +175,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       try {
         return PTransformReplacement.of(
             transform.getPipeline().begin(),
-            new DirectTestStream<T>(runner, TestStreamTranslation.getTestStream(transform)));
+            new DirectTestStream<>(runner, TestStreamTranslation.getTestStream(transform)));
       } catch (IOException exc) {
         throw new RuntimeException(
             String.format(
@@ -193,8 +192,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
     static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
 
-    static class DirectTestStream<T>
-        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>> {
+    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final transient DirectRunner runner;
       private final TestStream<T> original;
 
@@ -207,14 +205,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public PCollection<T> expand(PBegin input) {
         runner.setClockSupplier(new TestClockSupplier());
-        return PCollection.<T>createPrimitiveOutputInternal(
-                input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-            .setCoder(original.getValueCoder());
-      }
-
-      @Override
-      public String getUrn() {
-        return DIRECT_TEST_STREAM_URN;
+        return PCollection.createPrimitiveOutputInternal(
+            input.getPipeline(),
+            WindowingStrategy.globalDefault(),
+            IsBounded.UNBOUNDED,
+            original.getValueCoder());
       }
     }
   }
@@ -251,6 +246,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     abstract TestStream<T> getTestStream();
+
     abstract int getIndex();
 
     TestStreamIndex<T> next() {

@@ -32,14 +32,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link NameUtils}.
- */
+/** Tests for {@link NameUtils}. */
 @RunWith(JUnit4.class)
 public class NameUtilsTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDropsStandardSuffixes() {
@@ -73,9 +70,8 @@ public class NameUtilsTest {
     assertEquals("Foo.2", NameUtils.approximateSimpleName("Foo$1$2", false));
   }
 
-  /**
-   * Inner class for simple name test.
-   */
+  /** Inner class for simple name test. */
+  @SuppressWarnings("ClassCanBeStatic")
   private class EmbeddedDoFn {
 
     private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
@@ -85,12 +81,13 @@ public class NameUtilsTest {
     }
   }
 
-  private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
+  private static class EmbeddedPTransform extends PTransform<PBegin, PDone> {
     @Override
     public PDone expand(PBegin begin) {
       throw new IllegalArgumentException("Should never be applied");
     }
 
+    @SuppressWarnings("ClassCanBeStatic")
     private class Bound extends PTransform<PBegin, PDone> {
       @Override
       public PDone expand(PBegin begin) {
@@ -150,34 +147,32 @@ public class NameUtilsTest {
 
   @Test
   public void testPTransformNameWithAnonOuterClass() throws Exception {
-    AnonymousClass anonymousClassObj = new AnonymousClass() {
-      class NamedInnerClass extends PTransform<PBegin, PDone> {
-        @Override
-        public PDone expand(PBegin begin) {
-          throw new IllegalArgumentException("Should never be applied");
-        }
-      }
+    AnonymousClass anonymousClassObj =
+        new AnonymousClass() {
+          class NamedInnerClass extends PTransform<PBegin, PDone> {
+            @Override
+            public PDone expand(PBegin begin) {
+              throw new IllegalArgumentException("Should never be applied");
+            }
+          }
 
-      @Override
-      public Object getInnerClassInstance() {
-        return new NamedInnerClass();
-      }
-    };
+          @Override
+          public Object getInnerClassInstance() {
+            return new NamedInnerClass();
+          }
+        };
 
-    assertEquals("NamedInnerClass",
+    assertEquals(
+        "NamedInnerClass",
         NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance()));
-    assertEquals("NameUtilsTest.NamedInnerClass",
+    assertEquals(
+        "NameUtilsTest.NamedInnerClass",
         NameUtils.approximatePTransformName(anonymousClassObj.getInnerClassInstance().getClass()));
   }
 
   @Test
   public void testApproximateSimpleNameOverride() {
-    Object overriddenName = new NameOverride() {
-      @Override
-      public String getNameOverride() {
-        return "CUSTOM_NAME";
-      }
-    };
+    NameOverride overriddenName = () -> "CUSTOM_NAME";
     assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName));
   }
 

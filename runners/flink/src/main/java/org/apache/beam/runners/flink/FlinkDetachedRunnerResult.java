@@ -22,10 +22,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
-
 /**
- * Result of a detached execution of a {@link org.apache.beam.sdk.Pipeline} with Flink.
- * In detached execution, results and job execution are currently unavailable.
+ * Result of a detached execution of a {@link org.apache.beam.sdk.Pipeline} with Flink. In detached
+ * execution, results and job execution are currently unavailable.
  */
 public class FlinkDetachedRunnerResult implements PipelineResult {
 

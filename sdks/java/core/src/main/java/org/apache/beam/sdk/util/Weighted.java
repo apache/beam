@@ -17,12 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-/**
- * Interface representing an object that has a weight, in unspecified units.
- */
+/** Interface representing an object that has a weight, in unspecified units. */
 public interface Weighted {
-  /**
-   * Returns the weight of the object.
-   */
+  /** Returns the weight of the object. */
   long getWeight();
 }

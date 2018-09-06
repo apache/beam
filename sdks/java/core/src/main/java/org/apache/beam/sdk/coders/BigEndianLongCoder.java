@@ -26,9 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link BigEndianLongCoder} encodes {@link Long}s in 8 bytes, big-endian.
- */
+/** A {@link BigEndianLongCoder} encodes {@link Long}s in 8 bytes, big-endian. */
 public class BigEndianLongCoder extends AtomicCoder<Long> {
 
   public static BigEndianLongCoder of() {
@@ -43,8 +41,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   private BigEndianLongCoder() {}
 
   @Override
-  public void encode(Long value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Long value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
@@ -52,8 +49,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   }
 
   @Override
-  public Long decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Long decode(InputStream inStream) throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readLong();
     } catch (EOFException | UTFDataFormatException exn) {
@@ -97,8 +93,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
    * @return {@code 8}, the byte size of a big-endian encoded {@code Long}.
    */
   @Override
-  protected long getEncodedElementByteSize(Long value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Long value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }

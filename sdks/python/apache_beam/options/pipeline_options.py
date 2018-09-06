@@ -17,13 +17,16 @@
 
 """Pipeline options obtained from command line parsing."""
 
+from __future__ import absolute_import
+
 import argparse
+from builtins import list
+from builtins import object
 
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
-
+from apache_beam.transforms.display import HasDisplayData
 
 __all__ = [
     'PipelineOptions',
@@ -31,6 +34,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
     'ProfilingOptions',
@@ -51,7 +55,7 @@ def _static_value_provider_of(value_type):
 
   """
   def _f(value):
-    _f.func_name = value_type.__name__
+    _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
   return _f
 
@@ -175,10 +179,13 @@ class PipelineOptions(HasDisplayData):
       A PipelineOptions object representing the given arguments.
     """
     flags = []
-    for k, v in options.iteritems():
+    for k, v in options.items():
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+      elif isinstance(v, list):
+        for i in v:
+          flags.append('--%s=%s' % (k, i))
       else:
         flags.append('--%s=%s' % (k, v))
 
@@ -233,7 +240,7 @@ class PipelineOptions(HasDisplayData):
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + self.__dict__.keys() +
+    return sorted(dir(type(self)) + list(self.__dict__.keys()) +
                   self._visible_option_list())
 
   def __getattr__(self, name):
@@ -368,6 +375,13 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
+    parser.add_argument(
+        '--label', '--labels',
+        dest='labels',
+        action='append',
+        default=None,
+        help='Labels that will be applied to this Dataflow job. Labels are key '
+        'value pairs separated by = (e.g. --label key=value).')
 
   def validate(self, validator):
     errors = []
@@ -383,6 +397,33 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
 
+    return errors
+
+
+class HadoopFileSystemOptions(PipelineOptions):
+  """``HadoopFileSystem`` connection options."""
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--hdfs_host',
+        default=None,
+        help=
+        ('Hostname or address of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_port',
+        default=None,
+        help=
+        ('Port of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_user',
+        default=None,
+        help=
+        ('HDFS username to use.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_optional_argument_positive(self, 'port'))
     return errors
 
 
@@ -473,6 +514,12 @@ class WorkerOptions(PipelineOptions):
         default=None,
         action='store_false',
         help='Whether to assign only private IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--min_cpu_platform',
+        dest='min_cpu_platform',
+        type=str,
+        help='GCE minimum CPU platform. Default is determined by GCP.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -589,13 +636,30 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=
         ('Local path to a Python package file. The file is expected to be (1) '
-         'a package tarball (".tar") or (2) a compressed package tarball '
-         '(".tar.gz") which can be installed using the "pip install" command '
-         'of the standard pip package. Multiple --extra_package options can '
-         'be specified if more than one package is needed. During job '
-         'submission, the files will be staged in the staging area '
+         'a package tarball (".tar"), (2) a compressed package tarball '
+         '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
+         'zip file (".zip") which can be installed using the "pip install" '
+         'command  of the standard pip package. Multiple --extra_package '
+         'options can be specified if more than one package is needed. During '
+         'job submission, the files will be staged in the staging area '
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
+
+
+class PortableOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--job_endpoint',
+                        default=None,
+                        help=
+                        ('Job service endpoint to use. Should be in the form '
+                         'of address and port, e.g. localhost:3000'))
+    parser.add_argument('--harness_docker_image',
+                        default=None,
+                        help=
+                        ('Docker image to use for executing Python code '
+                         'in the pipeline when running using the Fn API.'))
 
 
 class TestOptions(PipelineOptions):
@@ -614,6 +678,13 @@ class TestOptions(PipelineOptions):
         default=False,
         help=('Used in unit testing runners without submitting the '
               'actual job.'))
+    parser.add_argument(
+        '--wait_until_finish_duration',
+        default=None,
+        type=int,
+        help='The time to wait (in milliseconds) for test pipeline to finish. '
+             'If it is set to None, it will wait indefinitely until the job '
+             'is finished.')
 
   def validate(self, validator):
     errors = []

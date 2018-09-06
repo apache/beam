@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
@@ -26,24 +25,21 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * A representation of an arbitrary Java object to be instantiated by Dataflow
- * workers.
+ * A representation of an arbitrary Java object to be instantiated by Dataflow workers.
  *
- * <p>Typically, an object to be written by the SDK to the Dataflow service will
- * implement a method (typically called {@code asCloudObject()}) that returns a
- * {@code CloudObject} to represent the object in the protocol.  Once the
- * {@code CloudObject} is constructed, the method should explicitly add
- * additional properties to be presented during deserialization, representing
- * child objects by building additional {@code CloudObject}s.
+ * <p>Typically, an object to be written by the SDK to the Dataflow service will implement a method
+ * (typically called {@code asCloudObject()}) that returns a {@code CloudObject} to represent the
+ * object in the protocol. Once the {@code CloudObject} is constructed, the method should explicitly
+ * add additional properties to be presented during deserialization, representing child objects by
+ * building additional {@code CloudObject}s.
  */
-public final class CloudObject extends GenericJson {
+public final class CloudObject extends GenericJson implements Cloneable {
   /**
-   * Constructs a {@code CloudObject} by copying the supplied serialized object
-   * spec, which must represent an SDK object serialized for transport via the
-   * Dataflow API.
+   * Constructs a {@code CloudObject} by copying the supplied serialized object spec, which must
+   * represent an SDK object serialized for transport via the Dataflow API.
    *
-   * <p>The most common use of this method is during deserialization on the worker,
-   * where it's used as a binding type during instance construction.
+   * <p>The most common use of this method is during deserialization on the worker, where it's used
+   * as a binding type during instance construction.
    *
    * @param spec supplies the serialized form of the object as a nested map
    * @throws RuntimeException if the supplied map does not represent an SDK object
@@ -52,18 +48,20 @@ public final class CloudObject extends GenericJson {
     CloudObject result = new CloudObject();
     result.putAll(spec);
     if (result.className == null) {
-      throw new RuntimeException("Unable to create an SDK object from " + spec
-          + ": Object class not specified (missing \""
-          + PropertyNames.OBJECT_TYPE_NAME + "\" field)");
+      throw new RuntimeException(
+          "Unable to create an SDK object from "
+              + spec
+              + ": Object class not specified (missing \""
+              + PropertyNames.OBJECT_TYPE_NAME
+              + "\" field)");
     }
     return result;
   }
 
   /**
-   * Constructs a {@code CloudObject} to be used for serializing an instance of
-   * the supplied class for transport via the Dataflow API.  The instance
-   * parameters to be serialized must be supplied explicitly after the
-   * {@code CloudObject} is created, by using {@link CloudObject#put}.
+   * Constructs a {@code CloudObject} to be used for serializing an instance of the supplied class
+   * for transport via the Dataflow API. The instance parameters to be serialized must be supplied
+   * explicitly after the {@code CloudObject} is created, by using {@link CloudObject#put}.
    *
    * @param cls the class to use when deserializing the object on the worker
    */
@@ -74,11 +72,10 @@ public final class CloudObject extends GenericJson {
   }
 
   /**
-   * Constructs a {@code CloudObject} to be used for serializing data to be
-   * deserialized using the supplied class name the supplied class name for
-   * transport via the Dataflow API.  The instance parameters to be serialized
-   * must be supplied explicitly after the {@code CloudObject} is created, by
-   * using {@link CloudObject#put}.
+   * Constructs a {@code CloudObject} to be used for serializing data to be deserialized using the
+   * supplied class name the supplied class name for transport via the Dataflow API. The instance
+   * parameters to be serialized must be supplied explicitly after the {@code CloudObject} is
+   * created, by using {@link CloudObject#put}.
    *
    * @param className the class to use when deserializing the object on the worker
    */
@@ -90,6 +87,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forString(String value) {
@@ -100,6 +98,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forBoolean(Boolean value) {
@@ -110,6 +109,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forInteger(Long value) {
@@ -120,6 +120,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forInteger(Integer value) {
@@ -130,6 +131,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forFloat(Float value) {
@@ -140,6 +142,7 @@ public final class CloudObject extends GenericJson {
 
   /**
    * Constructs a {@code CloudObject} representing the given value.
+   *
    * @param value the scalar value to represent.
    */
   public static CloudObject forFloat(Double value) {
@@ -149,11 +152,11 @@ public final class CloudObject extends GenericJson {
   }
 
   /**
-   * Constructs a {@code CloudObject} representing the given value of a
-   * well-known cloud object type.
+   * Constructs a {@code CloudObject} representing the given value of a well-known cloud object
+   * type.
+   *
    * @param value the scalar value to represent.
-   * @throws RuntimeException if the value does not have a
-   * {@link CloudKnownType} mapping
+   * @throws RuntimeException if the value does not have a {@link CloudKnownType} mapping
    */
   public static CloudObject forKnownType(Object value) {
     @Nullable CloudKnownType ty = CloudKnownType.forClass(value.getClass());
@@ -170,9 +173,7 @@ public final class CloudObject extends GenericJson {
 
   private CloudObject() {}
 
-  /**
-   * Gets the name of the Java class that this CloudObject represents.
-   */
+  /** Gets the name of the Java class that this CloudObject represents. */
   public String getClassName() {
     return className;
   }

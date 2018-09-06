@@ -20,9 +20,9 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -40,11 +40,12 @@ public class IterableCoderTest {
 
   private static final Coder<Iterable<Integer>> TEST_CODER = IterableCoder.of(VarIntCoder.of());
 
-  private static final List<Iterable<Integer>> TEST_VALUES = Arrays.<Iterable<Integer>>asList(
-      Collections.<Integer>emptyList(),
-      Collections.<Integer>singletonList(13),
-      Arrays.<Integer>asList(1, 2, 3, 4),
-      new LinkedList<>(Arrays.asList(7, 6, 5)));
+  private static final List<Iterable<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptyList(),
+          Collections.singletonList(13),
+          Arrays.asList(1, 2, 3, 4),
+          new ArrayList<>(Arrays.asList(7, 6, 5)));
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
@@ -54,8 +55,7 @@ public class IterableCoderTest {
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
     for (Iterable<Integer> value : TEST_VALUES) {
-      CoderProperties.<Integer, Iterable<Integer>>coderDecodeEncodeContentsInSameOrder(
-          TEST_CODER, value);
+      CoderProperties.coderDecodeEncodeContentsInSameOrder(TEST_CODER, value);
     }
   }
 
@@ -65,22 +65,18 @@ public class IterableCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAQ0",
-      "AAAABAECAwQ",
-      "AAAAAwcGBQ");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAAQ0", "AAAABAECAwQ", "AAAAAwcGBQ");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

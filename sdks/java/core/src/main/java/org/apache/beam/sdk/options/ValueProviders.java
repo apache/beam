@@ -19,41 +19,38 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-/**
- * Utilities for working with the {@link ValueProvider} interface.
- */
-class ValueProviders {
+/** Utilities for working with the {@link ValueProvider} interface. */
+public class ValueProviders {
   private ValueProviders() {}
 
   /**
-   * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates
-   * the values according to the provided values in {@code runtimeValues}.
+   * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates the
+   * values according to the provided values in {@code runtimeValues}.
+   *
+   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider} for testing {@link
+   *     ValueProvider} code.
    */
+  @Deprecated
   public static String updateSerializedOptions(
       String serializedOptions, Map<String, String> runtimeValues) {
-    ObjectMapper mapper = new ObjectMapper().registerModules(
-        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
     ObjectNode root, options;
     try {
-      root = mapper.readValue(serializedOptions, ObjectNode.class);
+      root = PipelineOptionsFactory.MAPPER.readValue(serializedOptions, ObjectNode.class);
       options = (ObjectNode) root.get("options");
       checkNotNull(options, "Unable to locate 'options' in %s", serializedOptions);
     } catch (IOException e) {
-      throw new RuntimeException(
-        String.format("Unable to parse %s", serializedOptions), e);
+      throw new RuntimeException(String.format("Unable to parse %s", serializedOptions), e);
     }
 
     for (Map.Entry<String, String> entry : runtimeValues.entrySet()) {
       options.put(entry.getKey(), entry.getValue());
     }
     try {
-      return mapper.writeValueAsString(root);
+      return PipelineOptionsFactory.MAPPER.writeValueAsString(root);
     } catch (IOException e) {
       throw new RuntimeException("Unable to parse re-serialize options", e);
     }

@@ -18,12 +18,15 @@
 
 """Unit tests for LocalFileSystem."""
 
-import unittest
+from __future__ import absolute_import
 
 import filecmp
+import logging
 import os
 import shutil
 import tempfile
+import unittest
+
 import mock
 
 from apache_beam.io import localfilesystem
@@ -120,11 +123,10 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_match_file_exception(self):
     # Match files with None so that it throws an exception
-    with self.assertRaises(BeamIOError) as error:
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Unable to get the Filesystem') as error:
       FileSystems.match([None])
-    self.assertTrue(
-        error.exception.message.startswith('Unable to get the Filesystem'))
-    self.assertEqual(error.exception.exception_details.keys(), [None])
+    self.assertEqual(list(error.exception.exception_details), [None])
 
   def test_match_directory(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -155,11 +157,11 @@ class FileSystemsTest(unittest.TestCase):
   def test_copy_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaises(BeamIOError) as error:
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Copy operation failed') as error:
       FileSystems.copy([path1], [path2])
-    self.assertTrue(
-        error.exception.message.startswith('Copy operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -188,11 +190,11 @@ class FileSystemsTest(unittest.TestCase):
   def test_rename_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
-    with self.assertRaises(BeamIOError) as error:
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Rename operation failed') as error:
       FileSystems.rename([path1], [path2])
-    self.assertTrue(
-        error.exception.message.startswith('Rename operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -230,8 +232,12 @@ class FileSystemsTest(unittest.TestCase):
 
   def test_delete_error(self):
     path1 = os.path.join(self.tmpdir, 'f1')
-    with self.assertRaises(BeamIOError) as error:
+    with self.assertRaisesRegexp(BeamIOError,
+                                 r'^Delete operation failed') as error:
       FileSystems.delete([path1])
-    self.assertTrue(
-        error.exception.message.startswith('Delete operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [path1])
+    self.assertEqual(list(error.exception.exception_details.keys()), [path1])
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -29,26 +31,40 @@ import org.joda.time.Instant;
  * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
 public abstract class SplittableProcessElementInvoker<
-    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
+    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
-    @Nullable
-    private final RestrictionT residualRestriction;
-    private final Instant futureOutputWatermark;
+    @Nullable private final RestrictionT residualRestriction;
+    private final DoFn.ProcessContinuation continuation;
+    private final @Nullable Instant futureOutputWatermark;
 
     public Result(
-        @Nullable RestrictionT residualRestriction, Instant futureOutputWatermark) {
+        @Nullable RestrictionT residualRestriction,
+        DoFn.ProcessContinuation continuation,
+        @Nullable Instant futureOutputWatermark) {
+      this.continuation = checkNotNull(continuation);
+      if (continuation.shouldResume()) {
+        checkNotNull(residualRestriction);
+      }
       this.residualRestriction = residualRestriction;
       this.futureOutputWatermark = futureOutputWatermark;
     }
 
-    /** If {@code null}, means the call should not resume. */
+    /**
+     * Can be {@code null} only if {@link #getContinuation} specifies the call should not resume.
+     * However, the converse is not true: this can be non-null even if {@link #getContinuation} is
+     * {@link DoFn.ProcessContinuation#stop()}.
+     */
     @Nullable
     public RestrictionT getResidualRestriction() {
       return residualRestriction;
     }
 
-    public Instant getFutureOutputWatermark() {
+    public DoFn.ProcessContinuation getContinuation() {
+      return continuation;
+    }
+
+    public @Nullable Instant getFutureOutputWatermark() {
       return futureOutputWatermark;
     }
   }
@@ -57,8 +73,8 @@ public abstract class SplittableProcessElementInvoker<
    * Invokes the {@link DoFn.ProcessElement} method using the given {@link DoFnInvoker} for the
    * original {@link DoFn}, on the given element and with the given {@link RestrictionTracker}.
    *
-   * @return Information on how to resume the call: residual restriction and a
-   * future output watermark.
+   * @return Information on how to resume the call: residual restriction, a {@link
+   *     DoFn.ProcessContinuation}, and a future output watermark.
    */
   public abstract Result invokeProcessElement(
       DoFnInvoker<InputT, OutputT> invoker, WindowedValue<InputT> element, TrackerT tracker);

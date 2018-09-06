@@ -44,8 +44,11 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -66,7 +69,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -90,7 +92,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient UncommittedBundle<Integer> mockUncommittedBundle;
 
   private static final String KEY = "any-key";
-  private transient StateInternals stateInternals =
+  private final transient PipelineOptions options = PipelineOptionsFactory.create();
+  private final transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
@@ -105,9 +108,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
-            SideInputContainer.create(
-                    mockEvaluationContext, Collections.<PCollectionView<?>>emptyList())
-                .createReaderForViews(Collections.<PCollectionView<?>>emptyList()));
+            SideInputContainer.create(mockEvaluationContext, Collections.emptyList())
+                .createReaderForViews(Collections.emptyList()));
   }
 
   @Test
@@ -121,7 +123,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         pipeline
             .apply(Create.of(KV.of("hello", 1), KV.of("hello", 2)))
-            .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))));
+            .apply(Window.into(FixedWindows.of(Duration.millis(10))));
 
     TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
@@ -138,12 +140,12 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     },
                     mainOutput,
                     TupleTagList.empty(),
-                    Collections.<PCollectionView<?>>emptyList()))
+                    Collections.emptyList()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
-        new StatefulParDoEvaluatorFactory(mockEvaluationContext);
+        new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
 
     AppliedPTransform<
             PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
@@ -191,10 +193,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     ArgumentCaptor<Runnable> argumentCaptor = ArgumentCaptor.forClass(Runnable.class);
     verify(mockEvaluationContext)
         .scheduleAfterWindowExpiration(
-            eq(producingTransform),
-            eq(firstWindow),
-            Mockito.<WindowingStrategy<?, ?>>any(),
-            argumentCaptor.capture());
+            eq(producingTransform), eq(firstWindow), Mockito.any(), argumentCaptor.capture());
 
     // Should actually clear the state for the first window
     argumentCaptor.getValue().run();
@@ -203,10 +202,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     verify(mockEvaluationContext)
         .scheduleAfterWindowExpiration(
-            eq(producingTransform),
-            eq(secondWindow),
-            Mockito.<WindowingStrategy<?, ?>>any(),
-            argumentCaptor.capture());
+            eq(producingTransform), eq(secondWindow), Mockito.any(), argumentCaptor.capture());
 
     // Should actually clear the state for the second window
     argumentCaptor.getValue().run();
@@ -228,13 +224,13 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> mainInput =
         pipeline
             .apply(Create.of(KV.of("hello", 1), KV.of("hello", 2)))
-            .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))));
+            .apply(Window.into(FixedWindows.of(Duration.millis(10))));
 
     final PCollectionView<List<Integer>> sideInput =
         pipeline
             .apply("Create side input", Create.of(42))
-            .apply("Window side input", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
-            .apply("View side input", View.<Integer>asList());
+            .apply("Window side input", Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply("View side input", View.asList());
 
     TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
@@ -251,12 +247,12 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     },
                     mainOutput,
                     TupleTagList.empty(),
-                    Collections.<PCollectionView<?>>singletonList(sideInput)))
+                    Collections.singletonList(sideInput)))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
-        new StatefulParDoEvaluatorFactory(mockEvaluationContext);
+        new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
 
     // This will be the stateful ParDo from the expansion
     AppliedPTransform<
@@ -275,9 +271,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     // And digging to check whether the window is ready
     when(mockEvaluationContext.createSideInputReader(anyList())).thenReturn(mockSideInputReader);
-    when(mockSideInputReader.isReady(
-            Matchers.<PCollectionView<?>>any(), Matchers.<BoundedWindow>any()))
-        .thenReturn(false);
+    when(mockSideInputReader.isReady(Matchers.any(), Matchers.any())).thenReturn(false);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
 
