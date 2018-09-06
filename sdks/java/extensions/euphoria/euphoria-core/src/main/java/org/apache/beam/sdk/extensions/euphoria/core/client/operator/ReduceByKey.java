@@ -403,6 +403,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @param <V> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
      *     dataset's elements for later reduction
+     * @param valueType {@link TypeDescriptor} of value type {@code <V>}
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     public <V> ReduceByCombineByBuilder<InputT, K, V> valueBy(

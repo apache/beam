@@ -78,6 +78,7 @@ public class Builders {
      * @param <K> the type of the extracted key
      * @param keyExtractor a user defined function to extract keys from the processed input
      *     dataset's elements
+     * @param keyType {@link TypeDescriptor} of key type {@code <K>}
      * @return the next builder to complete the setup of the operator
      */
     <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType);

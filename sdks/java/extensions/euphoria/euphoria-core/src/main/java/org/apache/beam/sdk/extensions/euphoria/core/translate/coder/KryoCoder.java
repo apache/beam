@@ -46,16 +46,21 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Creates a {@link KryoCoder} instance which will use {@link Kryo} with classes registered by
-   * {@code registrar}.
+   * @param <T> type of element this class should code/encode
+   * @param registrarWithId uniquely identified {@link KryoRegistrar} which is used to register
+   *     classes to {@link Kryo} instance used by returned {@link KryoCoder}
+   * @return Newly created a {@link KryoCoder} instance which will use {@link Kryo} with classes
+   *     registered by {@code registrarWithId}.
    */
   public static <T> KryoCoder<T> of(IdentifiedRegistrar registrarWithId) {
     return new KryoCoder<>(registrarWithId);
   }
 
   /**
-   * Creates a {@link KryoCoder} instance which will use {@link Kryo} without class registration.
-   * That degrades performance. Use {@link #of(IdentifiedRegistrar)} whenever possible.
+   * @param <T> type of element this class should code/encode
+   * @return Newly created a {@link KryoCoder} instance which will use {@link Kryo} without class
+   *     registration. That degrades performance. Use {@link #of(IdentifiedRegistrar)} whenever
+   *     possible.
    */
   public static <T> KryoCoder<T> withoutClassRegistration() {
     return new KryoCoder<>(KryoFactory.NO_OP_REGISTRAR);

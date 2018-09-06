@@ -79,7 +79,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
 
-    WindowingUtils.checkGropupByKeyApplicalble(operator, extracted);
+    WindowingUtils.checkGroupByKeyApplicable(operator, extracted);
 
     Coder<KV<K, OutputT>> outputCoder = context.getOutputCoder(operator);
 
