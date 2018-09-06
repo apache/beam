@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
+package org.apache.beam.sdk.extensions.euphoria.core.client.io;
 
-/** Implementing this interface allows for exposing name of implementing class. */
-public interface Named {
+import java.io.Closeable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-  /** @return non-unique name either given by user oe automatically generated. */
-  String getName();
+/** An {@code Iterable} that is externalized to external storage (i.e. spilled to disk). */
+@Audience(Audience.Type.EXECUTOR)
+public interface ExternalIterable<T> extends Iterable<T>, Closeable {
+
+  // don't throw exceptions
+  @Override
+  void close();
 }

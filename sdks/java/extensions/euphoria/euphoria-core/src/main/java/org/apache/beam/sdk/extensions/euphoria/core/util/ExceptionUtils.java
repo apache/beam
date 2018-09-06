@@ -95,7 +95,7 @@ public class ExceptionUtils {
     return () -> new IllegalStateException(message);
   }
 
-  /** User defined {@link Exception} throwing supplier */
+  /** User defined {@link Exception} throwing supplier. */
   @FunctionalInterface
   public interface ThrowingSupplier<T> {
     T apply() throws Exception;

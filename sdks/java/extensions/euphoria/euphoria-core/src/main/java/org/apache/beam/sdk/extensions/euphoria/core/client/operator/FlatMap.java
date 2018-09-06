@@ -184,8 +184,8 @@ public class FlatMap<InputT, OutputT> extends ElementWiseOperator<InputT, Output
   /**
    * Builder allowing user to specify how event time is associated with input elements.
    *
-   * @param <InputT>
-   * @param <OutputT>
+   * @param <InputT> input elements type
+   * @param <OutputT> output elements type
    */
   public interface EventTimeBuilder<InputT, OutputT> extends Builders.Output<OutputT> {
 

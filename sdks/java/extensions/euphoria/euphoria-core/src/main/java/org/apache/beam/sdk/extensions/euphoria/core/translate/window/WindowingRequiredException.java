@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.window;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 /**
- * Thrown by translators when an invalid flow set up is detected, requiring
- * the user to explicitly provide a windowing strategy to a certain operator.
+ * Thrown by translators when an invalid flow set up is detected, requiring the user to explicitly
+ * provide a windowing strategy to a certain operator.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class WindowingRequiredException extends IllegalStateException {

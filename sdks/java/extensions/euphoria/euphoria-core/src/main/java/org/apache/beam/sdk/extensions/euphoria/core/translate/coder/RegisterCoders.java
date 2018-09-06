@@ -58,6 +58,9 @@ public class RegisterCoders {
     /**
      * Sets {@link KryoRegistrar}. All the classes registered by it are automatically coded using
      * {@link Kryo}.
+     *
+     * @param registrar user defined class registrations to {@link Kryo}
+     * @return {@link RegisterBuilder} which allows user to register coders of its own
      */
     RegisterBuilder setKryoClassRegistrar(KryoRegistrar registrar);
   }

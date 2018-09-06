@@ -80,9 +80,10 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
    * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
    * serialization.
    *
-   * @param partitions
-   * @param <T>
-   * @return
+   * @param partitions data elements of returned {@link ListDataSource} distribuded in partitions
+   *     denoted as different {@link List lists}
+   * @param <T> type of element of returned {@link ListDataSource}
+   * @return {@link ListDataSource} which will hold given elements
    */
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
@@ -102,9 +103,10 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
    * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
    * serialization.
    *
-   * @param partitions
-   * @param <T>
-   * @return
+   * @param partitions data elements of returned {@link ListDataSource} distribuded in partitions
+   *     denoted as different {@link List lists}
+   * @param <T> type of element of returned {@link ListDataSource}
+   * @return {@link ListDataSource} which will hold given elements
    */
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
@@ -124,10 +126,12 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
    * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
    * serialization.
    *
-   * @param bounded
-   * @param partitions
-   * @param <T>
-   * @return
+   * @param bounded determines whenever returned {@link ListDataSource} is bounded (true) or
+   *     unbounded (false)
+   * @param partitions data elements of returned {@link ListDataSource} distribuded in partitions
+   *     denoted as different {@link List lists}
+   * @param <T> type of element of returned {@link ListDataSource}
+   * @return {@link ListDataSource} which will hold given elements
    */
   @SafeVarargs
   public static <T> ListDataSource<T> of(boolean bounded, List<T>... partitions) {
@@ -139,10 +143,12 @@ public class ListDataSource<T> implements BoundedDataSource<T>, UnboundedDataSou
    * methods with data supplier such as {@link ListDataSource#of(boolean, Supplier)} to avoid items
    * serialization.
    *
-   * @param bounded
-   * @param partitions
-   * @param <T>
-   * @return
+   * @param bounded determines whenever returned {@link ListDataSource} is bounded (true) or
+   *     unbounded (false)
+   * @param partitions data elements of returned {@link ListDataSource} distribuded in partitions
+   *     denoted as different {@link List lists}
+   * @param <T> type of element of returned {@link ListDataSource}
+   * @return {@link ListDataSource} which will hold given elements
    */
   public static <T> ListDataSource<T> of(boolean bounded, List<List<T>> partitions) {
     return new ListDataSource<>(bounded, partitions);

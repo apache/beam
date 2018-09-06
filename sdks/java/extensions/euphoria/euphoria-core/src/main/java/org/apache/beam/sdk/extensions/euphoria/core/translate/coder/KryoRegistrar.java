@@ -29,7 +29,10 @@ public interface KryoRegistrar extends Serializable {
 
   /**
    * Implementations should call variants of {@link Kryo#register(Class)} to register custom classes
-   * with given {@link Kryo} instance.
+   * with given {@link Kryo} instance. It should be stateless and resulting in the same type
+   * registrations (including order of registration) every time it is called.
+   *
+   * @param kryo {@link Kryo} instance to be used for type registration
    */
   void registerClasses(Kryo kryo);
 }

@@ -290,6 +290,7 @@ public class ReduceStateByKey<
      * elements to get accumulated by a later supplied state implementation.
      *
      * @param <V> the type of the extracted values
+     * @param valueType {@link TypeDescriptor} of value type {@code V}
      * @param valueExtractor a user defined function to extract values from the processed input
      *     dataset's elements for later accumulation
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
@@ -327,6 +328,7 @@ public class ReduceStateByKey<
      *     will produce as such
      * @param <StateT> the type of the state (implementation)
      * @param stateFactory a user supplied function to create new state instances
+     * @param outputType {@link TypeDescriptor} of output type {@code <OutputT>}
      * @return the next builder to complete the setup of the {@link ReduceStateByKey} operator
      */
     public <OutputT, StateT extends State<V, OutputT>>
