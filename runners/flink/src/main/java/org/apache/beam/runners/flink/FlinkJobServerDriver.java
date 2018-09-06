@@ -55,10 +55,16 @@ public class FlinkJobServerDriver implements Runnable {
     @Option(name = "--job-host", usage = "The job server host name")
     private String host = "";
 
-    @Option(name = "--job-port", usage = "The job service port. (Default: 8099)")
+    @Option(
+      name = "--job-port",
+      usage = "The job service port. 0 to use a dynamic port. (Default: 8099)"
+    )
     private int port = 8099;
 
-    @Option(name = "--artifact-port", usage = "The artifact service port. (Default: 8098)")
+    @Option(
+      name = "--artifact-port",
+      usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)"
+    )
     private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
