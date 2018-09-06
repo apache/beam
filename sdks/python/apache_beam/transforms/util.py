@@ -34,6 +34,7 @@ from past.utils import old_div
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -57,6 +58,7 @@ __all__ = [
     'CoGroupByKey',
     'Keys',
     'KvSwap',
+    'MustFollow',
     'RemoveDuplicates',
     'Reshuffle',
     'Values',
@@ -573,3 +575,29 @@ class Reshuffle(PTransform):
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
             | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class MustFollow(PTransform):
+  """Pass-through input, but enforces deferred processing.
+
+  Example usage:
+    # Ensure that output dir is created before attempting to write output files.
+    output_dir_ready = pipeline | beam.Create([output_path]) | CreateOutputDir()
+    output_pcoll | MustFollow(output_dir_ready) | WriteOutput()
+  """
+
+  def __init__(self, to_wait_for):
+    super(MustFollow, self).__init__()
+    self._to_wait_for = to_wait_for
+
+  def map_to_empty(self, x):
+    return []
+
+  def wait(self, x, unused_empty_dummy_side_input):
+    return x
+
+  def expand(self, pcoll):
+    empty_dummy = self._to_wait_for | 'MapToEmpty' >> FlatMap(self.map_to_empty)
+    return pcoll | 'Wait' >> Map(self.wait, AsSingleton(empty_dummy))

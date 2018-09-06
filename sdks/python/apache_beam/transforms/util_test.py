@@ -335,6 +335,18 @@ class ReshuffleTest(unittest.TestCase):
     pipeline.run()
 
 
+class MustFollowTest(unittest.TestCase):
+
+  def test_pass_through_correctness(self):
+    pipeline = TestPipeline()
+    pass_through_data = ['a', 'b', 'c', 'd', 'e']
+    to_wait_for = pipeline | 'ToWaitFor' >> beam.Create([0, 1, 2, 3, 4])
+    waited = (pipeline
+              | 'Data' >> beam.Create(pass_through_data)
+              | beam.MustFollow(to_wait_for))
+    assert_that(waited, equal_to(pass_through_data), label='waited')
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
