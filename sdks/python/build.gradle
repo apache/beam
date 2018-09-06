@@ -25,7 +25,7 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
-def envdir = "${project.buildDir}/gradleenv"
+def envdir = "/export/content/data/tmp/py-beam"
 def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
@@ -46,21 +46,17 @@ task setupVirtualenv {
 
 configurations { distConfig }
 
-task sdist(dependsOn: 'setupVirtualenv') {
+task sdist {
   doLast {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
-    def collection = fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
-    println "sdist archive name: ${collection.singleFile}"
-    // we need a fixed name for the artifact
-    copy { from collection.singleFile; into "${project.buildDir}"; rename { "apache-beam.tar.gz" } }
   }
 }
 
 artifacts {
-  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), name: "apache-beam", type: 'tgz', extension: 'tar.gz', builtBy: sdist
+  distConfig file: file("${project.buildDir}/apache-beam.tar.gz"), builtBy: sdist
 }
 
 task cleanPython(dependsOn: 'setupVirtualenv') {
@@ -318,26 +314,6 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
     exec {
       executable 'sh'
       args '-c', "./scripts/run_dependency_check.sh"
-    }
-  }
-}
-
-uploadArchives { }
-
-task createPackage {
-  dependsOn uploadArchives
-  doLast {
-    def outputDir = file("$rootDir/../python-sdist/$project.name/distributions")
-    outputDir.mkdirs()
-
-    copy {
-      from "$buildDir/ivy.xml"
-      into outputDir.getParent()
-    }
-
-    copy {
-      from "${project.buildDir}/apache-beam.tar.gz"
-      into outputDir
     }
   }
 }
