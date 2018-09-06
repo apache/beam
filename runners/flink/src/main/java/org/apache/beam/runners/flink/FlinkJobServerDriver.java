@@ -130,7 +130,7 @@ public class FlinkJobServerDriver implements Runnable {
     this.configuration = configuration;
     this.executor = executor;
     this.jobServerFactory = jobServerFactory;
-    this.artifactServerFactory = jobServerFactory;
+    this.artifactServerFactory = artifactServerFactory;
   }
 
   @Override
