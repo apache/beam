@@ -31,15 +31,15 @@ func StageModel(ctx context.Context, project, modelURL string, model []byte) err
 	return upload(ctx, project, modelURL, bytes.NewReader(model))
 }
 
-// StageWorker uploads the worker binary to GCS as a unique object.
-func StageWorker(ctx context.Context, project, workerURL, worker string) error {
-	fd, err := os.Open(worker)
+// StageFile uploads a file to GCS.
+func StageFile(ctx context.Context, project, url, filename string) error {
+	fd, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("failed to open worker binary %s: %v", worker, err)
+		return fmt.Errorf("failed to open file %s: %v", filename, err)
 	}
 	defer fd.Close()
 
-	return upload(ctx, project, workerURL, fd)
+	return upload(ctx, project, url, fd)
 }
 
 func upload(ctx context.Context, project, object string, r io.Reader) error {

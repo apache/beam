@@ -55,6 +55,7 @@ var (
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform  = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerJar       = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -129,6 +130,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Labels:         jobLabels,
 		TempLocation:   *tempLocation,
 		Worker:         *jobopts.WorkerBinary,
+		WorkerJar:      *workerJar,
 		TeardownPolicy: *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
@@ -149,12 +151,13 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	id := atomic.AddInt32(&unique, 1)
 	modelURL := gcsx.Join(*stagingLocation, fmt.Sprintf("model-%v-%v", id, time.Now().UnixNano()))
 	workerURL := gcsx.Join(*stagingLocation, fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
+	jarURL := gcsx.Join(*stagingLocation, fmt.Sprintf("dataflow-worker-%v-%v.jar", id, time.Now().UnixNano()))
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(model, opts, workerURL, modelURL)
+		job, err := dataflowlib.Translate(model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
 			return err
 		}
@@ -162,7 +165,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
 	return err
 }
 
