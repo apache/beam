@@ -314,7 +314,7 @@ class CommonJobProperties {
   }
 
   // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap) {
+  static def buildPerformanceTest(def context, def argMap, def language = "DEFAULT") {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
@@ -326,28 +326,29 @@ class CommonJobProperties {
     context.steps {
         // Clean up environment.
         shell("rm -rf ${perfkit_root}")
-        shell("rm -rf ${beam_env}")
         shell("rm -rf ${perfkit_env}")
 
-        // create new VirtualEnv, inherit already existing packages
-        shell("virtualenv ${beam_env} --system-site-packages")
-        shell("virtualenv ${perfkit_env} --system-site-packages")
+        // create new VirtualEnv
+        shell("virtualenv ${perfkit_env}")
 
         // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
-        // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
-
-        // Build PythonSDK tar ball.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
-
         // Install Perfkit benchmark requirements.
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
+
+        // Install Beam Python SDK requirements.
+        if (language == "PYTHON") {
+          shell("rm -rf ${beam_env}")
+          shell("virtualenv ${beam_env}")
+          shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
+          shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
+          // Build PythonSDK tar ball.
+          shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
+        }
 
         // Launch performance test.
         shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
