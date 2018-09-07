@@ -86,19 +86,6 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
   }
 
   @Override
-  public void close() throws Exception {
-    // Clear the cache. This closes all active environments.
-    environmentCache.invalidateAll();
-    environmentCache.cleanUp();
-
-    // Tear down common servers.
-    controlServer.close();
-    loggingServer.close();
-    retrievalServer.close();
-    provisioningServer.close();
-  }
-
-  @Override
   protected ServerFactory getServerFactory() {
     switch (getPlatform()) {
       case LINUX:
