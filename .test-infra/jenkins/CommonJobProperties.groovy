@@ -338,13 +338,14 @@ class CommonJobProperties {
 
         // update setuptools and pip
         shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
+        shell("${beam_env}/bin/pip install pip==18.0")
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[test]")
+        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
 
         // Build PythonSDK tar ball.
         shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
