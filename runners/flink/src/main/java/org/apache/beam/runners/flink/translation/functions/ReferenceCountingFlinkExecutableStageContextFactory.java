@@ -148,7 +148,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
           try {
             wrapper.closeActual();
           } catch (Throwable t) {
-            LOG.error("Unable to close.", t);
+            LOG.error("Unable to close FlinkExecutableStageContext.", t);
           }
         }
       }
