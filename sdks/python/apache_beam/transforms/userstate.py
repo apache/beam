@@ -59,11 +59,10 @@ class CombiningValueStateSpec(StateSpec):
 
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
-    assert isinstance(combine_fn, CombineFn)
     self.name = name
     # The coder here should be for the accumulator type of the given CombineFn.
     self.coder = coder
-    self.combine_fn = combine_fn
+    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
 
 
 class TimerSpec(object):
