@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -113,7 +114,7 @@ public class CombineFns {
       return new ComposedCombineFn<DataT>().with(extractInputFn, combineFn, outputTag);
     }
 
-    /** Like {@link #with(SimpleFunction, CombineFn, TupleTag)} bit with an explicit input coder. */
+    /** Like {@link #with(SimpleFunction, CombineFn, TupleTag)} but with an explicit input coder. */
     public <DataT, InputT, OutputT> ComposedCombineFn<DataT> with(
         SimpleFunction<DataT, InputT> extractInputFn,
         Coder combineInputCoder,
@@ -342,10 +343,9 @@ public class CombineFns {
         CombineFnWithContext<InputT, ?, OutputT> combineFn,
         TupleTag<OutputT> outputTag) {
       checkUniqueness(outputTags, outputTag);
-      List<CombineFnWithContext<Object, Object, Object>> fnsWithContext = Lists.newArrayList();
-      for (CombineFn<Object, Object, Object> fn : combineFns) {
-        fnsWithContext.add(CombineFnUtil.toFnWithContext(fn));
-      }
+      List<CombineFnWithContext<Object, Object, Object>> fnsWithContext =
+          combineFns.stream().map(CombineFnUtil::toFnWithContext).collect(Collectors.toList());
+
       return new ComposedCombineFnWithContext<>(
           ImmutableList.<SerializableFunction<DataT, ?>>builder()
               .addAll(extractInputFns)

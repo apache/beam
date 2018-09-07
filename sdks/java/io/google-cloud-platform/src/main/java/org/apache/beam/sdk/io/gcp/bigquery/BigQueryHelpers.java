@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.BackOff;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -79,24 +80,101 @@ public class BigQueryHelpers {
     }
   }
 
+  static class RetryJob {
+    private final SerializableFunction<RetryJobId, Void> executeJob;
+    private final SerializableFunction<RetryJobId, Status> pollJob;
+    private final int maxRetries;
+    RetryJobId currentJobId;
+    boolean started;
+
+
+    RetryJob(SerializableFunction<RetryJobId, Void> executeJob, SerializableFunction<RetryJobId,
+        Status> pollJob, int maxRetries, String jobIdPrefix{
+      this.executeJob = executeJob;
+      this.pollJob = pollJob;
+      this.i = retryBackoff;
+      currentJobId = new RetryJobId(jobIdPrefix, 0);
+      this.started = false;
+    }
+
+    void runJob() {
+      try {
+      executeJob.apply(currentJobId);
+      } catch (RuntimeException e) {
+        LOG.warn("Job {} failed with {}", currentJobId.getJobId(), e);
+        // It's possible that the job actually made it to BQ even though we got a failure here.
+        // For example, the response from BQ may have timed out returning. getRetryJobId will
+        // return the correct job id to use on retry, or a job id to continue polling (if it turns
+        // out the the job has not actually failed yet).
+        RetryJobIdResult result =
+            BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService);
+        currentJobId = result.jobId;
+        if (!result.shouldRetry) {
+          // The job has reached BigQuery and is in either the PENDING state or has completed
+          // successfully.
+          this.started = true;
+        }
+        // Otherwise the jobs is not started. Trye the load again with the new job id.
+      }
+    }
+
+    boolean pollJob() {
+      if (started) {
+        Status jobStatus = pollJob.apply(currentJobId);
+        switch (jobStatus) {
+          case SUCCEEDED:
+            LOG.info("Load job {} succeeded. Statistics: {}", currentJobId, loadJob.getStatistics());
+            return true;
+          case UNKNOWN:
+            // This might happen if BigQuery's job listing is slow. Retry with the same
+            // job id.
+            LOG.info(
+                "Load job {} finished in unknown state: {}: {}",
+                jobRef,
+                loadJob.getStatus(),
+                (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
+            lastFailedLoadJob = loadJob;
+            return false;
+          case FAILED:
+            lastFailedLoadJob = loadJob;
+            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService)
+                .jobId;
+            LOG.info(
+                "Load job {} failed, {}: {}. Next job id {}",
+                jobRef,
+                (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
+                loadJob.getStatus(),
+                jobId);
+            return false;
+          default:
+            throw new IllegalStateException(
+                String.format(
+                    "Unexpected status [%s] of load job: %s.",
+                    loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
+        }
+      }
+      return false;
+    }
+  }
+
   static class RetryJobId {
     private final String jobIdPrefix;
     private final int retryIndex;
 
-    public RetryJobId(String jobIdPrefix, int retryIndex) {
+    RetryJobId(String jobIdPrefix, int retryIndex) {
       this.jobIdPrefix = jobIdPrefix;
       this.retryIndex = retryIndex;
     }
 
-    public String getJobIdPrefix() {
+    String getJobIdPrefix() {
       return jobIdPrefix;
     }
 
-    public int getRetryIndex() {
+    int getRetryIndex() {
       return retryIndex;
     }
 
-    public String getJobId() {
+    String getJobId() {
       return jobIdPrefix + "-" + retryIndex;
     }
 
