@@ -119,13 +119,15 @@ class PipelineContext(object):
       setattr(
           self, name, _PipelineContextMap(
               self, cls, getattr(proto, name, None)))
-    if default_environment_url:
-      self._default_environment_id = self.environments.get_id(
-          Environment(
-              beam_runner_api_pb2.Environment(
-                  url=default_environment_url)))
-    else:
-      self._default_environment_id = None
+    # if default_environment_url:
+    #   self._default_environment_id = self.environments.get_id(
+    #       Environment(
+    #           beam_runner_api_pb2.Environment(
+    #               urn=beam_runner_api_pb2.StandardEnvironments.DOCKER,
+    #               payload=beam_runner_api_pb2.DockerPayload(
+    #                 container_image=default_environment_url))))
+    # else:
+    self._default_environment_id = None
 
   @staticmethod
   def from_runner_api(proto):

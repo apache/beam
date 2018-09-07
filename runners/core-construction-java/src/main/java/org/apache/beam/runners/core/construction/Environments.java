@@ -23,6 +23,8 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.Nullable;
+
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -55,7 +57,13 @@ public class Environments {
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
       String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
-      Environment.newBuilder().setUrl(JAVA_SDK_HARNESS_CONTAINER_URL).build();
+      Environment.newBuilder().setUrn("beam:env:docker:v1")
+          .setPayload(
+              RunnerApi.DockerPayload.newBuilder()
+              .setContainerImage(JAVA_SDK_HARNESS_CONTAINER_URL)
+              .build()
+              .toByteString())
+          .build();
 
   private Environments() {}
 
@@ -63,7 +71,12 @@ public class Environments {
     if (Strings.isNullOrEmpty(url)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
-    return Environment.newBuilder().setUrl(url).build();
+    return Environment.newBuilder()
+        .setUrn("beam:env:docker:v1")
+        .setPayload(RunnerApi.DockerPayload.newBuilder()
+            .setContainerImage(url).build()
+            .toByteString())
+        .build();
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {

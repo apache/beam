@@ -19,12 +19,15 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
@@ -113,10 +116,14 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
-    String workerId = idGenerator.getId();
+    Preconditions.checkState(
+        environment.getUrn().equals(RunnerApi.StandardEnvironments.Environments.DOCKER.toString()),
+        "The passed environment does not contain a DockerPayload.");
+    final RunnerApi.DockerPayload dockerPayload = RunnerApi.DockerPayload.parseFrom(environment.getPayload());
+    final String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
-    String containerImage = environment.getUrl();
+    String containerImage = dockerPayload.getContainerImage();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
@@ -155,7 +162,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         } catch (TimeoutException timeoutEx) {
           LOG.info(
               "Still waiting for startup of environment {} for worker id {}",
-              environment.getUrl(),
+              dockerPayload.getContainerImage(),
               workerId);
         } catch (InterruptedException interruptEx) {
           Thread.currentThread().interrupt();
