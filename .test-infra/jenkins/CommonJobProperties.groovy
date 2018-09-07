@@ -344,7 +344,7 @@ class CommonJobProperties {
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
+        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[test]")
 
         // Build PythonSDK tar ball.
         shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
