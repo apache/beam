@@ -58,10 +58,6 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
             }
           });
 
-  public static JobBundleFactory create(JobInfo jobInfo) throws Exception {
-    return FACTORY.get().create(jobInfo);
-  }
-
   protected DockerJobBundleFactory(JobInfo jobInfo) throws Exception {
     super(jobInfo);
   }
