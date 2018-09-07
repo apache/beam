@@ -75,6 +75,7 @@ cdef class DoOperation(Operation):
   cdef Receiver dofn_receiver
   cdef object tagged_receivers
   cdef object side_input_maps
+  cdef object user_state_context
 
 
 cdef class CombineOperation(Operation):

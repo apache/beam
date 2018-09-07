@@ -272,9 +272,11 @@ class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
   def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None):
+      self, name, spec, counter_factory, sampler, side_input_maps=None,
+      user_state_context=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.user_state_context = user_state_context
     self.tagged_receivers = None
 
   def _read_side_inputs(self, tags_and_types):
@@ -375,6 +377,7 @@ class DoOperation(Operation):
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
           state=state,
+          user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
 
       self.dofn_receiver = (self.dofn_runner

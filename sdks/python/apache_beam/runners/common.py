@@ -271,6 +271,10 @@ class DoFnSignature(object):
   def is_stateful_dofn(self):
     return self._is_stateful_dofn
 
+  def has_timers(self):
+    _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
+    return bool(all_timer_specs)
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
