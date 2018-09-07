@@ -22,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 import struct
+import sys
 from builtins import chr
 from builtins import object
 
@@ -70,7 +71,7 @@ class OutputStream(object):
     self.write(struct.pack('>d', v))
 
   def get(self):
-    return ''.join(self.data)
+    return b''.join(self.data)
 
   def size(self):
     return len(self.data)
@@ -114,6 +115,19 @@ class InputStream(object):
     self.data = data
     self.pos = 0
 
+    # The behavior of looping over a byte-string and obtaining byte characters
+    # has been changed between python 2 and 3.
+    # b = b'\xff\x01'
+    # Python 2:
+    # b[0] = '\xff'
+    # ord(b[0]) = 255
+    # Python 3:
+    # b[0] = 255
+    if sys.version_info[0] >= 3:
+      self.read_byte = self.read_byte_py3
+    else:
+      self.read_byte = self.read_byte_py2
+
   def size(self):
     return len(self.data) - self.pos
 
@@ -124,9 +138,13 @@ class InputStream(object):
   def read_all(self, nested):
     return self.read(self.read_var_int64() if nested else self.size())
 
-  def read_byte(self):
+  def read_byte_py2(self):
     self.pos += 1
     return ord(self.data[self.pos - 1])
+
+  def read_byte_py3(self):
+    self.pos += 1
+    return self.data[self.pos - 1]
 
   def read_var_int64(self):
     shift = 0

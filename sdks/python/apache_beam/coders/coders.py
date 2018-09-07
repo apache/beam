@@ -62,12 +62,13 @@ __all__ = ['Coder',
 
 def serialize_coder(coder):
   from apache_beam.internal import pickler
-  return '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder))
+  return b'%s$%s' % (coder.__class__.__name__.encode('utf-8'),
+                     pickler.dumps(coder))
 
 
 def deserialize_coder(serialized):
   from apache_beam.internal import pickler
-  return pickler.loads(serialized.split('$', 1)[1])
+  return pickler.loads(serialized.split(b'$', 1)[1])
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
