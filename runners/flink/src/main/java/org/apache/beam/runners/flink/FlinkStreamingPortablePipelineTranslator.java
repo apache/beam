@@ -529,7 +529,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.batchFactory(),
+            FlinkExecutableStageContext.factory(),
             collectionIdToTupleTag);
 
     if (transformedSideInputs.unionTagToView.isEmpty()) {
