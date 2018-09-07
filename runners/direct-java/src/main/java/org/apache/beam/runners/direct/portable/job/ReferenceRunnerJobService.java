@@ -58,9 +58,13 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    return create(serverFactory, -1);
+  }
+
+  public static ReferenceRunnerJobService create(final ServerFactory serverFactory, int controlApiPort) {
     LOG.info("Starting {}", ReferenceRunnerJobService.class);
     return new ReferenceRunnerJobService(
-        serverFactory, () -> Files.createTempDirectory("reference-runner-staging"));
+        serverFactory, () -> Files.createTempDirectory("reference-runner-staging"), controlApiPort);
   }
 
   private final ServerFactory serverFactory;
@@ -72,9 +76,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private final ExecutorService executor;
   private final ConcurrentLinkedQueue<GrpcFnServer<LocalFileSystemArtifactStagerService>>
       artifactStagingServices;
+  private final int controlApiPort;
 
   private ReferenceRunnerJobService(
-      ServerFactory serverFactory, Callable<Path> stagingPathCallable) {
+      ServerFactory serverFactory, Callable<Path> stagingPathCallable, int controlApiPort) {
     this.serverFactory = serverFactory;
     this.stagingPathCallable = stagingPathCallable;
     unpreparedJobs = new ConcurrentHashMap<>();
@@ -87,10 +92,11 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
                 .setNameFormat("reference-runner-pipeline-%s")
                 .build());
     artifactStagingServices = new ConcurrentLinkedQueue<>();
+    this.controlApiPort = controlApiPort;
   }
 
   public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
-    return new ReferenceRunnerJobService(serverFactory, supplier);
+    return new ReferenceRunnerJobService(serverFactory, supplier, -1);
   }
 
   @Override
@@ -120,7 +126,8 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       responseObserver.onNext(
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
-              .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
+              // don't set artifact staging otherwise the portable runner in python would try to download docker
+              // .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
               // ReferenceRunner uses LocalFileSystemArtifactStagerService which only need local
               // artifact directory.
               .setStagingSessionToken(tempDir.toFile().getAbsolutePath())
@@ -162,10 +169,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       }
 
       ReferenceRunner runner =
-          ReferenceRunner.forPipeline(
+          ReferenceRunner.forPassivePipeline(
               preparingJob.getPipeline(),
               preparingJob.getOptions(),
-              preparingJob.getStagingLocation().toFile());
+              controlApiPort);
       String jobId = "job-" + Integer.toString(ThreadLocalRandom.current().nextInt());
       responseObserver.onNext(RunJobResponse.newBuilder().setJobId(jobId).build());
       responseObserver.onCompleted();
