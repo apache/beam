@@ -27,6 +27,12 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_PortableValidatesRunn
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Python Compatibility Matrix Test',
+          'Run Python Compatibility Matrix Test')
+
   // Execute gradle task to test Python SDK.
   steps {
     gradle {

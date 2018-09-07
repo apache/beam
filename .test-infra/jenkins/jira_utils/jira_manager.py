@@ -117,7 +117,7 @@ class JiraManager:
       parent_key: only required if the 'is_subtask'is true.
     """
     logging.info("Creating a new JIRA issue to track {0} upgrade process".format(dep_name))
-    assignee, owners = self._find_owners(dep_name)
+    owners = self._find_owners(dep_name)
     summary =  _ISSUE_SUMMARY_PREFIX + dep_name
     if dep_latest_version:
       summary = summary + " " + dep_latest_version
@@ -132,9 +132,9 @@ class JiraManager:
       description += "[~{0}], ".format(owner)
     try:
       if not is_subtask:
-        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description, assignee=assignee)
+        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description)
       else:
-        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description, assignee=assignee, parent_key=parent_key)
+        issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description, parent_key=parent_key)
     except Exception as e:
       logging.error("Failed creating issue: "+ str(e))
       raise e
@@ -175,7 +175,7 @@ class JiraManager:
         dep_name,
         dep_latest_version
     )
-    _, owners = self._find_owners(dep_name)
+    owners = self._find_owners(dep_name)
     for owner in owners:
       description += "[~{0}], ".format(owner)
     try:
@@ -213,6 +213,4 @@ class JiraManager:
     owners = owners.split(',')
     owners = map(str.strip, owners)
     owners = list(filter(None, owners))
-    primary = owners[0]
-    del owners[0]
-    return primary, owners
+    return owners

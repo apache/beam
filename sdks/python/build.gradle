@@ -35,7 +35,7 @@ task setupVirtualenv {
     }
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+      args '-c', ". ${envdir}/bin/activate"
     }
   }
   // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -292,12 +292,12 @@ def flinkCompatibilityMatrix = {
   def name = 'flinkCompatibilityMatrix' + type
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
-    dependsOn ':beam-runners-flink_2.11-job-server:jar'
+//    dependsOn ':beam-sdks-python-container:docker'
+//    dependsOn ':beam-runners-flink_2.11-job-server:jar'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
+        args '-c', "pip --version"
       }
     }
   }
