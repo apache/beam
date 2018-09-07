@@ -143,7 +143,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-pubsub==0.26.0',
     'proto-google-cloud-pubsub-v1==0.15.4',
     # GCP packages required by tests
-    'google-cloud-bigquery==0.25.0',
+    'google-cloud-bigquery>=1.0.0,<=2.0.0dev',
 ]
 
 if sys.version_info[0] == 2:
