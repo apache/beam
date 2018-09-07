@@ -17,32 +17,22 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import java.io.IOException;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/** Implementation of a {@link FlinkExecutableStageContext} for batch jobs. */
-class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(FlinkBatchExecutableStageContext.class);
-
+/** Implementation of a {@link FlinkExecutableStageContext}. */
+class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
-  private static FlinkBatchExecutableStageContext create(JobInfo jobInfo) throws Exception {
-    JobBundleFactory jobBundleFactory = DockerJobBundleFactory.create(jobInfo);
-    return new FlinkBatchExecutableStageContext(jobBundleFactory);
+  private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) throws Exception {
+    JobBundleFactory jobBundleFactory = DockerJobBundleFactory.FACTORY.get().create(jobInfo);
+    return new FlinkDefaultExecutableStageContext(jobBundleFactory);
   }
 
-  private FlinkBatchExecutableStageContext(JobBundleFactory jobBundleFactory) {
+  private FlinkDefaultExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
   }
 
@@ -51,29 +41,17 @@ class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext, A
     return jobBundleFactory.forStage(executableStage);
   }
 
-  public static StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext) {
-    SideInputHandlerFactory sideInputHandlerFactory =
-        FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
-    try {
-      return StateRequestHandlers.forSideInputHandlerFactory(
-          ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   @Override
   public void close() throws Exception {
     jobBundleFactory.close();
   }
 
-  enum BatchFactory implements Factory {
+  enum ReferenceCountingFactory implements Factory {
     REFERENCE_COUNTING;
 
     private static final ReferenceCountingFlinkExecutableStageContextFactory actualFactory =
         ReferenceCountingFlinkExecutableStageContextFactory.create(
-            FlinkBatchExecutableStageContext::create);
+            FlinkDefaultExecutableStageContext::create);
 
     @Override
     public FlinkExecutableStageContext get(JobInfo jobInfo) {

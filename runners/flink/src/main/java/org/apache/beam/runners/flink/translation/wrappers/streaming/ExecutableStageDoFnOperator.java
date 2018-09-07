@@ -196,9 +196,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     // Remove the reference to stageContext and make stageContext available for garbage collection.
-    try (AutoCloseable closable = stageContext) {}
+    try (@SuppressWarnings("unused")
+            AutoCloseable bundleFactoryCloser = stageBundleFactory;
+        @SuppressWarnings("unused")
+            AutoCloseable closable = stageContext) {}
     stageContext = null;
     super.close();
   }
