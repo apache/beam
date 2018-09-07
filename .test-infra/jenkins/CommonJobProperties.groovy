@@ -330,26 +330,26 @@ class CommonJobProperties {
         shell("rm -rf ${perfkit_env}")
 
         // create new VirtualEnv, inherit already existing packages
-        shell("virtualenv ${beam_env}")
-        shell("virtualenv ${perfkit_env}")
+        shell("sh -c 'virtualenv ${beam_env}'")
+        shell("sh -c 'virtualenv ${perfkit_env}'")
 
         // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade grpcio-tools==1.3.5")
+        shell("sh -c '${beam_env}/bin/pip install --upgrade grpcio-tools==1.3.5'")
 
         // Clone appropriate perfkit branch
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install job requirements for Python SDK.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/pip install -e .[gcp,test])")
+        shell("sh -c 'cd ${beam_root}/sdks/python && ${beam_env}/bin/pip install -e .[gcp,test]'")
 
         // Build PythonSDK tar ball.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
+        shell("sh -c 'cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target'")
 
         // Install Perfkit benchmark requirements.
-        shell("(cd ${perfkit_root} && ${perfkit_env}/bin/pip install -r requirements.txt)")
+        shell("sh -c 'cd ${perfkit_root} && ${perfkit_env}/bin/pip install -r requirements.txt'")
 
         // Launch performance test.
-        shell("(cd ${perfkit_root} && ${perfkit_env}/bin/python pkb.py ${pkbArgs})")
+        shell("sh -c 'cd ${perfkit_root} && ${perfkit_env}/bin/python pkb.py ${pkbArgs}'")
     }
   }
 
