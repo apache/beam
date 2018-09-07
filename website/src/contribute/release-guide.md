@@ -71,6 +71,9 @@ Before your first release, you should perform one-time configuration steps. This
 
 To prepare for each release, you should audit the project status in the JIRA issue tracker, and do necessary bookkeeping. Finally, you should create a release branch from which individual release candidates will be built.
 
+__NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access, 
+please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
+
 ### One-time setup instructions
 
 #### GPG Key
@@ -158,6 +161,10 @@ Configure access to the [Apache Nexus repository](http://repository.apache.org/)
           </servers>
         </settings>
 
+#### Submit your GPG public key into MIT PGP Public Key Server
+In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository, 
+please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
+
 #### Website development setup
 
 Prepare to update the Beam website by following the [website development
@@ -171,7 +178,7 @@ Release manager needs to have an account with PyPI. If you need one, [register a
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
 
-Attention: Only committer has permission to perform this.
+__Attention__: Only PMC has permission to perform this. If you are not a PMC, please ask for help in dev@ mailing list.
 
 1. In JIRA, navigate to the [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
 1. Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the `Start Date`, and choose `Add`.
@@ -437,6 +444,9 @@ For this step, we recommend you using automation script to create a RC, but you 
 * Tasks included
   1. Run gradle release to create rc tag and push source release into github repo.
   1. Run gradle publish to push java artifacts into Maven staging repo.
+     
+     __NOTE__: In order to public staging artifacts, you need to goto the staging repo to close the staging repository on Apache Nexus. 
+     When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
   1. Create a PR to update beam-site, changes includes:
