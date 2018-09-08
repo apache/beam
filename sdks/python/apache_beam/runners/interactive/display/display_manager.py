@@ -28,7 +28,7 @@ import collections
 import threading
 import time
 
-from apache_beam.runners.interactive import interactive_pipeline_graph
+from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
 try:
   import IPython  # pylint: disable=import-error
@@ -51,7 +51,8 @@ class DisplayManager(object):
   """Manages displaying pipeline graph and execution status on the frontend."""
 
   def __init__(self, pipeline_info, pipeline_proto, caches_used, cache_manager,
-               referenced_pcollections, required_transforms):
+               referenced_pcollections, required_transforms,
+               pipeline_graph_renderer):
     """Constructor of DisplayManager.
 
     Args:
@@ -63,8 +64,10 @@ class DisplayManager(object):
           the latest status of pipeline execution by querying cache_manager.
       referenced_pcollections: (dict from str to PCollection proto) PCollection
           ID mapped to PCollection referenced during pipeline execution.
-      required_transforms: (dict from str to PTransform proto) Mapping from
+      required_transforms: (dict from str to PTransform proto) mapping from
           transform ID to transforms that leads to visible results.
+      pipeline_graph_renderer: (pipeline_graph_renderer.PipelineGraphRenderer)
+          decides how a pipeline graph is rendered.
     """
     # Every parameter except cache_manager is expected to remain constant.
     self._cache_manager = cache_manager
@@ -74,6 +77,7 @@ class DisplayManager(object):
         required_transforms=required_transforms,
         referenced_pcollections=referenced_pcollections,
         cached_pcollections=caches_used)
+    self._renderer = pipeline_graph_renderer
 
     # _text_to_print keeps track of information to be displayed.
     self._text_to_print = collections.OrderedDict()
@@ -140,11 +144,14 @@ class DisplayManager(object):
                     interactive_pipeline_graph.format_sample(pcoll_list, 5))))
 
       if force or stats_updated:
-        if IPython:
-          IPython.core.display.clear_output(True)
-
         self._pipeline_graph.update_pcollection_stats(self._pcollection_stats)
-        self._pipeline_graph.display_graph()
+
+        if IPython:
+          from IPython.core import display
+          display.clear_output(True)
+          rendered_graph = self._renderer.render_pipeline_graph(
+              self._pipeline_graph)
+          display.display(display.HTML(rendered_graph))
 
         _display_progress('Running...')
         for text in self._text_to_print.values():
