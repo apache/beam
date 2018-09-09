@@ -120,7 +120,7 @@ public class QueryablePipeline {
     return ids;
   }
 
-  private static Set<String> PRIMITIVE_URNS =
+  private static final Set<String> PRIMITIVE_URNS =
       ImmutableSet.of(
           PTransformTranslation.PAR_DO_TRANSFORM_URN,
           PTransformTranslation.FLATTEN_TRANSFORM_URN,
