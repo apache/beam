@@ -80,6 +80,7 @@ class WindowTest(unittest.TestCase):
                         IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
     self.assertNotEqual(IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
                         GlobalWindow())
+    self.assertTrue(GlobalWindow().max_timestamp() < MAX_TIMESTAMP)
 
   def test_fixed_windows(self):
     # Test windows with offset: 2, 7, 12, 17, ...

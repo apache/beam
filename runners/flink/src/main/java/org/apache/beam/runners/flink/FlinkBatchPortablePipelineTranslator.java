@@ -336,10 +336,7 @@ public class FlinkBatchPortablePipelineTranslator
     }
     FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
-            stagePayload,
-            context.getJobInfo(),
-            outputMap,
-            FlinkExecutableStageContext.batchFactory());
+            stagePayload, context.getJobInfo(), outputMap, FlinkExecutableStageContext.factory());
 
     DataSet<WindowedValue<InputT>> inputDataSet =
         context.getDataSetOrThrow(stagePayload.getInput());

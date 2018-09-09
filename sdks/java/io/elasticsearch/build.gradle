@@ -27,7 +27,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.jackson_annotations
-  shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+  shadow "org.elasticsearch.client:elasticsearch-rest-client:6.4.0"
   shadow "org.apache.httpcomponents:httpasyncclient:4.1.4"
   shadow "org.apache.httpcomponents:httpcore-nio:4.4.10"
   shadow "org.apache.httpcomponents:httpcore:4.4.10"
