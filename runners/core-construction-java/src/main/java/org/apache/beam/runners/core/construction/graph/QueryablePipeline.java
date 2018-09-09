@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -114,7 +115,12 @@ public class QueryablePipeline {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        ids.add(transformEntry.getKey());
+        List<String> subtransforms = transform.getSubtransformsList();
+        if (subtransforms.isEmpty()) {
+          ids.add(transformEntry.getKey());
+        } else {
+          ids.addAll(subtransforms);
+        }
       }
     }
     return ids;
