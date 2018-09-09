@@ -27,6 +27,8 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.IM
 import static org.apache.beam.runners.core.construction.PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -145,7 +147,9 @@ public class QueryablePipeline {
           TEST_STREAM_TRANSFORM_URN,
           MAP_WINDOWS_TRANSFORM_URN,
           READ_TRANSFORM_URN,
-          CREATE_VIEW_TRANSFORM_URN);
+          CREATE_VIEW_TRANSFORM_URN,
+          SPLITTABLE_PROCESS_KEYED_URN,
+          SPLITTABLE_PROCESS_ELEMENTS_URN);
 
   /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
