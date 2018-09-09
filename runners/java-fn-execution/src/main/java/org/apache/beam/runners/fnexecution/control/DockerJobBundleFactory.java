@@ -43,11 +43,6 @@ import org.slf4j.LoggerFactory;
 public class DockerJobBundleFactory extends JobBundleFactoryBase {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
 
-  // Port offset for MacOS since we don't have host networking and need to use published ports
-  private static final int MAC_PORT_START = 8100;
-  private static final int MAC_PORT_END = 8200;
-  private static final AtomicInteger MAC_PORT = new AtomicInteger(MAC_PORT_START);
-
   /** Factory that creates {@link JobBundleFactory} for the given {@link JobInfo}. */
   public interface JobBundleFactoryFactory {
     JobBundleFactory create(JobInfo jobInfo) throws Exception;
@@ -62,14 +57,6 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
               return new DockerJobBundleFactory(jobInfo);
             }
           });
-
-  // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
-  // or attempt to document the supported Docker version(s)?
-  private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
-
-  public static JobBundleFactory create(JobInfo jobInfo) throws Exception {
-    return FACTORY.get().create(jobInfo);
-  }
 
   protected DockerJobBundleFactory(JobInfo jobInfo) throws Exception {
     super(jobInfo);
@@ -95,39 +82,12 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
   }
 
   @Override
-  public void close() throws Exception {
-    // Clear the cache. This closes all active environments.
-    environmentCache.invalidateAll();
-    environmentCache.cleanUp();
-
-    // Tear down common servers.
-    controlServer.close();
-    loggingServer.close();
-    retrievalServer.close();
-    provisioningServer.close();
-  }
-
-  @Override
   protected ServerFactory getServerFactory() {
     switch (getPlatform()) {
       case LINUX:
         return ServerFactory.createDefault();
       case MAC:
-        // NOTE: Deployment on Macs is intended for local development. As of 18.03, Docker-for-Mac
-        // does not implement host networking (--networking=host is effectively a no-op). Instead,
-        // we use a special DNS entry that points to the host:
-        // https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
-        // The special hostname has historically changed between versions, so this is subject to
-        // breakages and will likely only support the latest version at any time.
-
-        // We need to use a fixed port range due to non-existing host networking in Docker-for-Mac.
-        // The port range needs to be published when bringing up the Docker container, see
-        // DockerEnvironmentFactory.
-
-        return ServerFactory.createWithUrlFactoryAndPortSupplier(
-            (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString(),
-            // We only use the published Docker ports 8100-8200 in a round-robin fashion
-            () -> MAC_PORT.getAndUpdate(val -> val == MAC_PORT_END ? MAC_PORT_START : val + 1));
+        return DockerOnMac.getServerFactory();
       default:
         LOG.warn("Unknown Docker platform. Falling back to default server factory");
         return ServerFactory.createDefault();
@@ -140,7 +100,7 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
     // The DOCKER_MAC_CONTAINER environment variable is necessary to detect whether we run on
     // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable from Linux.
     // We still need to apply port mapping due to missing host networking.
-    if (osName.startsWith("mac") || "1".equals(System.getenv("DOCKER_MAC_CONTAINER"))) {
+    if (osName.startsWith("mac") || DockerOnMac.RUNNING_INSIDE_DOCKER_ON_MAC) {
       return Platform.MAC;
     } else if (osName.startsWith("linux")) {
       return Platform.LINUX;
@@ -152,6 +112,44 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
     MAC,
     LINUX,
     OTHER,
+  }
+
+  /**
+   * NOTE: Deployment on Macs is intended for local development. As of 18.03, Docker-for-Mac does
+   * not implement host networking (--networking=host is effectively a no-op). Instead, we use a
+   * special DNS entry that points to the host:
+   * https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds The special
+   * hostname has historically changed between versions, so this is subject to breakages and will
+   * likely only support the latest version at any time.
+   */
+  private static class DockerOnMac {
+    // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
+    // or attempt to document the supported Docker version(s)?
+    private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
+
+    // True if we're inside a container (i.e. job-server container) with MacOS as the host system
+    private static final boolean RUNNING_INSIDE_DOCKER_ON_MAC =
+        "1".equals(System.getenv("DOCKER_MAC_CONTAINER"));
+    // Port offset for MacOS since we don't have host networking and need to use published ports
+    private static final int MAC_PORT_START = 8100;
+    private static final int MAC_PORT_END = 8200;
+    private static final AtomicInteger MAC_PORT = new AtomicInteger(MAC_PORT_START);
+
+    private static ServerFactory getServerFactory() {
+      ServerFactory.UrlFactory dockerUrlFactory =
+          (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString();
+      if (RUNNING_INSIDE_DOCKER_ON_MAC) {
+        // If we're already running in a container, we need to use a fixed port range due to
+        // non-existing host networking in Docker-for-Mac. The port range needs to be published
+        // when bringing up the Docker container, see DockerEnvironmentFactory.
+        return ServerFactory.createWithUrlFactoryAndPortSupplier(
+            dockerUrlFactory,
+            // We only use the published Docker ports 8100-8200 in a round-robin fashion
+            () -> MAC_PORT.getAndUpdate(val -> val == MAC_PORT_END ? MAC_PORT_START : val + 1));
+      } else {
+        return ServerFactory.createWithUrlFactory(dockerUrlFactory);
+      }
+    }
   }
 
   /** Create {@link EnvironmentFactory} for the given services. */

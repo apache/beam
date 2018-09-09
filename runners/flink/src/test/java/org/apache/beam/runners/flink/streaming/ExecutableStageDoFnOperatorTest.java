@@ -284,6 +284,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     operator.close();
     verify(stageBundleFactory).close();
+    verify(stageContext).close();
     verifyNoMoreInteractions(stageBundleFactory);
 
     testHarness.close();
@@ -332,7 +333,7 @@ public class ExecutableStageDoFnOperatorTest {
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             stagePayload,
             jobInfo,
-            FlinkExecutableStageContext.batchFactory(),
+            FlinkExecutableStageContext.factory(),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)));
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);

@@ -17,6 +17,7 @@
 
 """Generates Python proto modules and grpc stubs for Beam protos."""
 from __future__ import absolute_import
+from __future__ import print_function
 
 import glob
 import logging
@@ -71,10 +72,11 @@ def generate_proto_files(force=False):
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)
 
-  # Regenerate iff the proto files are newer.
+  # Regenerate iff the proto files or this file are newer.
   elif force or not out_files or len(out_files) < len(proto_files) or (
       min(os.path.getmtime(path) for path in out_files)
-      <= max(os.path.getmtime(path) for path in proto_files)):
+      <= max(os.path.getmtime(path)
+             for path in proto_files + [os.path.realpath(__file__)])):
     try:
       from grpc_tools import protoc
     except ImportError:
@@ -111,14 +113,17 @@ def generate_proto_files(force=False):
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
-    if sys.version_info[0] >= 3:
-      ret_code = subprocess.call(
-          ["futurize", "--both-stages", "--write", "--verbose", "--no-diff",
-           out_dir])
+    ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
+    if ret_code:
+      raise RuntimeError(
+          'Error installing future during proto generation')
 
-      if ret_code:
-        raise RuntimeError(
-            'Error applying futurize to generated protobuf python files.')
+    ret_code = subprocess.call(
+        ["futurize", "--both-stages", "--write", "--verbose", "--no-diff",
+         out_dir])
+    if ret_code:
+      raise RuntimeError(
+          'Error applying futurize to generated protobuf python files.')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses

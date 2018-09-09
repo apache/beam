@@ -68,13 +68,13 @@ import org.slf4j.LoggerFactory;
 public abstract class JobBundleFactoryBase implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(JobBundleFactoryBase.class);
 
-  final IdGenerator stageIdGenerator;
-  final GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  final GrpcFnServer<GrpcLoggingService> loggingServer;
-  final GrpcFnServer<ArtifactRetrievalService> retrievalServer;
-  final GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
+  private final IdGenerator stageIdGenerator;
+  private final GrpcFnServer<FnApiControlClientPoolService> controlServer;
+  private final GrpcFnServer<GrpcLoggingService> loggingServer;
+  private final GrpcFnServer<ArtifactRetrievalService> retrievalServer;
+  private final GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
 
-  final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
+  private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
   JobBundleFactoryBase(JobInfo jobInfo) throws Exception {
     ServerFactory serverFactory = getServerFactory();

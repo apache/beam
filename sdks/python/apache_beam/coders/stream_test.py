@@ -36,20 +36,20 @@ class StreamTest(unittest.TestCase):
 
   def test_read_write(self):
     out_s = self.OutputStream()
-    out_s.write('abc')
-    out_s.write('\0\t\n')
-    out_s.write('xyz', True)
-    out_s.write('', True)
+    out_s.write(b'abc')
+    out_s.write(b'\0\t\n')
+    out_s.write(b'xyz', True)
+    out_s.write(b'', True)
     in_s = self.InputStream(out_s.get())
-    self.assertEquals('abc\0\t\n', in_s.read(6))
-    self.assertEquals('xyz', in_s.read_all(True))
-    self.assertEquals('', in_s.read_all(True))
+    self.assertEquals(b'abc\0\t\n', in_s.read(6))
+    self.assertEquals(b'xyz', in_s.read_all(True))
+    self.assertEquals(b'', in_s.read_all(True))
 
   def test_read_all(self):
     out_s = self.OutputStream()
-    out_s.write('abc')
+    out_s.write(b'abc')
     in_s = self.InputStream(out_s.get())
-    self.assertEquals('abc', in_s.read_all(False))
+    self.assertEquals(b'abc', in_s.read_all(False))
 
   def test_read_write_byte(self):
     out_s = self.OutputStream()
@@ -129,15 +129,15 @@ class StreamTest(unittest.TestCase):
   def test_byte_counting(self):
     bc_s = self.ByteCountingOutputStream()
     self.assertEquals(0, bc_s.get_count())
-    bc_s.write('def')
+    bc_s.write(b'def')
     self.assertEquals(3, bc_s.get_count())
-    bc_s.write('')
+    bc_s.write(b'')
     self.assertEquals(3, bc_s.get_count())
     bc_s.write_byte(10)
     self.assertEquals(4, bc_s.get_count())
     # "nested" also writes the length of the string, which should
     # cause 1 extra byte to be counted.
-    bc_s.write('2345', nested=True)
+    bc_s.write(b'2345', nested=True)
     self.assertEquals(9, bc_s.get_count())
     bc_s.write_var_int64(63)
     self.assertEquals(10, bc_s.get_count())

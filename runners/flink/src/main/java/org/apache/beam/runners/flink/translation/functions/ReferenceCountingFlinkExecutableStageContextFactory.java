@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -42,7 +41,6 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     implements FlinkExecutableStageContext.Factory {
   private static final Logger LOG =
       LoggerFactory.getLogger(ReferenceCountingFlinkExecutableStageContextFactory.class);
-  private static final int TTL_IN_SECONDS = 30;
   private static final int MAX_RETRY = 3;
 
   private final Creator creator;
@@ -106,8 +104,9 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
         wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
-    // Schedule task to clean the container later.
-    getExecutor().schedule(() -> release(wrapper), TTL_IN_SECONDS, TimeUnit.SECONDS);
+    // Do not release this asynchronously, as the releasing could fail due to the classloader not being
+    // available anymore after the tasks have been removed from the execution engine.
+    release(wrapper);
   }
 
   private ConcurrentHashMap<String, WrappedContext> getCache() {
@@ -148,8 +147,8 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
         if (getCache().remove(wrapper.jobInfo.jobId(), wrapper)) {
           try {
             wrapper.closeActual();
-          } catch (Exception e) {
-            LOG.error("Unable to close.", e);
+          } catch (Throwable t) {
+            LOG.error("Unable to close FlinkExecutableStageContext.", t);
           }
         }
       }
