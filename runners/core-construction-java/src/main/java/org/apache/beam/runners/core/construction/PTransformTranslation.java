@@ -92,6 +92,12 @@ public class PTransformTranslation {
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);
+
+  // SplittableParDoComponents
+  public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION);
+  public static final String SPLITTABLE_SPLIT_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.SPLIT_RESTRICTION);
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS);
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
