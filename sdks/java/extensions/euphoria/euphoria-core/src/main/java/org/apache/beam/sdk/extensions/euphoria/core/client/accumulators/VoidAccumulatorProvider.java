@@ -45,17 +45,7 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
   }
 
   @Override
-  public Counter getCounter(String namespace, String name) {
-    return VoidCounter.INSTANCE;
-  }
-
-  @Override
   public Histogram getHistogram(String name) {
-    return VoidHistogram.INSTANCE;
-  }
-
-  @Override
-  public Histogram getHistogram(String namespace, String name) {
     return VoidHistogram.INSTANCE;
   }
 

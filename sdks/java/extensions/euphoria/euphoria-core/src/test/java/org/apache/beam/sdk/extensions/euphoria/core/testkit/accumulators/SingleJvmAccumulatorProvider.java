@@ -64,19 +64,9 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
   }
 
   @Override
-  public Counter getCounter(String namespace, String name) {
-    return getCounter(name);
-  }
-
-  @Override
   public Histogram getHistogram(String name) {
     return assertType(
         name, LongHistogram.class, accs.computeIfAbsent(name, s -> new LongHistogram()));
-  }
-
-  @Override
-  public Histogram getHistogram(String namespace, String name) {
-    return getHistogram(name);
   }
 
   @Override
@@ -111,11 +101,6 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
     private Factory() {}
 
-    /**
-     * Before running another test, clear method must be called to delete metrics snapshots
-     *
-     * @return SingleJvmAccumulatorFactory
-     */
     public static Factory get() {
       return INSTANCE;
     }
