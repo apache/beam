@@ -329,12 +329,16 @@ class CommonJobProperties {
         shell("rm -rf ${beam_env}")
         shell("rm -rf ${perfkit_env}")
 
+
+        shell("virtualenv --version")
+
         // create new VirtualEnv, inherit already existing packages
-        shell("virtualenv ${beam_env} --system-site-packages")
-        shell("virtualenv ${perfkit_env} --system-site-packages")
+        shell("virtualenv ${beam_env} --no-site-packages")
+        shell("virtualenv ${perfkit_env} --no-site-packages")
 
         // update setuptools and pip
         shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
+        shell("${beam_env}/bin/pip install pip==18.0")
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
