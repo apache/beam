@@ -132,12 +132,6 @@ For an exhaustive list of tasks, use:
 
 We run **integration and performance test** using [Jenkins](https://jenkins.io/). The job definitions are available in the [Beam GitHub repository](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
 
-### Developing with an IDE
-
-Generate an IDEA project .ipr file with:
-
-    $ ./gradlew idea
-
 ### Pull requests
 
 When your change is ready to be reviewed and merged, create a pull request.
