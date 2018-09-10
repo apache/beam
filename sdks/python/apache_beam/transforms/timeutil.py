@@ -25,6 +25,8 @@ from builtins import object
 
 from future.utils import with_metaclass
 
+from apache_beam.portability.api import beam_runner_api_pb2
+
 __all__ = [
     'TimeDomain',
     ]
@@ -37,6 +39,13 @@ class TimeDomain(object):
   REAL_TIME = 'REAL_TIME'
   DEPENDENT_REAL_TIME = 'DEPENDENT_REAL_TIME'
 
+  _RUNNER_API_MAPPING = {
+      WATERMARK: beam_runner_api_pb2.TimeDomain.EVENT_TIME,
+      REAL_TIME: beam_runner_api_pb2.TimeDomain.PROCESSING_TIME,
+      DEPENDENT_REAL_TIME:
+      beam_runner_api_pb2.TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+  }
+
   @staticmethod
   def from_string(domain):
     if domain in (TimeDomain.WATERMARK,
@@ -44,6 +53,10 @@ class TimeDomain(object):
                   TimeDomain.DEPENDENT_REAL_TIME):
       return domain
     raise ValueError('Unknown time domain: %s' % domain)
+
+  @staticmethod
+  def to_runner_api(domain):
+    return TimeDomain._RUNNER_API_MAPPING[domain]
 
 
 class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):
