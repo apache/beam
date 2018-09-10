@@ -20,11 +20,10 @@ package org.apache.beam.runners.fnexecution.environment;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -108,11 +107,13 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
     Preconditions.checkState(
-        environment.getUrn().equals(RunnerApi.StandardEnvironments.Environments.EXTERNAL.toString()),
+        environment
+            .getUrn()
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
         "The passed environment does not contain a ProcessPayload.");
-    final RunnerApi.ProcessPayload processPayload = RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
+    final RunnerApi.ProcessPayload processPayload =
+        RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
-
 
     String executable = processPayload.getCommand();
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
@@ -120,7 +121,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    List<String> args =
+    ImmutableList<String> args =
         ImmutableList.of(
             String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),

@@ -51,6 +51,9 @@ side_inputs = PropertiesFromEnumType(
 
 coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
 
+environments = PropertiesFromEnumType(
+    beam_runner_api_pb2.StandardEnvironments.Environments)
+
 
 def PropertiesFromPayloadType(payload_type):
   return PropertiesFromEnumType(payload_type.Enum).PROPERTIES

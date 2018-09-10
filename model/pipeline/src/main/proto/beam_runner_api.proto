@@ -1003,11 +1003,11 @@ message Environment {
 
 message StandardEnvironments {
   enum Environments {
-    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"];
+    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"]; // A managed docker container to run user code.
 
-    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"];
+    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
 
-    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"];
+    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
   }
 }
 
@@ -1020,7 +1020,7 @@ message ProcessPayload {
   string os = 1;  // "linux", "darwin", ..
   string arch = 2;  // "amd64", ..
   string command = 3; // process to execute
-  map<string, string> env = 4; // environment variables
+  map<string, string> env = 4; // Environment variables
 }
 
 // A specification of a user defined function.

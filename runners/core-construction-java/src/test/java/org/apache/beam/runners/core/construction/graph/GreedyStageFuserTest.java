@@ -41,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -141,8 +142,8 @@ public class GreedyStageFuserTest {
                                         .toByteString()))
                         .build())
                 .putPcollections("py.out", PCollection.newBuilder().setUniqueName("py.out").build())
-                .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-                .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+                .putEnvironments("go", Environments.createDockerEnvironment("go"))
+                .putEnvironments("py", Environments.createDockerEnvironment("py"))
                 .build());
     Set<PTransformNode> differentEnvironments =
         p.getPerElementConsumers(
@@ -229,7 +230,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("window", windowTransform)
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -287,7 +288,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("stateful", statefulTransform)
                 .putPcollections(
                     "stateful.out", PCollection.newBuilder().setUniqueName("stateful.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -346,7 +347,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("timer", timerTransform)
                 .putPcollections(
                     "timer.out", PCollection.newBuilder().setUniqueName("timer.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -432,7 +433,7 @@ public class GreedyStageFuserTest {
                 .putTransforms("window", windowTransform)
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .putEnvironments("common", Environments.createDockerEnvironment("common"))
                 .build());
 
     ExecutableStage subgraph =
@@ -512,8 +513,8 @@ public class GreedyStageFuserTest {
             .putTransforms("window", windowTransform)
             .putPcollections(
                 "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
-            .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
+            .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
@@ -634,8 +635,8 @@ public class GreedyStageFuserTest {
             .putTransforms("goWindow", goWindow)
             .putPcollections(
                 "goWindow.out", PCollection.newBuilder().setUniqueName("goWindow.out").build())
-            .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putEnvironments("go", Environments.createDockerEnvironment("go"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
@@ -668,7 +669,7 @@ public class GreedyStageFuserTest {
     // Fuses into
     // (impulse.out) -> parDo -> (parDo.out)
     // (parDo.out) -> window -> window.out
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -707,7 +708,7 @@ public class GreedyStageFuserTest {
                         .build())
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+                .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
                 .putEnvironments("common", env)
                 .build());
 
@@ -735,7 +736,7 @@ public class GreedyStageFuserTest {
     // The window can't be fused into the stage, which forces the PCollection to be materialized.
     // ParDo in this case _could_ be fused into the stage, but is not for simplicity of
     // implementation
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -790,7 +791,7 @@ public class GreedyStageFuserTest {
                         .build())
                 .putPcollections(
                     "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-                .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
+                .putEnvironments("rare", Environments.createDockerEnvironment("rare"))
                 .putEnvironments("common", env)
                 .build());
 
@@ -814,7 +815,7 @@ public class GreedyStageFuserTest {
     // parDo doesn't have a per-element consumer from side_read.out, so it can't root a stage
     // which consumes from that materialized collection. Nodes with side inputs must root a stage,
     // but do not restrict fusion of consumers.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -894,7 +895,7 @@ public class GreedyStageFuserTest {
 
   @Test
   public void sideInputIncludedInStage() {
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .setUniqueName("read")
@@ -969,7 +970,7 @@ public class GreedyStageFuserTest {
     // impulse -- ParDo(createSide)
     //         \_ ParDo(processMain) with side input from createSide
     // The ExecutableStage executing createSide must have an output.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform impulse =
         PTransform.newBuilder()
             .setUniqueName("impulse")
@@ -1031,7 +1032,7 @@ public class GreedyStageFuserTest {
 
   @Test
   public void userStateIncludedInStage() {
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -1104,7 +1105,7 @@ public class GreedyStageFuserTest {
     // Fuses to
     // (impulse.out) -> read -> (read.out)
     // GBK is the responsibility of the runner, so it is not included in a stage.
-    Environment env = Environment.newBuilder().setUrl("common").build();
+    Environment env = Environments.createDockerEnvironment("common");
     PTransform readTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")

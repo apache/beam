@@ -26,9 +26,9 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -117,9 +117,12 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
     Preconditions.checkState(
-        environment.getUrn().equals(RunnerApi.StandardEnvironments.Environments.DOCKER.toString()),
+        environment
+            .getUrn()
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)),
         "The passed environment does not contain a DockerPayload.");
-    final RunnerApi.DockerPayload dockerPayload = RunnerApi.DockerPayload.parseFrom(environment.getPayload());
+    final RunnerApi.DockerPayload dockerPayload =
+        RunnerApi.DockerPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
