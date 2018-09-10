@@ -209,7 +209,6 @@ def with_exponential_backoff(
             # Traceback objects in locals can cause reference cycles that will
             # prevent garbage collection. Clear it now since we do not need
             # it anymore.
-            sys.exc_clear()
             exn_traceback = None
 
     return wrapper
