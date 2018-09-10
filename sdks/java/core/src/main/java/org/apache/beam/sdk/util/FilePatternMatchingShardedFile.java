@@ -18,7 +18,10 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
@@ -61,6 +64,10 @@ public class FilePatternMatchingShardedFile implements ShardedFile {
    * guaranteed to provide a consistent result during file pattern matching.
    */
   public FilePatternMatchingShardedFile(String filePattern) {
+    checkArgument(
+        !Strings.isNullOrEmpty(filePattern),
+        "Expected valid file path, but received %s",
+        filePattern);
     this.filePattern = filePattern;
   }
 
