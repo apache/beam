@@ -36,6 +36,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -131,11 +132,11 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     ExecutableStagePayload basePayload =
         ExecutableStagePayload.parseFrom(firstEnvStage.toPTransform("foo").getSpec().getPayload());
 
-    Environment secondEnv = Environment.newBuilder().setUrl("second_env").build();
+    Environment secondEnv = Environments.createDockerEnvironment("second_env");
     ExecutableStage secondEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(secondEnv).build());
 
-    Environment thirdEnv = Environment.newBuilder().setUrl("third_env").build();
+    Environment thirdEnv = Environments.createDockerEnvironment("third_env");
     ExecutableStage thirdEnvStage =
         ExecutableStage.fromPayload(basePayload.toBuilder().setEnvironment(thirdEnv).build());
 

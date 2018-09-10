@@ -40,6 +40,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
@@ -51,7 +52,8 @@ import org.junit.runners.JUnit4;
 public class ExecutableStageTest {
   @Test
   public void testRoundTripToFromTransform() throws Exception {
-    Environment env = Environment.newBuilder().setUrl("foo").build();
+    Environment env =
+        org.apache.beam.runners.core.construction.Environments.createDockerEnvironment("foo");
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
@@ -166,7 +168,7 @@ public class ExecutableStageTest {
             .putTransforms("window", windowTransform)
             .putPcollections(
                 "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
     QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
