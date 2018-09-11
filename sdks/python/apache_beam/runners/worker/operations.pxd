@@ -70,6 +70,12 @@ cdef class ReadOperation(Operation):
   cpdef start(self)
 
 
+cdef class ImpulseReadOperation(Operation):
+  cdef object source
+  @cython.locals(windowed_value=WindowedValue)
+  cpdef process(self, WindowedValue impulse)
+
+
 cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
