@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
@@ -61,7 +62,7 @@ public class BeamAggregationRule extends RelOptRule {
 
   private static RelNode updateWindow(RelOptRuleCall call, Aggregate aggregate, Project project) {
     ImmutableBitSet groupByFields = aggregate.getGroupSet();
-    List<RexNode> projects = project.getProjects();
+    ArrayList<RexNode> projects = new ArrayList(project.getProjects());
 
     WindowFn windowFn = null;
     int windowFieldIndex = -1;
@@ -77,15 +78,17 @@ public class BeamAggregationRule extends RelOptRule {
       if (fn != null) {
         windowFn = fn;
         windowFieldIndex = groupFieldIndex;
+        projects.set(groupFieldIndex, rexCall.getOperands().get(0));
       }
     }
+
+    final Project newProject =
+        project.copy(project.getTraitSet(), project.getInput(), projects, project.getRowType());
 
     return new BeamAggregationRel(
         aggregate.getCluster(),
         aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(
-            aggregate.getInput(),
-            aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        convert(newProject, newProject.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         aggregate.indicator,
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
