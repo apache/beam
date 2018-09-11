@@ -94,7 +94,12 @@ task testWebsite(type: Exec) {
       bundle exec rake test"""
 }
 
-check.dependsOn testWebsite
+/**
+ * Removed testWebsite from the Beam build dependency because it is broken and obsolete.
+ * See https://issues.apache.org/jira/browse/BEAM-5367 for more info.
+ */
+
+// check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
