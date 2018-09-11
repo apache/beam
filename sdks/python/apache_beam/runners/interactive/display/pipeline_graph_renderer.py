@@ -50,6 +50,9 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
     Args:
       pipeline_graph: (pipeline_graph.PipelineGraph) the graph to be rendererd.
+
+    Returns:
+      unicode, str or bytes that can be expressed as HTML.
     """
     raise NotImplementedError
 
