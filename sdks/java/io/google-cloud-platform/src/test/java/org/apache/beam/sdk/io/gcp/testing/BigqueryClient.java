@@ -28,6 +28,9 @@ import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
 import com.google.api.services.bigquery.model.TableList;
 import com.google.api.services.bigquery.model.TableList.Tables;
 import com.google.auth.Credentials;
@@ -36,6 +39,9 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -55,22 +61,34 @@ import org.slf4j.LoggerFactory;
  *    BigqueryClient client = BigqueryClient.getNewBigquerryClient(applicationName);
  * ]}</pre>
  *
- * Execute a query with retries
+ * <p>Execute a query with retries:
  *
  * <pre>{@code [
  *    QueryResponse response = client.queryWithRetries(queryString, projectId);
  * ]}</pre>
  *
- * Create a new dataset in one project
+ * <p>Create a new dataset in one project:
  *
  * <pre>{@code [
  *    client.createNewDataset(projectId, datasetId);
  * ]}</pre>
  *
- * Delete a dataset in one project, included its all tables.
+ * <p>Delete a dataset in one project, included its all tables:
  *
  * <pre>{@code [
  *    client.deleteDataset(projectId, datasetId);
+ * ]}</pre>
+ *
+ * <p>Create a new table
+ *
+ * <pre>{@code [
+ *    client.createNewTable(projectId, datasetId, newTable)
+ * ]}</pre>
+ *
+ * <p>Insert data into table
+ *
+ * <pre>{@code [
+ *    client.insertDataToTable(projectId, datasetId, tableName, rows)
  * ]}</pre>
  */
 public class BigqueryClient {
@@ -161,7 +179,7 @@ public class BigqueryClient {
           .execute();
       LOG.info("Successfully created new dataset : " + datasetId);
     } catch (Exception e) {
-      LOG.debug("Exceptions catched when creating new dataset: " + e.getMessage());
+      LOG.debug("Exceptions caught when creating new dataset: " + e.getMessage());
     }
   }
 
@@ -170,7 +188,7 @@ public class BigqueryClient {
       bqClient.tables().delete(projectId, datasetId, tableName).execute();
       LOG.info("Successfully deleted table: " + tableName);
     } catch (Exception e) {
-      LOG.debug("Exception catched when deleting table: " + e.getMessage());
+      LOG.debug("Exception caught when deleting table: " + e.getMessage());
     }
   }
 
@@ -181,14 +199,39 @@ public class BigqueryClient {
         this.deleteTable(projectId, datasetId, table.getTableReference().getTableId());
       }
     } catch (Exception e) {
-      LOG.debug("Exceptions catched when listing all tables: " + e.getMessage());
+      LOG.debug("Exceptions caught when listing all tables: " + e.getMessage());
     }
 
     try {
       bqClient.datasets().delete(projectId, datasetId).execute();
       LOG.info("Successfully deleted dataset: " + datasetId);
     } catch (Exception e) {
-      LOG.debug("Exceptions catched when deleting dataset: " + e.getMessage());
+      LOG.debug("Exceptions caught when deleting dataset: " + e.getMessage());
+    }
+  }
+
+  public void createNewTable(String projectId, String datasetId, Table newTable) {
+    try {
+      this.bqClient.tables().insert(projectId, datasetId, newTable).execute();
+      LOG.info("Successfully created new table: " + newTable.getId());
+    } catch (Exception e) {
+      LOG.debug("Exceptions caught when creating new table: " + e.getMessage());
+    }
+  }
+
+  public void insertDataToTable(
+      String projectId, String datasetId, String tableName, List<Map<String, Object>> rows) {
+    try {
+      List<Rows> dataRows =
+          rows.stream().map(row -> new Rows().setJson(row)).collect(Collectors.toList());
+      this.bqClient
+          .tabledata()
+          .insertAll(
+              projectId, datasetId, tableName, new TableDataInsertAllRequest().setRows(dataRows))
+          .execute();
+      LOG.info("Successfully inserted data into table : " + tableName);
+    } catch (Exception e) {
+      LOG.debug("Exceptions caught when inserting data: " + e.getMessage());
     }
   }
 }
