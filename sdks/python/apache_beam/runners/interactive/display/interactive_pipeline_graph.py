@@ -26,7 +26,7 @@ from __future__ import print_function
 
 import re
 
-from apache_beam.runners.interactive import pipeline_graph
+from apache_beam.runners.interactive.display import pipeline_graph
 
 
 def nice_str(o):
