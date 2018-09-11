@@ -342,15 +342,7 @@ public class TrafficMaxLaneFlow {
     void setWindowSlideEvery(Integer value);
   }
 
-  /**
-   * Sets up and starts streaming pipeline.
-   *
-   * @throws IOException if there is a problem setting up resources
-   */
-  public static void main(String[] args) throws IOException {
-    TrafficMaxLaneFlowOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
-    options.setBigQuerySchema(FormatMaxesFn.getSchema());
+  public static void runTrafficMaxLaneFlow(TrafficMaxLaneFlowOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
@@ -378,6 +370,19 @@ public class TrafficMaxLaneFlow {
 
     // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
+  }
+
+  /**
+   * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
+   */
+  public static void main(String[] args) throws IOException {
+    TrafficMaxLaneFlowOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
+    options.setBigQuerySchema(FormatMaxesFn.getSchema());
+
+    runTrafficMaxLaneFlow(options);
   }
 
   private static Integer tryIntParse(String number) {
