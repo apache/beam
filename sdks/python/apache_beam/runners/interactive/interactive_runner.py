@@ -30,8 +30,9 @@ import apache_beam as beam
 from apache_beam import runners
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
-from apache_beam.runners.interactive import display_manager
 from apache_beam.runners.interactive import pipeline_analyzer
+from apache_beam.runners.interactive.display import display_manager
+from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
@@ -43,11 +44,30 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=None, cache_dir=None):
+  def __init__(self, underlying_runner=None, cache_dir=None,
+               render_option=None):
+    """Constructor of InteractiveRunner.
+
+    Args:
+      underlying_runner: (runner.PipelineRunner)
+      cache_dir: (str) the directory where PCollection caches are kept
+      render_option: (str) this parameter decides how the pipeline graph is
+          rendered. See display.pipeline_graph_renderer for available options.
+    """
     self._underlying_runner = (underlying_runner
                                or direct_runner.DirectRunner())
     self._cache_manager = cache.FileBasedCacheManager(cache_dir)
+    self._renderer = pipeline_graph_renderer.get_renderer(render_option)
     self._in_session = False
+
+  def set_render_option(self, render_option):
+    """Sets the rendering option.
+
+    Args:
+      render_option: (str) this parameter decides how the pipeline graph is
+          rendered. See display.pipeline_graph_renderer for available options.
+    """
+    self._renderer = pipeline_graph_renderer.get_renderer(render_option)
 
   def start_session(self):
     """Start the session that keeps back-end managers and workers alive.
@@ -119,7 +139,8 @@ class InteractiveRunner(runners.PipelineRunner):
         caches_used=analyzer.caches_used(),
         cache_manager=self._cache_manager,
         referenced_pcollections=analyzer.top_level_referenced_pcollection_ids(),
-        required_transforms=analyzer.top_level_required_transforms())
+        required_transforms=analyzer.top_level_required_transforms(),
+        pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
     result = pipeline_to_execute.run()
     result.wait_until_finish()
