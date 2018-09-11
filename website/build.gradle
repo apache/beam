@@ -94,7 +94,8 @@ task testWebsite(type: Exec) {
       bundle exec rake test"""
 }
 
-check.dependsOn testWebsite
+// Re-enable when [BEAM-5281] is fixed.
+// check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
