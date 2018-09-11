@@ -50,6 +50,11 @@ var (
 	}
 )
 
+func init() {
+	beam.RegisterFunction(stringx.FromBytes)
+	beam.RegisterFunction(strings.ToUpper)
+}
+
 func main() {
 	flag.Parse()
 	beam.Init()
