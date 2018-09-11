@@ -483,6 +483,19 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
+@BeamTransformFactory.register_urn(
+    python_urns.IMPULSE_READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  return operations.ImpulseReadOperation(
+      transform_proto.unique_name,
+      factory.counter_factory,
+      factory.state_sampler,
+      consumers,
+      iobase.SourceBase.from_runner_api(
+          parameter.source, factory.context),
+      factory.get_only_output_coder(transform_proto))
+
+
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
 def create(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
