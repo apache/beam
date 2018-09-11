@@ -163,6 +163,7 @@ public class PubsubJsonIT implements Serializable {
     resultSignal.waitForSuccess(Duration.standardSeconds(60));
   }
 
+  @Ignore("Disable flake tracked at https://issues.apache.org/jira/browse/BEAM-5122")
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
