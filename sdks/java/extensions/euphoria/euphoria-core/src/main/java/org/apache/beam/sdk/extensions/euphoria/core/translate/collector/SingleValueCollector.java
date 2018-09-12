@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
@@ -26,8 +27,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 
 /** {@code Collector} for combinable functors. */
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
-
+  private final AccumulatorProvider accumulators;
+  private final String operatorName;
   private T elem;
+
+  public SingleValueCollector(AccumulatorProvider accumulators, String operatorName) {
+    this.accumulators = accumulators;
+    this.operatorName = operatorName;
+  }
 
   public T get() {
     return elem;
@@ -46,19 +53,16 @@ public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   @Override
   public Counter getCounter(String name) {
-    // this is not needed, the underlying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
+    return accumulators.getCounter(operatorName, name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    // this is not needed, the underlying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
+    return accumulators.getHistogram(operatorName, name);
   }
 
   @Override
   public Timer getTimer(String name) {
-    // this is not needed, the underlying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
+    return accumulators.getTimer(name);
   }
 }

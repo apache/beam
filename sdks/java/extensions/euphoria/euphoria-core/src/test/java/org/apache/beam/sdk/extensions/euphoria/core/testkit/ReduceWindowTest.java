@@ -77,8 +77,7 @@ public class ReduceWindowTest extends AbstractOperatorTest {
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
             Dataset<Integer> first =
-                ReduceWindow
-                    .named("first-reduce")
+                ReduceWindow.named("first-reduce")
                     .of(withEventTime)
                     .combineBy(Sums.ofInts())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -116,8 +115,7 @@ public class ReduceWindowTest extends AbstractOperatorTest {
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
             Dataset<Integer> first =
-                ReduceWindow
-                    .named("first-reduce")
+                ReduceWindow.named("first-reduce")
                     .of(withEventTime)
                     .combineBy(Sums.ofInts())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(5)))

@@ -48,9 +48,7 @@ public interface AccumulatorProvider {
    * @param name of the counter
    * @return Instance of a counter.
    */
-  default Counter getCounter(String namespace, String name) {
-    return getCounter(name);
-  }
+  Counter getCounter(String namespace, String name);
   /**
    * Get an existing instance of a histogram or create a new one.
    *
@@ -66,9 +64,7 @@ public interface AccumulatorProvider {
    * @param name of the counter
    * @return Instance of a counter.
    */
-  default Histogram getHistogram(String namespace, String name) {
-    return getHistogram(name);
-  }
+  Histogram getHistogram(String namespace, String name);
 
   /**
    * Get an existing instance of a timer or create a new one.

@@ -19,8 +19,10 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -33,7 +35,6 @@ import org.apache.beam.sdk.values.PCollectionView;
  * {@link org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin} when one side of
  * the join fits in memory so it can be distributed in hash map with the other side.
  */
-// TODO vaskovo fixy
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 
@@ -42,18 +43,24 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
       Join<LeftT, RightT, KeyT, OutputT> operator,
       PCollection<KV<KeyT, LeftT>> left,
       PCollection<KV<KeyT, RightT>> right) {
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(AccumulatorProvider.of(left.getPipeline()));
     switch (operator.getType()) {
       case LEFT:
         final PCollectionView<Map<KeyT, Iterable<RightT>>> broadcastRight =
             right.apply(View.asMultimap());
         return left.apply(
-            ParDo.of(new BroadcastHashLeftJoinFn<>(broadcastRight, operator.getJoiner()))
+            ParDo.of(
+                    new BroadcastHashLeftJoinFn<>(
+                        broadcastRight, operator.getJoiner(), accumulators, operator.getName()))
                 .withSideInputs(broadcastRight));
       case RIGHT:
         final PCollectionView<Map<KeyT, Iterable<LeftT>>> broadcastLeft =
             left.apply(View.asMultimap());
         return right.apply(
-            ParDo.of(new BroadcastHashRightJoinFn<>(broadcastLeft, operator.getJoiner()))
+            ParDo.of(
+                    new BroadcastHashRightJoinFn<>(
+                        broadcastLeft, operator.getJoiner(), accumulators, operator.getName()))
                 .withSideInputs(broadcastLeft));
       default:
         throw new UnsupportedOperationException(
@@ -69,25 +76,34 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
 
     private final PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
-    private final SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
+    private final AdaptableCollector<KV<K, RightT>, KV<K, OutputT>, OutputT> outCollector;
 
     BroadcastHashRightJoinFn(
         PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection,
-        BinaryFunctor<LeftT, RightT, OutputT> joiner) {
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        AccumulatorProvider accumulators,
+        String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
+      this.outCollector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
     }
 
     @SuppressWarnings("unused")
     @ProcessElement
     public void processElement(ProcessContext context) {
-      final K key = context.element().getKey();
+      final KV<K, RightT> element = context.element();
+      final K key = element.getKey();
       final Map<K, Iterable<LeftT>> map = context.sideInput(smallSideCollection);
       final Iterable<LeftT> leftValues = map.getOrDefault(key, Collections.singletonList(null));
+      outCollector.setProcessContext(context);
+
       leftValues.forEach(
           leftValue -> {
-            joiner.apply(leftValue, context.element().getValue(), outCollector);
-            context.output(KV.of(key, outCollector.get()));
+            joiner.apply(leftValue, element.getValue(), outCollector);
           });
     }
   }
@@ -97,27 +113,32 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
 
     private final PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection;
     private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
-    private final SingleValueCollector<OutputT> outCollector = new SingleValueCollector<>();
+    private final AdaptableCollector<KV<K, LeftT>, KV<K, OutputT>, OutputT> outCollector;
 
     BroadcastHashLeftJoinFn(
         PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection,
-        BinaryFunctor<LeftT, RightT, OutputT> joiner) {
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        AccumulatorProvider accumulators,
+        String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
+      this.outCollector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem)));
     }
 
     @SuppressWarnings("unused")
     @ProcessElement
     public void processElement(ProcessContext context) {
-      final K key = context.element().getKey();
+      final KV<K, LeftT> element = context.element();
+      final K key = element.getKey();
       final Map<K, Iterable<RightT>> map = context.sideInput(smallSideCollection);
       final Iterable<RightT> rightValues = map.getOrDefault(key, Collections.singletonList(null));
+      outCollector.setProcessContext(context);
 
-      rightValues.forEach(
-          rightValue -> {
-            joiner.apply(context.element().getValue(), rightValue, outCollector);
-            context.output(KV.of(key, outCollector.get()));
-          });
+      rightValues.forEach(rightValue -> joiner.apply(element.getValue(), rightValue, outCollector));
     }
   }
 }

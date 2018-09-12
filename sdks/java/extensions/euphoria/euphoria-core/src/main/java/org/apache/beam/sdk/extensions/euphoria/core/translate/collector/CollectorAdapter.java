@@ -15,5 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** A collection of utility classes. */
-package org.apache.beam.sdk.extensions.euphoria.core.util;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
+
+import java.io.Serializable;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.transforms.DoFn;
+
+/**
+ * User specified adaptation of {@link DoFn.ProcessContext } to Euphoria's {@link Collector}.
+ *
+ * @param <OutputT> type of output
+ * @param <ElemT> type of element
+ */
+public interface CollectorAdapter<InputT, OutputT, ElemT> extends Serializable {
+
+  /**
+   * Collect element. Implementations should use {@link DoFn.ProcessContext#output(Object)} to write
+   * output elements of type {@code OutputT}.
+   *
+   * @param ctx process context
+   * @param elem element
+   */
+  void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ElemT elem);
+}

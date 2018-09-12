@@ -23,6 +23,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEve
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.CollectorAdapter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,7 +59,7 @@ public class FlatMapTranslator<InputT, OutputT>
   private static class Mapper<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
     private final UnaryFunctor<InputT, OutputT> mapper;
-    private final DoFnCollector<InputT, OutputT, OutputT> collector;
+    private final AdaptableCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
         String operatorName,
@@ -66,7 +68,7 @@ public class FlatMapTranslator<InputT, OutputT>
         @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.mapper = mapper;
       this.collector =
-          new DoFnCollector<>(accumulators, new Collector<>(operatorName, eventTimeExtractor));
+          new AdaptableCollector<>(accumulators, operatorName, new Collector<>(eventTimeExtractor));
     }
 
     @ProcessElement
@@ -78,29 +80,22 @@ public class FlatMapTranslator<InputT, OutputT>
   }
 
   private static class Collector<InputT, OutputT>
-      implements DoFnCollector.BeamCollector<InputT, OutputT, OutputT> {
+      implements CollectorAdapter<InputT, OutputT, OutputT> {
 
     @Nullable private final ExtractEventTime<InputT> eventTimeExtractor;
-    private final String operatorName;
 
-    private Collector(String operatorName, @Nullable ExtractEventTime<InputT> eventTimeExtractor) {
+    private Collector(@Nullable ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
-      this.operatorName = operatorName;
     }
 
     @Override
     public void collect(DoFn<InputT, OutputT>.ProcessContext ctx, OutputT out) {
       if (eventTimeExtractor != null) {
-        ctx.outputWithTimestamp(
-            out, new Instant(eventTimeExtractor.extractTimestamp(ctx.element())));
+        InputT element = ctx.element();
+        ctx.outputWithTimestamp(out, new Instant(eventTimeExtractor.extractTimestamp(element)));
       } else {
         ctx.output(out);
       }
-    }
-
-    @Override
-    public String getOperatorName() {
-      return operatorName;
     }
   }
 }

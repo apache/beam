@@ -19,16 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.coder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import com.esotericsoftware.kryo.io.InputChunked;
+import com.esotericsoftware.kryo.io.OutputChunked;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.commons.compress.utils.BoundedInputStream;
 
 /**
  * Coder using Kryo as (de)serialization mechanism. See {@link RegisterCoders} to get more details
@@ -49,16 +46,21 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Creates a {@link KryoCoder} instance which will use {@link Kryo} with classes registered by
-   * {@code registrar}.
+   * @param <T> type of element this class should code/encode
+   * @param registrarWithId uniquely identified {@link KryoRegistrar} which is used to register
+   *     classes to {@link Kryo} instance used by returned {@link KryoCoder}
+   * @return Newly created a {@link KryoCoder} instance which will use {@link Kryo} with classes
+   *     registered by {@code registrarWithId}.
    */
   public static <T> KryoCoder<T> of(IdentifiedRegistrar registrarWithId) {
     return new KryoCoder<>(registrarWithId);
   }
 
   /**
-   * Creates a {@link KryoCoder} instance which will use {@link Kryo} without class registration.
-   * That degrades performance. Use {@link #of(IdentifiedRegistrar)} whenever possible.
+   * @param <T> type of element this class should code/encode
+   * @return Newly created a {@link KryoCoder} instance which will use {@link Kryo} without class
+   *     registration. That degrades performance. Use {@link #of(IdentifiedRegistrar)} whenever
+   *     possible.
    */
   public static <T> KryoCoder<T> withoutClassRegistration() {
     return new KryoCoder<>(KryoFactory.NO_OP_REGISTRAR);
@@ -67,43 +69,36 @@ public class KryoCoder<T> extends CustomCoder<T> {
   @Override
   public void encode(T value, OutputStream outStream) throws IOException {
 
-    Output output = KryoFactory.getKryoOutput();
-    output.clear();
     Kryo kryo = KryoFactory.getOrCreateKryo(registrarWithId);
+
+    OutputChunked output = KryoFactory.getKryoOutput();
+    output.clear();
+    output.setOutputStream(outStream);
+
     try {
       kryo.writeClassAndObject(output, value);
+      output.endChunks();
+      output.flush();
     } catch (IllegalArgumentException e) {
       throw new CoderException(
           String.format(
               "Cannot encode given object of type '%s'. "
-                  + "Forgotten kryo registration is possible explanation.",
-              (value == null) ? null : value.getClass().getSimpleName()),
+                  + "Forgotten kryo registration is possible explanation. Kryo registrations where done by '%s'.",
+              (value == null) ? null : value.getClass().getSimpleName(), registrarWithId),
           e);
     }
-
-    DataOutputStream dos = new DataOutputStream(outStream);
-    // write length of encoded object first to get ability to limit read in decode() to one object
-    dos.writeInt(output.position());
-    outStream.write(output.getBuffer(), 0, output.position());
   }
 
   @Override
   public T decode(InputStream inStream) throws IOException {
 
-    // read length of objects in bytes first
-    DataInputStream dis = new DataInputStream(inStream);
-    int lengthOfDecodedObject = dis.readInt();
-
-    Input input = KryoFactory.getKryoInput();
-
-    // limit the input stream to not allow kryo to read beyond the current object
-    BoundedInputStream limitedStream = new BoundedInputStream(inStream, lengthOfDecodedObject);
-    input.setInputStream(limitedStream);
+    InputChunked input = KryoFactory.getKryoInput();
+    input.rewind();
+    input.setInputStream(inStream);
 
     Kryo kryo = KryoFactory.getOrCreateKryo(registrarWithId);
 
     try {
-
       @SuppressWarnings("unchecked")
       T outObject = (T) kryo.readClassAndObject(input);
       return outObject;
@@ -111,9 +106,9 @@ public class KryoCoder<T> extends CustomCoder<T> {
     } catch (KryoException e) {
       throw new CoderException(
           String.format(
-              "Cannot decode object of length %d bytes from input stream. "
-                  + "Forgotten kryo registration is possible explanation.",
-              lengthOfDecodedObject),
+              "Cannot decode object from input stream."
+                  + " Forgotten kryo registration is possible explanation. Kryo registrations where done by '%s'.",
+              registrarWithId),
           e);
     }
   }

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.extensions.euphoria.core.coder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.io.OutputChunked;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -41,7 +43,7 @@ class KryoFactory {
    * <p>{@link #getOrCreateKryo(IdentifiedRegistrar)} returns {@link Kryo} which allows for
    * serialization of unregistered classes when this {@link IdentifiedRegistrar} is used to call it.
    */
-  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.of((k) -> {});
+  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.defaultNoOpRegistrar();
 
   private static Kryo createKryo(IdentifiedRegistrar registrarWithId) {
     final Kryo instance = new Kryo();
@@ -50,7 +52,7 @@ class KryoFactory {
 
     // mere NO_OP_REGISTRAR == registrarWithId is not enough since
     // NO_OP_REGISTRAR can be deserialized into several instances
-    if (NO_OP_REGISTRAR.getId() == registrarWithId.getId()) {
+    if (registrarWithId.getId() == IdentifiedRegistrar.NO_OP_REGISTRAR_ID) {
       instance.setRegistrationRequired(false);
     } else {
       instance.setRegistrationRequired(true);
@@ -60,11 +62,11 @@ class KryoFactory {
     return instance;
   }
 
-  private static ThreadLocal<Output> threadLocalOutput =
-      ThreadLocal.withInitial(() -> new Output(DEFAULT_BUFFER_SIZE, -1));
+  private static ThreadLocal<OutputChunked> threadLocalOutput =
+      ThreadLocal.withInitial(() -> new OutputChunked(DEFAULT_BUFFER_SIZE));
 
-  private static ThreadLocal<Input> threadLocalInput =
-      ThreadLocal.withInitial(() -> new Input(DEFAULT_BUFFER_SIZE));
+  private static ThreadLocal<InputChunked> threadLocalInput =
+      ThreadLocal.withInitial(() -> new InputChunked(DEFAULT_BUFFER_SIZE));
 
   /**
    * We need an instance of {@link KryoRegistrar} to do actual {@link Kryo} registration. But since
@@ -101,11 +103,11 @@ class KryoFactory {
     }
   }
 
-  static Input getKryoInput() {
+  static InputChunked getKryoInput() {
     return threadLocalInput.get();
   }
 
-  static Output getKryoOutput() {
+  static OutputChunked getKryoOutput() {
     return threadLocalOutput.get();
   }
 }

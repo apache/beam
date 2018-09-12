@@ -19,8 +19,10 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static java.util.Objects.requireNonNull;
 
+import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -41,33 +43,35 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     private final TupleTag<LeftT> leftTag;
     private final TupleTag<RightT> rightTag;
 
-    private transient SingleValueCollector<OutputT> collector;
+    private final AdaptableCollector<KV<KeyT, CoGbkResult>, KV<KeyT, OutputT>, OutputT>
+        resultsCollector;
 
     JoinFn(
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
-        TupleTag<RightT> rightTag) {
+        TupleTag<RightT> rightTag,
+        String operatorName,
+        AccumulatorProvider accumulatorProvider) {
       this.joiner = joiner;
       this.leftTag = leftTag;
       this.rightTag = rightTag;
+      this.resultsCollector =
+          new AdaptableCollector<>(
+              accumulatorProvider,
+              operatorName,
+              ((ctx, elem) -> ctx.output(KV.of(ctx.element().getKey(), elem))));
     }
 
     @ProcessElement
     @SuppressWarnings("unused")
-    public final void processElement(
-        @Element KV<KeyT, CoGbkResult> element, OutputReceiver<KV<KeyT, OutputT>> outputReceiver) {
+    public final void processElement(@Element KV<KeyT, CoGbkResult> element, ProcessContext ctx) {
+      getCollector().setProcessContext(ctx);
       doJoin(
-          element.getKey(),
           requireNonNull(element.getValue()).getAll(leftTag),
-          requireNonNull(element.getValue()).getAll(rightTag),
-          outputReceiver);
+          requireNonNull(element.getValue()).getAll(rightTag));
     }
 
-    abstract void doJoin(
-        KeyT key,
-        Iterable<LeftT> left,
-        Iterable<RightT> right,
-        OutputReceiver<KV<KeyT, OutputT>> outputReceiver);
+    abstract void doJoin(Iterable<LeftT> left, Iterable<RightT> right);
 
     abstract String getFnName();
 
@@ -75,11 +79,8 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
       return joiner;
     }
 
-    SingleValueCollector<OutputT> getCollector() {
-      if (collector == null) {
-        collector = new SingleValueCollector<>();
-      }
-      return collector;
+    AdaptableCollector<KV<KeyT, CoGbkResult>, KV<KeyT, OutputT>, OutputT> getCollector() {
+      return resultsCollector;
     }
   }
 
@@ -87,23 +88,19 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
       extends JoinFn<LeftT, RightT, KeyT, OutputT> {
 
     InnerJoinFn(
-        BinaryFunctor<LeftT, RightT, OutputT> functor,
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
-        TupleTag<RightT> rightTag) {
-      super(functor, leftTag, rightTag);
+        TupleTag<RightT> rightTag,
+        String operatorName,
+        AccumulatorProvider accumulatorProvider) {
+      super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
 
     @Override
-    protected void doJoin(
-        KeyT key,
-        Iterable<LeftT> left,
-        Iterable<RightT> right,
-        OutputReceiver<KV<KeyT, OutputT>> outputReceiver) {
-      final SingleValueCollector<OutputT> coll = getCollector();
+    protected void doJoin(Iterable<LeftT> left, Iterable<RightT> right) {
       for (LeftT leftItem : left) {
         for (RightT rightItem : right) {
-          getJoiner().apply(leftItem, rightItem, coll);
-          outputReceiver.output(KV.of(key, coll.get()));
+          getJoiner().apply(leftItem, rightItem, getCollector());
         }
       }
     }
@@ -120,35 +117,29 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     FullJoinFn(
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
-        TupleTag<RightT> rightTag) {
-      super(joiner, leftTag, rightTag);
+        TupleTag<RightT> rightTag,
+        String operatorName,
+        AccumulatorProvider accumulatorProvider) {
+      super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
 
     @Override
-    void doJoin(
-        K key,
-        Iterable<LeftT> left,
-        Iterable<RightT> right,
-        OutputReceiver<KV<K, OutputT>> outputReceiver) {
+    void doJoin(Iterable<LeftT> left, Iterable<RightT> right) {
       final boolean leftHasValues = left.iterator().hasNext();
       final boolean rightHasValues = right.iterator().hasNext();
-      final SingleValueCollector<OutputT> coll = getCollector();
       if (leftHasValues && rightHasValues) {
         for (RightT rightValue : right) {
           for (LeftT leftValue : left) {
-            getJoiner().apply(leftValue, rightValue, coll);
-            outputReceiver.output(KV.of(key, coll.get()));
+            getJoiner().apply(leftValue, rightValue, getCollector());
           }
         }
       } else if (leftHasValues) {
         for (LeftT leftValue : left) {
-          getJoiner().apply(leftValue, null, coll);
-          outputReceiver.output(KV.of(key, coll.get()));
+          getJoiner().apply(leftValue, null, getCollector());
         }
       } else if (rightHasValues) {
         for (RightT rightValue : right) {
-          getJoiner().apply(null, rightValue, coll);
-          outputReceiver.output(KV.of(key, coll.get()));
+          getJoiner().apply(null, rightValue, getCollector());
         }
       }
     }
@@ -165,26 +156,21 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     LeftOuterJoinFn(
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
-        TupleTag<RightT> rightTag) {
-      super(joiner, leftTag, rightTag);
+        TupleTag<RightT> rightTag,
+        String operatorName,
+        AccumulatorProvider accumulatorProvider) {
+      super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
 
     @Override
-    void doJoin(
-        K key,
-        Iterable<LeftT> left,
-        Iterable<RightT> right,
-        OutputReceiver<KV<K, OutputT>> outputReceiver) {
-      final SingleValueCollector<OutputT> coll = getCollector();
+    void doJoin(Iterable<LeftT> left, Iterable<RightT> right) {
       for (LeftT leftValue : left) {
         if (right.iterator().hasNext()) {
           for (RightT rightValue : right) {
-            getJoiner().apply(leftValue, rightValue, coll);
-            outputReceiver.output(KV.of(key, coll.get()));
+            getJoiner().apply(leftValue, rightValue, getCollector());
           }
         } else {
-          getJoiner().apply(leftValue, null, coll);
-          outputReceiver.output(KV.of(key, coll.get()));
+          getJoiner().apply(leftValue, null, getCollector());
         }
       }
     }
@@ -201,27 +187,21 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     RightOuterJoinFn(
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
-        TupleTag<RightT> rightTag) {
-      super(joiner, leftTag, rightTag);
+        TupleTag<RightT> rightTag,
+        String operatorName,
+        AccumulatorProvider accumulatorProvider) {
+      super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
 
     @Override
-    void doJoin(
-        K key,
-        Iterable<LeftT> left,
-        Iterable<RightT> right,
-        OutputReceiver<KV<K, OutputT>> outputReceiver) {
-      final SingleValueCollector<OutputT> coll = new SingleValueCollector<>();
-
+    void doJoin(Iterable<LeftT> left, Iterable<RightT> right) {
       for (RightT rightValue : right) {
         if (left.iterator().hasNext()) {
           for (LeftT leftValue : left) {
-            getJoiner().apply(leftValue, rightValue, coll);
-            outputReceiver.output(KV.of(key, coll.get()));
+            getJoiner().apply(leftValue, rightValue, getCollector());
           }
         } else {
-          getJoiner().apply(null, rightValue, coll);
-          outputReceiver.output(KV.of(key, coll.get()));
+          getJoiner().apply(null, rightValue, getCollector());
         }
       }
     }
@@ -235,17 +215,18 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
   private static <KeyT, LeftT, RightT, OutputT> JoinFn<LeftT, RightT, KeyT, OutputT> getJoinFn(
       Join<LeftT, RightT, KeyT, OutputT> operator,
       TupleTag<LeftT> leftTag,
-      TupleTag<RightT> rightTag) {
+      TupleTag<RightT> rightTag,
+      AccumulatorProvider accumulators) {
     final BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
     switch (operator.getType()) {
       case INNER:
-        return new InnerJoinFn<>(joiner, leftTag, rightTag);
+        return new InnerJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
       case LEFT:
-        return new LeftOuterJoinFn<>(joiner, leftTag, rightTag);
+        return new LeftOuterJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
       case RIGHT:
-        return new RightOuterJoinFn<>(joiner, leftTag, rightTag);
+        return new RightOuterJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
       case FULL:
-        return new FullJoinFn<>(joiner, leftTag, rightTag);
+        return new FullJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
       default:
         throw new UnsupportedOperationException(
             String.format(
@@ -260,9 +241,12 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
       Join<LeftT, RightT, KeyT, OutputT> operator,
       PCollection<KV<KeyT, LeftT>> left,
       PCollection<KV<KeyT, RightT>> right) {
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(AccumulatorProvider.of(left.getPipeline()));
     final TupleTag<LeftT> leftTag = new TupleTag<>();
     final TupleTag<RightT> rightTag = new TupleTag<>();
-    final JoinFn<LeftT, RightT, KeyT, OutputT> joinFn = getJoinFn(operator, leftTag, rightTag);
+    final JoinFn<LeftT, RightT, KeyT, OutputT> joinFn =
+        getJoinFn(operator, leftTag, rightTag, accumulators);
     return KeyedPCollectionTuple.of(leftTag, left)
         .and(rightTag, right)
         .apply("co-group-by-key", CoGroupByKey.create())

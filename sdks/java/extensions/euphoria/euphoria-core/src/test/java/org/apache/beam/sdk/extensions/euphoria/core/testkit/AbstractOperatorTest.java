@@ -106,7 +106,8 @@ public abstract class AbstractOperatorTest implements Serializable {
     public final Dataset<OutputT> getOutput(Pipeline pipeline) {
       final List<InputT> inputData = getInput();
       final Dataset<InputT> inputDataset =
-          Dataset.of(pipeline.apply("input", Create.of(inputData)).setTypeDescriptor(getInputType()));
+          Dataset.of(
+              pipeline.apply("input", Create.of(inputData)).setTypeDescriptor(getInputType()));
       return getOutput(inputDataset);
     }
 

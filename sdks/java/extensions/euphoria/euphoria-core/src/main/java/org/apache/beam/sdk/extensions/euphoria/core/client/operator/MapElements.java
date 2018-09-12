@@ -89,7 +89,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     return new OfBuilder(name);
   }
 
-  /** TODO: complete javadoc. */
+  /** Builder for the 'of' step */
   public static class OfBuilder implements Builders.Of {
 
     private final String name;
@@ -104,7 +104,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** MapElements builder which adds mapper to operator under build. */
   public static class UsingBuilder<InputT> {
 
     private final String name;

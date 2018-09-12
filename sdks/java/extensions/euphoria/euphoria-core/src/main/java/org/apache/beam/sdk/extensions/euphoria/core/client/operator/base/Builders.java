@@ -75,6 +75,7 @@ public class Builders {
      * @param <K> the type of the extracted key
      * @param keyExtractor a user defined function to extract keys from the processed input
      *     dataset's elements
+     * @param keyType {@link TypeDescriptor} of key type {@code <K>}
      * @return the next builder to complete the setup of the operator
      */
     <K> Object keyBy(UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType);
@@ -136,7 +137,7 @@ public class Builders {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Output builder, usually last building step. */
   public interface Output<T> {
 
     /**
@@ -148,7 +149,7 @@ public class Builders {
     Dataset<T> output(OutputHint... outputHints);
   }
 
-  /** TODO: complete javadoc. */
+  /** Similar to {@link Output}, but it adds method which extracts values from {@link KV}. */
   public interface OutputValues<K, V> extends Output<KV<K, V>> {
 
     /**

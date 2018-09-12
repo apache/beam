@@ -26,6 +26,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -76,18 +78,19 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
                     TypeAwares.orObjects(operator.getKeyType()),
                     TypeAwares.orObjects(operator.getValueType())));
 
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
+
     if (operator.isCombinable()) {
       // if operator is combinable we can process it in more efficient way
       final PCollection<KV<KeyT, ValueT>> combined =
-          extracted.apply(operator.getName() + "::combine", Combine.perKey(asCombiner(reducer)));
+          extracted.apply(
+              operator.getName() + "::combine",
+              Combine.perKey(asCombiner(reducer, accumulators, operator.getName())));
       @SuppressWarnings("unchecked")
       final PCollection<KV<KeyT, OutputT>> casted = (PCollection) combined;
       return casted;
     }
-
-    final AccumulatorProvider accumulators =
-        new LazyAccumulatorProvider(
-            AccumulatorProvider.of(inputs.getPipeline()));
 
     return extracted
         .apply("group", GroupByKey.create())
@@ -110,13 +113,16 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
   }
 
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
-      ReduceFunctor<InputT, OutputT> reducer) {
+      ReduceFunctor<InputT, OutputT> reducer,
+      AccumulatorProvider accumulatorProvider,
+      String operatorName) {
 
     @SuppressWarnings("unchecked")
     final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
 
     return (Iterable<InputT> input) -> {
-      SingleValueCollector<InputT> collector = new SingleValueCollector<>();
+      SingleValueCollector<InputT> collector =
+          new SingleValueCollector<>(accumulatorProvider, operatorName);
       combiner.apply(StreamSupport.stream(input.spliterator(), false), collector);
       return collector.get();
     };
@@ -158,14 +164,20 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
       extends DoFn<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>> {
 
     private final ReduceFunctor<ValueT, OutputT> reducer;
-    private final DoFnCollector<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>, OutputT> collector;
+    private final AdaptableCollector<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>, OutputT>
+        collector;
 
     ReduceDoFn(
         ReduceFunctor<ValueT, OutputT> reducer,
         AccumulatorProvider accumulators,
         String operatorName) {
       this.reducer = reducer;
-      this.collector = new DoFnCollector<>(accumulators, new Collector<>(operatorName));
+      this.collector =
+          new AdaptableCollector<>(
+              accumulators,
+              operatorName,
+              (DoFn<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>>.ProcessContext ctx,
+                  OutputT out) -> ctx.output(KV.of(ctx.element().getKey(), out)));
     }
 
     @ProcessElement
@@ -175,32 +187,6 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
       reducer.apply(
           StreamSupport.stream(requireNonNull(ctx.element().getValue()).spliterator(), false),
           collector);
-    }
-  }
-
-  /**
-   * Translation of {@link Collector} collect to Beam's context output. OperatorName serve as
-   * namespace for Beam's metrics.
-   */
-  private static class Collector<KeyT, ValueT, OutputT>
-      implements DoFnCollector.BeamCollector<
-          KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>, OutputT> {
-
-    private final String operatorName;
-
-    public Collector(String operatorName) {
-      this.operatorName = operatorName;
-    }
-
-    @Override
-    public void collect(
-        DoFn<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>>.ProcessContext ctx, OutputT out) {
-      ctx.output(KV.of(ctx.element().getKey(), out));
-    }
-
-    @Override
-    public String getOperatorName() {
-      return operatorName;
     }
   }
 }

@@ -20,7 +20,6 @@
 //import static java.util.Arrays.asList;
 //
 //import com.google.common.base.Splitter;
-//import com.google.common.collect.ImmutableList;
 //import java.io.Serializable;
 //import java.util.Arrays;
 //import java.util.List;
@@ -45,11 +44,13 @@
 //import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 //import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 //import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
+//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 //import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Datasets;
+//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Util;
 //import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
+//import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 //import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
-//import org.apache.beam.sdk.extensions.euphoria.core.translate.Euphoria;
+//import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaPTransform;
 //import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
 //import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.RegisterCoders;
 //import org.apache.beam.sdk.extensions.euphoria.core.translate.common.PipelineUtils;
@@ -75,9 +76,8 @@
 // * documentation needs to change too.
 // */
 //public class DocumentationExamplesTest {
-//
-//  private static List<String> textLineByLine =
-//      ImmutableList.of(
+//  private List<String> textLineByLine =
+//      Arrays.asList(
 //          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ",
 //          "Vestibulum volutpat pellentesque risus at sodales.",
 //          "Interdum et malesuada fames ac ante ipsum primis in faucibus.",
@@ -175,7 +175,7 @@
 //    // Transform to euphoria's flow.
 //    BeamFlow flow = BeamFlow.of(pipeline);
 //
-//    Dataset<String> dataset = Datasets.createMockDataset(flow, 1);
+//    Dataset<String> dataset = Util.createMockDataset(flow, 1);
 //
 //    Dataset<String> flatMapped =
 //        FlatMap.named("FlatMap1")
@@ -221,7 +221,7 @@
 //            new TypeDescriptor<ParametrizedTestDataType<String>>() {}, typeParametrizedCoder)
 //        .done();
 //
-//    Dataset<Integer> input = Datasets.createMockDataset(flow, 1);
+//    Dataset<Integer> input = Util.createMockDataset(flow, 1);
 //
 //    MapElements.named("Int2Str")
 //        .of(input)
@@ -804,7 +804,7 @@
 //    PCollection<KV<String, Long>> lettersWithCounts =
 //        inputs.apply(
 //            "count-uppercase-letters-in-Euphoria",
-//            Euphoria.of(
+//            EuphoriaPTransform.of(
 //                (Dataset<String> input) -> {
 //                  Dataset<String> upperCase =
 //                      MapElements.of(input)
@@ -843,6 +843,47 @@
 //    //output will contain: [ 10, 26 ]
 //
 //    PAssert.that(flow.unwrapped(output)).containsInAnyOrder(10, 26);
+//
+//    pipeline.run();
+//  }
+//
+//  @Test
+//  public void testTopPerKeyOperator() {
+//    BeamFlow flow = BeamFlow.of(pipeline);
+//
+//    Dataset<String> animals =
+//        flow.createInput(
+//            ListDataSource.bounded(
+//                asList(
+//                    "mouse",
+//                    "elk",
+//                    "rat",
+//                    "mule",
+//                    "elephant",
+//                    "dinosaur",
+//                    "cat",
+//                    "duck",
+//                    "caterpillar")));
+//
+//    // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
+//    Dataset<Triple<Character, String, Integer>> longestNamesByLetter =
+//        TopPerKey.named("longest-animal-names")
+//            .of(animals)
+//            .keyBy(name -> name.charAt(0)) // first character is the key
+//            .valueBy(UnaryFunction.identity()) // value type is the same as input element type
+//            .scoreBy(
+//                String
+//                    ::length) // length defines score, note that Integer implements Comparable<Integer>
+//            .output();
+//    //longestNamesByLetter wil contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
+//
+//    PAssert.that(flow.unwrapped(longestNamesByLetter))
+//        .containsInAnyOrder(
+//            Triple.of('m', "mouse", 5),
+//            Triple.of('r', "rat", 3),
+//            Triple.of('e', "elephant", 8),
+//            Triple.of('d', "dinosaur", 8),
+//            Triple.of('c', "caterpillar", 11));
 //
 //    pipeline.run();
 //  }

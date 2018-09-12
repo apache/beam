@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -29,25 +29,33 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
 
-/** Collector that outputs elements to {@link BeamCollector}. */
+/**
+ * Implementation of {@link Collector} which forwards output elements through {@link
+ * CollectorAdapter} to given {@link DoFn.ProcessContext}. The {@link DoFn.ProcessContext} needs to
+ * be set by {@link AdaptableCollector#setProcessContext(DoFn.ProcessContext)} manually before use.
+ */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
-public class DoFnCollector<InputT, OutputT, ElemT>
+public class AdaptableCollector<InputT, OutputT, ElemT>
     implements Collector<ElemT>, Context, Serializable {
 
   private final AccumulatorProvider accumulators;
-  private final BeamCollector<InputT, OutputT, ElemT> beamCollector;
+  private final CollectorAdapter<InputT, OutputT, ElemT> adapter;
+  private final String operatorName;
   private transient DoFn<InputT, OutputT>.ProcessContext context;
 
-  DoFnCollector(
-      AccumulatorProvider accumulators, BeamCollector<InputT, OutputT, ElemT> beamCollector) {
+  public AdaptableCollector(
+      AccumulatorProvider accumulators,
+      String operatorName,
+      CollectorAdapter<InputT, OutputT, ElemT> adapter) {
     this.accumulators = accumulators;
-    this.beamCollector = beamCollector;
+    this.operatorName = operatorName;
+    this.adapter = adapter;
   }
 
   @Override
   public void collect(ElemT elem) {
-    beamCollector.collect(Objects.requireNonNull(context), elem);
+    adapter.collect(Objects.requireNonNull(context), elem);
   }
 
   @Override
@@ -57,12 +65,12 @@ public class DoFnCollector<InputT, OutputT, ElemT>
 
   @Override
   public Counter getCounter(String name) {
-    return accumulators.getCounter(beamCollector.getOperatorName(), name);
+    return accumulators.getCounter(operatorName, name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return accumulators.getHistogram(beamCollector.getOperatorName(), name);
+    return accumulators.getHistogram(operatorName, name);
   }
 
   @Override
@@ -70,32 +78,7 @@ public class DoFnCollector<InputT, OutputT, ElemT>
     throw new UnsupportedOperationException("Timer not supported. Use histogram instead.");
   }
 
-  void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
-    this.context = context;
-  }
-
-  /**
-   * Collector for beam output.
-   *
-   * @param <InputT> type of input
-   * @param <OutputT> type of output
-   * @param <ElemT> type of element
-   */
-  public interface BeamCollector<InputT, OutputT, ElemT> extends Serializable {
-
-    /**
-     * Collect element.
-     *
-     * @param ctx process context
-     * @param elem element
-     */
-    void collect(DoFn<InputT, OutputT>.ProcessContext ctx, ElemT elem);
-
-    /**
-     * Get name of the operator.
-     *
-     * @return operator name
-     */
-    String getOperatorName();
+  public void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
+    this.context = Objects.requireNonNull(context);
   }
 }

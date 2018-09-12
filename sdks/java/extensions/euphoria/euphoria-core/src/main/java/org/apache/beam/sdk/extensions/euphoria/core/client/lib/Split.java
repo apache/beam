@@ -46,7 +46,7 @@ public class Split<InputT> {
     return new UsingBuilder<InputT>(DEFAULT_NAME, input);
   }
 
-  /** TODO: complete javadoc. */
+  /** Starting builder. */
   public static class OfBuilder {
     private final String name;
 
@@ -59,7 +59,7 @@ public class Split<InputT> {
     }
   }
 
-  /** TODO: complete javadoc. */
+  /** Builder adding filtering predicate. */
   public static class UsingBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;

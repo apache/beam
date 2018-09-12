@@ -21,6 +21,8 @@ import com.esotericsoftware.kryo.Kryo;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link KryoRegistrar} enriched by Id.
@@ -32,6 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * enriched by Id.
  */
 class IdentifiedRegistrar implements Serializable {
+
+  static final int NO_OP_REGISTRAR_ID = -1;
+  private static final Logger LOG = LoggerFactory.getLogger(RegisterCoders.class);
 
   private static final AtomicInteger idSource = new AtomicInteger();
 
@@ -45,7 +50,28 @@ class IdentifiedRegistrar implements Serializable {
 
   static IdentifiedRegistrar of(KryoRegistrar registrar) {
     Objects.requireNonNull(registrar);
-    return new IdentifiedRegistrar(idSource.getAndIncrement(), registrar);
+    IdentifiedRegistrar identifiedRegistrar =
+        new IdentifiedRegistrar(idSource.getAndIncrement(), registrar);
+    LOG.info(
+        String.format(
+            "Id: '%d' was assigned to given %s of type '%s'.",
+            identifiedRegistrar.getId(),
+            KryoRegistrar.class.getSimpleName(),
+            registrar.getClass()));
+    return identifiedRegistrar;
+  }
+
+  static IdentifiedRegistrar defaultNoOpRegistrar() {
+    return new IdentifiedRegistrar(
+        NO_OP_REGISTRAR_ID,
+        (kryo) -> {
+          /*No-Op*/
+        });
+  }
+
+  @Override
+  public String toString() {
+    return "IdentifiedRegistrar{" + "id=" + id + ", registrar=" + registrar + '}';
   }
 
   public int getId() {

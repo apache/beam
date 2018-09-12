@@ -23,7 +23,9 @@ import java.util.Collection;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
-/** Default translation provider that selects first matching translation for the registered operator. */
+/**
+ * Default translation provider that selects first matching translation for the registered operator.
+ */
 public class SimpleTranslatorProvider implements TranslatorProvider {
 
   /**
@@ -55,7 +57,8 @@ public class SimpleTranslatorProvider implements TranslatorProvider {
 
   private final Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators;
 
-  private SimpleTranslatorProvider(Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators) {
+  private SimpleTranslatorProvider(
+      Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators) {
     this.translators = translators;
   }
 

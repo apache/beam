@@ -15,5 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** A collection of utility classes. */
-package org.apache.beam.sdk.extensions.euphoria.core.util;
+
+/** Implementations of {@link org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector}. */
+package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;

@@ -27,11 +27,10 @@ ext {
 
 dependencies {
     shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    compile "com.esotericsoftware:kryo:${kryoVersion}"
+    shadow "com.esotericsoftware:kryo:${kryoVersion}"
     shadow library.java.guava
     testCompile library.java.mockito_core
     testCompile project(path: ':beam-sdks-java-extensions-euphoria-testing')
-    shadow 'com.google.code.findbugs:annotations:3.0.+'
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
     testCompile library.java.hamcrest_library

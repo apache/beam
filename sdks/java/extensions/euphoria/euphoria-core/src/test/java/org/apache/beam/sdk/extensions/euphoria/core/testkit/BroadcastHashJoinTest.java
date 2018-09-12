@@ -40,18 +40,19 @@ import org.junit.Test;
 /** Collection of broadcast hash join tests. */
 public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
-  private static abstract class TestCase<LeftT, RightT, OutputT>
+  private abstract static class TestCase<LeftT, RightT, OutputT>
       extends JoinTest.JoinTestCase<LeftT, RightT, OutputT> {
 
     @Override
     public Dataset<OutputT> getOutput(Pipeline pipeline) {
-      pipeline.getOptions()
+      pipeline
+          .getOptions()
           .as(EuphoriaOptions.class)
           .setTranslatorProvider(
               SimpleTranslatorProvider.newBuilder()
                   .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
                   .registerTranslator(Join.class, new BroadcastHashJoinTranslator<>())
-              .build());
+                  .build());
       return super.getOutput(pipeline);
     }
   }
@@ -64,8 +65,7 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-            return LeftJoin.of(
-                    left, MapElements.of(right).using(i -> i).output())
+            return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Integer l, Optional<Long> r, Collector<String> c) ->
@@ -118,8 +118,7 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-            return RightJoin.of(
-                    MapElements.of(left).using(i -> i).output(), right)
+            return RightJoin.of(MapElements.of(left).using(i -> i).output(), right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Optional<Integer> l, Long r, Collector<String> c) ->
@@ -172,8 +171,7 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<String, String>> getOutput(
               Dataset<String> left, Dataset<Integer> right) {
-            return LeftJoin.of(
-                    left, MapElements.of(right).using(i -> i).output())
+            return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
                 .using(
                     (String l, Optional<Integer> r, Collector<String> c) ->

@@ -110,7 +110,7 @@ public class Union<InputT> extends Operator<InputT> {
     return new OfBuilder(name);
   }
 
-  /** TODO: complete javadoc. */
+  /** Builder for the 'of' step */
   public static class OfBuilder {
 
     private final String name;
