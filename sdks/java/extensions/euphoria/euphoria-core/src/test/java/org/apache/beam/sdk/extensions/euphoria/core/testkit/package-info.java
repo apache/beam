@@ -16,8 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Euphoria operators test suite, see {@link
- * org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite}.
- */
+/** Euphoria operators test suite. */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit;

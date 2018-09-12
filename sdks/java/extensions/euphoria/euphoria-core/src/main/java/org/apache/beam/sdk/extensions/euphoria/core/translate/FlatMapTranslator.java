@@ -22,30 +22,36 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Instant;
 
-class FlatMapTranslator implements OperatorTranslator<FlatMap> {
+/**
+ * Default translator for {@link FlatMap} operator.
+ *
+ * @param <InputT> type of input
+ * @param <OutputT> type of output
+ */
+public class FlatMapTranslator<InputT, OutputT>
+    implements OperatorTranslator<InputT, OutputT, FlatMap<InputT, OutputT>> {
 
-  private static <InputT, OutputT> PCollection<OutputT> doTranslate(
-      FlatMap<InputT, OutputT> operator, TranslationContext context) {
+  @Override
+  public PCollection<OutputT> translate(
+      FlatMap<InputT, OutputT> operator, PCollectionList<InputT> inputs) {
     final AccumulatorProvider accumulators =
-        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
+        new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
     final Mapper<InputT, OutputT> mapper =
         new Mapper<>(
             operator.getName(),
             operator.getFunctor(),
             accumulators,
-            operator.getEventTimeExtractor());
-    return context.getInput(operator).apply(operator.getName(), ParDo.of(mapper));
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(FlatMap operator, TranslationContext context) {
-    return doTranslate(operator, context);
+            operator.getEventTimeExtractor().orElse(null));
+    return OperatorTranslators.getSingleInput(inputs)
+        .apply(operator.getName(), ParDo.of(mapper))
+        .setTypeDescriptor(TypeAwares.orObjects(operator.getOutputType()));
   }
 
   private static class Mapper<InputT, OutputT> extends DoFn<InputT, OutputT> {

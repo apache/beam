@@ -19,9 +19,10 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator Filter. */
@@ -29,29 +30,21 @@ public class FilterTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> filtered = Filter.named("Filter1").of(dataset).by(s -> !s.equals("")).output();
-
-    assertEquals(flow, filtered.getFlow());
-    assertEquals(1, flow.size());
-
-    Filter filter = (Filter) flow.operators().iterator().next();
-    assertEquals(flow, filter.getFlow());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> filtered =
+        Filter.named("Filter1").of(dataset).by(s -> !s.equals("")).output();
+    assertTrue(filtered.getProducer().isPresent());
+    final Filter filter = (Filter) filtered.getProducer().get();
     assertEquals("Filter1", filter.getName());
-    assertNotNull(filter.predicate);
-    assertEquals(filtered, filter.output());
+    assertNotNull(filter.getPredicate());
   }
 
   @Test
-  public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
-
-    Filter filter = (Filter) flow.operators().iterator().next();
+  public void testBuild_implicitName() {
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
+    assertTrue(filtered.getProducer().isPresent());
+    final Filter filter = (Filter) filtered.getProducer().get();
     assertEquals("Filter", filter.getName());
   }
 }

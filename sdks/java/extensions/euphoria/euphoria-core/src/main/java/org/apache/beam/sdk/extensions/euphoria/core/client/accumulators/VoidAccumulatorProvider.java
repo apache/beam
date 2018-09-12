@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +71,7 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
     }
 
     @Override
-    public AccumulatorProvider create(Settings settings) {
+    public AccumulatorProvider create() {
       if (isLogged.compareAndSet(false, true)) {
         LOG.warn("Using accumulators with VoidAccumulatorProvider will have no effect");
       }

@@ -17,30 +17,26 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
+import static java.util.Objects.requireNonNull;
+
+import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -73,31 +69,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
   state = StateComplexity.CONSTANT,
   repartitions = 1
 )
-public class Distinct<InputT, OutputT, W extends BoundedWindow>
-    extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, OutputT, OutputT, W, Distinct<InputT, OutputT, W>> {
-
-  Distinct(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, OutputT> mapper,
-      TypeDescriptor<OutputT> outputType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      Set<OutputHint> outputHints) {
-
-    super(
-        name,
-        flow,
-        input,
-        outputType,
-        mapper,
-        outputType,
-        windowing,
-        euphoriaWindowing,
-        outputHints);
-  }
+public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, OutputT>
+    implements CompositeOperator<InputT, OutputT> {
 
   /**
    * Starts building a nameless {@link Distinct} operator to process the given input dataset.
@@ -108,8 +81,8 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <InputT> MappedBuilder<InputT> of(Dataset<InputT> input) {
-    return new MappedBuilder<>("Distinct", input);
+  public static <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input) {
+    return named("Distinct").of(input);
   }
 
   /**
@@ -119,78 +92,18 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
    * @return a builder to complete the setup of the new operator
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+    return new Builder(name);
   }
 
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    Flow flow = input.getFlow();
-    String name = getName() + "::" + "ReduceByKey";
-
-    ReduceByKey<InputT, OutputT, Void, Void, W> reduce =
-        new ReduceByKey<>(
-            name,
-            flow,
-            input,
-            getKeyExtractor(),
-            outputType,
-            e -> null,
-            TypeDescriptors.nulls(),
-            windowing,
-            euphoriaWindowing,
-            (CombinableReduceFunction<Void>) e -> null,
-            Collections.emptySet(),
-            TypeUtils.keyValues(outputType, TypeDescriptors.nulls()));
-
-    MapElements format =
-        new MapElements<>(
-            getName() + "::" + "Map", flow, reduce.output(), KV::getKey, getHints(), outputType);
-
-    DAG<Operator<?, ?>> dag = DAG.of(reduce);
-    dag.add(format, reduce);
-    return dag;
-  }
-
-  private static class BuilderParams<InputT, OutputT, W extends BoundedWindow>
-      extends WindowingParams<W> {
-
-    String name;
-    Dataset<InputT> input;
-    UnaryFunction<InputT, OutputT> mapper;
-    TypeDescriptor<OutputT> outputTypeDescriptor;
-
-    public BuilderParams(String name, Dataset<InputT> input) {
-      this.name = name;
-      this.input = input;
-    }
-  }
-
-  /** TODO: complete javadoc. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for the 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public <InputT> MappedBuilder<InputT> of(Dataset<InputT> input) {
-      return new MappedBuilder<>(name, input);
-    }
+    <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input);
   }
 
-  /** TODO: complete javadoc. */
-  public static class MappedBuilder<InputT>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, InputT, ?>>,
-          Builders.Output<InputT>,
-          OptionalMethodBuilder<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> {
-
-    private final BuilderParams<InputT, ?, ?> params;
-
-    private MappedBuilder(String name, Dataset<InputT> input) {
-      params = new BuilderParams<>(Objects.requireNonNull(name), Objects.requireNonNull(input));
-    }
+  /** Builder for the 'mapped' step */
+  public interface MappedBuilder<InputT, OutputT> extends WindowByBuilder<OutputT> {
 
     /**
      * Optionally specifies a function to transform the input elements into another type among which
@@ -199,194 +112,165 @@ public class Distinct<InputT, OutputT, W extends BoundedWindow>
      * <p>This is, while windowing will be applied on basis of original input elements, the distinct
      * operator will be carried out on the transformed elements.
      *
-     * @param <OutputT> the type of the transformed elements
+     * @param <T> the type of the transformed elements
      * @param mapper a transform function applied to input element
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
-    public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
-        UnaryFunction<InputT, OutputT> mapper) {
-
+    default <T> WindowByBuilder<T> mapped(UnaryFunction<InputT, T> mapper) {
       return mapped(mapper, null);
     }
 
-    public <OutputT> WindowingBuilder<InputT, OutputT> mapped(
-        UnaryFunction<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputTypeDescriptor) {
+    <T> WindowByBuilder<T> mapped(
+        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType);
+  }
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, OutputT, ?> paramsCasted = (BuilderParams<InputT, OutputT, ?>) params;
-
-      paramsCasted.mapper = Objects.requireNonNull(mapper);
-      paramsCasted.outputTypeDescriptor = outputTypeDescriptor;
-
-      return new WindowingBuilder<>(paramsCasted);
-    }
+  /** Builder for the 'windowBy' step */
+  public interface WindowByBuilder<OutputT>
+      extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
+          OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
+          OutputBuilder<OutputT> {
 
     @Override
-    public Dataset<InputT> output(OutputHint... outputHints) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, InputT, ?> paramsCasted = (BuilderParams<InputT, InputT, ?>) params;
-
-      setIdentityMapper(paramsCasted);
-      return new OutputBuilder<>(paramsCasted).output();
-    }
+    <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(WindowFn<Object, T> windowing);
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, InputT, ?> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, InputT, W> paramsCasted = (BuilderParams<InputT, InputT, W>) params;
-
-      setIdentityMapper(paramsCasted);
-      paramsCasted.windowFn = Objects.requireNonNull(windowing);
-
-      return new TriggerByBuilder<>(paramsCasted);
-    }
-
-    private void setIdentityMapper(BuilderParams<InputT, InputT, ?> paramsCasted) {
-      paramsCasted.mapper = UnaryFunction.identity();
-
-      // retrieve output type from previous operator input
-      paramsCasted.outputTypeDescriptor = TypeUtils.getDatasetElementType(paramsCasted.input);
-    }
-
-    @Override
-    public <W extends Window<W>> OutputBuilder<InputT, ?, ?> windowBy(Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public OutputBuilder<InputT, ?, ?> applyIf(
-        boolean cond,
-        UnaryFunction<MappedBuilder<InputT>, OutputBuilder<InputT, ?, ?>> applyWhenConditionHolds) {
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      } else {
-        return new OutputBuilder<>(params);
-      }
+    default OutputBuilder<OutputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, OutputBuilder<OutputT>> fn) {
+      return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
-  /** TODO: complete javadoc. */
-  public static class WindowingBuilder<InputT, OutputT>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, OutputT, ?>>,
-          Builders.Output<OutputT>,
-          OptionalMethodBuilder<
-              WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>> {
+  /** Builder for the 'triggeredBy' step */
+  public interface TriggerByBuilder<OutputT>
+      extends Builders.TriggeredBy<AccumulatorModeBuilder<OutputT>> {
 
-    private final BuilderParams<InputT, OutputT, ?> params;
+    @Override
+    AccumulatorModeBuilder<OutputT> triggeredBy(Trigger trigger);
+  }
 
-    private WindowingBuilder(BuilderParams<InputT, OutputT, ?> params) {
-      this.params = params;
+  /** Builder for the 'accumulationMode' step */
+  public interface AccumulatorModeBuilder<OutputT>
+      extends Builders.AccumulatorMode<OutputBuilder<OutputT>> {
+
+    @Override
+    OutputBuilder<OutputT> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
+  }
+
+  /** Builder for the 'output' step */
+  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
+
+  private static class Builder<InputT, OutputT>
+      implements OfBuilder,
+          MappedBuilder<InputT, OutputT>,
+          WindowByBuilder<OutputT>,
+          OutputBuilder<OutputT>,
+          TriggerByBuilder<OutputT>,
+          AccumulatorModeBuilder<OutputT> {
+
+    private final String name;
+    private Dataset<InputT> input;
+    @Nullable private UnaryFunction<InputT, OutputT> mapper;
+    @Nullable private TypeDescriptor<OutputT> outputType;
+    @Nullable private Window<InputT> window;
+
+    Builder(String name) {
+      this.name = name;
     }
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, OutputT, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
+    public <T> MappedBuilder<T, T> of(Dataset<T> input) {
       @SuppressWarnings("unchecked")
-      BuilderParams<InputT, OutputT, W> paramsCasted = (BuilderParams<InputT, OutputT, W>) params;
-
-      paramsCasted.windowFn = Objects.requireNonNull(windowing);
-
-      return new TriggerByBuilder<>(paramsCasted);
+      final Builder<T, T> casted = (Builder) this;
+      casted.input = requireNonNull(input);
+      return casted;
     }
 
     @Override
-    public Dataset<OutputT> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(params).output();
+    public <T> WindowByBuilder<T> mapped(
+        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T> casted = (Builder) this;
+      casted.mapper = requireNonNull(mapper);
+      casted.outputType = outputType;
+      return casted;
     }
 
     @Override
-    public <W extends Window<W>> OutputBuilder<InputT, OutputT, ?> windowBy(
-        Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
+    public <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(
+        WindowFn<Object, T> windowFn) {
+      this.window = Window.into(requireNonNull(windowFn));
+      return this;
     }
 
     @Override
-    public OutputBuilder<InputT, OutputT, ?> applyIf(
-        boolean cond,
-        UnaryFunction<WindowingBuilder<InputT, OutputT>, OutputBuilder<InputT, OutputT, ?>>
-            applyWhenConditionHolds) {
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      } else {
-        return new OutputBuilder<>(params);
-      }
-    }
-  }
-
-  /** Trigger defining operator builder. */
-  public static class TriggerByBuilder<InputT, OutputT, W extends BoundedWindow>
-      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, OutputT, W>> {
-
-    private final BuilderParams<InputT, OutputT, W> params;
-
-    TriggerByBuilder(BuilderParams<InputT, OutputT, W> params) {
-      this.params = params;
+    public AccumulatorModeBuilder<OutputT> triggeredBy(Trigger trigger) {
+      this.window = requireNonNull(window).triggering(requireNonNull(trigger));
+      return this;
     }
 
     @Override
-    public AccumulatorModeBuilder<InputT, OutputT, W> triggeredBy(Trigger trigger) {
-      params.trigger = Objects.requireNonNull(trigger);
-      return new AccumulatorModeBuilder<>(params);
-    }
-  }
-
-  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
-  public static class AccumulatorModeBuilder<InputT, OutputT, W extends BoundedWindow>
-      implements Builders.AccumulatorMode<OutputBuilder<InputT, OutputT, W>> {
-
-    private final BuilderParams<InputT, OutputT, W> params;
-
-    AccumulatorModeBuilder(BuilderParams<InputT, OutputT, W> params) {
-      this.params = params;
-    }
-
-    @Override
-    public OutputBuilder<InputT, OutputT, W> accumulationMode(
+    public OutputBuilder<OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-
-      params.accumulationMode = Objects.requireNonNull(accumulationMode);
-      return new OutputBuilder<>(params);
-    }
-  }
-
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public static class OutputBuilder<InputT, OutputT, W extends BoundedWindow>
-      implements Builders.Output<OutputT> {
-
-    private final BuilderParams<InputT, OutputT, W> params;
-
-    OutputBuilder(BuilderParams<InputT, OutputT, W> params) {
-      this.params = params;
+      switch (requireNonNull(accumulationMode)) {
+        case DISCARDING_FIRED_PANES:
+          window = requireNonNull(window).discardingFiredPanes();
+          break;
+        case ACCUMULATING_FIRED_PANES:
+          window = requireNonNull(window).accumulatingFiredPanes();
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown accumulation mode [" + accumulationMode + "]");
+      }
+      return this;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Dataset<OutputT> output(OutputHint... outputHints) {
-      Flow flow = params.input.getFlow();
-      Distinct<InputT, OutputT, W> distinct =
-          new Distinct<>(
-              params.name,
-              flow,
-              params.input,
-              params.mapper,
-              params.outputTypeDescriptor,
-              params.getWindowing(),
-              params.euphoriaWindowing,
-              Sets.newHashSet(outputHints));
-      flow.add(distinct);
-      return distinct.output();
+      if (mapper == null) {
+        this.mapper = (UnaryFunction) UnaryFunction.identity();
+      }
+      final Distinct<InputT, OutputT> distinct = new Distinct<>(name, mapper, outputType, window);
+      return Translation.apply(distinct, Collections.singletonList(input));
     }
+  }
+
+  private Distinct(
+      String name,
+      UnaryFunction<InputT, OutputT> mapper,
+      @Nullable TypeDescriptor<OutputT> outputType,
+      @Nullable Window<InputT> window) {
+    super(name, outputType, mapper, outputType, window);
+  }
+
+  @Override
+  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
+    final Dataset<KV<OutputT, Void>> distinct =
+        ReduceByKey.named(getName())
+            .of(Iterables.getOnlyElement(inputs))
+            .keyBy(getKeyExtractor())
+            .valueBy(e -> null, TypeDescriptors.nulls())
+            .combineBy(e -> null)
+            .applyIf(
+                getWindow().isPresent(),
+                (builder) -> {
+                  final WindowDesc<InputT> desc =
+                      WindowDesc.of(
+                          getWindow()
+                              .orElseThrow(
+                                  () ->
+                                      new IllegalStateException(
+                                          "Unable to resolve windowing for distinct expansion.")));
+                  return builder
+                      .windowBy(desc.getWindowFn())
+                      .triggeredBy(desc.getTrigger())
+                      .accumulationMode(desc.getAccumulationMode());
+                })
+            .output();
+    return MapElements.named("extract-keys")
+        .of(distinct)
+        .using(KV::getKey, getKeyType().orElse(null))
+        .output();
   }
 }

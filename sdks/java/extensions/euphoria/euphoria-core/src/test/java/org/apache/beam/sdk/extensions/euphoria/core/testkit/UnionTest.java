@@ -19,17 +19,23 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test for operator {@code Union}. */
-@Processing(Processing.Type.ALL)
 public class UnionTest extends AbstractOperatorTest {
+
+  private static Dataset<Integer> createDataset(Pipeline pipeline, Integer... data) {
+    return Dataset.of(
+        pipeline
+            .apply("create-" + UUID.randomUUID(), Create.of(Arrays.asList(data)))
+            .setTypeDescriptor(TypeDescriptors.integers()));
+  }
 
   @Test
   public void testUnion() {
@@ -37,15 +43,9 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
-            final Dataset<Integer> first =
-                flow.createInput(
-                    ListDataSource.of(bounded, Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6)));
-
-            final Dataset<Integer> second =
-                flow.createInput(
-                    ListDataSource.of(bounded, Arrays.asList(7, 8, 9), Arrays.asList(10, 11, 12)));
-
+          public Dataset<Integer> getOutput(Pipeline pipeline) {
+            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
+            final Dataset<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
             return Union.of(first, second).output();
           }
 
@@ -62,52 +62,10 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
-            final Dataset<Integer> first =
-                flow.createInput(
-                    ListDataSource.of(bounded, Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6)));
-
-            final Dataset<Integer> second =
-                flow.createInput(
-                    ListDataSource.of(bounded, Arrays.asList(7, 8, 9), Arrays.asList(10, 11, 12)));
-
-            final Dataset<Integer> third =
-                flow.createInput(
-                    ListDataSource.of(
-                        bounded, Arrays.asList(13, 14, 15), Arrays.asList(16, 17, 18)));
-
-            return Union.of(first, second, third).output();
-          }
-
-          @Override
-          public List<Integer> getUnorderedOutput() {
-            return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
-          }
-        });
-  }
-
-  @Test
-  public void testUnion_threeDataSets_differentNumberOfPartitions() {
-    execute(
-        new TestCase<Integer>() {
-
-          @Override
-          public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
-            final Dataset<Integer> first =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(1, 2, 3)));
-
-            final Dataset<Integer> second =
-                flow.createInput(
-                    ListDataSource.of(bounded, Arrays.asList(4, 5, 6), Arrays.asList(7, 8, 9)));
-
-            final Dataset<Integer> third =
-                flow.createInput(
-                    ListDataSource.of(
-                        bounded,
-                        Arrays.asList(10, 11, 12),
-                        Arrays.asList(13, 14, 15),
-                        Arrays.asList(16, 17, 18)));
-
+          public Dataset<Integer> getOutput(Pipeline pipeline) {
+            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
+            final Dataset<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
+            final Dataset<Integer> third = createDataset(pipeline, 13, 14, 15, 16, 17, 18);
             return Union.of(first, second, third).output();
           }
 
@@ -124,22 +82,12 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
-            final Dataset<Integer> first =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(1, 2, 3)));
-
-            final Dataset<Integer> second =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(4, 5, 6)));
-
-            final Dataset<Integer> third =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(7, 8, 9)));
-
-            final Dataset<Integer> fourth =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(10, 11, 12)));
-
-            final Dataset<Integer> fifth =
-                flow.createInput(ListDataSource.of(bounded, Arrays.asList(13, 14, 15)));
-
+          public Dataset<Integer> getOutput(Pipeline pipeline) {
+            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3);
+            final Dataset<Integer> second = createDataset(pipeline, 4, 5, 6);
+            final Dataset<Integer> third = createDataset(pipeline, 7, 8, 9);
+            final Dataset<Integer> fourth = createDataset(pipeline, 10, 11, 12);
+            final Dataset<Integer> fifth = createDataset(pipeline, 13, 14, 15);
             return Union.of(first, second, third, fourth, fifth).output();
           }
 

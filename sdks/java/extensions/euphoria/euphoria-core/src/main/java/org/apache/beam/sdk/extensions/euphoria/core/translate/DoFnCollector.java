@@ -25,8 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -58,12 +56,6 @@ public class DoFnCollector<InputT, OutputT, ElemT>
   }
 
   @Override
-  public Window<?> getWindow() {
-    // TODO: we need to return the element's window here
-    return GlobalWindowing.Window.get();
-  }
-
-  @Override
   public Counter getCounter(String name) {
     return accumulators.getCounter(beamCollector.getOperatorName(), name);
   }
@@ -83,8 +75,7 @@ public class DoFnCollector<InputT, OutputT, ElemT>
   }
 
   /**
-   * Translation of {@link ReduceByKeyTranslator ReduceByKeyTranslator's} Collector collect to
-   * Beam's context output. OperatorName serve as namespace for Beam's metrics.
+   * Collector for beam output.
    *
    * @param <InputT> type of input
    * @param <OutputT> type of output

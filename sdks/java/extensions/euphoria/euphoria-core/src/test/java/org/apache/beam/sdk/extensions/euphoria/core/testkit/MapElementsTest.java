@@ -27,12 +27,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Tests for operator {@code MapElements}. */
-@Processing(Processing.Type.ALL)
 public class MapElementsTest extends AbstractOperatorTest {
 
   @Test
@@ -50,6 +49,11 @@ public class MapElementsTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getInput() {
             return Arrays.asList(1, 2, 3, 4, 5, 6, 7);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
           }
 
           @Override
@@ -79,6 +83,11 @@ public class MapElementsTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getInput() {
             return Arrays.asList(1, 2, 3, 1, 2, 2, 10, 20, 10);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
           }
 
           @Override

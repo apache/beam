@@ -20,31 +20,52 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BroadcastHashJoinTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.FlatMapTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.SimpleTranslatorProvider;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Collection of broadcast hash join tests. */
 public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
-  @Processing(Processing.Type.BOUNDED)
+  private static abstract class TestCase<LeftT, RightT, OutputT>
+      extends JoinTest.JoinTestCase<LeftT, RightT, OutputT> {
+
+    @Override
+    public Dataset<OutputT> getOutput(Pipeline pipeline) {
+      pipeline.getOptions()
+          .as(EuphoriaOptions.class)
+          .setTranslatorProvider(
+              SimpleTranslatorProvider.newBuilder()
+                  .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
+                  .registerTranslator(Join.class, new BroadcastHashJoinTranslator<>())
+              .build());
+      return super.getOutput(pipeline);
+    }
+  }
+
   @Test
   public void leftBroadcastHashJoin() {
     execute(
-        new JoinTest.JoinTestCase<Integer, Long, KV<Integer, String>>() {
+        new TestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return LeftJoin.of(
-                    left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
+                    left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Integer l, Optional<Long> r, Collector<String> c) ->
@@ -55,6 +76,16 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getLeftInput() {
             return Arrays.asList(1, 2, 3, 0, 4, 3, 2, 1);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -79,17 +110,16 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void rightBroadcastHashJoin() {
     execute(
-        new JoinTest.JoinTestCase<Integer, Long, KV<Integer, String>>() {
+        new TestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
             return RightJoin.of(
-                    MapElements.of(left).using(i -> i).output(SizeHint.FITS_IN_MEMORY), right)
+                    MapElements.of(left).using(i -> i).output(), right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Optional<Integer> l, Long r, Collector<String> c) ->
@@ -103,8 +133,18 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -122,19 +162,18 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void keyHashCollisionBroadcastHashJoin() {
     final String sameHashCodeKey1 = "FB";
     final String sameHashCodeKey2 = "Ea";
     execute(
-        new JoinTest.JoinTestCase<String, Integer, KV<String, String>>() {
+        new TestCase<String, Integer, KV<String, String>>() {
 
           @Override
           protected Dataset<KV<String, String>> getOutput(
               Dataset<String> left, Dataset<Integer> right) {
             return LeftJoin.of(
-                    left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
+                    left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
                 .using(
                     (String l, Optional<Integer> r, Collector<String> c) ->
@@ -148,8 +187,18 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<String> getLeftInputType() {
+            return TypeDescriptors.strings();
+          }
+
+          @Override
           protected List<Integer> getRightInput() {
             return Arrays.asList(1, 2);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getRightInputType() {
+            return TypeDescriptors.integers();
           }
 
           @Override

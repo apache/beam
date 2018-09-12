@@ -21,7 +21,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 
@@ -41,31 +40,25 @@ public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   @Override
   public Context asContext() {
-    // this is not needed, the underlaying functor does not have access to this
-    throw new UnsupportedOperationException("Not supported.");
-  }
-
-  @Override
-  public Window<?> getWindow() {
-    // this is not needed, the underlaying functor does not have access to this
+    // this is not needed, the underlying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Counter getCounter(String name) {
-    // this is not needed, the underlaying functor does not have access to this
+    // this is not needed, the underlying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    // this is not needed, the underlaying functor does not have access to this
+    // this is not needed, the underlying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }
 
   @Override
   public Timer getTimer(String name) {
-    // this is not needed, the underlaying functor does not have access to this
+    // this is not needed, the underlying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }
 }

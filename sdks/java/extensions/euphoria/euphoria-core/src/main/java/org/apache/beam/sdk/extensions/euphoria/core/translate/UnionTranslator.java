@@ -23,16 +23,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
 /** Euphoria to Beam translation of {@link Union} operator. */
-class UnionTranslator implements OperatorTranslator<Union> {
-
-  private static <T> PCollection<T> doTranslate(Union<T> operator, TranslationContext context) {
-    return PCollectionList.of(context.getInputs(operator))
-        .apply(operator.getName(), Flatten.pCollections());
-  }
+class UnionTranslator<InputT> implements OperatorTranslator<InputT, InputT, Union<InputT>> {
 
   @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(Union operator, TranslationContext context) {
-    return doTranslate(operator, context);
+  public PCollection<InputT> translate(Union<InputT> operator, PCollectionList<InputT> inputs) {
+    return inputs.apply(operator.getName(), Flatten.pCollections());
   }
 }

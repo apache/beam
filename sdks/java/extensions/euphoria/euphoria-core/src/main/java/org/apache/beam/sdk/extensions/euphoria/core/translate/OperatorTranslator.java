@@ -19,22 +19,25 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 
 /**
  * A functor to translate an operator into a beam execution.
  *
+ * @param <InputT> the type of input
+ * @param <OutputT> the type of output
  * @param <OperatorT> the type of the user defined euphoria operator definition
  */
-interface OperatorTranslator<OperatorT extends Operator> {
+public interface OperatorTranslator<InputT, OutputT, OperatorT extends Operator> {
 
   /**
    * Translates the given a operator it into a concrete beam transformation.
    *
    * @param operator the operator to translate
-   * @param context the execution context aware of all inputs of the given operator
+   * @param inputs list of inputs
    * @return a beam transformation
    */
-  PCollection<?> translate(OperatorT operator, TranslationContext context);
+  PCollection<OutputT> translate(OperatorT operator, PCollectionList<InputT> inputs);
 
   /**
    * Returns true when implementing {@link OperatorTranslator} is able to translate given instance

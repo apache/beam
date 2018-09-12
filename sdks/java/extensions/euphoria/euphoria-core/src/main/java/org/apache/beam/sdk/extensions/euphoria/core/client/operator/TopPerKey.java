@@ -19,39 +19,30 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -59,7 +50,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * Emits top element for defined keys and windows. The elements are compared by comparable objects
  * extracted by user defined function applied on input elements.
  *
- * <p>Custom {@link Windowing} can be set, otherwise values from input operator are used.
+ * <p>Custom windowing can be set, otherwise values from input operator are used.
  *
  * <p>Example:
  *
@@ -91,47 +82,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
-    extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, Triple<K, V, ScoreT>, W, TopPerKey<InputT, K, V, ScoreT, W>>
-    implements TypeAware.Value<V> {
-
-  private final UnaryFunction<InputT, V> valueFn;
-  private final TypeDescriptor<V> valueType;
-
-  private final UnaryFunction<InputT, ScoreT> scoreFn;
-  private final TypeDescriptor<ScoreT> scoreType;
-
-  TopPerKey(
-      Flow flow,
-      String name,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyExtractor,
-      @Nullable TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, V> valueFn,
-      TypeDescriptor<V> valueType,
-      @Nullable UnaryFunction<InputT, ScoreT> scoreFn,
-      TypeDescriptor<ScoreT> scoreType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      @Nullable TypeDescriptor<Triple<K, V, ScoreT>> outputType,
-      Set<OutputHint> outputHints) {
-    super(
-        name,
-        flow,
-        input,
-        outputType,
-        keyExtractor,
-        keyType,
-        windowing,
-        euphoriaWindowing,
-        outputHints);
-
-    this.valueFn = valueFn;
-    this.valueType = valueType;
-    this.scoreFn = scoreFn;
-    this.scoreType = scoreType;
-  }
+public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+    extends ShuffleOperator<InputT, KeyT, Triple<KeyT, ValueT, ScoreT>>
+    implements TypeAware.Value<ValueT>, CompositeOperator<InputT, Triple<KeyT, ValueT, ScoreT>> {
 
   /**
    * Starts building a nameless {@link TopPerKey} operator to process the given input dataset.
@@ -143,7 +96,7 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new KeyByBuilder<>("TopPerKey", input);
+    return named("TopPerKey").of(input);
   }
 
   /**
@@ -153,352 +106,284 @@ public class TopPerKey<InputT, K, V, ScoreT extends Comparable<ScoreT>, W extend
    * @return a builder to complete the setup of the new operator
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(requireNonNull(name));
+    return new Builder<>(requireNonNull(name));
   }
 
-  public UnaryFunction<InputT, V> getValueExtractor() {
-    return valueFn;
-  }
-
-  public UnaryFunction<InputT, ScoreT> getScoreExtractor() {
-    return scoreFn;
-  }
-
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    Flow flow = getFlow();
-
-    StateSupport.MergeFromStateMerger<KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>>
-        stateCombiner = new StateSupport.MergeFromStateMerger<>();
-
-    TypeDescriptor<KV<V, ScoreT>> rsbkValueType = TypeUtils.keyValues(valueType, scoreType);
-
-    ReduceStateByKey<InputT, K, KV<V, ScoreT>, KV<V, ScoreT>, MaxScored<V, ScoreT>, W> reduce =
-        new ReduceStateByKey<>(
-            getName() + "::ReduceStateByKey",
-            flow,
-            input,
-            keyExtractor,
-            keyType,
-            e -> KV.of(valueFn.apply(e), scoreFn.apply(e)),
-            rsbkValueType,
-            windowing,
-            euphoriaWindowing,
-            (StateContext context, Collector<KV<V, ScoreT>> collector) ->
-                new MaxScored<>(context.getStorageProvider()),
-            stateCombiner,
-            TypeUtils.keyValues(keyType, rsbkValueType),
-            Collections.emptySet());
-
-    MapElements<KV<K, KV<V, ScoreT>>, Triple<K, V, ScoreT>> format =
-        new MapElements<>(
-            getName() + "::MapElements",
-            flow,
-            reduce.output(),
-            e -> Triple.of(e.getKey(), e.getValue().getKey(), e.getValue().getValue()),
-            getHints(),
-            outputType);
-
-    DAG<Operator<?, ?>> dag = DAG.of(reduce);
-    dag.add(format, reduce);
-
-    return dag;
-  }
-
-  @Override
-  public TypeDescriptor<V> getValueType() {
-    return valueType;
-  }
-
-  public TypeDescriptor<ScoreT> getScoreType() {
-    return scoreType;
-  }
-
-  /** Parameters of this operator used in builders. */
-  private static final class BuiderParams<
-          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
-      extends WindowingParams<W> {
-
-    String name;
-    Dataset<InputT> input;
-    UnaryFunction<InputT, K> keyFn;
-    TypeDescriptor<K> keyType;
-    UnaryFunction<InputT, V> valueFn;
-    TypeDescriptor<V> valueType;
-    UnaryFunction<InputT, ScoreT> scoreFn;
-    TypeDescriptor<ScoreT> scoreType;
-
-    public BuiderParams(String name, Dataset<InputT> input) {
-      this.name = name;
-      this.input = input;
-    }
-  }
-
-  /** TODO: complete javadoc. */
-  private static final class MaxScored<V, CompareT extends Comparable<CompareT>>
-      implements State<KV<V, CompareT>, KV<V, CompareT>>,
-          StateSupport.MergeFrom<MaxScored<V, CompareT>> {
-
-    static final ValueStorageDescriptor<KV> MAX_STATE_DESCR =
-        ValueStorageDescriptor.of("max", KV.class, KV.of(null, null));
-
-    final ValueStorage<KV<V, CompareT>> curr;
-
-    @SuppressWarnings("unchecked")
-    MaxScored(StorageProvider storageProvider) {
-      curr = (ValueStorage) storageProvider.getValueStorage(MAX_STATE_DESCR);
-    }
+  /** Builder for 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public void add(KV<V, CompareT> element) {
-      KV<V, CompareT> c = curr.get();
-      if (c.getKey() == null || element.getValue().compareTo(c.getValue()) > 0) {
-        curr.set(element);
-      }
-    }
-
-    @Override
-    public void flush(Collector<KV<V, CompareT>> context) {
-      KV<V, CompareT> c = curr.get();
-      if (c.getKey() != null) {
-        context.collect(c);
-      }
-    }
-
-    @Override
-    public void close() {
-      curr.clear();
-    }
-
-    @Override
-    public void mergeFrom(MaxScored<V, CompareT> other) {
-      KV<V, CompareT> o = other.curr.get();
-      if (o.getKey() != null) {
-        this.add(o);
-      }
-    }
+    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  // ~ -----------------------------------------------------------------------------
-
-  /** TODO: complete javadoc. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for 'keyBy' step */
+  public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
 
     @Override
-    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-      return new KeyByBuilder<>(name, requireNonNull(input));
-    }
-  }
-
-  /** TODO: complete javadoc. */
-  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
-
-    private final BuiderParams<InputT, ?, ?, ?, ?> params;
-
-    KeyByBuilder(String name, Dataset<InputT> input) {
-      params = new BuiderParams<>(name, input);
-    }
+    <T> ValueByBuilder<InputT, T> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, TypeDescriptor<T> keyType);
 
     @Override
-    public <K> ValueByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+    default <T> ValueByBuilder<InputT, T> keyBy(UnaryFunction<InputT, T> keyExtractor) {
       return keyBy(keyExtractor, null);
     }
-
-    @Override
-    public <K> ValueByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, ?, ?, ?> paramsCasted = (BuiderParams<InputT, K, ?, ?, ?>) params;
-
-      paramsCasted.keyFn = requireNonNull(keyExtractor);
-      paramsCasted.keyType = keyType;
-
-      return new ValueByBuilder<>(paramsCasted);
-    }
   }
 
-  /** TODO: complete javadoc. */
-  public static class ValueByBuilder<InputT, K> {
+  /** Builder for 'valueBy' step */
+  public interface ValueByBuilder<InputT, KeyT> {
 
-    private final BuiderParams<InputT, K, ?, ?, ?> params;
-
-    ValueByBuilder(BuiderParams<InputT, K, ?, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <V> ScoreByBuilder<InputT, K, V> valueBy(UnaryFunction<InputT, V> valueExtractor) {
+    default <ValueT> ScoreBy<InputT, KeyT, ValueT> valueBy(
+        UnaryFunction<InputT, ValueT> valueExtractor) {
       return valueBy(valueExtractor, null);
     }
 
-    public <V> ScoreByBuilder<InputT, K, V> valueBy(
-        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, V, ?, ?> paramsCasted = (BuiderParams<InputT, K, V, ?, ?>) params;
-
-      paramsCasted.valueFn = requireNonNull(valueExtractor);
-      paramsCasted.valueType = valueType;
-      return new ScoreByBuilder<>(paramsCasted);
-    }
+    <ValueT> ScoreBy<InputT, KeyT, ValueT> valueBy(
+        UnaryFunction<InputT, ValueT> valueExtractor, @Nullable TypeDescriptor<ValueT> valueType);
   }
 
-  /** TODO: complete javadoc. */
-  public static class ScoreByBuilder<InputT, K, V> {
+  /** Builder for 'scoreBy' step */
+  public interface ScoreBy<InputT, KeyT, ValueT> {
 
-    private final BuiderParams<InputT, K, V, ?, ?> params;
-
-    ScoreByBuilder(BuiderParams<InputT, K, V, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
+    default <ScoreT extends Comparable<ScoreT>> WindowByBuilder<KeyT, ValueT, ScoreT> scoreBy(
         UnaryFunction<InputT, ScoreT> scoreFn) {
       return scoreBy(scoreFn, null);
     }
 
-    public <ScoreT extends Comparable<ScoreT>> WindowByBuilder<InputT, K, V, ScoreT> scoreBy(
-        UnaryFunction<InputT, ScoreT> scoreFn, TypeDescriptor<ScoreT> scoreType) {
-
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, V, ScoreT, ?> paramsCasted =
-          (BuiderParams<InputT, K, V, ScoreT, ?>) params;
-
-      paramsCasted.scoreFn = requireNonNull(scoreFn);
-      paramsCasted.scoreType = scoreType;
-      return new WindowByBuilder<>(paramsCasted);
-    }
+    <ScoreT extends Comparable<ScoreT>> WindowByBuilder<KeyT, ValueT, ScoreT> scoreBy(
+        UnaryFunction<InputT, ScoreT> scoreFn, @Nullable TypeDescriptor<ScoreT> scoreType);
   }
 
-  /** TODO: complete javadoc. */
-  public static class WindowByBuilder<InputT, K, V, ScoreT extends Comparable<ScoreT>>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, K, V, ScoreT, ?>>,
-          Builders.Output<Triple<K, V, ScoreT>>,
+  /** Builder for 'windowBy' step */
+  public interface WindowByBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.WindowBy<TriggeredByBuilder<KeyT, ValueT, ScoreT>>,
           OptionalMethodBuilder<
-              WindowByBuilder<InputT, K, V, ScoreT>, OutputBuilder<InputT, K, V, ScoreT, ?>> {
-
-    private final BuiderParams<InputT, K, V, ScoreT, ?> params;
-
-    WindowByBuilder(BuiderParams<InputT, K, V, ScoreT, ?> params) {
-      this.params = params;
-    }
+              WindowByBuilder<KeyT, ValueT, ScoreT>, OutputBuilder<KeyT, ValueT, ScoreT>>,
+          OutputBuilder<KeyT, ValueT, ScoreT> {
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, ScoreT, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuiderParams<InputT, K, V, ScoreT, W> paramsCasted =
-          (BuiderParams<InputT, K, V, ScoreT, W>) params;
-
-      paramsCasted.windowFn = requireNonNull(windowing);
-      return new TriggerByBuilder<>(paramsCasted);
-    }
+    <W extends BoundedWindow> TriggeredByBuilder<KeyT, ValueT, ScoreT> windowBy(
+        WindowFn<Object, W> windowing);
 
     @Override
-    public <W extends Window<W>> OutputBuilder<InputT, K, V, ScoreT, ?> windowBy(
-        Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(params).output(outputHints);
-    }
-
-    @Override
-    public OutputBuilder<InputT, K, V, ScoreT, ?> applyIf(
+    default OutputBuilder<KeyT, ValueT, ScoreT> applyIf(
         boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, K, V, ScoreT>, OutputBuilder<InputT, K, V, ScoreT, ?>>
-            applyWhenConditionHolds) {
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      }
-
-      return new OutputBuilder<>(params);
+        UnaryFunction<WindowByBuilder<KeyT, ValueT, ScoreT>, OutputBuilder<KeyT, ValueT, ScoreT>>
+            fn) {
+      return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
-  /** Trigger defining operator builder. */
-  public static class TriggerByBuilder<
-          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
-      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, ScoreT, W>> {
-
-    private final BuiderParams<InputT, K, V, ScoreT, W> params;
-
-    TriggerByBuilder(BuiderParams<InputT, K, V, ScoreT, W> params) {
-      this.params = params;
-    }
+  /** Builder for 'triggeredBy' step */
+  public interface TriggeredByBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, ValueT, ScoreT>> {
 
     @Override
-    public AccumulatorModeBuilder<InputT, K, V, ScoreT, W> triggeredBy(Trigger trigger) {
-      params.trigger = Objects.requireNonNull(trigger);
-      return new AccumulatorModeBuilder<>(params);
-    }
+    AccumulatorModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger);
   }
 
-  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
-  public static class AccumulatorModeBuilder<
-          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
-      implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, ScoreT, W>> {
-
-    private final BuiderParams<InputT, K, V, ScoreT, W> params;
-
-    AccumulatorModeBuilder(BuiderParams<InputT, K, V, ScoreT, W> params) {
-      this.params = params;
-    }
+  /** Builder for 'accumulationMode' step */
+  public interface AccumulatorModeBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.AccumulatorMode<OutputBuilder<KeyT, ValueT, ScoreT>> {
 
     @Override
-    public OutputBuilder<InputT, K, V, ScoreT, W> accumulationMode(
-        WindowingStrategy.AccumulationMode accumulationMode) {
-
-      params.accumulationMode = Objects.requireNonNull(accumulationMode);
-      return new OutputBuilder<>(params);
-    }
+    OutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode);
   }
+
+  /** Builder for 'output' step */
+  public interface OutputBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.Output<Triple<KeyT, ValueT, ScoreT>> {}
 
   /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
+   * Builder for TopPerKey operator.
+   *
+   * @param <InputT> type of input
+   * @param <KeyT> type of key
    */
-  public static class OutputBuilder<
-          InputT, K, V, ScoreT extends Comparable<ScoreT>, W extends BoundedWindow>
-      implements Builders.Output<Triple<K, V, ScoreT>> {
+  private static class Builder<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      implements OfBuilder,
+          KeyByBuilder<InputT>,
+          ValueByBuilder<InputT, KeyT>,
+          ScoreBy<InputT, KeyT, ValueT>,
+          WindowByBuilder<KeyT, ValueT, ScoreT>,
+          TriggeredByBuilder<KeyT, ValueT, ScoreT>,
+          AccumulatorModeBuilder<KeyT, ValueT, ScoreT>,
+          OutputBuilder<KeyT, ValueT, ScoreT> {
 
-    private final BuiderParams<InputT, K, V, ScoreT, W> params;
+    private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunction<InputT, KeyT> keyExtractor;
+    @Nullable private TypeDescriptor<KeyT> keyType;
+    private UnaryFunction<InputT, ValueT> valueExtractor;
+    @Nullable private TypeDescriptor<ValueT> valueType;
+    private UnaryFunction<InputT, ScoreT> scoreExtractor;
+    @Nullable private TypeDescriptor<ScoreT> scoreType;
+    @Nullable private Window<InputT> window;
 
-    OutputBuilder(BuiderParams<InputT, K, V, ScoreT, W> params) {
-      this.params = params;
+    Builder(String name) {
+      this.name = requireNonNull(name);
     }
 
     @Override
-    public Dataset<Triple<K, V, ScoreT>> output(OutputHint... outputHints) {
-      Flow flow = params.input.getFlow();
-
-      TopPerKey<InputT, K, V, ScoreT, W> top =
-          new TopPerKey<>(
-              flow,
-              params.name,
-              params.input,
-              params.keyFn,
-              params.keyType,
-              params.valueFn,
-              params.valueType,
-              params.scoreFn,
-              params.scoreType,
-              params.getWindowing(),
-              params.euphoriaWindowing,
-              TypeUtils.triplets(params.keyType, params.valueType, params.scoreType),
-              Sets.newHashSet(outputHints));
-      flow.add(top);
-      return top.output();
+    @SuppressWarnings("unchecked")
+    public <T> KeyByBuilder<T> of(Dataset<T> input) {
+      this.input = (Dataset<InputT>) requireNonNull(input);
+      return (KeyByBuilder) this;
     }
+
+    @Override
+    public <T> ValueByBuilder<InputT, T> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T, ?, ?> casted = (Builder) this;
+      casted.keyExtractor = requireNonNull(keyExtractor);
+      casted.keyType = keyType;
+      return casted;
+    }
+
+    @Override
+    public <T> ScoreBy<InputT, KeyT, T> valueBy(
+        UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, KeyT, T, ?> casted = (Builder) this;
+      casted.valueExtractor = requireNonNull(valueExtractor);
+      casted.valueType = valueType;
+      return casted;
+    }
+
+    @Override
+    public <T extends Comparable<T>> WindowByBuilder<KeyT, ValueT, T> scoreBy(
+        UnaryFunction<InputT, T> scoreExtractor, @Nullable TypeDescriptor<T> scoreType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, KeyT, ValueT, T> casted = (Builder) this;
+      casted.scoreExtractor = requireNonNull(scoreExtractor);
+      casted.scoreType = scoreType;
+      return casted;
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggeredByBuilder<KeyT, ValueT, ScoreT> windowBy(
+        WindowFn<Object, W> windowFn) {
+      window = Window.into(requireNonNull(windowFn));
+      return this;
+    }
+
+    @Override
+    public AccumulatorModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger) {
+      window = requireNonNull(window).triggering(requireNonNull(trigger));
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode) {
+      switch (requireNonNull(accumulationMode)) {
+        case DISCARDING_FIRED_PANES:
+          window = requireNonNull(window).discardingFiredPanes();
+          break;
+        case ACCUMULATING_FIRED_PANES:
+          window = requireNonNull(window).accumulatingFiredPanes();
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown accumulation mode [" + accumulationMode + "]");
+      }
+      return this;
+    }
+
+    @Override
+    public Dataset<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
+      final TopPerKey<InputT, KeyT, ValueT, ScoreT> sbk =
+          new TopPerKey<>(
+              name,
+              keyExtractor,
+              keyType,
+              valueExtractor,
+              valueType,
+              scoreExtractor,
+              scoreType,
+              window,
+              TypeUtils.triplets(keyType, valueType, scoreType));
+      return Translation.apply(sbk, Collections.singletonList(input));
+    }
+  }
+
+  private UnaryFunction<InputT, ValueT> valueExtractor;
+  @Nullable private TypeDescriptor<ValueT> valueType;
+  private UnaryFunction<InputT, ScoreT> scoreExtractor;
+  @Nullable private TypeDescriptor<ScoreT> scoreType;
+
+  private TopPerKey(
+      String name,
+      UnaryFunction<InputT, KeyT> keyExtractor,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      UnaryFunction<InputT, ValueT> valueExtractor,
+      @Nullable TypeDescriptor<ValueT> valueType,
+      UnaryFunction<InputT, ScoreT> scoreExtractor,
+      @Nullable TypeDescriptor<ScoreT> scoreType,
+      @Nullable Window<InputT> window,
+      @Nullable TypeDescriptor<Triple<KeyT, ValueT, ScoreT>> outputType) {
+    super(name, outputType, keyExtractor, keyType, window);
+
+    this.valueExtractor = valueExtractor;
+    this.valueType = valueType;
+    this.scoreExtractor = scoreExtractor;
+    this.scoreType = scoreType;
+  }
+
+  public UnaryFunction<InputT, ValueT> getValueExtractor() {
+    return valueExtractor;
+  }
+
+  @Override
+  public Optional<TypeDescriptor<ValueT>> getValueType() {
+    return Optional.ofNullable(valueType);
+  }
+
+  public UnaryFunction<InputT, ScoreT> getScoreExtractor() {
+    return scoreExtractor;
+  }
+
+  public Optional<TypeDescriptor<ScoreT>> getScoreType() {
+    return Optional.ofNullable(scoreType);
+  }
+
+  @Override
+  public Dataset<Triple<KeyT, ValueT, ScoreT>> expand(List<Dataset<InputT>> inputs) {
+    final Dataset<Triple<KeyT, ValueT, ScoreT>> extracted =
+        MapElements.named("extract-key-value-score")
+            .of(Iterables.getOnlyElement(inputs))
+            .using(
+                elem ->
+                    Triple.of(
+                        getKeyExtractor().apply(elem),
+                        getValueExtractor().apply(elem),
+                        getScoreExtractor().apply(elem)),
+                getOutputType().orElse(null))
+            .output();
+    return ReduceByKey.named("combine-by-key")
+        .of(extracted)
+        .keyBy(Triple::getFirst, getKeyType().orElse(null))
+        .combineBy(
+            (Stream<Triple<KeyT, ValueT, ScoreT>> triplets) ->
+                triplets
+                    .reduce((a, b) -> a.getThird().compareTo(b.getThird()) > 0 ? a : b)
+                    .orElseThrow(IllegalStateException::new))
+        .applyIf(
+            getWindow().isPresent(),
+            (builder) -> {
+              final WindowDesc<InputT> desc =
+                  WindowDesc.of(
+                      getWindow()
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Unable to resolve windowing for TopPerKey expansion.")));
+              return builder
+                  .windowBy(desc.getWindowFn())
+                  .triggeredBy(desc.getTrigger())
+                  .accumulationMode(desc.getAccumulationMode());
+            })
+        .outputValues();
   }
 }

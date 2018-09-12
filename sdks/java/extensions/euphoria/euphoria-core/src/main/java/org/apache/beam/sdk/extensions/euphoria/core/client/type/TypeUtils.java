@@ -21,8 +21,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.values.KV;
@@ -121,26 +119,5 @@ public class TypeUtils {
 
     return new TypeDescriptor<Either<K, V>>() {}.where(new TypeParameter<K>() {}, key)
         .where(new TypeParameter<V>() {}, value);
-  }
-
-  /**
-   * Returns {@link TypeDescriptor} od elements in given {@code dataset} if available, {@code null}
-   * otherwise.
-   *
-   * <p>{@link TypeDescriptor} is acquired as outpyut type of the {@link Operator} which is a
-   * producer of given {@link Dataset}.
-   */
-  @Nullable
-  public static <T> TypeDescriptor<T> getDatasetElementType(Dataset<T> dataset) {
-    if (dataset == null) {
-      return null;
-    }
-
-    Operator<?, T> producer = dataset.getProducer();
-    if (producer == null) {
-      return null;
-    }
-
-    return producer.getOutputType();
   }
 }

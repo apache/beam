@@ -17,105 +17,235 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import org.apache.beam.sdk.coders.Coder;
+import static java.util.Objects.requireNonNull;
+
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.common.OperatorTranslatorUtil;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.join.FullJoinFn;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.join.InnerJoinFn;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.join.JoinFn;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.join.LeftOuterJoinFn;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.join.RightOuterJoinFn;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingUtils;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** {@link OperatorTranslator Translator } for Euphoria {@link Join} operator. */
-public class JoinTranslator implements OperatorTranslator<Join> {
+public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
+    extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(Join operator, TranslationContext context) {
-    return doTranslate(operator, context);
+  private abstract static class JoinFn<LeftT, RightT, KeyT, OutputT>
+      extends DoFn<KV<KeyT, CoGbkResult>, KV<KeyT, OutputT>> {
+
+    private final BinaryFunctor<LeftT, RightT, OutputT> joiner;
+    private final TupleTag<LeftT> leftTag;
+    private final TupleTag<RightT> rightTag;
+
+    private transient SingleValueCollector<OutputT> collector;
+
+    JoinFn(
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        TupleTag<LeftT> leftTag,
+        TupleTag<RightT> rightTag) {
+      this.joiner = joiner;
+      this.leftTag = leftTag;
+      this.rightTag = rightTag;
+    }
+
+    @ProcessElement
+    @SuppressWarnings("unused")
+    public final void processElement(
+        @Element KV<KeyT, CoGbkResult> element, OutputReceiver<KV<KeyT, OutputT>> outputReceiver) {
+      doJoin(
+          element.getKey(),
+          requireNonNull(element.getValue()).getAll(leftTag),
+          requireNonNull(element.getValue()).getAll(rightTag),
+          outputReceiver);
+    }
+
+    abstract void doJoin(
+        KeyT key,
+        Iterable<LeftT> left,
+        Iterable<RightT> right,
+        OutputReceiver<KV<KeyT, OutputT>> outputReceiver);
+
+    abstract String getFnName();
+
+    BinaryFunctor<LeftT, RightT, OutputT> getJoiner() {
+      return joiner;
+    }
+
+    SingleValueCollector<OutputT> getCollector() {
+      if (collector == null) {
+        collector = new SingleValueCollector<>();
+      }
+      return collector;
+    }
   }
 
-  public <K, LeftT, RightT, OutputT, W extends BoundedWindow>
-      PCollection<KV<K, OutputT>> doTranslate(
-          Join<LeftT, RightT, K, OutputT, W> operator, TranslationContext context) {
+  private static class InnerJoinFn<LeftT, RightT, KeyT, OutputT>
+      extends JoinFn<LeftT, RightT, KeyT, OutputT> {
 
-    Coder<K> keyCoder = context.getKeyCoder(operator);
+    InnerJoinFn(
+        BinaryFunctor<LeftT, RightT, OutputT> functor,
+        TupleTag<LeftT> leftTag,
+        TupleTag<RightT> rightTag) {
+      super(functor, leftTag, rightTag);
+    }
 
-    // get input data-sets transformed to Pcollections<KV<K,LeftT/RightT>>
-    @SuppressWarnings("unchecked")
-    final PCollection<LeftT> left = (PCollection<LeftT>) context.getInputs(operator).get(0);
-    Coder<LeftT> leftCoder = context.getCoderBasedOnDatasetElementType(operator.getLeft());
+    @Override
+    protected void doJoin(
+        KeyT key,
+        Iterable<LeftT> left,
+        Iterable<RightT> right,
+        OutputReceiver<KV<KeyT, OutputT>> outputReceiver) {
+      final SingleValueCollector<OutputT> coll = getCollector();
+      for (LeftT leftItem : left) {
+        for (RightT rightItem : right) {
+          getJoiner().apply(leftItem, rightItem, coll);
+          outputReceiver.output(KV.of(key, coll.get()));
+        }
+      }
+    }
 
-    @SuppressWarnings("unchecked")
-    final PCollection<RightT> right = (PCollection<RightT>) context.getInputs(operator).get(1);
-    Coder<RightT> rightCoder = context.getCoderBasedOnDatasetElementType(operator.getRight());
-
-    PCollection<KV<K, LeftT>> leftKvInput =
-        OperatorTranslatorUtil.getKVInputCollection(
-            left, operator.getLeftKeyExtractor(), keyCoder, leftCoder, "::extract-keys-left");
-
-    PCollection<KV<K, RightT>> rightKvInput =
-        OperatorTranslatorUtil.getKVInputCollection(
-            right, operator.getRightKeyExtractor(), keyCoder, rightCoder, "::extract-keys-right");
-
-    // and apply the same widowing on input PColections since the documentation states:
-    //'all of the PCollections you want to group must use the same
-    // windowing strategy and window sizing'
-    leftKvInput =
-        WindowingUtils.applyWindowingIfSpecified(
-            operator, leftKvInput, context.getAllowedLateness(operator));
-    rightKvInput =
-        WindowingUtils.applyWindowingIfSpecified(
-            operator, rightKvInput, context.getAllowedLateness(operator));
-
-    // GoGroupByKey collections
-    TupleTag<LeftT> leftTag = new TupleTag<>();
-    TupleTag<RightT> rightTag = new TupleTag<>();
-
-    PCollection<KV<K, CoGbkResult>> coGrouped =
-        KeyedPCollectionTuple.of(leftTag, leftKvInput)
-            .and(rightTag, rightKvInput)
-            .apply("::co-group-by-key", CoGroupByKey.create());
-
-    // Join
-    JoinFn<LeftT, RightT, K, OutputT> joinFn = chooseJoinFn(operator, leftTag, rightTag);
-
-    return coGrouped.apply(joinFn.getFnName(), ParDo.of(joinFn));
+    @Override
+    String getFnName() {
+      return "inner-join";
+    }
   }
 
-  private <K, LeftT, RightT, OutputT, W extends BoundedWindow>
-      JoinFn<LeftT, RightT, K, OutputT> chooseJoinFn(
-          Join<LeftT, RightT, K, OutputT, W> operator,
-          TupleTag<LeftT> leftTag,
-          TupleTag<RightT> rightTag) {
+  private static class FullJoinFn<LeftT, RightT, K, OutputT>
+      extends JoinFn<LeftT, RightT, K, OutputT> {
 
-    JoinFn<LeftT, RightT, K, OutputT> joinFn;
-    BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
+    FullJoinFn(
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        TupleTag<LeftT> leftTag,
+        TupleTag<RightT> rightTag) {
+      super(joiner, leftTag, rightTag);
+    }
 
+    @Override
+    void doJoin(
+        K key,
+        Iterable<LeftT> left,
+        Iterable<RightT> right,
+        OutputReceiver<KV<K, OutputT>> outputReceiver) {
+      final boolean leftHasValues = left.iterator().hasNext();
+      final boolean rightHasValues = right.iterator().hasNext();
+      final SingleValueCollector<OutputT> coll = getCollector();
+      if (leftHasValues && rightHasValues) {
+        for (RightT rightValue : right) {
+          for (LeftT leftValue : left) {
+            getJoiner().apply(leftValue, rightValue, coll);
+            outputReceiver.output(KV.of(key, coll.get()));
+          }
+        }
+      } else if (leftHasValues) {
+        for (LeftT leftValue : left) {
+          getJoiner().apply(leftValue, null, coll);
+          outputReceiver.output(KV.of(key, coll.get()));
+        }
+      } else if (rightHasValues) {
+        for (RightT rightValue : right) {
+          getJoiner().apply(null, rightValue, coll);
+          outputReceiver.output(KV.of(key, coll.get()));
+        }
+      }
+    }
+
+    @Override
+    public String getFnName() {
+      return "full-join";
+    }
+  }
+
+  private static class LeftOuterJoinFn<LeftT, RightT, K, OutputT>
+      extends JoinFn<LeftT, RightT, K, OutputT> {
+
+    LeftOuterJoinFn(
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        TupleTag<LeftT> leftTag,
+        TupleTag<RightT> rightTag) {
+      super(joiner, leftTag, rightTag);
+    }
+
+    @Override
+    void doJoin(
+        K key,
+        Iterable<LeftT> left,
+        Iterable<RightT> right,
+        OutputReceiver<KV<K, OutputT>> outputReceiver) {
+      final SingleValueCollector<OutputT> coll = getCollector();
+      for (LeftT leftValue : left) {
+        if (right.iterator().hasNext()) {
+          for (RightT rightValue : right) {
+            getJoiner().apply(leftValue, rightValue, coll);
+            outputReceiver.output(KV.of(key, coll.get()));
+          }
+        } else {
+          getJoiner().apply(leftValue, null, coll);
+          outputReceiver.output(KV.of(key, coll.get()));
+        }
+      }
+    }
+
+    @Override
+    public String getFnName() {
+      return "left-outer-join";
+    }
+  }
+
+  private static class RightOuterJoinFn<LeftT, RightT, K, OutputT>
+      extends JoinFn<LeftT, RightT, K, OutputT> {
+
+    RightOuterJoinFn(
+        BinaryFunctor<LeftT, RightT, OutputT> joiner,
+        TupleTag<LeftT> leftTag,
+        TupleTag<RightT> rightTag) {
+      super(joiner, leftTag, rightTag);
+    }
+
+    @Override
+    void doJoin(
+        K key,
+        Iterable<LeftT> left,
+        Iterable<RightT> right,
+        OutputReceiver<KV<K, OutputT>> outputReceiver) {
+      final SingleValueCollector<OutputT> coll = new SingleValueCollector<>();
+
+      for (RightT rightValue : right) {
+        if (left.iterator().hasNext()) {
+          for (LeftT leftValue : left) {
+            getJoiner().apply(leftValue, rightValue, coll);
+            outputReceiver.output(KV.of(key, coll.get()));
+          }
+        } else {
+          getJoiner().apply(null, rightValue, coll);
+          outputReceiver.output(KV.of(key, coll.get()));
+        }
+      }
+    }
+
+    @Override
+    public String getFnName() {
+      return "::right-outer-join";
+    }
+  }
+
+  private static <KeyT, LeftT, RightT, OutputT> JoinFn<LeftT, RightT, KeyT, OutputT> getJoinFn(
+      Join<LeftT, RightT, KeyT, OutputT> operator,
+      TupleTag<LeftT> leftTag,
+      TupleTag<RightT> rightTag) {
+    final BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
     switch (operator.getType()) {
       case INNER:
-        joinFn = new InnerJoinFn<>(joiner, leftTag, rightTag);
-        break;
+        return new InnerJoinFn<>(joiner, leftTag, rightTag);
       case LEFT:
-        joinFn = new LeftOuterJoinFn<>(joiner, leftTag, rightTag);
-        break;
+        return new LeftOuterJoinFn<>(joiner, leftTag, rightTag);
       case RIGHT:
-        joinFn = new RightOuterJoinFn<>(joiner, leftTag, rightTag);
-        break;
+        return new RightOuterJoinFn<>(joiner, leftTag, rightTag);
       case FULL:
-        joinFn = new FullJoinFn<>(joiner, leftTag, rightTag);
-        break;
-
+        return new FullJoinFn<>(joiner, leftTag, rightTag);
       default:
         throw new UnsupportedOperationException(
             String.format(
@@ -123,6 +253,19 @@ public class JoinTranslator implements OperatorTranslator<Join> {
                     + " Given join type '%s' is not supported.",
                 Join.class.getSimpleName(), operator.getType()));
     }
-    return joinFn;
+  }
+
+  @Override
+  PCollection<KV<KeyT, OutputT>> translate(
+      Join<LeftT, RightT, KeyT, OutputT> operator,
+      PCollection<KV<KeyT, LeftT>> left,
+      PCollection<KV<KeyT, RightT>> right) {
+    final TupleTag<LeftT> leftTag = new TupleTag<>();
+    final TupleTag<RightT> rightTag = new TupleTag<>();
+    final JoinFn<LeftT, RightT, KeyT, OutputT> joinFn = getJoinFn(operator, leftTag, rightTag);
+    return KeyedPCollectionTuple.of(leftTag, left)
+        .and(rightTag, right)
+        .apply("co-group-by-key", CoGroupByKey.create())
+        .apply(joinFn.getFnName(), ParDo.of(joinFn));
   }
 }

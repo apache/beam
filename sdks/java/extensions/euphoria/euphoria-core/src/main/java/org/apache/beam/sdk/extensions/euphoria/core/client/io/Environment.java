@@ -21,19 +21,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
 /** Defines basic methods available in user defined functions. */
 @Audience(Audience.Type.CLIENT)
 public interface Environment {
-
-  /**
-   * Retrieves the window - if any - underlying the current execution of this context.
-   *
-   * @return {@code null} if this context is not executed within a windowing strategy, otherwise the
-   *     current window of this context
-   */
-  Window<?> getWindow();
 
   // ---------------- Aggregator related methods ------------
 

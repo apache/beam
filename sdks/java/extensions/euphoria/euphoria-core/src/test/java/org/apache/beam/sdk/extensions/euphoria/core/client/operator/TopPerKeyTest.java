@@ -22,13 +22,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -37,13 +37,10 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
-    DefaultTrigger trigger = DefaultTrigger.of();
-
-    Dataset<Triple<String, Long, Long>> result =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    final DefaultTrigger trigger = DefaultTrigger.of();
+    final Dataset<Triple<String, Long, Long>> result =
         TopPerKey.named("TopPerKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -53,83 +50,77 @@ public class TopPerKeyTest {
             .triggeredBy(trigger)
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-
-    assertEquals(flow, result.getFlow());
-    assertEquals(1, flow.size());
-
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertEquals(flow, tpk.getFlow());
+    assertTrue(result.getProducer().isPresent());
+    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
     assertEquals("TopPerKey1", tpk.getName());
     assertNotNull(tpk.getKeyExtractor());
     assertNotNull(tpk.getValueExtractor());
     assertNotNull(tpk.getScoreExtractor());
-    assertEquals(result, tpk.output());
 
-    WindowingDesc windowingDesc = tpk.getWindowing();
-    assertNotNull(windowingDesc);
-    assertSame(windowing, windowingDesc.getWindowFn());
-    assertSame(trigger, windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    assertTrue(tpk.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());
+    assertSame(windowing, windowDesc.getWindowFn());
+    assertSame(trigger, windowDesc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    TopPerKey.of(dataset).keyBy(s -> s).valueBy(s -> 1L).scoreBy(s -> 1L).output();
-
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Triple<String, Long, Long>> result =
+        TopPerKey.of(dataset).keyBy(s -> s).valueBy(s -> 1L).scoreBy(s -> 1L).output();
+    assertTrue(result.getProducer().isPresent());
+    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
     assertEquals("TopPerKey", tpk.getName());
   }
 
   @Test
   public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    TopPerKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .scoreBy(s -> 1L)
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    assertTrue(Iterables.getOnlyElement(flow.operators()) instanceof TopPerKey);
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    WindowingDesc windowingDesc = tpk.getWindowing();
-    assertNotNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Triple<String, Long, Long>> result =
+        TopPerKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .scoreBy(s -> 1L)
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
+    assertTrue(result.getProducer().isPresent());
+    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    assertTrue(tpk.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    TopPerKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .scoreBy(s -> 1L)
-        .applyIf(
-            true,
-            b ->
-                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                    .triggeredBy(DefaultTrigger.of())
-                    .accumulatingFiredPanes())
-        .output();
-
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    WindowingDesc windowingDesc = tpk.getWindowing();
-    assertNotNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Triple<String, Long, Long>> result =
+        TopPerKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .scoreBy(s -> 1L)
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .accumulatingFiredPanes())
+            .output();
+    assertTrue(result.getProducer().isPresent());
+    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    assertTrue(tpk.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 }

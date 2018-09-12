@@ -18,21 +18,24 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test operator ReduceByKey. */
@@ -40,13 +43,10 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
-    DefaultTrigger trigger = DefaultTrigger.of();
-
-    Dataset<KV<String, Long>> reduced =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    final DefaultTrigger trigger = DefaultTrigger.of();
+    final Dataset<KV<String, Long>> reduced =
         ReduceByKey.named("ReduceByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -57,30 +57,26 @@ public class ReduceByKeyTest {
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
-    assertEquals(flow, reduced.getFlow());
-    assertEquals(1, flow.size());
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertEquals(flow, reduce.getFlow());
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
     assertEquals("ReduceByKey1", reduce.getName());
     assertNotNull(reduce.getKeyExtractor());
-    assertNotNull(reduce.valueExtractor);
-    assertNotNull(reduce.reducer);
-    assertEquals(reduced, reduce.output());
+    assertNotNull(reduce.getValueExtractor());
+    assertNotNull(reduce.getReducer());
 
-    WindowingDesc windowingDesc = reduce.getWindowing();
-    assertNotNull(windowingDesc);
-    assertSame(windowing, windowingDesc.getWindowFn());
-    assertSame(trigger, windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    assertTrue(reduce.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final Window<? extends BoundedWindow> window = (Window) reduce.getWindow().get();
+    assertSame(windowing, window.getWindowFn());
+    assertSame(trigger, WindowDesc.of(window).getTrigger());
+    assertSame(
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
   }
 
   @Test
   public void testBuild_OutputValues() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Long> reduced =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Long> reduced =
         ReduceByKey.named("ReduceByKeyValues")
             .of(dataset)
             .keyBy(s -> s)
@@ -88,186 +84,159 @@ public class ReduceByKeyTest {
             .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
             .outputValues();
 
-    assertEquals(flow, reduced.getFlow());
-    assertEquals(2, flow.size());
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertEquals(flow, reduce.getFlow());
-    assertEquals("ReduceByKeyValues", reduce.getName());
-    assertNotNull(reduce.getKeyExtractor());
-    assertNotNull(reduce.getValueExtractor());
-    assertNotNull(reduce.getReducer());
-    assertNull(reduce.getWindowing());
+    assertTrue(reduced.getProducer().isPresent());
+    final MapElements reduce = (MapElements) reduced.getProducer().get();
+    assertEquals("ReduceByKeyValues::extract-values", reduce.getName());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
     assertEquals("ReduceByKey", reduce.getName());
   }
 
   @Test
   public void testBuild_ReduceBy() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertNotNull(reduce.reducer);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    assertNotNull(reduce.getReducer());
   }
 
   @Test
   public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .windowBy(FixedWindows.of(Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
 
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
 
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-
-    WindowingDesc windowingDesc = reduce.getWindowing();
-    assertNotNull(windowingDesc);
-    assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
-    assertNull(reduce.valueComparator);
+    assertTrue(reduce.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final Window<? extends BoundedWindow> window = (Window) reduce.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(DefaultTrigger.of(), WindowDesc.of(window).getTrigger());
+    assertSame(
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
+    assertFalse(reduce.getValueComparator().isPresent());
   }
 
   @Test
   public void testBuild_sortedValues() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .withSortedValues(Long::compare)
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertNotNull(reduce.valueComparator);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .withSortedValues(Long::compare)
+            .windowBy(FixedWindows.of(Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    assertTrue(reduce.getValueComparator().isPresent());
   }
 
   @Test
   public void testBuild_sortedValuesWithNoWindowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .withSortedValues(Long::compare)
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertNotNull(reduce.valueComparator);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .withSortedValues(Long::compare)
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    assertTrue(reduce.getValueComparator().isPresent());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .withSortedValues(Long::compare)
-        .applyIf(
-            true,
-            b ->
-                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                    .triggeredBy(DefaultTrigger.of())
-                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = reduce.getWindowing();
-    assertNotNull(windowingDesc);
-    assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    assertTrue(reduce.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final Window<? extends BoundedWindow> window = (Window) reduce.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(DefaultTrigger.of(), WindowDesc.of(window).getTrigger());
+    assertSame(
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
   }
 
   @Test
   public void testWindow_applyIfNot() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-        .withSortedValues(Long::compare)
-        .applyIf(
-            false,
-            b ->
-                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                    .triggeredBy(DefaultTrigger.of())
-                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
-        .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = reduce.getWindowing();
-    assertNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .applyIf(
+                false,
+                b ->
+                    b.windowBy(FixedWindows.of(Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    assertFalse(reduce.getWindow().isPresent());
   }
 
   @Test
-  public void testRBKTypePropagation() {
-    Flow flow1 = Flow.create("TEST1");
-    Dataset<String> dataset = Util.createMockDataset(flow1, 2);
-
-    TypeDescriptor<String> keyType = TypeDescriptors.strings();
-    TypeDescriptor<Long> valueType = TypeDescriptors.longs();
-    TypeDescriptor<Long> combinedOutputType = TypeDescriptors.longs();
-
-    ReduceByKey.of(dataset)
-        .keyBy(s -> s, keyType)
-        .valueBy(s -> 1L, valueType)
-        .combineBy(n -> n.mapToLong(l -> l).sum(), combinedOutputType)
-        .output();
-
-    ReduceByKey rbk = (ReduceByKey) flow1.operators().iterator().next();
-    TypePropagationAssert.assertOperatorTypeAwareness(rbk, combinedOutputType, keyType, valueType);
-
-    Flow flow2 = Flow.create("TEST1");
-    Dataset<String> dataset2 = Util.createMockDataset(flow2, 2);
-    TypeDescriptor<String> reducedOutputType = TypeDescriptors.strings();
-    ReduceByKey.of(dataset2)
-        .keyBy(s -> s, keyType)
-        .valueBy(s -> 1L, valueType)
-        .reduceBy(n -> "Sum: " + n.mapToLong(l -> l).sum(), reducedOutputType)
-        .output();
-
-    rbk = (ReduceByKey) flow2.operators().iterator().next();
-    TypePropagationAssert.assertOperatorTypeAwareness(rbk, reducedOutputType, keyType, valueType);
+  @SuppressWarnings("unchecked")
+  public void testTypeHints_typePropagation() {
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final TypeDescriptor<String> keyType = TypeDescriptors.strings();
+    final TypeDescriptor<Long> valueType = TypeDescriptors.longs();
+    final TypeDescriptor<Long> outputType = TypeDescriptors.longs();
+    final Dataset<KV<String, Long>> reduced =
+        ReduceByKey.of(dataset)
+            .keyBy(s -> s, keyType)
+            .valueBy(s -> 1L, valueType)
+            .combineBy(n -> n.mapToLong(l -> l).sum(), outputType)
+            .output();
+    assertTrue(reduced.getProducer().isPresent());
+    final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
+    TypePropagationAssert.assertOperatorTypeAwareness(reduce, keyType, valueType, outputType);
   }
 }

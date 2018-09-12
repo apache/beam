@@ -22,8 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -34,27 +32,18 @@ public class MapElementsTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
-
-    assertEquals(flow, mapped.getFlow());
-    assertEquals(1, flow.size());
-
-    MapElements map = (MapElements) flow.operators().iterator().next();
-    assertEquals(flow, map.getFlow());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
+    assertTrue(mapped.getProducer().isPresent());
+    final MapElements map = (MapElements) mapped.getProducer().get();
     assertEquals("Map1", map.getName());
     assertNotNull(map.getMapper());
-    assertEquals(mapped, map.output());
   }
 
   @Test
   public void testBuild_WithCounters() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> mapped =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped =
         MapElements.named("Map1")
             .of(dataset)
             .using(
@@ -66,53 +55,30 @@ public class MapElementsTest {
                 })
             .output();
 
-    assertEquals(flow, mapped.getFlow());
-    assertEquals(1, flow.size());
-
-    MapElements map = (MapElements) flow.operators().iterator().next();
-    assertEquals(flow, map.getFlow());
+    assertTrue(mapped.getProducer().isPresent());
+    final MapElements map = (MapElements) mapped.getProducer().get();
     assertEquals("Map1", map.getName());
     assertNotNull(map.getMapper());
-    assertEquals(mapped, map.output());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
-
-    MapElements map = (MapElements) flow.operators().iterator().next();
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
+    assertTrue(mapped.getProducer().isPresent());
+    final MapElements map = (MapElements) mapped.getProducer().get();
     assertEquals("MapElements", map.getName());
   }
 
-  @Test
-  public void testBuild_Hints() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> dataSetWithHint =
-        MapElements.of(dataset).using(i -> i).output(SizeHint.FITS_IN_MEMORY);
-
-    assertTrue(dataSetWithHint.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
-    assertEquals(1, dataSetWithHint.getProducer().getHints().size());
-
-    Dataset<String> dataSetWithoutHint = MapElements.of(dataset).using(i -> i).output();
-    assertEquals(0, dataSetWithoutHint.getProducer().getHints().size());
-  }
-
+  @SuppressWarnings("unchecked")
   @Test
   public void testTypePropagation() {
-    Flow flow1 = Flow.create("TEST1");
-    Dataset<Integer> input = Util.createMockDataset(flow1, 2);
-
-    TypeDescriptor<String> outputType = TypeDescriptors.strings();
-
-    Dataset<String> mappedElements =
+    final Dataset<Integer> input = OperatorTests.createMockDataset(TypeDescriptors.integers());
+    final TypeDescriptor<String> outputType = TypeDescriptors.strings();
+    final Dataset<String> mapped =
         MapElements.named("Int2Str").of(input).using(String::valueOf, outputType).output();
-
-    MapElements map = (MapElements) flow1.operators().iterator().next();
+    assertTrue(mapped.getProducer().isPresent());
+    final MapElements map = (MapElements) mapped.getProducer().get();
     TypePropagationAssert.assertOperatorTypeAwareness(map, outputType);
   }
 }

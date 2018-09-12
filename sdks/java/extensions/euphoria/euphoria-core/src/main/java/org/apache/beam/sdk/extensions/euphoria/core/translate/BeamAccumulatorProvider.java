@@ -25,7 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.slf4j.Logger;
@@ -112,7 +111,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
     }
 
     @Override
-    public AccumulatorProvider create(Settings settings) {
+    public AccumulatorProvider create() {
       if (isLogged.compareAndSet(false, true)) {
         LOG.info("Using accumulators with BeamAccumulatorProvider");
       }
@@ -125,7 +124,7 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
   /** Implementation of Counter via {@link org.apache.beam.sdk.metrics.Counter}. */
   public static class BeamMetricsCounter extends BeamMetrics implements Counter {
 
-    public BeamMetricsCounter(String namespace, String name) {
+    BeamMetricsCounter(String namespace, String name) {
       super(namespace, name);
     }
 
@@ -140,10 +139,10 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
     }
   }
 
-  /** Implementation of Histrogram via {@link org.apache.beam.sdk.metrics.Distribution}. */
+  /** Implementation of Histogram via {@link org.apache.beam.sdk.metrics.Distribution}. */
   public static class BeamMetricsHistogram extends BeamMetrics implements Histogram {
 
-    public BeamMetricsHistogram(String namespace, String name) {
+    BeamMetricsHistogram(String namespace, String name) {
       super(namespace, name);
     }
 
@@ -161,12 +160,12 @@ public class BeamAccumulatorProvider implements AccumulatorProvider {
     }
   }
 
-  abstract static class BeamMetrics {
+  private abstract static class BeamMetrics {
 
     private final String namespace;
     private final String name;
 
-    protected BeamMetrics(String namespace, String name) {
+    BeamMetrics(String namespace, String name) {
       this.namespace = namespace;
       this.name = name;
     }

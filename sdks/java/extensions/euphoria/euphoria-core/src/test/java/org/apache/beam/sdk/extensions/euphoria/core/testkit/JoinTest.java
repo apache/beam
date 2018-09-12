@@ -17,49 +17,39 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FullJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.coder.KryoCoder;
+import org.apache.beam.sdk.extensions.euphoria.core.coder.KryoCoder;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Test operator {@code Join}. */
-@Processing(Processing.Type.ALL)
 public class JoinTest extends AbstractOperatorTest {
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinFullOuter() {
     execute(
@@ -82,8 +72,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -102,7 +102,6 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinFullOuterExample() {
     execute(
@@ -126,8 +125,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<String> getRightInput() {
             return Arrays.asList("mouse", "rat", "cat", "X", "duck");
+          }
+
+          @Override
+          protected TypeDescriptor<String> getRightInputType() {
+            return TypeDescriptors.strings();
           }
 
           @Override
@@ -147,7 +156,6 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinFullOuter_outputValues() {
     execute(
@@ -169,8 +177,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -181,7 +199,6 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinLeftOuter() {
     execute(
@@ -204,8 +221,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -223,7 +250,6 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinRightOuter() {
     execute(
@@ -246,8 +272,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -265,7 +301,6 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void batchJoinInner() {
     execute(
@@ -289,8 +324,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -315,9 +360,9 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-
-            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
-
+            @SuppressWarnings("unchecked")
+            final WindowFn<Object, BoundedWindow> evenOddWindowFn =
+                (WindowFn) new EvenOddWindowFn();
             return FullJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -336,8 +381,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -370,9 +425,9 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-
-            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
-
+            @SuppressWarnings("unchecked")
+            final WindowFn<Object, BoundedWindow> evenOddWindowFn =
+                (WindowFn) new EvenOddWindowFn();
             return LeftJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -391,8 +446,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -420,9 +485,9 @@ public class JoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-
-            WindowFn<Object, BoundedWindow> evenOddWindowFn = (WindowFn) new EvenOddWindowFn();
-
+            @SuppressWarnings("unchecked")
+            final WindowFn<Object, BoundedWindow> evenOddWindowFn =
+                (WindowFn) new EvenOddWindowFn();
             return RightJoin.of(left, right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -441,8 +506,18 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getLeftInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected List<Long> getRightInput() {
             return Arrays.asList(11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L);
+          }
+
+          @Override
+          protected TypeDescriptor<Long> getRightInputType() {
+            return TypeDescriptors.longs();
           }
 
           @Override
@@ -475,18 +550,28 @@ public class JoinTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<KV<String, Long>> getLeftInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs());
+          }
+
+          @Override
           protected List<KV<String, Long>> getRightInput() {
             return Arrays.asList(KV.of("ha", 1L), KV.of("ho", 4L));
+          }
+
+          @Override
+          protected TypeDescriptor<KV<String, Long>> getRightInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs());
           }
 
           @Override
           protected Dataset<KV<String, String>> getOutput(
               Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
 
-            left = AssignEventTime.of(left).using(KV::getValue).output();
-            right = AssignEventTime.of(right).using(KV::getValue).output();
+            left = AssignEventTime.named("assign-event-time-left").of(left).using(KV::getValue).output();
+            right = AssignEventTime.named("assign-event-time-right").of(right).using(KV::getValue).output();
 
-            Dataset<KV<String, KV<String, String>>> joined =
+            final Dataset<KV<String, KV<String, String>>> joined =
                 Join.of(left, right)
                     .by(p -> "", p -> "")
                     .using(
@@ -508,84 +593,88 @@ public class JoinTest extends AbstractOperatorTest {
         });
   }
 
-  @Ignore(
-      "This test is based on access to various objects through Environment which is "
-          + "unsupported feature. It may be possible to add this feature in future.")
-  @Test
-  public void testJoinAccumulators() {
-    execute(
-        new JoinTestCase<
-            KV<String, Long>, KV<String, Long>, Triple<TimeInterval, String, String>>() {
-
-          @Override
-          protected List<KV<String, Long>> getLeftInput() {
-            return Arrays.asList(KV.of("fi", 1L), KV.of("fa", 3L));
-          }
-
-          @Override
-          protected List<KV<String, Long>> getRightInput() {
-            return Arrays.asList(KV.of("ha", 1L), KV.of("ho", 4L));
-          }
-
-          @Override
-          protected Dataset<Triple<TimeInterval, String, String>> getOutput(
-              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
-
-            left = AssignEventTime.of(left).using(KV::getValue).output();
-            right = AssignEventTime.of(right).using(KV::getValue).output();
-
-            Dataset<KV<String, Triple<TimeInterval, String, String>>> joined =
-                Join.of(left, right)
-                    .by(p -> "", p -> "")
-                    .using(
-                        (KV<String, Long> l,
-                            KV<String, Long> r,
-                            Collector<Triple<TimeInterval, String, String>> c) -> {
-                          TimeInterval window = (TimeInterval) c.getWindow();
-                          c.getCounter("cntr").increment(10);
-                          c.getHistogram("hist-" + l.getKey().charAt(1)).add(2345, 8);
-                          c.collect(Triple.of(window, l.getKey(), r.getKey()));
-                        })
-                    //                    .windowBy(Time.of(Duration.ofMillis(3)))
-                    .windowBy(FixedWindows.of(org.joda.time.Duration.millis(3)))
-                    .triggeredBy(AfterWatermark.pastEndOfWindow())
-                    .discardingFiredPanes()
-                    .output();
-
-            return MapElements.of(joined).using(KV::getValue).output();
-          }
-
-          @Override
-          public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
-            return Arrays.asList(
-                Triple.of(new TimeInterval(0, 3), "fi", "ha"),
-                Triple.of(new TimeInterval(3, 6), "fa", "ho"));
-          }
-
-          @Override
-          public void validateAccumulators(SnapshotProvider snapshots) {
-            Map<String, Long> counters = snapshots.getCounterSnapshots();
-            assertEquals(Long.valueOf(20L), counters.get("cntr"));
-
-            Map<String, Map<Long, Long>> histograms = snapshots.getHistogramSnapshots();
-            Map<Long, Long> hist = histograms.get("hist-i");
-            assertEquals(1, hist.size());
-            assertEquals(Long.valueOf(8), hist.get(2345L));
-
-            hist = histograms.get("hist-a");
-            assertEquals(1, hist.size());
-            assertEquals(Long.valueOf(8), hist.get(2345L));
-          }
-        });
-  }
+  //  @Ignore(
+  //      "This test is based on access to various objects through Environment which is "
+  //          + "unsupported feature. It may be possible to add this feature in future.")
+  //  @Test
+  //  public void testJoinAccumulators() {
+  //    execute(
+  //        new JoinTestCase<
+  //            KV<String, Long>, KV<String, Long>, Triple<TimeInterval, String, String>>() {
+  //
+  //          @Override
+  //          protected List<KV<String, Long>> getLeftInput() {
+  //            return Arrays.asList(KV.of("fi", 1L), KV.of("fa", 3L));
+  //          }
+  //
+  //          @Override
+  //          protected List<KV<String, Long>> getRightInput() {
+  //            return Arrays.asList(KV.of("ha", 1L), KV.of("ho", 4L));
+  //          }
+  //
+  //          @Override
+  //          protected Dataset<Triple<TimeInterval, String, String>> getOutput(
+  //              Dataset<KV<String, Long>> left, Dataset<KV<String, Long>> right) {
+  //
+  //            left = AssignEventTime.of(left).using(KV::getValue).output();
+  //            right = AssignEventTime.of(right).using(KV::getValue).output();
+  //
+  //            Dataset<KV<String, Triple<TimeInterval, String, String>>> joined =
+  //                Join.of(left, right)
+  //                    .by(p -> "", p -> "")
+  //                    .using(
+  //                        (KV<String, Long> l,
+  //                            KV<String, Long> r,
+  //                            Collector<Triple<TimeInterval, String, String>> c) -> {
+  //                          TimeInterval window = (TimeInterval) c.getWindow();
+  //                          c.getCounter("cntr").increment(10);
+  //                          c.getHistogram("hist-" + l.getKey().charAt(1)).add(2345, 8);
+  //                          c.collect(Triple.of(window, l.getKey(), r.getKey()));
+  //                        })
+  //                    //                    .windowBy(Time.of(Duration.ofMillis(3)))
+  //                    .windowBy(FixedWindows.of(org.joda.time.Duration.millis(3)))
+  //                    .triggeredBy(AfterWatermark.pastEndOfWindow())
+  //                    .discardingFiredPanes()
+  //                    .output();
+  //
+  //            return MapElements.of(joined).using(KV::getValue).output();
+  //          }
+  //
+  //          @Override
+  //          public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
+  //            return Arrays.asList(
+  //                Triple.of(new TimeInterval(0, 3), "fi", "ha"),
+  //                Triple.of(new TimeInterval(3, 6), "fa", "ho"));
+  //          }
+  //
+  //          @Override
+  //          public void validateAccumulators(SnapshotProvider snapshots) {
+  //            Map<String, Long> counters = snapshots.getCounterSnapshots();
+  //            assertEquals(Long.valueOf(20L), counters.get("cntr"));
+  //
+  //            Map<String, Map<Long, Long>> histograms = snapshots.getHistogramSnapshots();
+  //            Map<Long, Long> hist = histograms.get("hist-i");
+  //            assertEquals(1, hist.size());
+  //            assertEquals(Long.valueOf(8), hist.get(2345L));
+  //
+  //            hist = histograms.get("hist-a");
+  //            assertEquals(1, hist.size());
+  //            assertEquals(Long.valueOf(8), hist.get(2345L));
+  //          }
+  //        });
+  //  }
 
   /** Base for join test cases. */
   public abstract static class JoinTestCase<LeftT, RightT, OutputT> implements TestCase<OutputT> {
 
     @Override
-    public Dataset<OutputT> getOutput(Flow flow, boolean bounded) {
-      Dataset<LeftT> left = flow.createInput(ListDataSource.of(bounded, getLeftInput()));
-      Dataset<RightT> right = flow.createInput(ListDataSource.of(bounded, getRightInput()));
+    public Dataset<OutputT> getOutput(Pipeline pipeline) {
+      final Dataset<LeftT> left =
+          Dataset.of(
+              pipeline.apply("left-input", Create.of(getLeftInput())).setTypeDescriptor(getLeftInputType()));
+      final Dataset<RightT> right =
+          Dataset.of(
+              pipeline.apply("right-input", Create.of(getRightInput())).setTypeDescriptor(getRightInputType()));
       return getOutput(left, right);
     }
 
@@ -593,7 +682,11 @@ public class JoinTest extends AbstractOperatorTest {
 
     protected abstract List<LeftT> getLeftInput();
 
+    protected abstract TypeDescriptor<LeftT> getLeftInputType();
+
     protected abstract List<RightT> getRightInput();
+
+    protected abstract TypeDescriptor<RightT> getRightInputType();
   }
 
   /**
@@ -605,30 +698,27 @@ public class JoinTest extends AbstractOperatorTest {
     private static final NamedGlobalWindow EVEN_WIN = new NamedGlobalWindow("even");
 
     @Override
-    public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
-      KV<Integer, Number> element = c.element();
-
-      Number value = element.getValue();
-
+    public Collection<BoundedWindow> assignWindows(AssignContext c) {
+      final KV<Integer, Number> element = c.element();
+      final Number value = element.getValue();
       if (value == null) {
         return Collections.singleton(EVEN_WIN);
       }
-
-      NamedGlobalWindow win;
+      final NamedGlobalWindow win;
       if (value.longValue() % 2 == 0) {
         win = EVEN_WIN;
       } else {
         win = new NamedGlobalWindow("win: " + value.longValue());
       }
-
       return Collections.singleton(win);
     }
 
     @Override
-    public void mergeWindows(MergeContext c) throws Exception {
+    public void mergeWindows(MergeContext c) {
       // no merging
     }
 
+    @Deprecated
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
       return other instanceof EvenOddWindowFn;
@@ -655,7 +745,7 @@ public class JoinTest extends AbstractOperatorTest {
 
     private String name;
 
-    public NamedGlobalWindow(String name) {
+    NamedGlobalWindow(String name) {
       this.name = name;
     }
 

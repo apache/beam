@@ -17,22 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Iterables;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -52,43 +53,16 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, OutputT> {
+public class MapElements<InputT, OutputT> extends Operator<OutputT>
+    implements CompositeOperator<InputT, OutputT>, TypeAware.Output<OutputT> {
 
-  final UnaryFunctionEnv<InputT, OutputT> mapper;
+  private final UnaryFunctionEnv<InputT, OutputT> mapper;
 
-  MapElements(
+  private MapElements(
       String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, OutputT> mapper,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    this(
-        name,
-        flow,
-        input,
-        (el, ctx) -> mapper.apply(el),
-        Collections.emptySet(),
-        outputTypeDescriptor);
-  }
-
-  MapElements(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints, outputTypeDescriptor);
-  }
-
-  MapElements(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
       UnaryFunctionEnv<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    super(name, flow, input, outputHints, outputTypeDescriptor);
+      @Nullable TypeDescriptor<OutputT> outputType) {
+    super(name, outputType);
     this.mapper = mapper;
   }
 
@@ -113,30 +87,6 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
    */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
-  }
-
-  /**
-   * This is not a basic operator. It can be straightforwardly implemented by using {@code FlatMap}
-   * operator.
-   *
-   * @return the operator chain representing this operation including FlatMap
-   */
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(
-        // do not use the client API here, because it modifies the Flow!
-        new FlatMap<InputT, OutputT>(
-            getName(),
-            getFlow(),
-            input,
-            (i, c) -> c.collect(mapper.apply(i, c.asContext())),
-            null,
-            getHints(),
-            outputType));
-  }
-
-  public UnaryFunctionEnv<InputT, OutputT> getMapper() {
-    return mapper;
   }
 
   /** TODO: complete javadoc. */
@@ -209,35 +159,45 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
     private final String name;
     private final Dataset<InputT> input;
     private final UnaryFunctionEnv<InputT, OutputT> mapper;
-    private final TypeDescriptor<OutputT> outputTypeDescriptor;
+    @Nullable private final TypeDescriptor<OutputT> outputType;
 
     OutputBuilder(
         String name,
         Dataset<InputT> input,
         UnaryFunctionEnv<InputT, OutputT> mapper,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
+        @Nullable TypeDescriptor<OutputT> outputType) {
       this.name = name;
       this.input = input;
       this.mapper = mapper;
-      this.outputTypeDescriptor = outputTypeDescriptor;
+      this.outputType = outputType;
     }
 
     OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper) {
       this.name = name;
       this.input = input;
       this.mapper = mapper;
-      this.outputTypeDescriptor = null;
+      this.outputType = null;
     }
 
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
-      Flow flow = input.getFlow();
-      MapElements<InputT, OutputT> map =
-          new MapElements<>(
-              name, flow, input, mapper, Sets.newHashSet(outputHints), outputTypeDescriptor);
-      flow.add(map);
-
-      return map.output();
+      final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
+      return Translation.apply(operator, Collections.singletonList(input));
     }
+  }
+
+  @Override
+  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
+    return FlatMap.named(getName())
+        .of(Iterables.getOnlyElement(inputs))
+        .using(
+            (InputT elem, Collector<OutputT> coll) ->
+                coll.collect(getMapper().apply(elem, coll.asContext())),
+            getOutputType().orElse(null))
+        .output();
+  }
+
+  public UnaryFunctionEnv<InputT, OutputT> getMapper() {
+    return mapper;
   }
 }

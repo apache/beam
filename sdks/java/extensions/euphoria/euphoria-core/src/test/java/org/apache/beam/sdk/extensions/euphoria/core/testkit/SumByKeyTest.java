@@ -22,15 +22,13 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 
 /** Test operator {@code SumByKey}. */
-@Processing(Processing.Type.ALL)
 public class SumByKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -39,9 +37,7 @@ public class SumByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
           protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
-
-            Dataset<Integer> inputWithTime = AssignEventTime.of(input).using(i -> 0).output();
-
+            final Dataset<Integer> inputWithTime = AssignEventTime.of(input).using(i -> 0).output();
             return SumByKey.of(inputWithTime)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> (long) e)
@@ -54,6 +50,11 @@ public class SumByKeyTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getInput() {
             return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return null;
           }
 
           @Override

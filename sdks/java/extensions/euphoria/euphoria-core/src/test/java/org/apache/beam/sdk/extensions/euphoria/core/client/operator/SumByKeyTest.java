@@ -18,15 +18,17 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -35,78 +37,67 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<KV<String, Long>> counted =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted =
         SumByKey.named("SumByKey1").of(dataset).keyBy(s -> s).output();
-
-    assertEquals(flow, counted.getFlow());
-    assertEquals(1, flow.size());
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertEquals(flow, sum.getFlow());
+    assertTrue(counted.getProducer().isPresent());
+    final SumByKey sum = (SumByKey) counted.getProducer().get();
     assertEquals("SumByKey1", sum.getName());
     assertNotNull(sum.getKeyExtractor());
-    assertEquals(counted, sum.output());
-    assertNull(sum.getWindowing());
+    assertFalse(sum.getWindow().isPresent());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    SumByKey.of(dataset).keyBy(s -> s).output();
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted = SumByKey.of(dataset).keyBy(s -> s).output();
+    assertTrue(counted.getProducer().isPresent());
+    final SumByKey sum = (SumByKey) counted.getProducer().get();
     assertEquals("SumByKey", sum.getName());
   }
 
   @Test
   public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    SumByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = sum.getWindowing();
-    assertNotNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted =
+        SumByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
+    assertTrue(counted.getProducer().isPresent());
+    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    assertTrue(sum.getWindow().isPresent());
+    final Window<?> window = (Window) sum.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(DefaultTrigger.of(), WindowDesc.of(window).getTrigger());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    SumByKey.of(dataset)
-        .keyBy(s -> s)
-        .valueBy(s -> 1L)
-        .applyIf(
-            true,
-            b ->
-                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                    .triggeredBy(DefaultTrigger.of())
-                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
-        .output();
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = sum.getWindowing();
-    assertNotNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted =
+        SumByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+            .output();
+    assertTrue(counted.getProducer().isPresent());
+    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    assertTrue(sum.getWindow().isPresent());
+    final Window<?> window = (Window) sum.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(DefaultTrigger.of(), WindowDesc.of(window).getTrigger());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
   }
 }

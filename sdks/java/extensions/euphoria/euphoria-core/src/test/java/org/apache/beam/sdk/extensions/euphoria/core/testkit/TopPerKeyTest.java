@@ -25,12 +25,10 @@ import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 
-/** TODO: add javadoc. */
-@Processing(Processing.Type.ALL)
+/** Test suite for {@link TopPerKey} operator. */
 public class TopPerKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -66,6 +64,11 @@ public class TopPerKeyTest extends AbstractOperatorTest {
                 new Item("three", "2-three", 0),
                 new Item("one", "one-XXX-100", 100),
                 new Item("three", "3-three", 2));
+          }
+
+          @Override
+          protected TypeDescriptor<Item> getInputType() {
+            return new TypeDescriptor<Item>() {};
           }
         });
   }
