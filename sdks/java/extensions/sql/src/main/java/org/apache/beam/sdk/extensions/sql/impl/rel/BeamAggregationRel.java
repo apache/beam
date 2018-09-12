@@ -34,8 +34,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -73,6 +77,38 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     this.windowFn = windowFn;
     this.windowFieldIndex = windowFieldIndex;
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    super.explainTerms(pw);
+    if (this.windowFn != null) {
+      WindowFn windowFn = this.windowFn;
+      String window = windowFn.getClass().getSimpleName() + "($" + String.valueOf(windowFieldIndex);
+      if (windowFn instanceof FixedWindows) {
+        FixedWindows fn = (FixedWindows) windowFn;
+        window = window + ", " + fn.getSize().toString() + ", " + fn.getOffset().toString();
+      } else if (windowFn instanceof SlidingWindows) {
+        SlidingWindows fn = (SlidingWindows) windowFn;
+        window =
+            window
+                + ", "
+                + fn.getPeriod().toString()
+                + ", "
+                + fn.getSize().toString()
+                + ", "
+                + fn.getOffset().toString();
+      } else if (windowFn instanceof Sessions) {
+        Sessions fn = (Sessions) windowFn;
+        window = window + ", " + fn.getGapDuration().toString();
+      } else {
+        throw new RuntimeException(
+            "Unknown window function " + windowFn.getClass().getSimpleName());
+      }
+      window = window + ")";
+      pw.item("window", window);
+    }
+    return pw;
   }
 
   @Override
