@@ -105,34 +105,6 @@ public class UnnestTest implements Serializable {
           .addRowField("nested.nested2", SIMPLE_SCHEMA)
           .build();
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testMaxLevel() {
-    List<Row> bottomRow =
-        IntStream.rangeClosed(0, 2)
-            .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
-            .collect(Collectors.toList());
-    List<Row> rows =
-        bottomRow
-            .stream()
-            .map(r -> Row.withSchema(NESTED_SCHEMA).addValues(r, r).build())
-            .map(r -> Row.withSchema(DOUBLE_NESTED_SCHEMA).addValue(r).build())
-            .collect(Collectors.toList());
-    PCollection<Row> unnested =
-        pipeline
-            .apply(Create.of(rows).withRowSchema(DOUBLE_NESTED_SCHEMA))
-            .apply(Unnest.<Row>create().withMaxUnnestingLevel(1));
-    assertEquals(ONE_LEVEL_UNNESTED_SCHEMA, unnested.getSchema());
-    List<Row> expected =
-        bottomRow
-            .stream()
-            .map(r -> Row.withSchema(ONE_LEVEL_UNNESTED_SCHEMA).addValues(r, r).build())
-            .collect(Collectors.toList());
-    ;
-    PAssert.that(unnested).containsInAnyOrder(expected);
-    pipeline.run();
-  }
-
   static final Schema UNNESTED2_SCHEMA_ALTERNATE =
       Schema.builder().addInt32Field("field1").addStringField("field2").build();
 

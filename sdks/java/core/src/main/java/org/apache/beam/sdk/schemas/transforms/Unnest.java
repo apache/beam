@@ -52,10 +52,7 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public class Unnest {
   public static <T> Inner<T> create() {
-    return new AutoValue_Unnest_Inner.Builder<T>()
-        .setMaxLevels(Integer.MAX_VALUE)
-        .setFieldNameFunction(CONCAT_FIELD_NAMES)
-        .build();
+    return new AutoValue_Unnest_Inner.Builder<T>().setFieldNameFunction(CONCAT_FIELD_NAMES).build();
   }
   /**
    * This is the default naming policy for naming fields. Every field name in the path to a given
@@ -74,30 +71,27 @@ public class Unnest {
         return l.get(l.size() - 1);
       };
   /** Returns the result of unnesting the given schema. The default naming policy is used. */
-  static Schema getUnnestedSchema(Schema schema, int maxLevels) {
+  static Schema getUnnestedSchema(Schema schema) {
     List<String> nameComponents = Lists.newArrayList();
-    return getUnnestedSchema(schema, nameComponents, CONCAT_FIELD_NAMES, maxLevels, 0);
+    return getUnnestedSchema(schema, nameComponents, CONCAT_FIELD_NAMES, 0);
   }
   /** Returns the result of unnesting the given schema with the given naming policy. */
-  static Schema getUnnestedSchema(
-      Schema schema, int maxLevels, SerializableFunction<List<String>, String> fn) {
+  static Schema getUnnestedSchema(Schema schema, SerializableFunction<List<String>, String> fn) {
     List<String> nameComponents = Lists.newArrayList();
-    return getUnnestedSchema(schema, nameComponents, fn, maxLevels, 0);
+    return getUnnestedSchema(schema, nameComponents, fn, 0);
   }
 
   private static Schema getUnnestedSchema(
       Schema schema,
       List<String> nameComponents,
       SerializableFunction<List<String>, String> fn,
-      int maxLevel,
       int currentLevel) {
     Schema.Builder builder = Schema.builder();
     for (Field field : schema.getFields()) {
       nameComponents.add(field.getName());
-      if (field.getType().getTypeName().isCompositeType() && currentLevel < maxLevel) {
+      if (field.getType().getTypeName().isCompositeType()) {
         Schema nestedSchema =
-            getUnnestedSchema(
-                field.getType().getRowSchema(), nameComponents, fn, maxLevel, currentLevel + 1);
+            getUnnestedSchema(field.getType().getRowSchema(), nameComponents, fn, currentLevel + 1);
         for (Field nestedField : nestedSchema.getFields()) {
           builder.addField(nestedField);
         }
@@ -111,17 +105,17 @@ public class Unnest {
     return builder.build();
   }
   /** Unnest a row. */
-  static Row unnestRow(Row input, Schema unnestedSchema, int maxLevel) {
+  static Row unnestRow(Row input, Schema unnestedSchema) {
     Row.Builder builder = Row.withSchema(unnestedSchema);
-    unnestRow(input, builder, maxLevel, 0);
+    unnestRow(input, builder, 0);
     return builder.build();
   }
 
-  private static void unnestRow(Row input, Row.Builder output, int maxLevel, int currentLevel) {
+  private static void unnestRow(Row input, Row.Builder output, int currentLevel) {
     for (int i = 0; i < input.getSchema().getFieldCount(); ++i) {
       Field field = input.getSchema().getField(i);
-      if (field.getType().getTypeName().isCompositeType() && currentLevel < maxLevel) {
-        unnestRow(input.getRow(i), output, maxLevel, currentLevel + 1);
+      if (field.getType().getTypeName().isCompositeType()) {
+        unnestRow(input.getRow(i), output, currentLevel + 1);
       } else {
         output.addValue(input.getValue(i));
       }
@@ -134,30 +128,28 @@ public class Unnest {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setMaxLevels(int maxLevels);
-
       abstract Builder<T> setFieldNameFunction(SerializableFunction<List<String>, String> fn);
 
       abstract Inner<T> build();
     };
 
-    abstract int getMaxLevels();
-
     abstract SerializableFunction<List<String>, String> getFieldNameFunction();
-    /**
-     * Any rows nested deeper than this will not be unnested.
-     *
-     * <p>If not set, the default is to fully unnest rows.
-     */
-    public Inner<T> withMaxUnnestingLevel(int maxLevels) {
-      return toBuilder().setMaxLevels(maxLevels).build();
-    }
     /**
      * Sets a policy for naming deeply-nested fields.
      *
      * <p>This is needed to prevent name collisions when differently-nested fields have the same
-     * name. The default is to concatenate all names in the path to generate the unnested name. For
-     * example, an unnested name might be field1.field2.field3.
+     * name. The default is to use the {@link #CONCAT_FIELD_NAMES} strategy that concatenates all
+     * names in the path to generate the unnested name. For example, an unnested name might be
+     * field1.field2.field3. In some cases the {@link #KEEP_NESTED_NAME} strategy can be used to
+     * keep only the most-deeply nested name. However if this results in conflicting names (e.g. if
+     * a schema has two subrows that each have the same schema this will happen), the pipeline will
+     * fail at construction time.
+     *
+     * <p>An example of using this function to customize the separator character:
+     *
+     * <pre>{@code
+     * pc.apply(Unnest.<Type>create().withFieldNameFunction(l -> Strings.join("+", l)));
+     * }</pre>
      */
     public Inner<T> withFieldNameFunction(SerializableFunction<List<String>, String> fn) {
       return toBuilder().setFieldNameFunction(fn).build();
@@ -166,14 +158,14 @@ public class Unnest {
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
-      Schema outputSchema = getUnnestedSchema(inputSchema, getMaxLevels(), getFieldNameFunction());
+      Schema outputSchema = getUnnestedSchema(inputSchema, getFieldNameFunction());
       return input
           .apply(
               ParDo.of(
                   new DoFn<T, Row>() {
                     @ProcessElement
                     public void processElement(@Element Row row, OutputReceiver<Row> o) {
-                      o.output(unnestRow(row, outputSchema, getMaxLevels()));
+                      o.output(unnestRow(row, outputSchema));
                     }
                   }))
           .setRowSchema(outputSchema);
