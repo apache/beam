@@ -94,7 +94,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
   @Override
   public DriverState drive() {
-    boolean noWorkOutstanding = outstandingWork.get() == 0L;
+    boolean noWorkOutstanding = noWorkOutstanding();
     ExecutorState startingState = state.get();
     if (startingState == ExecutorState.ACTIVE) {
       // The remainder of this call will add all available work to the Executor, and there will
@@ -126,8 +126,16 @@ class QuiescenceDriver implements ExecutionDriver {
     } else if (evaluationContext.isDone()) {
       return DriverState.SHUTDOWN;
     } else {
-      return DriverState.CONTINUE;
+      if (noWorkOutstanding()) {
+        return DriverState.CONTINUE_THROTTLE;
+      } else {
+        return DriverState.CONTINUE;
+      }
     }
+  }
+
+  private boolean noWorkOutstanding() {
+    return outstandingWork.get() == 0L;
   }
 
   private void applyUpdate(
