@@ -86,6 +86,12 @@ public interface FlinkPipelineOptions
 
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
 
+  @Description("The minimal pause before the next checkpoint is triggered.")
+  @Default.Long(0L)
+  Long getMinPauseBetweenCheckpoints();
+
+  void setMinPauseBetweenCheckpoints(Long minPauseInterval);
+
   @Description(
       "Sets the number of times that failed tasks are re-executed. "
           + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
