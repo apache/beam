@@ -181,6 +181,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
      * @param <T> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
      *     dataset's elements for later reduction
+     * @param valueType type of extracted value
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <T> ReduceByBuilder<T> valueBy(

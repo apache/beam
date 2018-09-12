@@ -100,11 +100,8 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
       final Map<K, Iterable<LeftT>> map = context.sideInput(smallSideCollection);
       final Iterable<LeftT> leftValues = map.getOrDefault(key, Collections.singletonList(null));
       outCollector.setProcessContext(context);
-
       leftValues.forEach(
-          leftValue -> {
-            joiner.apply(leftValue, element.getValue(), outCollector);
-          });
+          leftValue -> joiner.apply(leftValue, element.getValue(), outCollector));
     }
   }
 
@@ -137,7 +134,6 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
       final Map<K, Iterable<RightT>> map = context.sideInput(smallSideCollection);
       final Iterable<RightT> rightValues = map.getOrDefault(key, Collections.singletonList(null));
       outCollector.setProcessContext(context);
-
       rightValues.forEach(rightValue -> joiner.apply(element.getValue(), rightValue, outCollector));
     }
   }

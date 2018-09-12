@@ -24,10 +24,15 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 /**
  * Operator aware of windows.
  *
- * @param <W> the type of windows handled
+ * @param <T> the type of windowed element
  */
 @Audience(Audience.Type.INTERNAL)
 public interface WindowAware<T> {
 
+  /**
+   * Get configured window.
+   *
+   * @return window or empty
+   */
   Optional<Window<T>> getWindow();
 }
