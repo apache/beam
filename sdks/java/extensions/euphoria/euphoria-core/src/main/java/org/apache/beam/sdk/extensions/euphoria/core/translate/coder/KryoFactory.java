@@ -43,7 +43,7 @@ class KryoFactory {
    * <p>{@link #getOrCreateKryo(IdentifiedRegistrar)} returns {@link Kryo} which allows for
    * serialization of unregistered classes when this {@link IdentifiedRegistrar} is used to call it.
    */
-  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.of((k) -> {});
+  static final IdentifiedRegistrar NO_OP_REGISTRAR = IdentifiedRegistrar.defaultNoOpRegistrar();
 
   private static Kryo createKryo(IdentifiedRegistrar registrarWithId) {
     final Kryo instance = new Kryo();
@@ -52,7 +52,7 @@ class KryoFactory {
 
     // mere NO_OP_REGISTRAR == registrarWithId is not enough since
     // NO_OP_REGISTRAR can be deserialized into several instances
-    if (NO_OP_REGISTRAR.getId() == registrarWithId.getId()) {
+    if (registrarWithId.getId() == IdentifiedRegistrar.NO_OP_REGISTRAR_ID) {
       instance.setRegistrationRequired(false);
     } else {
       instance.setRegistrationRequired(true);

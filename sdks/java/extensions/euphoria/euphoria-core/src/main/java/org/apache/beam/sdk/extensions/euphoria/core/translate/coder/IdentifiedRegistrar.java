@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
  * enriched by Id.
  */
 class IdentifiedRegistrar implements Serializable {
+
+  static final int NO_OP_REGISTRAR_ID = -1;
   private static final Logger LOG = LoggerFactory.getLogger(RegisterCoders.class);
 
   private static final AtomicInteger idSource = new AtomicInteger();
@@ -57,6 +59,14 @@ class IdentifiedRegistrar implements Serializable {
             KryoRegistrar.class.getSimpleName(),
             registrar.getClass()));
     return identifiedRegistrar;
+  }
+
+  static IdentifiedRegistrar defaultNoOpRegistrar() {
+    return new IdentifiedRegistrar(
+        NO_OP_REGISTRAR_ID,
+        (kryo) -> {
+          /*No-Op*/
+        });
   }
 
   @Override
