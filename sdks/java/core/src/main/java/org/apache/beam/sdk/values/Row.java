@@ -83,7 +83,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public byte getByte(String fieldName) {
+  public Byte getByte(String fieldName) {
     return getByte(getSchema().indexOf(fieldName));
   }
 
@@ -99,7 +99,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public short getInt16(String fieldName) {
+  public Short getInt16(String fieldName) {
     return getInt16(getSchema().indexOf(fieldName));
   }
 
@@ -107,7 +107,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT32} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public int getInt32(String fieldName) {
+  public Integer getInt32(String fieldName) {
     return getInt32(getSchema().indexOf(fieldName));
   }
 
@@ -115,7 +115,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT64} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public long getInt64(String fieldName) {
+  public Long getInt64(String fieldName) {
     return getInt64(getSchema().indexOf(fieldName));
   }
 
@@ -131,7 +131,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#FLOAT} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public float getFloat(String fieldName) {
+  public Float getFloat(String fieldName) {
     return getFloat(getSchema().indexOf(fieldName));
   }
 
@@ -139,7 +139,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DOUBLE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public double getDouble(String fieldName) {
+  public Double getDouble(String fieldName) {
     return getDouble(getSchema().indexOf(fieldName));
   }
 
@@ -155,7 +155,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public ReadableDateTime getDateTime(String fieldName) {
+  public @Nullable ReadableDateTime getDateTime(String fieldName) {
     return getDateTime(getSchema().indexOf(fieldName));
   }
 
@@ -163,7 +163,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BOOLEAN} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public boolean getBoolean(String fieldName) {
+  public Boolean getBoolean(String fieldName) {
     return getBoolean(getSchema().indexOf(fieldName));
   }
 
@@ -258,9 +258,9 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
-  public ReadableDateTime getDateTime(int idx) {
+  public @Nullable ReadableDateTime getDateTime(int idx) {
     ReadableInstant instant = getValue(idx);
-    return new DateTime(instant).withZone(instant.getZone());
+    return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
   }
 
   /**
@@ -275,7 +275,7 @@ public abstract class Row implements Serializable {
    * Get a {@link Boolean} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  public boolean getBoolean(int idx) {
+  public Boolean getBoolean(int idx) {
     return getValue(idx);
   }
 
