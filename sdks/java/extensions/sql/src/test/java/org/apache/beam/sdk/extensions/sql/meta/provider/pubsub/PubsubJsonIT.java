@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
