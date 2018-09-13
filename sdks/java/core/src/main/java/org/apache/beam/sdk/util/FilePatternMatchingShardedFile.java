@@ -39,7 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A sharded file which matches a given file pattern.
+ * A sharded file which matches a given file pattern. Note that the file pattern must match
+ * at least one file.
  *
  * <p>Note that file matching should only occur once the file system is in a stable state and
  * guaranteed to provide a consistent result during file pattern matching.
@@ -58,7 +59,8 @@ public class FilePatternMatchingShardedFile implements ShardedFile {
   private final String filePattern;
 
   /**
-   * Constructs an {@link FilePatternMatchingShardedFile} for the given file pattern.
+   * Constructs an {@link FilePatternMatchingShardedFile} for the given file pattern. Note that the file
+   * pattern must match at least one file.
    *
    * <p>Note that file matching should only occur once the file system is in a stable state and
    * guaranteed to provide a consistent result during file pattern matching.
