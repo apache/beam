@@ -185,8 +185,12 @@ class PipelineGraph(object):
         vertex_ref = pydot.Node(vertex, **vertex_attrs)
         self._vertex_refs[vertex] = vertex_ref
         self._graph.add_node(vertex_ref)
+
       for edge, edge_attrs in edge_dict.items():
-        edge_ref = pydot.Edge(edge[0], edge[1], **edge_attrs)
+        vertex_src = self._vertex_refs[edge[0]]
+        vertex_dst = self._vertex_refs[edge[1]]
+
+        edge_ref = pydot.Edge(vertex_src, vertex_dst, **edge_attrs)
         self._edge_refs[edge] = edge_ref
         self._graph.add_edge(edge_ref)
 
