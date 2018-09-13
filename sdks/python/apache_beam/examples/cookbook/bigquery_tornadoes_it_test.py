@@ -72,6 +72,40 @@ class BigqueryTornadoesIT(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts))
 
 
+  @attr('IT')
+  def test_bigquery_tornadoes_from_query_it(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+
+    # Set extra options to the pipeline for test purpose
+    project = test_pipeline.get_option('project')
+
+    INPUT_QUERY = ('SELECT month, COUNT(month) AS tornado_count FROM '
+                   '[clouddataflow-readonly:samples.weather_stations] '
+                   'WHERE tornado=true GROUP BY month')
+
+    dataset = 'BigQueryTornadoesIT'
+    table = 'monthly_tornadoes_from_query_%s' % int(round(time.time() * 1000))
+    output_table = '.'.join([dataset, table])
+    query = 'SELECT month, tornado_count FROM [%s]' % output_table
+
+    pipeline_verifiers = [PipelineStateMatcher(),
+                          BigqueryMatcher(
+                              project=project,
+                              query=query,
+                              checksum=self.DEFAULT_CHECKSUM)]
+    extra_opts = {'input': INPUT_QUERY,
+                  'output': output_table,
+                  'on_success_matcher': all_of(*pipeline_verifiers)}
+
+    # Register cleanup before pipeline execution.
+    self.addCleanup(utils.delete_bq_table, project, dataset, table)
+
+    # Get pipeline options from command argument: --test-pipeline-options,
+    # and start pipeline job by calling pipeline main function.
+    bigquery_tornadoes.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
