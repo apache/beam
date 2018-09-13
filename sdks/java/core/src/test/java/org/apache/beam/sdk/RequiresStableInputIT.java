@@ -109,8 +109,8 @@ public class RequiresStableInputIT {
    * transform, the value is written to a file, whose path is specified by the random key, and then
    * the transform fails. When the pipeline retries, the latter transform should receive the same
    * input from the former transform, because its {@link DoFn} is annotated with {@link
-   * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}, and it will not write another file.
-   * Therefore, only one file with the value is expected for each test.
+   * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}, and it will not fail due to presence
+   * of the file. Therefore, only one file for each transform is expected.
    */
   @Test
   public void testParDoRequiresStableInput() {
