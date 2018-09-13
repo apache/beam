@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.channels.Channels;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -342,7 +343,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
+    boolean fnApiEnabled = hasExperiment(options, "beam_fn_api");
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
+
     // Create is implemented in terms of a Read, so it must precede the override to Read in
     // streaming
     overridesBuilder
@@ -377,7 +380,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
-      if (hasExperiment(options, "beam_fn_api")) {
+      if (fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(Create.Values.class),
@@ -398,7 +401,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
                   new StreamingUnboundedReadOverrideFactory()));
-      if (!hasExperiment(options, "beam_fn_api")) {
+      if (!fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
@@ -424,7 +427,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           PTransformOverride.of(
               PTransformMatchers.splittableProcessKeyedBounded(),
               new SplittableParDoNaiveBounded.OverrideFactory()));
-      if (!hasExperiment(options, "beam_fn_api")) {
+      if (!fnApiEnabled) {
         overridesBuilder
             .add(
                 PTransformOverride.of(
@@ -463,7 +466,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
-    if (hasExperiment(options, "beam_fn_api")) {
+    if (fnApiEnabled) {
       overridesBuilder.add(
           PTransformOverride.of(
               PTransformMatchers.classEqualTo(Read.Bounded.class),
@@ -476,7 +479,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Order is important. Streaming views almost all use Combine internally.
         .add(
             PTransformOverride.of(
-                combineValuesWithoutSideInputs(),
+                combineValuesTranslationMatcher(fnApiEnabled),
                 new PrimitiveCombineGroupedValuesOverrideFactory()))
         .add(
             PTransformOverride.of(
@@ -1759,14 +1762,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
-   * {@link PTransform} is equal to the {@link Class} provided to this matcher and it has no side
-   * inputs.
+   * Returns a {@link PTransformMatcher} that matches {@link PTransform}s of class {@link
+   * Combine.GroupedValues} that will be translated into CombineValues transforms in Dataflow's Job
+   * API and skips those that should be expanded into ParDos.
+   *
+   * @param fnApiEnabled Flag indicating whether this matcher is being retrieved for a fnapi or
+   *     non-fnapi pipeline.
    */
-  private static PTransformMatcher combineValuesWithoutSideInputs() {
-    return new CombineValuesWithoutSideInputsPTransformMatcher();
+  private static PTransformMatcher combineValuesTranslationMatcher(boolean fnApiEnabled) {
+    if (fnApiEnabled) {
+      return new CombineValuesWithParentCheckPTransformMatcher();
+    } else {
+      return new CombineValuesWithoutSideInputsPTransformMatcher();
+    }
   }
 
+  /**
+   * Matches {@link PTransform}s of class {@link Combine.GroupedValues} that have no side inputs.
+   */
   private static class CombineValuesWithoutSideInputsPTransformMatcher
       implements PTransformMatcher {
     private CombineValuesWithoutSideInputsPTransformMatcher() {}
@@ -1782,6 +1795,78 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public String toString() {
       return toStringHelper(CombineValuesWithoutSideInputsPTransformMatcher.class).toString();
+    }
+  }
+
+  /**
+   * Matches {@link PTransform}s of class {@link Combine.GroupedValues} that have no side inputs and
+   * are direct subtransforms of a {@link Combine.PerKey}.
+   */
+  private static class CombineValuesWithParentCheckPTransformMatcher implements PTransformMatcher {
+    private CombineValuesWithParentCheckPTransformMatcher() {}
+
+    @Override
+    public boolean matches(AppliedPTransform<?, ?, ?> application) {
+      return application.getTransform().getClass().equals(Combine.GroupedValues.class)
+          && ((Combine.GroupedValues<?, ?, ?>) application.getTransform()).getSideInputs().isEmpty()
+          && parentIsCombinePerKey(application);
+    }
+
+    private boolean parentIsCombinePerKey(AppliedPTransform<?, ?, ?> application) {
+      // We want the PipelineVisitor below to change the parent, but the parent must be final to
+      // be captured in there. To work around this issue, wrap the parent in a one element array.
+      final TransformHierarchy.Node[] parent = new TransformHierarchy.Node[1];
+
+      // Traverse the pipeline to find the parent transform to application. Do this by maintaining
+      // a stack of each composite transform being entered, and grabbing the top transform of the
+      // stack once the target node is visited.
+      Pipeline pipeline = application.getPipeline();
+      pipeline.traverseTopologically(
+          new PipelineVisitor.Defaults() {
+            private ArrayDeque<TransformHierarchy.Node> parents = new ArrayDeque<>();
+
+            @Override
+            public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+              parents.addFirst(node);
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+
+            @Override
+            public void leaveCompositeTransform(TransformHierarchy.Node node) {
+              parents.removeFirst();
+            }
+
+            @Override
+            public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+              if (node.toAppliedPTransform(getPipeline()).equals(application)) {
+                if (parents.isEmpty()) {
+                  parent[0] = null;
+                } else {
+                  parent[0] = parents.peekFirst();
+                }
+              }
+            }
+          });
+
+      if (parent[0] == null) {
+        return false;
+      }
+
+      // If the parent transform cannot be converted to an appliedPTransform it's definitely not
+      // a CombinePerKey.
+      AppliedPTransform<?, ?, ?> appliedParent;
+      try {
+        appliedParent = parent[0].toAppliedPTransform(pipeline);
+      } catch (NullPointerException e) {
+        return false;
+      }
+
+      return appliedParent.getTransform().getClass().equals(Combine.PerKey.class);
+    }
+
+    @Override
+    public String toString() {
+      return toStringHelper(CombineValuesWithParentCheckPTransformMatcher.class).toString();
     }
   }
 }
