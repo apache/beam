@@ -88,10 +88,9 @@ public class UnboundedSourceWrapperTest {
      * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
      * numSplits > numTasks the source has one source will manage multiple readers.
      */
-    @Test
+    @Test(timeout = 30_000)
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
-      final Object checkpointLock = new Object();
       PipelineOptions options = PipelineOptionsFactory.create();
 
       final long[] numElementsReceived = {0L};
@@ -134,11 +133,13 @@ public class UnboundedSourceWrapperTest {
               public void run() {
                 while (true) {
                   try {
-                    synchronized (testHarness.getCheckpointLock()) {
-                      testHarness.setProcessingTime(System.currentTimeMillis());
-                    }
+                    testHarness.setProcessingTime(System.currentTimeMillis());
                     Thread.sleep(1000);
+                  } catch (InterruptedException e) {
+                    // this is ok
+                    break;
                   } catch (Exception e) {
+                    e.printStackTrace();
                     break;
                   }
                 }
@@ -151,7 +152,7 @@ public class UnboundedSourceWrapperTest {
         try {
           testHarness.open();
           sourceOperator.run(
-              checkpointLock,
+              testHarness.getCheckpointLock(),
               new TestStreamStatusMaintainer(),
               new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
                 private boolean hasSeenMaxWatermark = false;
@@ -187,10 +188,9 @@ public class UnboundedSourceWrapperTest {
                 @Override
                 public void close() {}
               });
-        } catch (SuccessException e) {
+        } finally {
           processingTimeUpdateThread.interrupt();
           processingTimeUpdateThread.join();
-          // success, continue for the other subtask indices
         }
       }
       // verify that we get the expected count across all subtasks
