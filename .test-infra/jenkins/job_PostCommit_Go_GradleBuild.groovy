@@ -36,6 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go Pos
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':goPostCommit')
       commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
     }
   }
 }
