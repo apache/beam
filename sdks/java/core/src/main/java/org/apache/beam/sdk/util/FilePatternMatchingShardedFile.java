@@ -73,6 +73,7 @@ public class FilePatternMatchingShardedFile implements ShardedFile {
     this.filePattern = filePattern;
   }
 
+  /** Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}. */
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
@@ -106,7 +107,7 @@ public class FilePatternMatchingShardedFile implements ShardedFile {
         lastException);
   }
 
-  /** Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}. */
+  /** Discovers all shards of this file. */
   public List<String> readFilesWithRetries() throws IOException, InterruptedException {
     return readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
   }
