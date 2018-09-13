@@ -25,20 +25,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.joda.time.Duration;
@@ -203,17 +199,5 @@ public class NumberedShardedFile implements ShardedFile {
       return files.size() == Integer.parseInt(matcher.group("numshards"));
     }
     return false;
-  }
-
-  private String computeHash(@Nonnull List<String> strs) {
-    if (strs.isEmpty()) {
-      return Hashing.sha1().hashString("", StandardCharsets.UTF_8).toString();
-    }
-
-    List<HashCode> hashCodes = new ArrayList<>();
-    for (String str : strs) {
-      hashCodes.add(Hashing.sha1().hashString(str, StandardCharsets.UTF_8));
-    }
-    return Hashing.combineUnordered(hashCodes).toString();
   }
 }
