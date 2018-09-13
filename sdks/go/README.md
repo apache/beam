@@ -90,4 +90,39 @@ SDK harness container image.
 
 ## Issues
 
-Please use the `sdk-go` component for any bugs or feature requests.
+Please use the [`sdk-go`](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20sdk-go%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) component for any bugs or feature requests.
+
+## Contributing to the Go SDK
+
+### New to developing Go?
+https://tour.golang.org : The Go Tour gives you the basics of the language, interactively no installation required.
+
+https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go. 
+
+### Developing Go Beam SDK on Github
+
+To make and test changes when working with Go, it's neecessary to clone your repository 
+in a subdirectory of your GOPATH. This permits existing gradle tools to use your in progress changes.
+
+```
+# Create a Go compatible place for the repo, using src/github.com/apache/
+# matches where Go will look for the files, or go get would put them.
+$ mkdir -p $GOPATH/src/github.com/apache/
+$ cd $GOPATH/src/github.com/apache/
+
+
+# Clone the repo, and update your branch as normal
+$ git clone https://github.com/apache/beam.git
+$ cd beam
+$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+$ git fetch --all
+
+# Get or Update all the Go SDK dependencies
+$ go get -u ./...
+# Test that the system compiles and runs.
+$ go test ./...
+```
+
+If you don’t have a GOPATH set, create a new directory in your home directory, and use that.
+
+Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
