@@ -21,6 +21,8 @@ package org.apache.beam.runners.samza.translation;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
@@ -113,6 +115,15 @@ class GroupByKeyTranslator<K, InputT, OutputT>
                         node.getFullName())));
 
     ctx.registerMessageStream(output, outputStream);
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Portable translation is not supported for " + this.getClass().getSimpleName());
   }
 
   @SuppressWarnings("unchecked")

@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -83,5 +85,14 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
 
     final MessageStream<OpMessage<T>> outputStream = MessageStream.mergeAll(streamsToMerge);
     ctx.registerMessageStream(output, outputStream);
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Portable translation is not supported for " + this.getClass().getSimpleName());
   }
 }

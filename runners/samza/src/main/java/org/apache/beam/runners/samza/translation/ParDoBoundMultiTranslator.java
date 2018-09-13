@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
@@ -139,6 +141,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
       registerSideOutputStream(
           taggedOutputStream, idToPCollectionMap.get(outputIndex), outputIndex, ctx);
     }
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Portable translation is not supported for " + this.getClass().getSimpleName());
   }
 
   @Override

@@ -18,10 +18,23 @@
 
 package org.apache.beam.runners.samza.translation;
 
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** Interface of Samza translator for BEAM {@link PTransform}. */
 public interface TransformTranslator<T extends PTransform<?, ?>> {
+
+  /** Translates the Java {@link PTransform} into Samza API. */
   void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx);
+
+  /**
+   * Translates the portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.PTransform} into
+   * Samza API.
+   */
+  void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx);
 }

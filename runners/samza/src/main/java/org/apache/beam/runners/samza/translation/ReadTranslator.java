@@ -20,6 +20,8 @@ package org.apache.beam.runners.samza.translation;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
 import org.apache.beam.runners.samza.util.Base64Serializer;
@@ -49,6 +51,15 @@ public class ReadTranslator<T>
       TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
     ctx.registerInputMessageStream(output);
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Portable translation is not supported for " + this.getClass().getSimpleName());
   }
 
   @Override
