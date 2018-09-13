@@ -36,6 +36,8 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
@@ -56,6 +58,7 @@ import org.slf4j.LoggerFactory;
 /** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
+  private static final int WAIT_MS = 1000;
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
     LOG.info("Starting {}", ReferenceRunnerJobService.class);
@@ -199,6 +202,36 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
             .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED))
             .build());
     responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getStateStream(
+      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
+    try {
+      Thread.sleep(WAIT_MS);
+      Enum state = jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED);
+      responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
+      while (Enum.RUNNING.equals(state)) {
+        Thread.sleep(WAIT_MS);
+        state = jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED);
+      }
+      responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getMessageStream(
+      JobMessagesRequest request, StreamObserver<JobMessagesResponse> responseObserver) {
+    // Not implemented
+    LOG.trace("{} {}", JobMessagesRequest.class.getSimpleName(), request);
   }
 
   @Override
