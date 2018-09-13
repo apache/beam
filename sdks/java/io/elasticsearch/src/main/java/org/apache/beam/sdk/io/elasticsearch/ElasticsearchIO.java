@@ -1273,7 +1273,7 @@ public class ElasticsearchIO {
       return backendVersion;
 
     } catch (IOException e) {
-      throw (new IllegalArgumentException("Cannot get Elasticsearch version"));
+      throw (new IllegalArgumentException("Cannot get Elasticsearch version", e));
     }
   }
 }
