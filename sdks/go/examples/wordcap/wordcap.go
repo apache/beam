@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
 	"regexp"
 	"strings"
 
@@ -31,7 +30,7 @@ import (
 )
 
 var (
-	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
+	input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
 	short = flag.Bool("short", false, "Filter out long words.")
 )
 
@@ -55,10 +54,7 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines, err := textio.Immediate(s, *input) // Embedded data. Go flags as parameters.
-	if err != nil {
-		log.Exitf(ctx, "Failed to read %v: %v", *input, err)
-	}
+	lines := textio.Read(s, *input)
 	words := beam.ParDo(s, extractFn, lines)     // Named function.
 	cap := beam.ParDo(s, strings.ToUpper, words) // Library function.
 	if *short {
