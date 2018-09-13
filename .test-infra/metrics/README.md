@@ -2,7 +2,7 @@
 This folder contains files required to spin-up metrics dashboard for Beam.
 
 ## Utilized technologies
-* [Grafana](https://https://grafana.com) as dashboarding engine.
+* [Grafana](https://grafana.com) as dashboarding engine.
 * PostgreSQL as underlying DB.
 
 Approach utilized is to fetch data from corresponding system: Jenkins/Jira/GithubArchives/etc, put it into PostreSQL and fetch it to show in Grafana.
@@ -92,12 +92,11 @@ kubectl log <PodName> <ContainerName>
 
 # Set kubectl logging level: -v [1..10]
 https://github.com/kubernetes/kubernetes/issues/35054
-
-
 ```
+
 ## Useful docker commands and hints
 * Connect from one container to another
-    * curl <containername>:<port>
+    * `curl <containername>:<port>`
 * Remove all containers/images/volumes
 ```sh
 sudo docker rm $(sudo docker ps -a -q)
