@@ -45,6 +45,7 @@ import org.apache.calcite.jdbc.Driver;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitDef;
+import org.apache.calcite.prepare.CalcitePrepareImpl;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.rules.CalcRemoveRule;
 import org.apache.calcite.rel.rules.SortRemoveRule;
@@ -97,6 +98,10 @@ public class JdbcDriver extends Driver {
               }
               planner.removeRule(CalcRemoveRule.INSTANCE);
               planner.removeRule(SortRemoveRule.INSTANCE);
+
+              for (RelOptRule rule : CalcitePrepareImpl.ENUMERABLE_RULES) {
+                planner.removeRule(rule);
+              }
 
               List<RelTraitDef> relTraitDefs = new ArrayList<>(planner.getRelTraitDefs());
               planner.clearRelTraitDefs();
