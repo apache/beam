@@ -56,12 +56,12 @@ For a list of open starter tasks, check
 
 ## Permissions
 
-For [Beam issues](https://issues.apache.org/jira/projects/BEAM/issues), anyone
-can browse issues. Anyone can register an account and then login to create
-issues or add comments. Only contributors can be assigned issues. If you want
-to be assigned issues, a PMC member can add you to the project contributor
+For the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues), 
+anyone can access it and browse issues. Anyone can register an account and login 
+to create issues or add comments. Only contributors can be assigned issues. If 
+you want to be assigned issues, a PMC member can add you to the project contributor
 group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
-to ask to be added as a Jira contributor.
+to ask to be added as a contributor in the Beam issue tracker.
 
 ## Contributing code
 
