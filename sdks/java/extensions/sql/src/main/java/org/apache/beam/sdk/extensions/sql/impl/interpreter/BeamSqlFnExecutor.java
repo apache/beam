@@ -540,7 +540,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   private static boolean isDateNode(SqlTypeName type, Object value) {
-    return (type == SqlTypeName.DATE || type == SqlTypeName.TIMESTAMP) && value instanceof Calendar;
+    return (type == SqlTypeName.DATE || type == SqlTypeName.TIME || type == SqlTypeName.TIMESTAMP)
+        && value instanceof Calendar;
   }
 
   @Override
