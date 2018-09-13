@@ -38,24 +38,38 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"regexp"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
+var (
+	output = flag.String("output", "", "gs:// path to write output")
+)
+
 func main() {
+	flag.Parse()
+	beam.Init()
+
 	// Create the Pipeline object and root scope.
 	p := beam.NewPipeline()
 	s := p.Root()
+
+	ctx := context.Background()
+
+	if *output == "" {
+		log.Exit(ctx, "No output storage path specified. Use --output=gs://gs-storage-name/minimal_wordcount.txt")
+	}
 
 	// Apply the pipeline's transforms.
 
@@ -95,8 +109,10 @@ func main() {
 	// Concept #4: Invoke textio.Write at the end of the pipeline to write
 	// the contents of a PCollection (in this case, our PCollection of
 	// formatted strings) to a text file.
-	textio.Write(s, "wordcounts.txt", formatted)
+	textio.Write(s, *output, formatted)
 
-	// Run the pipeline on the direct runner.
-	direct.Execute(context.Background(), p)
+	// Run the pipeline
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }
