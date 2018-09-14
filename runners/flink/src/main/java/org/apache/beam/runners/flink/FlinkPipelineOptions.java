@@ -87,7 +87,7 @@ public interface FlinkPipelineOptions
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
 
   @Description("The minimal pause before the next checkpoint is triggered.")
-  @Default.Long(0L)
+  @Default.Long(-1L)
   Long getMinPauseBetweenCheckpoints();
 
   void setMinPauseBetweenCheckpoints(Long minPauseInterval);

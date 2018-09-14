@@ -166,9 +166,11 @@ public class FlinkExecutionEnvironments {
       }
 
       long minPauseBetweenCheckpoints = options.getMinPauseBetweenCheckpoints();
-      flinkStreamEnv
-          .getCheckpointConfig()
-          .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
+      if (minPauseBetweenCheckpoints != -1) {
+        flinkStreamEnv
+            .getCheckpointConfig()
+            .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
+      }
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
