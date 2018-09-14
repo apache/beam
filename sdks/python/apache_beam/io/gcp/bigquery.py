@@ -1257,6 +1257,13 @@ class BigQueryWriteFn(DoFn):
     # The default batch size is 500
     self._max_batch_size = batch_size or 500
 
+  def display_data(self):
+    return {'table_id': self.table_id,
+            'dataset_id': self.dataset_id,
+            'project_id': self.project_id,
+            'schema': str(self.schema),
+            'max_batch_size': self._max_batch_size}
+
   @staticmethod
   def get_table_schema(schema):
     """Transform the table schema into a bigquery.TableSchema instance.
