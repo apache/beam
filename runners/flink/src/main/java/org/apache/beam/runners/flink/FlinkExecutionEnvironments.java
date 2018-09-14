@@ -164,6 +164,13 @@ public class FlinkExecutionEnvironments {
                     ? ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
                     : ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
       }
+
+      long minPauseBetweenCheckpoints = options.getMinPauseBetweenCheckpoints();
+      if (minPauseBetweenCheckpoints != -1) {
+        flinkStreamEnv
+            .getCheckpointConfig()
+            .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
+      }
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
