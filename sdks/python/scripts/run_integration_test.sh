@@ -117,13 +117,13 @@ case $key in
         ;;
     *)    # unknown option
         echo "Unknown option: $1"
-        shift # past argument
+        exit 1
         ;;
 esac
 done
 
-set -e
-set -v
+set -o errexit
+set -o verbose
 
 
 ###########################################################################
