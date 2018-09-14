@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -130,8 +131,14 @@ public final class TransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         // --- group by key only.
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
+        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey;
+        if (context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize()
+            > 0) {
+          groupedByKey =
+              GroupCombineFunctions.groupByKeyOnlyDefaultPartitioner(inRDD, keyCoder, wvCoder);
+        } else {
+          groupedByKey = GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
+        }
 
         // --- now group also by window.
         // for batch, GroupAlsoByWindow uses an in-memory StateInternals.

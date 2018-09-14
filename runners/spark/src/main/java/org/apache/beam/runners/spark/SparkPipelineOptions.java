@@ -100,7 +100,7 @@ public interface SparkPipelineOptions
   void setCheckpointDurationMillis(Long durationMillis);
 
   @Description("Bundle Size for splitting BoundedSources.")
-  @Default.Long(64L * 1024L * 1024L)
+  @Default.Long(0)
   long getBundleSize();
 
   void setBundleSize(long value);

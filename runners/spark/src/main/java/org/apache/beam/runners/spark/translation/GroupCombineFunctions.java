@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import com.google.common.base.Optional;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -29,6 +30,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -50,10 +53,38 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.unwindowFunction())
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+    // use a default parallelism HashPartitioner.
+    Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
 
     // using mapPartitions allows to preserve the partitioner
     // and avoid unnecessary shuffle downstream.
     return pairRDD
+        .groupByKey(partitioner)
+        .mapPartitionsToPair(
+            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
+            true)
+        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
+        .mapPartitions(
+            TranslationUtils.functionToFlatMapFunction(WindowingHelpers.windowFunction()), true);
+  }
+
+  /**
+   * An implementation of {@link
+   * org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} for the Spark runner.
+   * Used only when bundleSize is set in SparkPipelineOptions. Evaluating if the default Partitioner
+   * causes a reshuffle of the data.
+   */
+  @Experimental
+  public static <K, V>
+      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupByKeyOnlyDefaultPartitioner(
+          JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
+    // we use coders to convert objects in the PCollection to byte arrays, so they
+    // can be transferred over the network for the shuffle.
+    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
+        .map(WindowingHelpers.unwindowFunction())
+        .mapToPair(TranslationUtils.toPairFunction())
+        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .groupByKey()
         .mapPartitionsToPair(
             TranslationUtils.pairFunctionToPairFlatMapFunction(
