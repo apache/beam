@@ -59,7 +59,7 @@ class PipelineAnalyzer(object):
 
     # Result of the analysis that can be queried by the user.
     self._pipeline_proto_to_execute = None
-    self._top_level_referenced_pcollection_ids = None
+    self._top_level_referenced_pcoll_ids = None
     self._top_level_required_transforms = None
 
     self._caches_used = set()
@@ -82,7 +82,7 @@ class PipelineAnalyzer(object):
 
     After running this function, the following variables will be set:
       self._pipeline_proto_to_execute
-      self._top_level_referenced_pcollection_ids
+      self._top_level_referenced_pcoll_ids
       self._top_level_required_transforms
       self._caches_used
       self._read_cache_ids
@@ -100,11 +100,11 @@ class PipelineAnalyzer(object):
                                         required_transforms,
                                         top_level_required_transforms)
 
-    top_level_referenced_pcollection_ids = self._referenced_pcollection_ids(
+    top_level_referenced_pcoll_ids = self._referenced_pcoll_ids(
         top_level_required_transforms)
 
     for pcoll_id in self._pipeline_info.all_pcollections():
-      if not pcoll_id in top_level_referenced_pcollection_ids:
+      if not pcoll_id in top_level_referenced_pcoll_ids:
         continue
 
       if (pcoll_id in desired_pcollections
@@ -123,10 +123,10 @@ class PipelineAnalyzer(object):
     required_transforms['_root'] = beam_runner_api_pb2.PTransform(
         subtransforms=top_level_required_transforms.keys())
 
-    referenced_pcollection_ids = self._referenced_pcollection_ids(
+    referenced_pcoll_ids = self._referenced_pcoll_ids(
         required_transforms)
     referenced_pcollections = {}
-    for pcoll_id in referenced_pcollection_ids:
+    for pcoll_id in referenced_pcoll_ids:
       obj = self._context.pcollections.get_by_id(pcoll_id)
       proto = self._context.pcollections.get_proto(obj)
       referenced_pcollections[pcoll_id] = proto
@@ -143,7 +143,7 @@ class PipelineAnalyzer(object):
                   self._context.to_runner_api().windowing_strategies)
 
     self._pipeline_proto_to_execute = pipeline_to_execute
-    self._top_level_referenced_pcollection_ids = top_level_referenced_pcollection_ids # pylint: disable=line-too-long
+    self._top_level_referenced_pcoll_ids = top_level_referenced_pcoll_ids
     self._top_level_required_transforms = top_level_required_transforms
 
   # -------------------------------------------------------------------------- #
@@ -160,15 +160,15 @@ class PipelineAnalyzer(object):
     """
     return self._pipeline_proto_to_execute
 
-  def top_level_referenced_pcollection_ids(self):
-    """Returns an array of top level referenced PCollection IDs.
+  def tl_referenced_pcoll_ids(self):
+    """Returns a set of PCollection IDs referenced by top level PTransforms.
     """
-    return self._top_level_referenced_pcollection_ids
+    return self._top_level_referenced_pcoll_ids
 
-  def top_level_required_transforms(self):
-    """Returns a dict mapping ID to proto of top level PTransforms.
+  def tl_required_trans_ids(self):
+    """Returns a set of required top level PTransform IDs.
     """
-    return self._top_level_required_transforms
+    return self._top_level_required_transforms.keys()
 
   def caches_used(self):
     """Returns a set of PCollection IDs to read from cache.
@@ -315,7 +315,7 @@ class PipelineAnalyzer(object):
         desired_pcollections.add(pcoll_id)
     return desired_pcollections
 
-  def _referenced_pcollection_ids(self, required_transforms):
+  def _referenced_pcoll_ids(self, required_transforms):
     """Returns PCollection IDs referenced in the given transforms.
 
     Args:
@@ -325,15 +325,15 @@ class PipelineAnalyzer(object):
       (Set[str]) PCollection IDs referenced as either input or output in the
         given transforms.
     """
-    referenced_pcollection_ids = set()
+    referenced_pcoll_ids = set()
     for transform_proto in required_transforms.values():
       for pcoll_id in transform_proto.inputs.values():
-        referenced_pcollection_ids.add(pcoll_id)
+        referenced_pcoll_ids.add(pcoll_id)
 
       for pcoll_id in transform_proto.outputs.values():
-        referenced_pcollection_ids.add(pcoll_id)
+        referenced_pcoll_ids.add(pcoll_id)
 
-    return referenced_pcollection_ids
+    return referenced_pcoll_ids
 
   def _top_level_producer(self, pcoll):
     """Given a PCollection, returns the top level producing PTransform.

@@ -104,10 +104,10 @@ class PipelineAnalyzerTest(unittest.TestCase):
     )
     pipeline_to_execute.run().wait_until_finish()
     self.assertEqual(
-        len(analyzer.top_level_required_transforms()),
+        len(analyzer.tl_required_trans_ids()),
         7  # Create, Double, Square, CacheSample * 3, CacheFull
     )
-    self.assertEqual(len(analyzer.top_level_referenced_pcollection_ids()), 3)
+    self.assertEqual(len(analyzer.tl_referenced_pcoll_ids()), 3)
     self.assertEqual(len(analyzer.read_cache_ids()), 0)
     self.assertEqual(len(analyzer.write_cache_ids()), 4)
 
@@ -124,10 +124,10 @@ class PipelineAnalyzerTest(unittest.TestCase):
         p._options
     )
     self.assertEqual(
-        len(analyzer.top_level_required_transforms()),
+        len(analyzer.tl_required_trans_ids()),
         6  # Read, Triple, Cube, CacheSample * 2, CacheFull
     )
-    self.assertEqual(len(analyzer.top_level_referenced_pcollection_ids()), 3)
+    self.assertEqual(len(analyzer.tl_referenced_pcoll_ids()), 3)
     self.assertEqual(len(analyzer.read_cache_ids()), 1)
     self.assertEqual(len(analyzer.write_cache_ids()), 3)
 
