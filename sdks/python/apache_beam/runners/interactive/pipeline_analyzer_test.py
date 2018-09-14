@@ -108,6 +108,8 @@ class PipelineAnalyzerTest(unittest.TestCase):
         7  # Create, Double, Square, CacheSample * 3, CacheFull
     )
     self.assertEqual(len(analyzer.top_level_referenced_pcollection_ids()), 3)
+    self.assertEqual(len(analyzer.read_cache_ids()), 0)
+    self.assertEqual(len(analyzer.write_cache_ids()), 4)
 
     # The second run.
     _ = (pcoll
@@ -126,6 +128,9 @@ class PipelineAnalyzerTest(unittest.TestCase):
         6  # Read, Triple, Cube, CacheSample * 2, CacheFull
     )
     self.assertEqual(len(analyzer.top_level_referenced_pcollection_ids()), 3)
+    self.assertEqual(len(analyzer.read_cache_ids()), 1)
+    self.assertEqual(len(analyzer.write_cache_ids()), 3)
+
     # No need to actually execute the second run.
 
   def test_word_count(self):
