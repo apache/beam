@@ -19,13 +19,17 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -104,6 +108,7 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
@@ -274,6 +279,9 @@ public class KafkaIOTest {
               }
             }
             if (recordsAdded == 0) {
+              if (config.get("inject.error.at.eof") != null) {
+                consumer.setException(new KafkaException("Injected error in consumer.poll()"));
+              }
               // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
               // Add a small wait here in order to avoid busy looping in the reader.
               Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
@@ -638,6 +646,38 @@ public class KafkaIOTest {
         }
       };
     }
+  }
+
+  @Test
+  public void testUnboundedSourceWithExceptionInKafkaFetch() {
+    // Similar testUnboundedSource, but with an injected exception inside Kafk Consumer poll.
+
+    // The reader should throw an IOException:
+    thrown.expectCause(isA(IOException.class));
+    thrown.expectCause(hasMessage(containsString("Exception while reading from Kafka")));
+    // The original exception is from MockConsumer.poll():
+    thrown.expectCause(hasCause(isA(KafkaException.class)));
+    thrown.expectCause(hasCause(hasMessage(containsString("Injected error in consumer.poll()"))));
+
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("my_topic")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(2 * numElements) // Try to read more messages than available.
+            .updateConsumerProperties(ImmutableMap.of("inject.error.at.eof", true))
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
   }
 
   @Test
