@@ -30,7 +30,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AutoCompleteIT {
 
-  public static final String DEFAULT_INPUT = "gs://apache-beam-samples/shakespeare/kinglear-hashtag.txt";
+  public static final String DEFAULT_INPUT =
+      "gs://apache-beam-samples/shakespeare/kinglear-hashtag.txt";
 
   public static final Long DEFAULT_INPUT_CHECKSUM = -25447108232L;
 
