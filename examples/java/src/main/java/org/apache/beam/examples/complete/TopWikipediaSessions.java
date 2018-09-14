@@ -78,6 +78,7 @@ public class TopWikipediaSessions {
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       int timestamp;
+      // TODO(BEAM-5390): Avoid this workaround.
       try {
         timestamp = ((BigDecimal) row.get("timestamp")).intValue();
       } catch (ClassCastException e) {
