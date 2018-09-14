@@ -21,6 +21,7 @@ import static java.util.Arrays.asList;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
@@ -38,19 +39,19 @@ public class TopPerKeyTest extends AbstractOperatorTest {
   public void testAllInOneWindow() {
     execute(
         new AbstractTestCase<Item, Triple<String, String, Integer>>() {
+
           @Override
           protected Dataset<Triple<String, String, Integer>> getOutput(Dataset<Item> input) {
-
-            Dataset<Item> timmedElements =
+            final Dataset<Item> timestampedElements =
                 AssignEventTime.of(input).using(Item::getTimestamp).output();
-
-            return TopPerKey.of(timmedElements)
+            return TopPerKey.of(timestampedElements)
                 .keyBy(Item::getKey)
                 .valueBy(Item::getValue)
                 .scoreBy(Item::getScore)
                 .windowBy(FixedWindows.of(Duration.millis(10)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -87,19 +88,19 @@ public class TopPerKeyTest extends AbstractOperatorTest {
   public void testTwoWindows() {
     execute(
         new AbstractTestCase<Item, Triple<String, String, Integer>>() {
+
           @Override
           protected Dataset<Triple<String, String, Integer>> getOutput(Dataset<Item> input) {
-
-            Dataset<Item> timmedElements =
+            final Dataset<Item> timestampedElements =
                 AssignEventTime.of(input).using(Item::getTimestamp).output();
-
-            return TopPerKey.of(timmedElements)
+            return TopPerKey.of(timestampedElements)
                 .keyBy(Item::getKey)
                 .valueBy(Item::getValue)
                 .scoreBy(Item::getScore)
                 .windowBy(FixedWindows.of(Duration.millis(10)))
                 .triggeredBy(DefaultTrigger.of())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -137,6 +138,7 @@ public class TopPerKeyTest extends AbstractOperatorTest {
   }
 
   static final class Item implements Serializable {
+
     private final String key, value;
     private final int score;
     private final long timestamp;
@@ -160,8 +162,24 @@ public class TopPerKeyTest extends AbstractOperatorTest {
       return score;
     }
 
-    public long getTimestamp() {
+    long getTimestamp() {
       return timestamp;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Item item = (Item) o;
+      return score == item.score
+          && timestamp == item.timestamp
+          && Objects.equals(key, item.key)
+          && Objects.equals(value, item.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, value, score, timestamp);
     }
   }
 }

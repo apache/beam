@@ -23,12 +23,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 
 /**
  * Common methods used in operator builders.
@@ -89,7 +91,7 @@ public class Builders {
    * First windowing builder which starts builders chain defining Beam windowing.
    *
    * <p>It consumes {@link WindowFn} and it is followed by {@link TriggeredBy} and {@link
-   * AccumulatorMode} builders.
+   * AccumulationMode} builders.
    *
    * @param <OutTriggerBuilderT> type of following {@link TriggeredBy} builder.
    */
@@ -111,30 +113,50 @@ public class Builders {
   /**
    * Second builder in windowing builders chain. It introduces a {@link Trigger}.
    *
-   * @param <OutAccBuilderT> following {@link AccumulatorMode} builder type
+   * @param <AccumulationModeBuilderT> following {@link AccumulationMode} builder type
    */
-  public interface TriggeredBy<OutAccBuilderT extends AccumulatorMode> {
+  public interface TriggeredBy<AccumulationModeBuilderT extends AccumulationMode> {
 
-    OutAccBuilderT triggeredBy(Trigger trigger);
+    AccumulationModeBuilderT triggeredBy(Trigger trigger);
   }
 
   /**
    * Third and last builder in windowing chain introducing {@link WindowingStrategy.AccumulationMode
    * accumulation mode}.
    *
-   * @param <OutBuilderT> output builder type
+   * @param <WindowedOutputBuilderT> output builder type
    */
-  public interface AccumulatorMode<OutBuilderT> {
+  public interface AccumulationMode<WindowedOutputBuilderT> {
 
-    OutBuilderT accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
+    WindowedOutputBuilderT accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
 
-    default OutBuilderT discardingFiredPanes() {
-      return accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES);
+    default WindowedOutputBuilderT discardingFiredPanes() {
+      return accumulationMode(WindowingStrategy.AccumulationMode.DISCARDING_FIRED_PANES);
     }
 
-    default OutBuilderT accumulatingFiredPanes() {
-      return accumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
+    default WindowedOutputBuilderT accumulatingFiredPanes() {
+      return accumulationMode(WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES);
     }
+  }
+
+  /**
+   * Builder for window optional parameters
+   *
+   * @param <T> output builder type
+   */
+  public interface WindowedOutput<T extends WindowedOutput<T>> {
+
+    /** {@link Window#withAllowedLateness(Duration)} */
+    T withAllowedLateness(Duration allowedLateness);
+
+    /** {@link Window#withAllowedLateness(Duration, Window.ClosingBehavior)} */
+    T withAllowedLateness(Duration allowedLateness, Window.ClosingBehavior closingBehavior);
+
+    /** {@link Window#withTimestampCombiner(TimestampCombiner)} */
+    T withTimestampCombiner(TimestampCombiner timestampCombiner);
+
+    /** {@link Window#withOnTimeBehavior(Window.OnTimeBehavior)} */
+    T withOnTimeBehavior(Window.OnTimeBehavior behavior);
   }
 
   /** Output builder, usually last building step. */

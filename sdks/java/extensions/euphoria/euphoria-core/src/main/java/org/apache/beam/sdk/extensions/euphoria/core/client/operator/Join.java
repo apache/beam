@@ -36,6 +36,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Inner join of two datasets by given key producing single new dataset.
@@ -151,11 +153,16 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
   /** Builder for the 'triggeredBy' step */
   public interface TriggeredByBuilder<KeyT, OutputT>
-      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, OutputT>> {}
+      extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, OutputT>> {}
 
   /** Builder for the 'accumulatorMode' step */
-  public interface AccumulatorModeBuilder<KeyT, OutputT>
-      extends Builders.AccumulatorMode<OutputBuilder<KeyT, OutputT>> {}
+  public interface AccumulationModeBuilder<KeyT, OutputT>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, OutputT>> {}
+
+  /** Builder for 'windowed output' step */
+  public interface WindowedOutputBuilder<KeyT, OutputT>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, OutputT>>,
+          OutputBuilder<KeyT, OutputT> {}
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
@@ -171,8 +178,11 @@ public class Join<LeftT, RightT, KeyT, OutputT>
           UsingBuilder<LeftT, RightT, KeyT>,
           WindowByBuilder<KeyT, OutputT>,
           TriggeredByBuilder<KeyT, OutputT>,
-          AccumulatorModeBuilder<KeyT, OutputT>,
+          AccumulationModeBuilder<KeyT, OutputT>,
+          WindowedOutputBuilder<KeyT, OutputT>,
           OutputBuilder<KeyT, OutputT> {
+
+    private final WindowState<Object> windowState = new WindowState<>();
 
     @Nullable private final String name;
     private final Type type;
@@ -183,7 +193,6 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     @Nullable private TypeDescriptor<KeyT> keyType;
     private BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
     @Nullable private TypeDescriptor<OutputT> outputType;
-    @Nullable private Window<Object> window;
 
     Builder(@Nullable String name, Type type) {
       this.name = name;
@@ -225,30 +234,46 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
         WindowFn<Object, W> windowFn) {
-      this.window = Window.into(requireNonNull(windowFn));
+      windowState.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
-      this.window = requireNonNull(window).triggering(trigger);
+    public AccumulationModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
+      windowState.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public OutputBuilder<KeyT, OutputT> accumulationMode(
+    public WindowedOutputBuilder<KeyT, OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      switch (requireNonNull(accumulationMode)) {
-        case DISCARDING_FIRED_PANES:
-          window = requireNonNull(window).discardingFiredPanes();
-          break;
-        case ACCUMULATING_FIRED_PANES:
-          window = requireNonNull(window).accumulatingFiredPanes();
-          break;
-        default:
-          throw new IllegalArgumentException(
-              "Unknown accumulation mode [" + accumulationMode + "]");
-      }
+      windowState.accumulationMode(accumulationMode);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(Duration allowedLateness) {
+      windowState.withAllowedLateness(allowedLateness);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(
+        Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
+      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withTimestampCombiner(
+        TimestampCombiner timestampCombiner) {
+      windowState.withTimestampCombiner(timestampCombiner);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+      windowState.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -265,7 +290,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
               TypeDescriptors.kvs(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)),
                   TypeAwares.orObjects(Optional.ofNullable(outputType))),
-              window);
+              windowState.getWindow().orElse(null));
       @SuppressWarnings("unchecked")
       final List<Dataset<Object>> inputs = Arrays.asList((Dataset) left, (Dataset) right);
       return OperatorTransform.apply(join, inputs);

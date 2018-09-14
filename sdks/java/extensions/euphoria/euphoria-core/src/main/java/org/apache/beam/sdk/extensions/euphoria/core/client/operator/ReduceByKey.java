@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction is performed
@@ -234,6 +237,20 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
         BinaryFunction<ValueT, ValueT, Integer> comparator);
   }
 
+  /** Internal builder for 'windowBy' step */
+  @Internal
+  public interface WindowByInternalBuilder<InputT, KeyT, OutputT> {
+
+    /**
+     * For internal use only. Set already constructed {@link Window}. This allows easier
+     * construction of composite operators.
+     *
+     * @param window beam window
+     * @return output builder
+     */
+    OutputBuilder<KeyT, OutputT> windowBy(Window<InputT> window);
+  }
+
   /** Builder for 'windowBy' step */
   public interface WindowByBuilder<KeyT, OutputT>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT, OutputT>>,
@@ -255,20 +272,25 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
 
   /** Builder for 'triggeredBy' step */
   public interface TriggeredByBuilder<KeyT, OutputT>
-      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, OutputT>> {
+      extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, OutputT>> {
 
     @Override
-    AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger);
+    AccumulationModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger);
   }
 
   /** Builder for 'accumulationMode' step */
-  public interface AccumulatorModeBuilder<KeyT, OutputT>
-      extends Builders.AccumulatorMode<OutputBuilder<KeyT, OutputT>> {
+  public interface AccumulationModeBuilder<KeyT, OutputT>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, OutputT>> {
 
     @Override
-    OutputBuilder<KeyT, OutputT> accumulationMode(
+    WindowedOutputBuilder<KeyT, OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode);
   }
+
+  /** Builder for 'windowed output' step */
+  public interface WindowedOutputBuilder<KeyT, OutputT>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, OutputT>>,
+          OutputBuilder<KeyT, OutputT> {}
 
   /** Builder for 'output' step */
   public interface OutputBuilder<KeyT, OutputT>
@@ -282,15 +304,19 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @param <ValueT> type of value
    * @param <OutputT> type ouf output
    */
-  private static class Builder<InputT, KeyT, ValueT, OutputT>
+  static class Builder<InputT, KeyT, ValueT, OutputT>
       implements OfBuilder,
           KeyByBuilder<InputT>,
           ValueByReduceByBuilder<InputT, KeyT, ValueT>,
           WithSortedValuesBuilder<KeyT, ValueT, OutputT>,
+          WindowByInternalBuilder<InputT, KeyT, OutputT>,
           WindowByBuilder<KeyT, OutputT>,
           TriggeredByBuilder<KeyT, OutputT>,
-          AccumulatorModeBuilder<KeyT, OutputT>,
+          AccumulationModeBuilder<KeyT, OutputT>,
+          WindowedOutputBuilder<KeyT, OutputT>,
           OutputBuilder<KeyT, OutputT> {
+
+    private final WindowState<InputT> windowState = new WindowState<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
@@ -301,7 +327,6 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     private ReduceFunctor<ValueT, OutputT> reducer;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
-    @Nullable private Window<InputT> window;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -359,32 +384,54 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
 
     @Override
+    public OutputBuilder<KeyT, OutputT> windowBy(Window<InputT> window) {
+      windowState.setWindow(window);
+      return this;
+    }
+
+    @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
         WindowFn<Object, W> windowFn) {
-      window = Window.into(requireNonNull(windowFn));
+      windowState.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
-      window = requireNonNull(window).triggering(requireNonNull(trigger));
+    public AccumulationModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
+      windowState.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public OutputBuilder<KeyT, OutputT> accumulationMode(
+    public WindowedOutputBuilder<KeyT, OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      switch (requireNonNull(accumulationMode)) {
-        case DISCARDING_FIRED_PANES:
-          window = requireNonNull(window).discardingFiredPanes();
-          break;
-        case ACCUMULATING_FIRED_PANES:
-          window = requireNonNull(window).accumulatingFiredPanes();
-          break;
-        default:
-          throw new IllegalArgumentException(
-              "Unknown accumulation mode [" + accumulationMode + "]");
-      }
+      windowState.accumulationMode(accumulationMode);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(Duration allowedLateness) {
+      windowState.withAllowedLateness(allowedLateness);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(
+        Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
+      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withTimestampCombiner(
+        TimestampCombiner timestampCombiner) {
+      windowState.withTimestampCombiner(timestampCombiner);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+      windowState.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -399,7 +446,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
               valueType,
               reducer,
               valueComparator,
-              window,
+              windowState.getWindow().orElse(null),
               TypeDescriptors.kvs(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)),
                   TypeAwares.orObjects(Optional.ofNullable(outputType))));

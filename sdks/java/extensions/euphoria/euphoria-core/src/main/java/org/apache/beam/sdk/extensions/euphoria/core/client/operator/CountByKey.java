@@ -38,14 +38,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Operator counting elements with same key.
@@ -128,19 +129,24 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
 
   /** Builder for 'triggeredBy' step */
   public interface TriggeredByBuilder<KeyT>
-      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT>> {
+      extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT>> {
 
     @Override
-    AccumulatorModeBuilder<KeyT> triggeredBy(Trigger trigger);
+    AccumulationModeBuilder<KeyT> triggeredBy(Trigger trigger);
   }
 
   /** Builder for 'accumulationMode' step */
-  public interface AccumulatorModeBuilder<KeyT>
-      extends Builders.AccumulatorMode<OutputBuilder<KeyT>> {
+  public interface AccumulationModeBuilder<KeyT>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT>> {
 
     @Override
-    OutputBuilder<KeyT> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
+    WindowedOutputBuilder<KeyT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode);
   }
+
+  /** Builder for 'windowed output' step */
+  public interface WindowedOutputBuilder<KeyT>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>, OutputBuilder<KeyT> {}
 
   /** Builder for 'output' step */
   public interface OutputBuilder<KeyT> extends Builders.Output<KV<KeyT, Long>> {}
@@ -156,14 +162,16 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
           KeyByBuilder<InputT>,
           WindowByBuilder<KeyT>,
           TriggeredByBuilder<KeyT>,
-          AccumulatorModeBuilder<KeyT>,
+          AccumulationModeBuilder<KeyT>,
+          WindowedOutputBuilder<KeyT>,
           OutputBuilder<KeyT> {
+
+    private final WindowState<InputT> windowState = new WindowState<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
-    @Nullable private Window<InputT> window;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -189,30 +197,45 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
     @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(
         WindowFn<Object, W> windowFn) {
-      window = Window.into(requireNonNull(windowFn));
+      windowState.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulatorModeBuilder<KeyT> triggeredBy(Trigger trigger) {
-      window = requireNonNull(window).triggering(requireNonNull(trigger));
+    public AccumulationModeBuilder<KeyT> triggeredBy(Trigger trigger) {
+      windowState.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public OutputBuilder<KeyT> accumulationMode(
+    public WindowedOutputBuilder<KeyT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      switch (requireNonNull(accumulationMode)) {
-        case DISCARDING_FIRED_PANES:
-          window = requireNonNull(window).discardingFiredPanes();
-          break;
-        case ACCUMULATING_FIRED_PANES:
-          window = requireNonNull(window).accumulatingFiredPanes();
-          break;
-        default:
-          throw new IllegalArgumentException(
-              "Unknown accumulation mode [" + accumulationMode + "]");
-      }
+      windowState.accumulationMode(accumulationMode);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT> withAllowedLateness(Duration allowedLateness) {
+      windowState.withAllowedLateness(allowedLateness);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT> withAllowedLateness(
+        Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
+      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT> withTimestampCombiner(TimestampCombiner timestampCombiner) {
+      windowState.withTimestampCombiner(timestampCombiner);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+      windowState.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -223,7 +246,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
               name,
               keyExtractor,
               keyType,
-              window,
+              windowState.getWindow().orElse(null),
               TypeUtils.keyValues(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
       return OperatorTransform.apply(rbk, Collections.singletonList(input));
@@ -248,18 +271,16 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
         .combineBy(Sums.ofLongs())
         .applyIf(
             getWindow().isPresent(),
-            (builder) -> {
-              final WindowDesc<InputT> desc =
-                  WindowDesc.of(
-                      getWindow()
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Unable to resolve windowing for CountByKey expansion.")));
-              return builder
-                  .windowBy(desc.getWindowFn())
-                  .triggeredBy(desc.getTrigger())
-                  .accumulationMode(desc.getAccumulationMode());
+            builder -> {
+              @SuppressWarnings("unchecked")
+              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Long> casted =
+                  (ReduceByKey.WindowByInternalBuilder) builder;
+              return casted.windowBy(
+                  getWindow()
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Unable to resolve windowing for CountByKey expansion.")));
             })
         .output();
   }

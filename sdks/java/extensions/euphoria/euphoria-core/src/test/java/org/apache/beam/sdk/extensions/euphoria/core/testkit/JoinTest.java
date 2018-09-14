@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -372,6 +373,7 @@ public class JoinTest extends AbstractOperatorTest {
                 .windowBy(evenOddWindowFn)
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -437,6 +439,7 @@ public class JoinTest extends AbstractOperatorTest {
                 .windowBy(evenOddWindowFn)
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -497,6 +500,7 @@ public class JoinTest extends AbstractOperatorTest {
                 .windowBy(evenOddWindowFn)
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -588,6 +592,7 @@ public class JoinTest extends AbstractOperatorTest {
                     .windowBy(Sessions.withGapDuration(org.joda.time.Duration.millis(10)))
                     .triggeredBy(AfterWatermark.pastEndOfWindow())
                     .discardingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO)
                     .output();
 
             return MapElements.of(joined).using(KV::getValue).output();

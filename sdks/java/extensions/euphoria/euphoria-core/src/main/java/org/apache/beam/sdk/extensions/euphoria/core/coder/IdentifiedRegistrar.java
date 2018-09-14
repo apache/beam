@@ -52,12 +52,10 @@ class IdentifiedRegistrar implements Serializable {
     Objects.requireNonNull(registrar);
     IdentifiedRegistrar identifiedRegistrar =
         new IdentifiedRegistrar(idSource.getAndIncrement(), registrar);
-    LOG.info(
-        String.format(
-            "Id: '%d' was assigned to given %s of type '%s'.",
-            identifiedRegistrar.getId(),
-            KryoRegistrar.class.getSimpleName(),
-            registrar.getClass()));
+    LOG.debug(
+        "Registrar id [{}] was assigned to [{}].",
+        identifiedRegistrar.getId(),
+        registrar.getClass());
     return identifiedRegistrar;
   }
 

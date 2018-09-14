@@ -40,7 +40,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.joda.time.Duration;
 
 /** Translator for {@code ReduceByKey} operator. */
 public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
@@ -61,10 +60,7 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     final PCollection<InputT> input =
         operator
             .getWindow()
-            .map(
-                window ->
-                    OperatorTranslators.getSingleInput(inputs)
-                        .apply(window.withAllowedLateness(Duration.ZERO)))
+            .map(window -> OperatorTranslators.getSingleInput(inputs).apply(window))
             .orElseGet(() -> OperatorTranslators.getSingleInput(inputs));
 
     // ~ create key & value extractor

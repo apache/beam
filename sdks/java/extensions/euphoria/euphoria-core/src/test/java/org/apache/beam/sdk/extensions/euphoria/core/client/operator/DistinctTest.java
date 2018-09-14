@@ -44,7 +44,8 @@ public class DistinctTest {
             .of(dataset)
             .windowBy(windowing)
             .triggeredBy(trigger)
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
     assertTrue(uniq.getProducer().isPresent());
     final Distinct distinct = (Distinct) uniq.getProducer().get();
@@ -57,6 +58,7 @@ public class DistinctTest {
     assertEquals(windowing, windowDesc.getWindowFn());
     assertEquals(trigger, windowDesc.getTrigger());
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(Duration.millis(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

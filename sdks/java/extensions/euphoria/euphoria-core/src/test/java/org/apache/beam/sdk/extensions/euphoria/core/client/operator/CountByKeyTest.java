@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test operator CountByKey. */
@@ -48,7 +48,8 @@ public class CountByKeyTest {
             .keyBy(s -> s)
             .windowBy(windowing)
             .triggeredBy(trigger)
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
     assertTrue(counted.getProducer().isPresent());
     final CountByKey count = (CountByKey) counted.getProducer().get();
@@ -57,9 +58,10 @@ public class CountByKeyTest {
     assertNotNull(count.getKeyExtractor());
     assertTrue(count.getWindow().isPresent());
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
-    assertSame(windowing, desc.getWindowFn());
-    assertSame(trigger, desc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
+    assertEquals(windowing, desc.getWindowFn());
+    assertEquals(trigger, desc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
+    assertEquals(Duration.millis(1000), desc.getAllowedLateness());
   }
 
   @Test
@@ -88,7 +90,7 @@ public class CountByKeyTest {
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), desc.getWindowFn());
     assertEquals(DefaultTrigger.of(), desc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
   }
 
   @Test
@@ -106,9 +108,9 @@ public class CountByKeyTest {
     final CountByKey count = (CountByKey) counted.getProducer().get();
     assertTrue(count.getWindow().isPresent());
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
-    assertSame(windowing, desc.getWindowFn());
-    assertSame(trigger, desc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
+    assertEquals(windowing, desc.getWindowFn());
+    assertEquals(trigger, desc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
   }
 
   @Test

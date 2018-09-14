@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -116,9 +117,6 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
                 .reduceBy(s -> s.collect(Collectors.toSet()))
-                .windowBy(new GlobalWindows())
-                .triggeredBy(AfterWatermark.pastEndOfWindow())
-                .discardingFiredPanes()
                 .outputValues();
           }
 
@@ -207,6 +205,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -279,6 +278,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .windowBy(windowFn)
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -446,6 +446,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .windowBy(new MergingByBucketSizeWindowFn<>(3))
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 
@@ -542,6 +543,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                 .triggeredBy(AfterWatermark.pastEndOfWindow())
                 .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO)
                 .output();
           }
 

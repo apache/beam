@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.joda.time.Duration;
 
 abstract class AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT>
     implements OperatorTranslator<Object, KV<KeyT, OutputT>, Join<LeftT, RightT, KeyT, OutputT>> {
@@ -52,10 +51,10 @@ abstract class AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT>
     if (operator.getWindow().isPresent()) {
       @SuppressWarnings("unchecked")
       final Window<KV<KeyT, LeftT>> leftWindow = (Window) operator.getWindow().get();
-      leftKeyed = leftKeyed.apply("window-left", leftWindow.withAllowedLateness(Duration.ZERO));
+      leftKeyed = leftKeyed.apply("window-left", leftWindow);
       @SuppressWarnings("unchecked")
       final Window<KV<KeyT, RightT>> rightWindow = (Window) operator.getWindow().get();
-      rightKeyed = rightKeyed.apply("window-right", rightWindow.withAllowedLateness(Duration.ZERO));
+      rightKeyed = rightKeyed.apply("window-right", rightWindow);
     }
     return translate(operator, leftKeyed, rightKeyed)
         .setTypeDescriptor(

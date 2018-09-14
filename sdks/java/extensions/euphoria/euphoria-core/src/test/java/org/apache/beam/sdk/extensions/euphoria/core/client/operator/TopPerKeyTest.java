@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test behavior of operator {@code TopPerKey}. */
@@ -49,7 +49,8 @@ public class TopPerKeyTest {
             .scoreBy(s -> 1L)
             .windowBy(windowing)
             .triggeredBy(trigger)
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
     assertTrue(result.getProducer().isPresent());
     final TopPerKey tpk = (TopPerKey) result.getProducer().get();
@@ -62,9 +63,10 @@ public class TopPerKeyTest {
     assertTrue(tpk.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());
-    assertSame(windowing, windowDesc.getWindowFn());
-    assertSame(trigger, windowDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(windowing, windowDesc.getWindowFn());
+    assertEquals(trigger, windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(Duration.millis(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

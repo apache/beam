@@ -54,7 +54,8 @@ public class ReduceByKeyTest {
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
             .windowBy(windowing)
             .triggeredBy(trigger)
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.standardSeconds(1000))
             .output();
 
     assertTrue(reduced.getProducer().isPresent());
@@ -67,11 +68,11 @@ public class ReduceByKeyTest {
 
     assertTrue(reduce.getWindow().isPresent());
     @SuppressWarnings("unchecked")
-    final Window<? extends BoundedWindow> window = (Window) reduce.getWindow().get();
-    assertSame(windowing, window.getWindowFn());
-    assertSame(trigger, WindowDesc.of(window).getTrigger());
-    assertSame(
-        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) reduce.getWindow().get());
+    assertEquals(windowing, windowDesc.getWindowFn());
+    assertEquals(trigger, windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(Duration.standardSeconds(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

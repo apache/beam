@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test behavior of operator {@code SumByKey}. */
@@ -66,16 +67,19 @@ public class SumByKeyTest {
             .valueBy(s -> 1L)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
     assertTrue(counted.getProducer().isPresent());
     final SumByKey sum = (SumByKey) counted.getProducer().get();
     assertTrue(sum.getWindow().isPresent());
-    final Window<?> window = (Window) sum.getWindow().get();
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
-    assertEquals(DefaultTrigger.of(), WindowDesc.of(window).getTrigger());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) sum.getWindow().get());
     assertEquals(
-        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(Duration.millis(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

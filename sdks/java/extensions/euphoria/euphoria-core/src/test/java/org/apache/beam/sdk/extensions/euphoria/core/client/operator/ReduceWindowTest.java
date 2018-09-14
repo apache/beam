@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test behavior of operator {@code ReduceWindow}. */
@@ -57,7 +58,8 @@ public class ReduceWindowTest {
             .reduceBy(e -> 1L)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(DefaultTrigger.of())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
 
     assertTrue(output.getProducer().isPresent());
@@ -73,6 +75,7 @@ public class ReduceWindowTest {
     assertEquals(
         FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
     assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(Duration.millis(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

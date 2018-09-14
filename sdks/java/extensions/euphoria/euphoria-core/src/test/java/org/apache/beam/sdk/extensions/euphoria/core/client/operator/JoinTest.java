@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -77,6 +78,7 @@ public class JoinTest {
         OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
         OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+
     final Dataset<String> joined =
         Join.named("JoinValues")
             .of(left, right)
@@ -215,16 +217,19 @@ public class JoinTest {
             .using((String l, String r, Collector<String> c) -> c.collect(l + r))
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(AfterWatermark.pastEndOfWindow())
-            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(1000))
             .output();
     assertTrue(joined.getProducer().isPresent());
     final Join join = (Join) joined.getProducer().get();
     assertTrue(join.getWindow().isPresent());
-    final Window<?> window = (Window) join.getWindow().get();
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
-    assertEquals(AfterWatermark.pastEndOfWindow(), WindowDesc.of(window).getTrigger());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) join.getWindow().get());
     assertEquals(
-        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
+    assertEquals(Duration.millis(1000), windowDesc.getAllowedLateness());
   }
 
   @Test

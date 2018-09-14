@@ -39,12 +39,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Emits top element for defined keys and windows. The elements are compared by comparable objects
@@ -175,20 +176,25 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
 
   /** Builder for 'triggeredBy' step */
   public interface TriggeredByBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
-      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, ValueT, ScoreT>> {
+      extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, ValueT, ScoreT>> {
 
     @Override
-    AccumulatorModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger);
+    AccumulationModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger);
   }
 
   /** Builder for 'accumulationMode' step */
-  public interface AccumulatorModeBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
-      extends Builders.AccumulatorMode<OutputBuilder<KeyT, ValueT, ScoreT>> {
+  public interface AccumulationModeBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, ValueT, ScoreT>> {
 
     @Override
-    OutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
+    WindowedOutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode);
   }
+
+  /** Builder for 'windowed output' step */
+  public interface WindowedOutputBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, ValueT, ScoreT>>,
+          OutputBuilder<KeyT, ValueT, ScoreT> {}
 
   /** Builder for 'output' step */
   public interface OutputBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
@@ -207,8 +213,11 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
           ScoreBy<InputT, KeyT, ValueT>,
           WindowByBuilder<KeyT, ValueT, ScoreT>,
           TriggeredByBuilder<KeyT, ValueT, ScoreT>,
-          AccumulatorModeBuilder<KeyT, ValueT, ScoreT>,
+          AccumulationModeBuilder<KeyT, ValueT, ScoreT>,
+          WindowedOutputBuilder<KeyT, ValueT, ScoreT>,
           OutputBuilder<KeyT, ValueT, ScoreT> {
+
+    private final WindowState<InputT> windowState = new WindowState<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
@@ -218,7 +227,6 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     @Nullable private TypeDescriptor<ValueT> valueType;
     private UnaryFunction<InputT, ScoreT> scoreExtractor;
     @Nullable private TypeDescriptor<ScoreT> scoreType;
-    @Nullable private Window<InputT> window;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -264,30 +272,48 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT, ValueT, ScoreT> windowBy(
         WindowFn<Object, W> windowFn) {
-      window = Window.into(requireNonNull(windowFn));
+      windowState.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulatorModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger) {
-      window = requireNonNull(window).triggering(requireNonNull(trigger));
+    public AccumulationModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger) {
+      windowState.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public OutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
+    public WindowedOutputBuilder<KeyT, ValueT, ScoreT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      switch (requireNonNull(accumulationMode)) {
-        case DISCARDING_FIRED_PANES:
-          window = requireNonNull(window).discardingFiredPanes();
-          break;
-        case ACCUMULATING_FIRED_PANES:
-          window = requireNonNull(window).accumulatingFiredPanes();
-          break;
-        default:
-          throw new IllegalArgumentException(
-              "Unknown accumulation mode [" + accumulationMode + "]");
-      }
+      windowState.accumulationMode(accumulationMode);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, ValueT, ScoreT> withAllowedLateness(
+        Duration allowedLateness) {
+      windowState.withAllowedLateness(allowedLateness);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, ValueT, ScoreT> withAllowedLateness(
+        Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
+      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, ValueT, ScoreT> withTimestampCombiner(
+        TimestampCombiner timestampCombiner) {
+      windowState.withTimestampCombiner(timestampCombiner);
+      return this;
+    }
+
+    @Override
+    public WindowedOutputBuilder<KeyT, ValueT, ScoreT> withOnTimeBehavior(
+        Window.OnTimeBehavior behavior) {
+      windowState.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -302,7 +328,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
               valueType,
               scoreExtractor,
               scoreType,
-              window,
+              windowState.getWindow().orElse(null),
               TypeUtils.triplets(keyType, valueType, scoreType));
       return OperatorTransform.apply(sbk, Collections.singletonList(input));
     }
@@ -371,18 +397,16 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
                     .orElseThrow(IllegalStateException::new))
         .applyIf(
             getWindow().isPresent(),
-            (builder) -> {
-              final WindowDesc<InputT> desc =
-                  WindowDesc.of(
-                      getWindow()
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Unable to resolve windowing for TopPerKey expansion.")));
-              return builder
-                  .windowBy(desc.getWindowFn())
-                  .triggeredBy(desc.getTrigger())
-                  .accumulationMode(desc.getAccumulationMode());
+            builder -> {
+              @SuppressWarnings("unchecked")
+              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Triple<KeyT, ValueT, ScoreT>>
+                  casted = (ReduceByKey.WindowByInternalBuilder) builder;
+              return casted.windowBy(
+                  getWindow()
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Unable to resolve windowing for TopPerKey expansion.")));
             })
         .outputValues();
   }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Exposes window package private properties for testing
@@ -62,5 +63,14 @@ public class WindowDesc<T> {
    */
   public WindowingStrategy.AccumulationMode getAccumulationMode() {
     return window.getAccumulationMode();
+  }
+
+  /**
+   * {@link Window#getAllowedLateness()}
+   *
+   * @return allowed lateness
+   */
+  public Duration getAllowedLateness() {
+    return window.getAllowedLateness();
   }
 }
