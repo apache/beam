@@ -37,7 +37,7 @@ import org.junit.runners.JUnit4;
 public class TfIdfIT {
 
   private static final String DEFAULT_INPUT = "gs://apache-beam-samples/shakespeare/";
-  private static final String EXPECTED_OUTPUT_CHECKSUM = "f072786dde51dc09fc74bf38ffbfc27dcfdf0b96";
+  private static final String EXPECTED_OUTPUT_CHECKSUM = "0549d1dc8821976121771aefcb0e2297177bdb88";
   private static final Pattern DEFAULT_SHARD_TEMPLATE =
       Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)\\.csv");
 
