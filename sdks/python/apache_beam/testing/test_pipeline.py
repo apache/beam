@@ -152,7 +152,7 @@ class TestPipeline(Pipeline):
       elif isinstance(v, bool) and v:
         options.append('--%s' % k)
       elif 'matcher' in k:
-        options.append('--%s=%s' % (k, pickler.dumps(v)))
+        options.append('--%s=%s' % (k, pickler.dumps(v).decode()))
       else:
         options.append('--%s=%s' % (k, v))
     return options
