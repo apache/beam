@@ -577,7 +577,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
           if (records.isEmpty()) {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
           } else if (availableRecordsQueue.offer(
-            records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
+              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
             records = ConsumerRecords.empty();
           }
           KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
@@ -628,11 +628,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   private void nextBatch() throws IOException {
-    if (consumerPollException.get() != null) {
-      throw new IOException("Exception while reading from Kafka", consumerPollException.get());
-    }
-
     curBatch = Collections.emptyIterator();
+
     ConsumerRecords<byte[], byte[]> records;
     try {
       // poll available records, wait (if necessary) up to the specified timeout.
@@ -646,6 +643,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     if (records == null) {
+      // Check if the poll thread failed with an exception.
+      if (consumerPollException.get() != null) {
+        throw new IOException("Exception while reading from Kafka", consumerPollException.get());
+      }
       return;
     }
 

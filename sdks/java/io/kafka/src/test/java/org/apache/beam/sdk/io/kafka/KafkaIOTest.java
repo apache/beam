@@ -663,16 +663,16 @@ public class KafkaIOTest {
     String topic = "my_topic";
 
     KafkaIO.Read<Integer, Long> reader =
-      KafkaIO.<Integer, Long>read()
-        .withBootstrapServers("none")
-        .withTopic("my_topic")
-        .withConsumerFactoryFn(
-          new ConsumerFactoryFn(
-            ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
-        .withMaxNumRecords(2 * numElements) // Try to read more messages than available.
-        .updateConsumerProperties(ImmutableMap.of("inject.error.at.eof", true))
-        .withKeyDeserializer(IntegerDeserializer.class)
-        .withValueDeserializer(LongDeserializer.class);
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("my_topic")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(2 * numElements) // Try to read more messages than available.
+            .updateConsumerProperties(ImmutableMap.of("inject.error.at.eof", true))
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class);
 
     PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
 
