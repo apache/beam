@@ -138,8 +138,8 @@ class InteractiveRunner(runners.PipelineRunner):
         pipeline_proto=pipeline_proto,
         caches_used=analyzer.caches_used(),
         cache_manager=self._cache_manager,
-        referenced_pcollections=analyzer.top_level_referenced_pcollection_ids(),
-        required_transforms=analyzer.top_level_required_transforms(),
+        referenced_pcollections=analyzer.tl_referenced_pcoll_ids(),
+        required_transforms=analyzer.tl_required_trans_ids(),
         pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
     result = pipeline_to_execute.run()
