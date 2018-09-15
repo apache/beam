@@ -992,13 +992,15 @@ message SideInput {
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
+  // Deprecated
+  string url = 1;
 
   // (Required) The URN of the payload
-  string urn = 1;
+  string urn = 2;
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  bytes payload = 2;
+  bytes payload = 3;
 }
 
 message StandardEnvironments {
