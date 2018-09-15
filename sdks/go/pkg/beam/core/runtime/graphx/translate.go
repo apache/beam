@@ -493,7 +493,11 @@ func (m *marshaller) addDefaultEnv() string {
 		if err != nil {
 			panic(fmt.Sprintf("Failed to serialize Environment payload %v: %v", payload, err))
 		}
-		m.environments[id] = &pb.Environment{Urn: "beam:env:docker:v1", Payload: serialized_payload}
+		m.environments[id] = &pb.Environment{
+		  Url: m.opt.ContainerImageURL,
+		  Urn: "beam:env:docker:v1",
+		  Payload: serialized_payload,
+		}
 	}
 	return id
 }

@@ -72,6 +72,7 @@ public class Environments {
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
     return Environment.newBuilder()
+        .setUrl(dockerImageUrl)
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(
             DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())

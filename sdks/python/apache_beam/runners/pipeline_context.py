@@ -124,6 +124,7 @@ class PipelineContext(object):
       self._default_environment_id = self.environments.get_id(
           Environment(
               beam_runner_api_pb2.Environment(
+                  url=default_environment_url,
                   urn=common_urns.environments.DOCKER.urn,
                   payload=beam_runner_api_pb2.DockerPayload(
                       container_image=default_environment_url
