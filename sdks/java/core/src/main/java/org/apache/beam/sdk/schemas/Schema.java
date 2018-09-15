@@ -167,6 +167,10 @@ public class Schema implements Serializable {
     this.fields = fields;
     int index = 0;
     for (Field field : fields) {
+      if (fieldIndices.get(field.getName()) != null) {
+        throw new IllegalArgumentException(
+            "Duplicate field " + field.getName() + " added to schema");
+      }
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);

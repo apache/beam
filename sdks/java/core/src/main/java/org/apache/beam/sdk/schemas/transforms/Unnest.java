@@ -60,7 +60,7 @@ public class Unnest {
    */
   public static final SerializableFunction<List<String>, String> CONCAT_FIELD_NAMES =
       l -> {
-        return String.join(".", l);
+        return String.join("_", l);
       };
   /**
    * This policy keeps the raw nested field name. If two differently-nested fields have the same
@@ -73,25 +73,21 @@ public class Unnest {
   /** Returns the result of unnesting the given schema. The default naming policy is used. */
   static Schema getUnnestedSchema(Schema schema) {
     List<String> nameComponents = Lists.newArrayList();
-    return getUnnestedSchema(schema, nameComponents, CONCAT_FIELD_NAMES, 0);
+    return getUnnestedSchema(schema, nameComponents, CONCAT_FIELD_NAMES);
   }
   /** Returns the result of unnesting the given schema with the given naming policy. */
   static Schema getUnnestedSchema(Schema schema, SerializableFunction<List<String>, String> fn) {
     List<String> nameComponents = Lists.newArrayList();
-    return getUnnestedSchema(schema, nameComponents, fn, 0);
+    return getUnnestedSchema(schema, nameComponents, fn);
   }
 
   private static Schema getUnnestedSchema(
-      Schema schema,
-      List<String> nameComponents,
-      SerializableFunction<List<String>, String> fn,
-      int currentLevel) {
+      Schema schema, List<String> nameComponents, SerializableFunction<List<String>, String> fn) {
     Schema.Builder builder = Schema.builder();
     for (Field field : schema.getFields()) {
       nameComponents.add(field.getName());
       if (field.getType().getTypeName().isCompositeType()) {
-        Schema nestedSchema =
-            getUnnestedSchema(field.getType().getRowSchema(), nameComponents, fn, currentLevel + 1);
+        Schema nestedSchema = getUnnestedSchema(field.getType().getRowSchema(), nameComponents, fn);
         for (Field nestedField : nestedSchema.getFields()) {
           builder.addField(nestedField);
         }
@@ -107,15 +103,15 @@ public class Unnest {
   /** Unnest a row. */
   static Row unnestRow(Row input, Schema unnestedSchema) {
     Row.Builder builder = Row.withSchema(unnestedSchema);
-    unnestRow(input, builder, 0);
+    unnestRow(input, builder);
     return builder.build();
   }
 
-  private static void unnestRow(Row input, Row.Builder output, int currentLevel) {
+  private static void unnestRow(Row input, Row.Builder output) {
     for (int i = 0; i < input.getSchema().getFieldCount(); ++i) {
       Field field = input.getSchema().getField(i);
       if (field.getType().getTypeName().isCompositeType()) {
-        unnestRow(input.getRow(i), output, currentLevel + 1);
+        unnestRow(input.getRow(i), output);
       } else {
         output.addValue(input.getValue(i));
       }
@@ -140,7 +136,7 @@ public class Unnest {
      * <p>This is needed to prevent name collisions when differently-nested fields have the same
      * name. The default is to use the {@link #CONCAT_FIELD_NAMES} strategy that concatenates all
      * names in the path to generate the unnested name. For example, an unnested name might be
-     * field1.field2.field3. In some cases the {@link #KEEP_NESTED_NAME} strategy can be used to
+     * field1_field2_field3. In some cases the {@link #KEEP_NESTED_NAME} strategy can be used to
      * keep only the most-deeply nested name. However if this results in conflicting names (e.g. if
      * a schema has two subrows that each have the same schema this will happen), the pipeline will
      * fail at construction time.
