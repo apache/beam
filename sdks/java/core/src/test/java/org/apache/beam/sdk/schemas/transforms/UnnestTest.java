@@ -47,10 +47,10 @@ public class UnnestTest implements Serializable {
           .build();
   static final Schema UNNESTED_SCHEMA =
       Schema.builder()
-          .addInt32Field("nested1.field1")
-          .addStringField("nested1.field2")
-          .addInt32Field("nested2.field1")
-          .addStringField("nested2.field2")
+          .addInt32Field("nested1_field1")
+          .addStringField("nested1_field2")
+          .addInt32Field("nested2_field1")
+          .addStringField("nested2_field2")
           .build();
   static final Schema NESTED_SCHEMA2 =
       Schema.builder().addRowField("nested", SIMPLE_SCHEMA).build();
@@ -101,8 +101,8 @@ public class UnnestTest implements Serializable {
 
   static final Schema ONE_LEVEL_UNNESTED_SCHEMA =
       Schema.builder()
-          .addRowField("nested.nested1", SIMPLE_SCHEMA)
-          .addRowField("nested.nested2", SIMPLE_SCHEMA)
+          .addRowField("nested_nested1", SIMPLE_SCHEMA)
+          .addRowField("nested_nested2", SIMPLE_SCHEMA)
           .build();
 
   static final Schema UNNESTED2_SCHEMA_ALTERNATE =
