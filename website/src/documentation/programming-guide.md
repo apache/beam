@@ -2430,7 +2430,7 @@ At a high level, triggers provide two additional capabilities compared to simply
 outputting at the end of a window:
 
 *   Triggers allow Beam to emit early results, before all the data in a given
-    window has arrived. For example, emitting after a certain amouint of time
+    window has arrived. For example, emitting after a certain amount of time
     elapses, or after a certain number of elements arrives.
 *   Triggers allow processing of late data by triggering after the event time
     watermark passes the end of the window.
