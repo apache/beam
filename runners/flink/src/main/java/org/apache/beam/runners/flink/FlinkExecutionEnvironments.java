@@ -24,7 +24,7 @@ import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -181,7 +181,7 @@ public class FlinkExecutionEnvironments {
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
 
     // State backend
-    final AbstractStateBackend stateBackend = options.getStateBackend();
+    final StateBackend stateBackend = options.getStateBackend();
     if (stateBackend != null) {
       flinkStreamEnv.setStateBackend(stateBackend);
     }
