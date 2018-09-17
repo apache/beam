@@ -84,9 +84,7 @@ public class BigQueryUtilsTest {
           .build();
 
   private static final Row NULL_FLAT_ROW =
-      Row.withSchema(FLAT_TYPE)
-          .addValues(null, null, null, null, null)
-          .build();
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
 
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
