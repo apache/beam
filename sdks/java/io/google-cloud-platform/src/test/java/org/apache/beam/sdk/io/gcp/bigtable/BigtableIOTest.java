@@ -117,7 +117,7 @@ public class BigtableIOTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
 
-  /** Read Options for testing */
+  /** Read Options for testing. */
   public interface ReadOptions extends GcpOptions {
     @Description("The project that contains the table to export.")
     ValueProvider<String> getBigtableProject();
