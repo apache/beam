@@ -294,8 +294,6 @@ class TimestampedValue(object):
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance = None
-  _END_OF_GLOBAL_WINDOW = Timestamp(micros=int(
-      common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant)*1000)
 
   def __new__(cls):
     if cls._instance is None:
@@ -303,7 +301,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(GlobalWindow._END_OF_GLOBAL_WINDOW)
+    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):
@@ -318,6 +316,13 @@ class GlobalWindow(BoundedWindow):
 
   def __ne__(self, other):
     return not self == other
+
+  @staticmethod
+  def _getTimestampFromProto():
+    ts_millis = int(
+        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant,
+        16)
+    return Timestamp(micros=ts_millis*1000)
 
 
 class NonMergingWindowFn(WindowFn):

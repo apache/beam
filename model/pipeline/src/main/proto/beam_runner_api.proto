@@ -34,11 +34,15 @@ import "google/protobuf/descriptor.proto";
 
 message BeamConstants {
   enum Constants {
-    // The maximum timestamp for the global window in milliseconds since Jan 1, 1970
+    // The maximum timestamp for the global window in milliseconds since Jan 1, 1970.
     // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
     // the watermark passes their timestamps. So, the timestamp needs to be
     // smaller than the TIMESTAMP_MAX_MILLIS.
-    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 0 [(beam_constant) = "9223371950454775"];
+    // One standard day is subtracted from TIMESTAMP_MAX_VALUE to make sure
+    // the maxTimestamp is smaller than TIMESTAMP_MAX_VALUE even after rounding up
+    // to seconds or minutes. See also GlobalWindow in the Java SDK.
+    // Value is represented in hex.
+    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 0 [(beam_constant) = "20c49ba0bcf7f7"];
   }
 }
 
