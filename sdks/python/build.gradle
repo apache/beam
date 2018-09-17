@@ -261,6 +261,37 @@ task portableWordCount(dependsOn: 'installGcpTest') {
   }
 }
 
+task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
+  doLast {
+    def cmd_args = []
+
+    // Build test options that configures test environment and framework
+    def test_options = [
+            "--nocapture",
+            "--nologcapture",
+            "--processes=8",
+            "--process-timeout=3000",
+    ]
+    if (project.hasProperty('testOptions'))
+      // Customize test options by adding more nose flags to -Ptest_opt in commandline
+      test_options = project.property('test_options')
+    if (project.hasProperty('attr'))
+      test_options += ["--attr=${project.property('attr')}"]
+    if (project.hasProperty('tests'))
+      test_options += ["--tests=${project.property('tests')}"]
+    cmd_args += ["--test_opts \"${test_options.join(' ')}\""]
+
+    // Build pipeline options that configures pipeline job
+    if (project.hasProperty('pipelineOptions'))
+      cmd_args += ["--pipeline_opts \"${project.property('pipelineOptions')}\""]
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_integration_test.sh ${cmd_args.join(' ')}"
+    }
+  }
+}
+
 task postCommitITTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
