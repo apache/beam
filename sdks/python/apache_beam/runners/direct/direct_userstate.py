@@ -35,7 +35,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.key_coder = key_coder
 
     self.all_state_specs, self.all_timer_specs = (
-        userstate.UserStateUtils.get_dofn_specs(dofn))
+        userstate.get_dofn_specs(dofn))
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name

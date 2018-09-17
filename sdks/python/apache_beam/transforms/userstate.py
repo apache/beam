@@ -109,73 +109,76 @@ def on_timer(timer_spec):
   return _inner
 
 
-class UserStateUtils(object):
+def get_dofn_specs(dofn):
+  """Gets the state and timer specs for a DoFn, if any."""
 
-  @staticmethod
-  def get_dofn_specs(dofn):
-    # Avoid circular import.
-    from apache_beam.runners.common import MethodWrapper
-    from apache_beam.transforms.core import _DoFnParam
-    from apache_beam.transforms.core import _StateDoFnParam
-    from apache_beam.transforms.core import _TimerDoFnParam
+  # Avoid circular import.
+  from apache_beam.runners.common import MethodWrapper
+  from apache_beam.transforms.core import _DoFnParam
+  from apache_beam.transforms.core import _StateDoFnParam
+  from apache_beam.transforms.core import _TimerDoFnParam
 
-    all_state_specs = set()
-    all_timer_specs = set()
+  all_state_specs = set()
+  all_timer_specs = set()
 
-    # Validate params to process(), start_bundle(), finish_bundle() and to
-    # any on_timer callbacks.
-    for method_name in dir(dofn):
-      if not isinstance(getattr(dofn, method_name, None), types.MethodType):
-        continue
-      method = MethodWrapper(dofn, method_name)
-      param_ids = [d.param_id for d in method.defaults
-                   if isinstance(d, _DoFnParam)]
-      if len(param_ids) != len(set(param_ids)):
-        raise ValueError(
-            'DoFn %r has duplicate %s method parameters: %s.' % (
-                dofn, method_name, param_ids))
-      for d in method.defaults:
-        if isinstance(d, _StateDoFnParam):
-          all_state_specs.add(d.state_spec)
-        elif isinstance(d, _TimerDoFnParam):
-          all_timer_specs.add(d.timer_spec)
-
-    return all_state_specs, all_timer_specs
-
-  @staticmethod
-  def is_stateful_dofn(dofn):
-    # A Stateful DoFn is a DoFn that uses user state or timers.
-    all_state_specs, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
-    return bool(all_state_specs or all_timer_specs)
-
-  @staticmethod
-  def validate_stateful_dofn(dofn):
-    # Get state and timer specs.
-    all_state_specs, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
-
-    # Reject DoFns that have multiple state or timer specs with the same name.
-    if len(all_state_specs) != len(set(s.name for s in all_state_specs)):
+  # Validate params to process(), start_bundle(), finish_bundle() and to
+  # any on_timer callbacks.
+  for method_name in dir(dofn):
+    if not isinstance(getattr(dofn, method_name, None), types.MethodType):
+      continue
+    method = MethodWrapper(dofn, method_name)
+    param_ids = [d.param_id for d in method.defaults
+                 if isinstance(d, _DoFnParam)]
+    if len(param_ids) != len(set(param_ids)):
       raise ValueError(
-          'DoFn %r has multiple StateSpecs with the same name: %s.' % (
-              dofn, all_state_specs))
-    if len(all_timer_specs) != len(set(s.name for s in all_timer_specs)):
-      raise ValueError(
-          'DoFn %r has multiple TimerSpecs with the same name: %s.' % (
-              dofn, all_timer_specs))
+          'DoFn %r has duplicate %s method parameters: %s.' % (
+              dofn, method_name, param_ids))
+    for d in method.defaults:
+      if isinstance(d, _StateDoFnParam):
+        all_state_specs.add(d.state_spec)
+      elif isinstance(d, _TimerDoFnParam):
+        all_timer_specs.add(d.timer_spec)
 
-    # Reject DoFns that use timer specs without corresponding timer callbacks.
-    for timer_spec in all_timer_specs:
-      if not timer_spec._attached_callback:
-        raise ValueError(
-            ('DoFn %r has a TimerSpec without an associated on_timer '
-             'callback: %s.') % (dofn, timer_spec))
-      method_name = timer_spec._attached_callback.__name__
-      if (timer_spec._attached_callback !=
-          getattr(dofn, method_name, None).__func__):
-        raise ValueError(
-            ('The on_timer callback for %s is not the specified .%s method '
-             'for DoFn %r (perhaps it was overwritten?).') % (
-                 timer_spec, method_name, dofn))
+  return all_state_specs, all_timer_specs
+
+
+def is_stateful_dofn(dofn):
+  """Determines whether a given DoFn is a stateful DoFn."""
+
+  # A Stateful DoFn is a DoFn that uses user state or timers.
+  all_state_specs, all_timer_specs = get_dofn_specs(dofn)
+  return bool(all_state_specs or all_timer_specs)
+
+
+def validate_stateful_dofn(dofn):
+  """Validates the proper specification of a stateful DoFn."""
+
+  # Get state and timer specs.
+  all_state_specs, all_timer_specs = get_dofn_specs(dofn)
+
+  # Reject DoFns that have multiple state or timer specs with the same name.
+  if len(all_state_specs) != len(set(s.name for s in all_state_specs)):
+    raise ValueError(
+        'DoFn %r has multiple StateSpecs with the same name: %s.' % (
+            dofn, all_state_specs))
+  if len(all_timer_specs) != len(set(s.name for s in all_timer_specs)):
+    raise ValueError(
+        'DoFn %r has multiple TimerSpecs with the same name: %s.' % (
+            dofn, all_timer_specs))
+
+  # Reject DoFns that use timer specs without corresponding timer callbacks.
+  for timer_spec in all_timer_specs:
+    if not timer_spec._attached_callback:
+      raise ValueError(
+          ('DoFn %r has a TimerSpec without an associated on_timer '
+           'callback: %s.') % (dofn, timer_spec))
+    method_name = timer_spec._attached_callback.__name__
+    if (timer_spec._attached_callback !=
+        getattr(dofn, method_name, None).__func__):
+      raise ValueError(
+          ('The on_timer callback for %s is not the specified .%s method '
+           'for DoFn %r (perhaps it was overwritten?).') % (
+               timer_spec, method_name, dofn))
 
 
 class RuntimeTimer(object):
@@ -292,10 +295,10 @@ class CombiningValueRuntimeState(RuntimeState):
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
 
-  def get_timer(self, timer_spec):
+  def get_timer(self, timer_spec, key, window):
     raise NotImplementedError()
 
-  def get_state(self, state_spec):
+  def get_state(self, state_spec, key, window):
     raise NotImplementedError()
 
   def commit(self):

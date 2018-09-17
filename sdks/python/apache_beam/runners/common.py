@@ -38,8 +38,8 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
+from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
-from apache_beam.transforms.userstate import UserStateUtils
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -163,15 +163,15 @@ class MethodWrapper(object):
     self.state_args_to_replace = {}
     self.timer_args_to_replace = {}
     for kw, v in zip(args[-len(defaults):], defaults):
-      if v.__class__ == core.DoFn.StateParam:
+      if isinstance(v, core.DoFn.StateParam):
         self.state_args_to_replace[kw] = v.state_spec
         self.has_userstate_arguments = True
-      elif v.__class__ == core.DoFn.TimerParam:
+      elif isinstance(v, core.DoFn.TimerParam):
         self.timer_args_to_replace[kw] = v.timer_spec
         self.has_userstate_arguments = True
 
   def invoke_timer_callback(self, user_state_context, key, window):
-    # TODO(ccy): support WindowParam and TimestampParam.
+    # TODO(ccy): support WindowParam, TimestampParam and side inputs.
     if self.has_userstate_arguments:
       kwargs = {}
       for kw, state_spec in self.state_args_to_replace.items():
@@ -222,11 +222,11 @@ class DoFnSignature(object):
     self._validate()
 
     # Handle stateful DoFns.
-    self._is_stateful_dofn = UserStateUtils.is_stateful_dofn(do_fn)
+    self._is_stateful_dofn = userstate.is_stateful_dofn(do_fn)
     self.timer_methods = {}
     if self._is_stateful_dofn:
       # Populate timer firing methods, keyed by TimerSpec.
-      _, all_timer_specs = UserStateUtils.get_dofn_specs(do_fn)
+      _, all_timer_specs = userstate.get_dofn_specs(do_fn)
       for timer_spec in all_timer_specs:
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
@@ -262,7 +262,7 @@ class DoFnSignature(object):
             (param, method_wrapper))
 
   def _validate_stateful_dofn(self):
-    UserStateUtils.validate_stateful_dofn(self.do_fn)
+    userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
     return any([isinstance(default, RestrictionProvider) for default in
@@ -423,7 +423,8 @@ class PerWindowInvoker(DoFnInvoker):
     default_arg_values = signature.process_method.defaults
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or
-        (core.DoFn.WindowParam in default_arg_values))
+        (core.DoFn.WindowParam in default_arg_values) or
+        signature.is_stateful_dofn())
     self.user_state_context = user_state_context
 
     # Try to prepare all the arguments that can just be filled in
@@ -471,9 +472,9 @@ class PerWindowInvoker(DoFnInvoker):
         except StopIteration:
           if a not in input_kwargs:
             raise ValueError("Value for sideinput %s not provided" % a)
-      elif d.__class__ == core.DoFn.StateParam:
+      elif isinstance(d, core.DoFn.StateParam):
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d.__class__ == core.DoFn.TimerParam:
+      elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
@@ -569,10 +570,10 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = window
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
-      elif p.__class__ == core.DoFn.StateParam:
+      elif isinstance(p, core.DoFn.StateParam):
         args_for_process[i] = (
             self.user_state_context.get_state(p.state_spec, key, window))
-      elif p.__class__ == core.DoFn.TimerParam:
+      elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
 
