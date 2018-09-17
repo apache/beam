@@ -1,0 +1,2 @@
+REPOSITORY = "beam-samza-runner"
+TRACKING_BRANCH = 'origin/li_trunk'
