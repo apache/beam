@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import com.google.auto.service.AutoService;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.NativeTransforms.IsNativeTransform;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,14 +40,15 @@ public class NativeTransformsTest {
 
   @Test
   public void testMatch() {
-    NativeTransforms.isNative(
-        RunnerApi.PTransform.newBuilder()
-            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("test").build())
-            .build());
+    Assert.assertTrue(
+        NativeTransforms.isNative(
+            RunnerApi.PTransform.newBuilder()
+                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("test").build())
+                .build()));
   }
 
   @Test
   public void testNoMatch() {
-    NativeTransforms.isNative(RunnerApi.PTransform.getDefaultInstance());
+    Assert.assertFalse(NativeTransforms.isNative(RunnerApi.PTransform.getDefaultInstance()));
   }
 }
