@@ -54,9 +54,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link UnboundedSourceWrapper}. */
 public class UnboundedSourceWrapperTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapperTest.class);
 
   /** Parameterized tests. */
   @RunWith(Parameterized.class)
@@ -139,7 +143,7 @@ public class UnboundedSourceWrapperTest {
                     // this is ok
                     break;
                   } catch (Exception e) {
-                    e.printStackTrace();
+                    LOG.error("Unexpected error advancing processing time", e);
                     break;
                   }
                 }
@@ -277,7 +281,7 @@ public class UnboundedSourceWrapperTest {
                         public void close() {}
                       });
                 } catch (Exception e) {
-                  System.out.println("Caught exception: " + e);
+                  LOG.info("Caught exception:", e);
                   caughtExceptions.add(e);
                 }
               });
