@@ -1083,11 +1083,19 @@ class FnApiRunner(runner.PipelineRunner):
           futures.ThreadPoolExecutor(max_workers=10))
       self.control_port = self.control_server.add_insecure_port('[::]:0')
 
-      self.data_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      # Options to have no limits (-1) on the size of the messages
+      # received or sent over the data plane. The actual buffer size
+      # is controlled in a layer above.
+      no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                              ("grpc.max_send_message_length", -1)]
+      self.data_server = grpc.server(
+          futures.ThreadPoolExecutor(max_workers=10),
+          options=no_max_message_sizes)
       self.data_port = self.data_server.add_insecure_port('[::]:0')
 
       self.state_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10))
+          futures.ThreadPoolExecutor(max_workers=10),
+          options=no_max_message_sizes)
       self.state_port = self.state_server.add_insecure_port('[::]:0')
 
       self.control_handler = BeamFnControlServicer()
