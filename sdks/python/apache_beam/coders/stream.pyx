@@ -108,6 +108,9 @@ cdef class OutputStream(object):
     self.data = <char*>libc.stdlib.realloc(self.data, self.buffer_size)
     assert self.data, "OutputStream realloc failed."
 
+  cpdef _clear(self):
+    self.pos = 0
+
 
 cdef class ByteCountingOutputStream(OutputStream):
   """An output string stream implementation that only counts the bytes.

@@ -88,6 +88,7 @@ class DataOutputOperation(RunnerIOOperation):
   def process(self, windowed_value):
     self.windowed_coder_impl.encode_to_stream(
         windowed_value, self.output_stream, True)
+    self.output_stream.maybe_flush()
 
   def finish(self):
     self.output_stream.close()
