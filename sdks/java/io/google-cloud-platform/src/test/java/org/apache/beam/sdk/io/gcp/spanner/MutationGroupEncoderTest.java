@@ -103,33 +103,7 @@ public class MutationGroupEncoderTest {
             appendAllTypes(Mutation.newReplaceBuilder("test")).build(),
             Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
   }
-
-  @Test
-  public void testUnknownColumn() throws Exception {
-    SpannerSchema.Builder builder = SpannerSchema.builder();
-    builder.addKeyPart("test", "bool_field", false);
-    builder.addColumn("test", "bool_field", "BOOL");
-    SpannerSchema schema = builder.build();
-
-    Mutation mutation = Mutation.newInsertBuilder("test").set("unknown").to(true).build();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Columns [unknown] were not defined in table test");
-    encodeAndVerify(g(mutation), schema);
-  }
-
-  @Test
-  public void testUnknownTable() throws Exception {
-    SpannerSchema.Builder builder = SpannerSchema.builder();
-    builder.addKeyPart("test", "bool_field", false);
-    builder.addColumn("test", "bool_field", "BOOL");
-    SpannerSchema schema = builder.build();
-
-    Mutation mutation = Mutation.newInsertBuilder("unknown").set("bool_field").to(true).build();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unknown table 'unknown'");
-    encodeAndVerify(g(mutation), schema);
-  }
-
+  
   @Test
   public void testMutationCaseInsensitive() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
