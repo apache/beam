@@ -88,7 +88,7 @@ public abstract class AbstractOperatorTest implements Serializable {
      * @throws AssertionError when the output is not correct
      */
     default void validate(Dataset<T> outputs) throws AssertionError {
-      PAssert.that(outputs.pCollection()).containsInAnyOrder(getUnorderedOutput());
+      PAssert.that(outputs.getPCollection()).containsInAnyOrder(getUnorderedOutput());
     }
 
     /**

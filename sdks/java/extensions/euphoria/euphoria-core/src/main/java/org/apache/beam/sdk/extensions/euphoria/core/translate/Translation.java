@@ -38,7 +38,8 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
 
     if (maybeTranslator.isPresent()) {
       return Dataset.of(
-          PCollectionList.of(inputs.stream().map(Dataset::pCollection).collect(Collectors.toList()))
+          PCollectionList.of(
+                  inputs.stream().map(Dataset::getPCollection).collect(Collectors.toList()))
               .apply(operator.getName(), new Translation<>(operator, maybeTranslator.get())),
           operator);
     }
@@ -47,7 +48,7 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
       @SuppressWarnings("unchecked")
       final CompositeOperator<InputT, OutputT> castedOperator = (CompositeOperator) operator;
       // todo we should propagate expansion tree to data set
-      return Dataset.of(castedOperator.expand(inputs).pCollection(), operator);
+      return Dataset.of(castedOperator.expand(inputs).getPCollection(), operator);
     }
 
     throw new IllegalStateException(

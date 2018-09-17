@@ -46,6 +46,6 @@ public class Euphoria<InputT, OutputT>
 
   @Override
   public PCollection<OutputT> expand(PCollection<InputT> input) {
-    return fn.apply(Dataset.of(input)).pCollection();
+    return fn.apply(Dataset.of(input)).getPCollection();
   }
 }

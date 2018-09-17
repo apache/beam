@@ -114,7 +114,7 @@ public class BeamMetricsTranslationTest {
                 })
             .output();
 
-    PAssert.that(output.pCollection()).containsInAnyOrder(2, 4);
+    PAssert.that(output.getPCollection()).containsInAnyOrder(2, 4);
 
     final PipelineResult result = testPipeline.run();
     result.waitUntilFinish();

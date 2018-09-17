@@ -86,7 +86,7 @@ public class Dataset<T> implements PValue {
    *
    * @return pCollection
    */
-  public PCollection<T> pCollection() {
+  public PCollection<T> getPCollection() {
     return pCollection;
   }
 
