@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 /** Options which can be used to configure a Flink PipelineRunner. */
@@ -123,9 +123,9 @@ public interface FlinkPipelineOptions
       "Sets the state backend to use in streaming mode. "
           + "Otherwise the default is read from the Flink config.")
   @JsonIgnore
-  AbstractStateBackend getStateBackend();
+  StateBackend getStateBackend();
 
-  void setStateBackend(AbstractStateBackend stateBackend);
+  void setStateBackend(StateBackend stateBackend);
 
   @Description("Enable/disable Beam metrics in Flink Runner")
   @Default.Boolean(true)
