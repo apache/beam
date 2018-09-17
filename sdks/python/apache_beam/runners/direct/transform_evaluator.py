@@ -55,7 +55,8 @@ from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
-from apache_beam.transforms.userstate import UserStateUtils
+from apache_beam.transforms.userstate import get_dofn_specs
+from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
@@ -152,7 +153,7 @@ class TransformEvaluatorRegistry(object):
                    _NativeWrite)):
       return True
     elif (isinstance(applied_ptransform.transform, core.ParDo) and
-          UserStateUtils.is_stateful_dofn(applied_ptransform.transform.dofn)):
+          is_stateful_dofn(applied_ptransform.transform.dofn)):
       return True
     return False
 
@@ -576,7 +577,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     self.user_state_context = None
     self.user_timer_map = {}
-    if UserStateUtils.is_stateful_dofn(dofn):
+    if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
       if kv_type_hint == typehints.Any:
         key_type_hint = typehints.Any
@@ -593,7 +594,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
-      _, all_timer_specs = UserStateUtils.get_dofn_specs(dofn)
+      _, all_timer_specs = get_dofn_specs(dofn)
       for timer_spec in all_timer_specs:
         self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
 
