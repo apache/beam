@@ -87,6 +87,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -114,6 +115,27 @@ public class BigtableIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
+
+  /** Read Options for testing. */
+  public interface ReadOptions extends GcpOptions {
+    @Description("The project that contains the table to export.")
+    ValueProvider<String> getBigtableProject();
+
+    @SuppressWarnings("unused")
+    void setBigtableProject(ValueProvider<String> projectId);
+
+    @Description("The Bigtable instance id that contains the table to export.")
+    ValueProvider<String> getBigtableInstanceId();
+
+    @SuppressWarnings("unused")
+    void setBigtableInstanceId(ValueProvider<String> instanceId);
+
+    @Description("The Bigtable table id to export.")
+    ValueProvider<String> getBigtableTableId();
+
+    @SuppressWarnings("unused")
+    void setBigtableTableId(ValueProvider<String> tableId);
+  }
 
   static final ValueProvider<String> NOT_ACCESSIBLE_VALUE =
       new ValueProvider<String>() {
@@ -1002,6 +1024,44 @@ public class BigtableIOTest {
             + "display data",
         displayData,
         Matchers.hasItem(hasDisplayItem("rowFilter")));
+  }
+
+  @Test
+  public void testReadingDisplayDataFromRuntimeParameters() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    DisplayData displayData = DisplayData.from(read);
+
+    System.out.println("displayData:\n" + displayData.toString());
+
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue("Unavailable during pipeline construction"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue("Unavailable during pipeline construction"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue("Unavailable during pipeline construction"))));
   }
 
   @Test
