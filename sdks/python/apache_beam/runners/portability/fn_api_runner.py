@@ -541,7 +541,7 @@ class FnApiRunner(runner.PipelineRunner):
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
 
           # This is used later to correlate the read and write.
-          param = str("group:%s" % stage.name)
+          param = str("group:%s" % stage.name).encode('utf-8')
           if stage.name not in pipeline_components.transforms:
             pipeline_components.transforms[stage.name].CopyFrom(transform)
           gbk_write = Stage(
@@ -583,7 +583,7 @@ class FnApiRunner(runner.PipelineRunner):
         transform = stage.transforms[0]
         if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
           # This is used later to correlate the read and writes.
-          param = str("materialize:%s" % transform.unique_name)
+          param = str("materialize:%s" % transform.unique_name).encode('utf-8')
           output_pcoll_id, = list(transform.outputs.values())
           output_coder_id = pcollections[output_pcoll_id].coder_id
           flatten_writes = []
@@ -731,7 +731,7 @@ class FnApiRunner(runner.PipelineRunner):
 
       # Now try to fuse away all pcollections.
       for pcoll, producer in producers_by_pcoll.items():
-        pcoll_as_param = str("materialize:%s" % pcoll)
+        pcoll_as_param = str("materialize:%s" % pcoll).encode('utf-8')
         write_pcoll = None
         for consumer in consumers_by_pcoll[pcoll]:
           producer = replacement(producer)
@@ -929,7 +929,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Store the required side inputs into state.
     for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
-      actual_pcoll_id = pcoll_id[len("materialize:"):]
+      actual_pcoll_id = pcoll_id[len(b"materialize:"):]
       value_coder = context.coders[safe_coders[
           pipeline_components.pcollections[actual_pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
@@ -945,14 +945,14 @@ class FnApiRunner(runner.PipelineRunner):
         controller.state_handler.blocking_append(state_key, elements_data)
 
     def get_buffer(pcoll_id):
-      if pcoll_id.startswith('materialize:'):
+      if pcoll_id.startswith(b'materialize:'):
         if pcoll_id not in pcoll_buffers:
           # Just store the data chunks for replay.
           pcoll_buffers[pcoll_id] = list()
-      elif pcoll_id.startswith('group:'):
+      elif pcoll_id.startswith(b'group:'):
         # This is a grouping write, create a grouping buffer if needed.
         if pcoll_id not in pcoll_buffers:
-          original_gbk_transform = pcoll_id.split(':', 1)[1]
+          original_gbk_transform = pcoll_id.split(b':', 1)[1]
           transform_proto = pipeline_components.transforms[
               original_gbk_transform]
           input_pcoll = only_element(list(transform_proto.inputs.values()))

@@ -496,7 +496,8 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.__func__):
+        is getattr(core.CombineFn.add_input, '__func__',
+                   core.CombineFn.add_input)):
       # Old versions of the SDK have CombineFns that don't implement add_input.
       self.combine_fn_add_input = (
           lambda a, e: self.combine_fn.add_inputs(a, [e]))
