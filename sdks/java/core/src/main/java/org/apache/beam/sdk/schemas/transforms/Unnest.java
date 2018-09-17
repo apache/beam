@@ -56,7 +56,7 @@ public class Unnest {
   }
   /**
    * This is the default naming policy for naming fields. Every field name in the path to a given
-   * field is concated with . characters.
+   * field is concated with _ characters.
    */
   public static final SerializableFunction<List<String>, String> CONCAT_FIELD_NAMES =
       l -> {
