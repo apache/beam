@@ -28,9 +28,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations} to access failed
- * Mutations. {@link #getOutput()} can be used as a completion signal with the {@link
- * org.apache.beam.sdk.transforms.Wait} transform.
+ * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations()} to access
+ * failed Mutations. {@link #getOutput()} can be used as a completion signal with the {@link
+ * org.apache.beam.sdk.transforms.Wait Wait} transform.
  */
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
