@@ -56,7 +56,7 @@ public interface FlinkPipelineOptions
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
           + "[collection] or [auto].")
-  @Default.String("auto")
+  @Default.String("[auto]")
   String getFlinkMaster();
 
   void setFlinkMaster(String value);
