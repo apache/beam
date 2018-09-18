@@ -92,7 +92,6 @@ For more information, the [Flink Documentation](https://ci.apache.org/projects/f
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-flink_2.10</artifactId>
   <version>{{ site.release_latest }}</version>
-  <scope>runtime</scope>
 </dependency>
 ```
 
