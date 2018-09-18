@@ -84,7 +84,7 @@ public interface FlinkPipelineOptions
   void setCheckpointingMode(CheckpointingMode mode);
 
   @Description("The maximum time that a checkpoint may take before being discarded.")
-  @Default.Long(20 * 60 * 1000)
+  @Default.Long(-1L)
   Long getCheckpointTimeoutMillis();
 
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
