@@ -23,6 +23,39 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
+type customType struct {
+	a int
+	b string
+}
+
+func TestIncludeCustomType(t *testing.T) {
+	tests := []struct {
+		in  []customType
+		fn  interface{}
+		exp []customType
+	}{
+		{
+			[]customType{customType{a: 1, b: "a"}, customType{a: 2, b: "a"}},
+			func(in customType) bool { return in.a > 1 },
+			[]customType{customType{a: 2, b: "a"}},
+		},
+		{
+			[]customType{customType{a: 1, b: "a"}, customType{a: 2, b: "b"}},
+			func(in customType) bool { return in.b == "b" },
+			[]customType{customType{a: 2, b: "b"}},
+		},
+	}
+
+	for _, test := range tests {
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, filter.Include(s, in, test.fn), exp)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("Include(%v) != %v: %v", test.in, test.exp, err)
+		}
+	}
+}
+
 func TestInclude(t *testing.T) {
 	tests := []struct {
 		in  []int
@@ -33,6 +66,11 @@ func TestInclude(t *testing.T) {
 			[]int{1, 2, 3},
 			func(a int) bool { return true },
 			[]int{1, 2, 3},
+		},
+		{
+			[]int{1, 2, 3},
+			func(a int) bool { return false },
+			[]int{},
 		},
 		{
 			[]int{1, 2, 3},
@@ -69,6 +107,11 @@ func TestExclude(t *testing.T) {
 		},
 		{
 			[]int{1, 2, 3},
+			func(a int) bool { return true },
+			[]int{},
+		},
+		{
+			[]int{1, 2, 3},
 			func(a int) bool { return a == 1 },
 			[]int{2, 3},
 		},
@@ -76,6 +119,39 @@ func TestExclude(t *testing.T) {
 			[]int{1, 2, 3},
 			func(a int) bool { return a > 1 },
 			[]int{1},
+		},
+	}
+
+	for _, test := range tests {
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, filter.Exclude(s, in, test.fn), exp)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("Exclude(%v) != %v: %v", test.in, test.exp, err)
+		}
+	}
+}
+
+func TestExcludeString(t *testing.T) {
+	tests := []struct {
+		in  []string
+		fn  interface{}
+		exp []string
+	}{
+		{
+			[]string{"1", "2", "3"},
+			func(a string) bool { return false },
+			[]string{"1", "2", "3"},
+		},
+		{
+			[]string{"1", "2", "3"},
+			func(a string) bool { return a == "1" },
+			[]string{"2", "3"},
+		},
+		{
+			[]string{"1", "2", "3"},
+			func(a string) bool { return true },
+			[]string{},
 		},
 	}
 
