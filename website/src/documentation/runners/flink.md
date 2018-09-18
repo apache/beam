@@ -90,7 +90,7 @@ For more information, the [Flink Documentation](https://ci.apache.org/projects/f
 ```java
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink_2.10</artifactId>
+  <artifactId>beam-runners-flink_2.11</artifactId>
   <version>{{ site.release_latest }}</version>
 </dependency>
 ```
