@@ -103,7 +103,7 @@ public class MutationGroupEncoderTest {
             appendAllTypes(Mutation.newReplaceBuilder("test")).build(),
             Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(1L), Key.of(2L))))));
   }
-  
+
   @Test
   public void testMutationCaseInsensitive() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
