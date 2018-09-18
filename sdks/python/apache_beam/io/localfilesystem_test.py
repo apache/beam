@@ -162,6 +162,24 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertItemsEqual(files, [path1, path2])
 
+  def test_match_glob_with_suffix(self):
+    base = os.path.join(self.tmpdir, "glob-with-with-suffix")
+    dir1 = os.path.join(base, "a")
+    dir2 = os.path.join(base, "b")
+    for dir in [dir1, dir2]:
+      self.fs.mkdirs(dir)
+
+    path1 = os.path.join(dir1, "file.txt")
+    path2 = os.path.join(dir2, "file.txt")
+    for path in [path1, path2]:
+      open(path, 'w').close()
+
+    pattern = "{}/*/file.txt".format(base)
+
+    result = self.fs.match([pattern])[0]
+    files = [f.path for f in result.metadata_list]
+    self.assertItemsEqual(files, [path1, path2])
+
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
     files = [f.path for f in result.metadata_list]
