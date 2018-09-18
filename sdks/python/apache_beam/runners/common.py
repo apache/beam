@@ -552,7 +552,10 @@ class PerWindowInvoker(DoFnInvoker):
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
 
-    # Extract key in the case of a stateful DoFn.
+    # Extract key in the case of a stateful DoFn. Note that in the case of a
+    # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
+    # True. Therefore, windows will be exploded coming into this method, and
+    # we can rely on the window variable being set above.
     if self.user_state_context:
       try:
         key, unused_value = windowed_value.value
@@ -560,7 +563,6 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             ('Input value to a stateful DoFn must be a KV tuple; instead, '
              'got %s.') % (windowed_value.value,))
-      window, = windowed_value.windows
 
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
