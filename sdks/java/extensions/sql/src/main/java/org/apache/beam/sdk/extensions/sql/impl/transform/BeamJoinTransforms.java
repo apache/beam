@@ -58,7 +58,6 @@ public class BeamJoinTransforms {
     @Override
     public KV<Row, Row> apply(Row input) {
       Row row = joinColumns.stream().map(input::getValue).collect(toRow(schema));
-
       return KV.of(row, input);
     }
 

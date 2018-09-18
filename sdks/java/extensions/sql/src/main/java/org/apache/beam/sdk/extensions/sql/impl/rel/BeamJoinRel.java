@@ -173,7 +173,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Schema extractKeySchemaLeft =
           pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
       Schema extractKeySchemaRight =
-          pairs.stream().map(pair -> leftSchema.getField(pair.getValue())).collect(toSchema());
+          pairs.stream().map(pair -> rightSchema.getField(pair.getValue())).collect(toSchema());
 
       SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchemaLeft);
 
