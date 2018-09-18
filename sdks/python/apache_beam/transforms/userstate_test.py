@@ -365,6 +365,15 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         ['A1A2A3', 'A1A2A3A4'],
         StatefulDoFnOnDirectRunnerTest.all_records)
 
+  def test_stateful_dofn_nonkeyed_input(self):
+    p = TestPipeline()
+    values = p | beam.Create([1, 2, 3])
+    with self.assertRaisesRegexp(
+        ValueError,
+        ('Input elements to the transform .* with stateful DoFn must be '
+         'key-value pairs.')):
+      values | beam.ParDo(TestStatefulDoFn())
+
   def test_simple_stateful_dofn_combining(self):
     class SimpleTestStatefulDoFn(DoFn):
       BUFFER_STATE = CombiningValueStateSpec(

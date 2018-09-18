@@ -579,18 +579,11 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.user_timer_map = {}
     if is_stateful_dofn(dofn):
       kv_type_hint = self._applied_ptransform.inputs[0].element_type
-      if kv_type_hint == typehints.Any:
-        key_type_hint = typehints.Any
+      if kv_type_hint and kv_type_hint != typehints.Any:
+        coder = coders.registry.get_coder(kv_type_hint)
+        self.key_coder = coder.key_coder()
       else:
-        key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
-                         else typehints.Any)
-      self.key_coder = coders.registry.get_coder(key_type_hint)
-      if not self.key_coder.is_deterministic():
-        logging.warning(
-            'Key coder %s for transform %s with stateful DoFn may not '
-            'be deterministic. This may cause incorrect behavior for complex '
-            'key types. Consider adding an input type hint for this transform.',
-            self.key_coder, transform)
+        self.key_coder = coders.registry.get_coder(typehints.Any)
 
       self.user_state_context = DirectUserStateContext(
           self._step_context, dofn, self.key_coder)
