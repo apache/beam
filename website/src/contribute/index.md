@@ -132,11 +132,15 @@ For an exhaustive list of tasks, use:
 
 We run **integration and performance test** using [Jenkins](https://jenkins.io/). The job definitions are available in the [Beam GitHub repository](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
 
-### Developing with an IDE
+#### Troubleshooting
 
-Generate an IDEA project .ipr file with:
+You might get an OutOfMemoryException during the Gradle build. If you have more memory
+available, you can try to increase the memory allocation of the Gradle JVM. Otherwise,
+disabling parallel test execution reduces memory consumption. In the root of the Beam
+source, edit the `gradle.properties` file and add/modify the following lines:
 
-    $ ./gradlew idea
+    org.gradle.parallel=false
+    org.gradle.jvmargs=-Xmx2g -XX:MaxPermSize=512m
 
 ### Pull requests
 
