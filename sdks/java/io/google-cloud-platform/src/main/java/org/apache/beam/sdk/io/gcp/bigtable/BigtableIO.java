@@ -1080,6 +1080,11 @@ public class BigtableIO {
 
     @Override
     public void validate() {
+      if (!config.getValidate()) {
+        LOG.debug("Validation is disabled");
+        return;
+      }
+
       ValueProvider<String> tableId = config.getTableId();
       checkArgument(
           tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
