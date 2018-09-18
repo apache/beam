@@ -20,6 +20,8 @@ limitations under the License.
 -->
 # Using the Apache Flink Runner
 
+The old Flink Runner will eventually be replaced by the Portable Runner which enables to run pipelines in other languages than Java. Please see the [Portability page]({{ site.baseurl }}/contribute/portability/) for the latest state.
+
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
