@@ -45,18 +45,42 @@ The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability
 
 If you want to use the local execution mode with the Flink runner to don't have to complete any setup.
 
-To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the Flink [setup quickstart](https://ci.apache.org/projects/flink/flink-docs-release-1.1/quickstart/setup_quickstart.html).
+To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the Flink [setup quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html).
 
-To find out which version of Flink you need you can run this command to check the version of the Flink dependency that your project is using:
-```
-$ mvn dependency:tree -Pflink-runner |grep flink
-...
-[INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.2.1:runtime
-...
-```
-Here, we would need Flink 1.2.1. Please also note the Scala version in the dependency name. In this case we need to make sure to use a Flink cluster with Scala version 2.10.
+### Version Compatibility
 
-For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-release-1.1/) can be helpful.
+The Flink cluster version has to match the version used by the FlinkRunner. To find out which version of Flink please see the table below:
+
+<table class="table table-bordered">
+<tr>
+  <th>Beam version</th>
+  <th>Flink version</th>
+</tr>
+<tr>
+  <td>2.7.0, 2.6.0</td>
+  <td>1.5.x</td>
+</tr>
+<tr>
+  <td>2.5.0, 2.4.0, 2.3.0</td>
+  <td>1.4.x</td>
+</tr>
+<tr>
+  <td>2.2.0</td>
+  <td>1.3.x with Scala 2.10</td>
+</tr>
+<tr>
+  <td>2.2.0, 2.1.x</td>
+  <td>1.3.x with Scala 2.10</td>
+</tr>
+<tr>
+  <td>2.0.0</td>
+  <td>1.2.x with Scala 2.10</td>
+</tr>
+</table>
+
+For retrieving the right version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
+
+For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
 
 ### Specify your dependency
 
