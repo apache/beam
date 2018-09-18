@@ -56,12 +56,15 @@ public interface FlinkPipelineOptions
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
           + "[collection] or [auto].")
+  @Default.String("auto")
   String getFlinkMaster();
 
   void setFlinkMaster(String value);
 
-  @Description("The degree of parallelism to be used when distributing operations onto workers.")
-  @Default.InstanceFactory(DefaultParallelismFactory.class)
+  @Description(
+      "The degree of parallelism to be used when distributing operations onto workers. "
+          + "If the parallelism is not set, the configured Flink default is used, or 1 if none can be found.")
+  @Default.Integer(-1)
   Integer getParallelism();
 
   void setParallelism(Integer value);
