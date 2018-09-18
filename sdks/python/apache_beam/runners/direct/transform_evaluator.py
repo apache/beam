@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import collections
+import logging
 import random
 import time
 from builtins import object
@@ -38,6 +39,7 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
+from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
 from apache_beam.runners.direct.sdf_direct_runner import ProcessElements
 from apache_beam.runners.direct.sdf_direct_runner import ProcessFn
 from apache_beam.runners.direct.sdf_direct_runner import SDFProcessElementInvoker
@@ -53,6 +55,8 @@ from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
+from apache_beam.transforms.userstate import get_dofn_specs
+from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
@@ -142,11 +146,16 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
-    return isinstance(applied_ptransform.transform,
-                      (core._GroupByKeyOnly,
-                       _StreamingGroupByKeyOnly,
-                       _StreamingGroupAlsoByWindow,
-                       _NativeWrite))
+    if isinstance(applied_ptransform.transform,
+                  (core._GroupByKeyOnly,
+                   _StreamingGroupByKeyOnly,
+                   _StreamingGroupAlsoByWindow,
+                   _NativeWrite)):
+      return True
+    elif (isinstance(applied_ptransform.transform, core.ParDo) and
+          is_stateful_dofn(applied_ptransform.transform.dofn)):
+      return True
+    return False
 
 
 class RootBundleProvider(object):
@@ -199,6 +208,7 @@ class _TransformEvaluator(object):
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
         applied_ptransform)
+    self._step_context = self._execution_context.get_step_context()
 
   def _expand_outputs(self):
     outputs = set()
@@ -252,7 +262,7 @@ class _TransformEvaluator(object):
     timer and passes it to process_element().  Evaluator subclasses which
     desire different timer delivery semantics can override process_timer().
     """
-    state = self.step_context.get_keyed_state(timer_firing.encoded_key)
+    state = self._step_context.get_keyed_state(timer_firing.encoded_key)
     state.clear_timer(
         timer_firing.window, timer_firing.name, timer_firing.time_domain)
     self.process_timer(timer_firing)
@@ -565,14 +575,39 @@ class _ParDoEvaluator(_TransformEvaluator):
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
 
+    self.user_state_context = None
+    self.user_timer_map = {}
+    if is_stateful_dofn(dofn):
+      kv_type_hint = self._applied_ptransform.inputs[0].element_type
+      if kv_type_hint and kv_type_hint != typehints.Any:
+        coder = coders.registry.get_coder(kv_type_hint)
+        self.key_coder = coder.key_coder()
+      else:
+        self.key_coder = coders.registry.get_coder(typehints.Any)
+
+      self.user_state_context = DirectUserStateContext(
+          self._step_context, dofn, self.key_coder)
+      _, all_timer_specs = get_dofn_specs(dofn)
+      for timer_spec in all_timer_specs:
+        self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
+
     self.runner = DoFnRunner(
         dofn, args, kwargs,
         self._side_inputs,
         self._applied_ptransform.inputs[0].windowing,
         tagged_receivers=self._tagged_receivers,
         step_name=self._applied_ptransform.full_label,
-        state=DoFnState(self._counter_factory))
+        state=DoFnState(self._counter_factory),
+        user_state_context=self.user_state_context)
     self.runner.start()
+
+  def process_timer(self, timer_firing):
+    if timer_firing.name not in self.user_timer_map:
+      logging.warning('Unknown timer fired: %s', timer_firing)
+    timer_spec = self.user_timer_map[timer_firing.name]
+    self.runner.process_user_timer(
+        timer_spec, self.key_coder.decode(timer_firing.encoded_key),
+        timer_firing.window, timer_firing.timestamp)
 
   def process_element(self, element):
     self.runner.process(element)
@@ -581,6 +616,8 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.runner.finish()
     bundles = list(self._tagged_receivers.values())
     result_counters = self._counter_factory.get_counters()
+    if self.user_state_context:
+      self.user_state_context.commit()
     return TransformResult(
         self, bundles, [], result_counters, None)
 
@@ -604,8 +641,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    self.step_context = self._execution_context.get_step_context()
-    self.global_state = self.step_context.get_keyed_state(None)
+    self.global_state = self._step_context.get_keyed_state(None)
 
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
@@ -630,7 +666,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         and len(element.value) == 2):
       k, v = element.value
       encoded_k = self.key_coder.encode(k)
-      state = self.step_context.get_keyed_state(encoded_k)
+      state = self._step_context.get_keyed_state(encoded_k)
       state.add_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG, v)
     else:
       raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
@@ -648,12 +684,12 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         gbk_result = []
         # TODO(ccy): perhaps we can clean this up to not use this
         # internal attribute of the DirectStepContext.
-        for encoded_k in self.step_context.existing_keyed_state:
+        for encoded_k in self._step_context.existing_keyed_state:
           # Ignore global state.
           if encoded_k is None:
             continue
           k = self.key_coder.decode(encoded_k)
-          state = self.step_context.get_keyed_state(encoded_k)
+          state = self._step_context.get_keyed_state(encoded_k)
           vs = state.get_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG)
           gbk_result.append(GlobalWindows.windowed_value((k, vs)))
 
@@ -749,7 +785,6 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   def start_bundle(self):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
-    self.step_context = self._execution_context.get_step_context()
     self.driver = create_trigger_driver(
         self._applied_ptransform.transform.windowing,
         clock=self._evaluation_context._watermark_manager._clock)
@@ -769,7 +804,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     encoded_k, timer_firings, vs = (
         kwi.encoded_key, kwi.timer_firings, kwi.elements)
     k = self.key_coder.decode(encoded_k)
-    state = self.step_context.get_keyed_state(encoded_k)
+    state = self._step_context.get_keyed_state(encoded_k)
 
     for timer_firing in timer_firings:
       for wvalue in self.driver.process_timer(
@@ -819,8 +854,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    self.step_context = self._execution_context.get_step_context()
-    self.global_state = self.step_context.get_keyed_state(None)
+    self.global_state = self._step_context.get_keyed_state(None)
 
   def process_timer(self, timer_firing):
     # We do not need to emit a KeyedWorkItem to process_element().
@@ -885,8 +919,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     assert isinstance(self._process_fn, ProcessFn)
 
-    self.step_context = self._execution_context.get_step_context()
-    self._process_fn.step_context = self.step_context
+    self._process_fn.step_context = self._step_context
 
     process_element_invoker = (
         SDFProcessElementInvoker(
@@ -917,7 +950,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     self._par_do_evaluator.process_element(element)
 
-    state = self.step_context.get_keyed_state(key)
+    state = self._step_context.get_keyed_state(key)
     self.keyed_holds[key] = state.get_state(
         window, self._process_fn.watermark_hold_tag)
 
