@@ -331,10 +331,6 @@ class LocalFileSystem(FileSystem):
     for match_result in self.match(paths):
       metadata_list = match_result.metadata_list
 
-      if not metadata_list:
-        exceptions[match_result.pattern] = \
-          IOError('No files found to delete under: %s' % match_result.pattern)
-
       for metadata in match_result.metadata_list:
         try_delete(metadata.path)
 
