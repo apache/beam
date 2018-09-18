@@ -321,11 +321,22 @@ class LocalFileSystem(FileSystem):
         raise IOError(err)
 
     exceptions = {}
-    for path in paths:
+
+    def try_delete(path):
       try:
         _delete_path(path)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[path] = e
+
+    for match_result in self.match(paths):
+      metadata_list = match_result.metadata_list
+
+      if not metadata_list:
+        exceptions[match_result.pattern] = \
+          IOError('No files found to delete under: %s' % match_result.pattern)
+
+      for metadata in match_result.metadata_list:
+        try_delete(metadata.path)
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
