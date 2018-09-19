@@ -146,7 +146,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
               true,
               fileSystem.getConf());
       if (!success) {
-        // Defensive coding as this this should not happen in practice
+        // Defensive coding as this should not happen in practice
         throw new IOException(
             String.format(
                 "Unable to copy resource %s to %s. No further information provided by underlying filesystem.",
