@@ -91,6 +91,7 @@ public class JmsIOTest {
     // username and password to use to connect to the broker.
     // This user has users privilege (able to browse, consume, produce, list destinations)
     users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
+    users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
     SimpleAuthenticationPlugin plugin = new SimpleAuthenticationPlugin(users);
     BrokerPlugin[] plugins = new BrokerPlugin[] {plugin};
     broker.setPlugins(plugins);
@@ -100,7 +101,8 @@ public class JmsIOTest {
     // create JMS connection factory
     connectionFactory = new ActiveMQConnectionFactory(BROKER_URL);
     connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        new ActiveMQConnectionFactory(BROKER_URL + "?jms.prefetchPolicy.all=0&jms.sendAcksAsync=false");
+        new ActiveMQConnectionFactory(
+            BROKER_URL + "?jms.prefetchPolicy.all=0&jms.sendAcksAsync=false");
   }
 
   @After
@@ -275,7 +277,8 @@ public class JmsIOTest {
     // that the consumer will poll for message, which is exactly what we want for the test.
     // We are also sending message acknowledgements synchronously to ensure that they are
     // processed before any subsequent assertions.
-    Connection connection = connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
