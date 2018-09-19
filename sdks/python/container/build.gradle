@@ -44,6 +44,7 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
+  from file("./base_image_requirements.txt")
   into "build/target"
   configurations.dockerDependency.stopExecutionIfEmpty()
 }
