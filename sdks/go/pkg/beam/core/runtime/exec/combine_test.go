@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -43,12 +44,22 @@ var tests = []struct {
 	{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 	{Fn: &MyOtherCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: "21"},
 	{Fn: &MyThirdCombine{}, AccumCoder: intCoder(reflectx.Int), Input: strInput, Expected: int(21)},
+	{Fn: &MyContextCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
+	{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
+}
+
+func fnName(x interface{}) string {
+	v := reflect.ValueOf(x)
+	if v.Kind() != reflect.Func {
+		return v.Type().String()
+	}
+	return runtime.FuncForPC(uintptr(v.Pointer())).Name()
 }
 
 // TestCombine verifies that the Combine node works correctly.
 func TestCombine(t *testing.T) {
 	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
+		t.Run(fnName(test.Fn), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
@@ -69,7 +80,7 @@ func TestCombine(t *testing.T) {
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
 	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
+		t.Run(fnName(test.Fn), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
@@ -212,6 +223,32 @@ func (c *MyThirdCombine) AddInput(a int, s string) (int, error) {
 
 func (*MyThirdCombine) MergeAccumulators(a, b int) int {
 	return a + b
+}
+
+// MyContextCombine is the same as MyCombine, but requires a context parameter.
+//
+//  InputT == int
+//  AccumT == int64
+//  OutputT == string
+type MyContextCombine struct {
+	MyCombine // Embedding to re-use the exisitng AddInput implementations
+}
+
+func (*MyContextCombine) MergeAccumulators(_ context.Context, a, b int64) int64 {
+	return a + b
+}
+
+// MyErrorCombine is the same as MyCombine, but may return an error.
+//
+//  InputT == int
+//  AccumT == int64
+//  OutputT == string
+type MyErrorCombine struct {
+	MyCombine // Embedding to re-use the exisitng AddInput implementations
+}
+
+func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
+	return a + b, nil
 }
 
 func intCoder(t reflect.Type) *coder.Coder {
