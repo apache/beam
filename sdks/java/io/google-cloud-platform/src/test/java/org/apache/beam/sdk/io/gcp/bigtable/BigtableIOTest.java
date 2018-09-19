@@ -87,11 +87,13 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipeline.PipelineRunMissingException;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -114,6 +116,27 @@ public class BigtableIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
+
+  /** Read Options for testing. */
+  public interface ReadOptions extends GcpOptions {
+    @Description("The project that contains the table to export.")
+    ValueProvider<String> getBigtableProject();
+
+    @SuppressWarnings("unused")
+    void setBigtableProject(ValueProvider<String> projectId);
+
+    @Description("The Bigtable instance id that contains the table to export.")
+    ValueProvider<String> getBigtableInstanceId();
+
+    @SuppressWarnings("unused")
+    void setBigtableInstanceId(ValueProvider<String> instanceId);
+
+    @Description("The Bigtable table id to export.")
+    ValueProvider<String> getBigtableTableId();
+
+    @SuppressWarnings("unused")
+    void setBigtableTableId(ValueProvider<String> tableId);
+  }
 
   static final ValueProvider<String> NOT_ACCESSIBLE_VALUE =
       new ValueProvider<String>() {
@@ -221,6 +244,39 @@ public class BigtableIOTest {
     thrown.expect(IllegalArgumentException.class);
 
     read.expand(null);
+  }
+
+  @Test
+  public void testReadWithRuntimeParametersValidationFailed() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("tableId was not supplied");
+
+    p.apply(read);
+  }
+
+  @Test
+  public void testReadWithRuntimeParametersValidationDisabled() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withoutValidation()
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    // Not running a pipeline therefore this is expected.
+    thrown.expect(PipelineRunMissingException.class);
+
+    p.apply(read);
   }
 
   @Test

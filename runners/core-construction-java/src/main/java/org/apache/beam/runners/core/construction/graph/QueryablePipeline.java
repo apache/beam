@@ -19,8 +19,20 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.graph.MutableNetwork;
@@ -31,6 +43,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -44,6 +57,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -113,15 +127,35 @@ public class QueryablePipeline {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        ids.add(transformEntry.getKey());
+        List<String> subtransforms = transform.getSubtransformsList();
+        if (subtransforms.isEmpty()) {
+          ids.add(transformEntry.getKey());
+        } else {
+          ids.addAll(subtransforms);
+        }
       }
     }
     return ids;
   }
 
-  /** Returns true if the provided transform is a primitive. A primitive has no subtransforms. */
+  private static final Set<String> PRIMITIVE_URNS =
+      ImmutableSet.of(
+          PAR_DO_TRANSFORM_URN,
+          FLATTEN_TRANSFORM_URN,
+          GROUP_BY_KEY_TRANSFORM_URN,
+          IMPULSE_TRANSFORM_URN,
+          ASSIGN_WINDOWS_TRANSFORM_URN,
+          TEST_STREAM_TRANSFORM_URN,
+          MAP_WINDOWS_TRANSFORM_URN,
+          READ_TRANSFORM_URN,
+          CREATE_VIEW_TRANSFORM_URN,
+          SPLITTABLE_PROCESS_KEYED_URN,
+          SPLITTABLE_PROCESS_ELEMENTS_URN);
+
+  /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
-    return transform.getSubtransformsCount() == 0;
+    String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    return PRIMITIVE_URNS.contains(urn) || NativeTransforms.isNative(transform);
   }
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
@@ -342,7 +376,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalSideInputNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
@@ -354,7 +388,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalUserStateNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getStateSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
@@ -366,7 +400,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalTimerNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
