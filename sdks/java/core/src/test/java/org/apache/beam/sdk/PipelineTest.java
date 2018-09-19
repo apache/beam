@@ -285,7 +285,7 @@ public class PipelineTest {
   /** Tests that Pipeline supports a pass-through identity function. */
   @Test
   @Category(ValidatesRunner.class)
-  public void testIdentityTransform() throws Exception {
+  public void testIdentityTransform() {
 
     PCollection<Integer> output =
         pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());

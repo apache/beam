@@ -137,7 +137,7 @@ public class NumberedShardedFile implements ShardedFile {
   }
 
   /**
-   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   * Discovers all shards of this file.
    *
    * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
    * template implies. In this case, the read is considered to have failed.
