@@ -625,7 +625,19 @@ public class TFRecordIO {
       checkState(hashLong(length) == maskedCrc32OfLength, "Mismatch of length mask");
 
       ByteBuffer data = ByteBuffer.allocate((int) length);
-      checkState(inChannel.read(data) == length, "Invalid data");
+      long totalRead = 0;
+      while (true) {
+        long read = inChannel.read(data);
+        if (read == 0) {
+          break;
+        }
+        totalRead += read;
+      }
+      if (totalRead != length) {
+        throw new IOException(
+            String.format(
+                "Expected a record of length %d but only read %d bytes.", length, totalRead));
+      }
 
       footer.clear();
       inChannel.read(footer);
