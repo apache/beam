@@ -25,5 +25,6 @@
   <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-test-avro-java[\\\/].+\.java" />
 </suppressions>
 

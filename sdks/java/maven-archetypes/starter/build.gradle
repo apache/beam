@@ -18,6 +18,9 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+spotless {
+  removeFormat 'java' // Source files are tokenized and break spotless parsing
+}
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 ext.summary = """A Maven archetype to create a simple starter pipeline to
