@@ -106,7 +106,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testSelectsPayloadContent() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -168,7 +168,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -258,7 +258,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testSQLLimit() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
