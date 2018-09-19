@@ -59,6 +59,7 @@ def exportedJavadocProjects = [
   ':beam-sdks-java-io-google-cloud-platform',
   ':beam-sdks-java-io-hadoop-common',
   ':beam-sdks-java-io-hadoop-file-system',
+  ':beam-sdks-java-io-hadoop-format',
   ':beam-sdks-java-io-hadoop-input-format',
   ':beam-sdks-java-io-hadoop-output-format',
   ':beam-sdks-java-io-hbase',
