@@ -546,9 +546,6 @@ class BeamModulePlugin implements Plugin<Project> {
           '-parameters',
           '-Xlint:all',
           '-Werror',
-          '-XepDisableWarningsInGeneratedCode',
-          '-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*',
-          '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
@@ -597,7 +594,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
-      project.apply plugin: "net.ltgt.apt"
+      // project.apply plugin: "net.ltgt.apt"
       project.dependencies {
         // Note that these plugins specifically use the compileOnly and testCompileOnly
         // configurations because they are never required to be shaded or become a
@@ -606,14 +603,14 @@ class BeamModulePlugin implements Plugin<Project> {
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
         compileOnly auto_value
-        apt auto_value
+        annotationProcessor auto_value
         testCompileOnly auto_value
-        testApt auto_value
+        testAnnotationProcessor auto_value
 
         compileOnly auto_service
-        apt auto_service
+        annotationProcessor auto_service
         testCompileOnly auto_service
-        testApt auto_service
+        testAnnotationProcessor auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -623,9 +620,9 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: https://www.apache.org/legal/resolved.html#prohibited
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
-        apt findbugs_annotations
+        annotationProcessor findbugs_annotations
         testCompileOnly findbugs_annotations
-        testApt findbugs_annotations
+        testAnnotationProcessor findbugs_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -679,6 +676,20 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
+      // project.dependencies { errorprone "com.google.errorprone:error_prone_core:2.0.16" }
+      project.dependencies {
+        // errorprone "com.google.errorprone:error_prone_core:2.3.1"
+        errorprone "com.google.errorprone:error_prone_core:2.0.15"
+        errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
+      }
+      project.tasks.withType(JavaCompile).configureEach {
+        options.errorprone {
+          disableWarningsInGeneratedCode = true
+          excludedPaths = '(.*/)?(build/generated.*avro-java|build/generated)/.*'
+          check('MutableConstantField', 'OFF')
+        }
+      }
+
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
