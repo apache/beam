@@ -41,6 +41,7 @@ var tests = []struct {
 	Expected   interface{}
 }{
 	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
+	{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
 	{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 	{Fn: &MyOtherCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: "21"},
 	{Fn: &MyThirdCombine{}, AccumCoder: intCoder(reflectx.Int), Input: strInput, Expected: int(21)},
@@ -112,7 +113,7 @@ func getCombineEdge(t *testing.T, cfn interface{}, ac *coder.Coder) *graph.Multi
 		// This makes the assumption that the AddInput function is unkeyed.
 		vtype = fn.AddInputFn().Param[1].T
 	} else {
-		vtype = fn.MergeAccumulatorsFn().Param[0].T
+		vtype = fn.MergeAccumulatorsFn().Param[1].T
 	}
 	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(vtype))
 	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
@@ -172,6 +173,13 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 //  InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
+}
+
+// nonBinaryMergeFn represents a combine with a context parameter and an error return, where
+//
+//  InputT == OutputT == AccumT == int
+func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
+	return a + b, nil
 }
 
 // MyCombine represents a combine with the same Input and Output type (int), but a
