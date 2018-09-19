@@ -162,7 +162,7 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertItemsEqual(files, [path1, path2])
 
-  def test_match_glob_with_suffix(self):
+  def test_match_glob_wildcard_directory_name(self):
     base = os.path.join(self.tmpdir, "glob-with-with-suffix")
     dir1 = os.path.join(base, "a")
     dir2 = os.path.join(base, "b")
