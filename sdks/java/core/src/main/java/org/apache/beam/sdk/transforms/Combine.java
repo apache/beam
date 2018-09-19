@@ -254,10 +254,26 @@ public class Combine {
    *
    * <pre>{@code
    * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
-   *   public static class Accum {
+   *   public static class Accum implements java.io.Serializable {
    *     int sum = 0;
    *     int count = 0;
+   *
+   *     @Override
+   *     public boolean equals(Object other) {
+   *       if (other == null) return false;
+   *       if (other == this) return true;
+   *       if (!(other instanceof Accum))return false;
+   *
+   *
+   *       Accum o = (Accum)other;
+   *       if (this.sum != o.sum || this.count != o.count) {
+   *         return false;
+   *       } else {
+   *         return true;
+   *       }
+   *     }
    *   }
+   *
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
@@ -288,6 +304,22 @@ public class Combine {
    * subgroups before being combined, and their intermediate results further combined, in an
    * arbitrary tree structure. Commutativity is required because any order of the input values is
    * ignored when breaking up input values into groups.
+   *
+   * <h3>Note on Data Encoding</h3>
+   *
+   * <p>Data encoding is required to make CombineFn work.
+   * The sample code above implements {@code java.io.Serializable} so that CombineFn in
+   * consequence makes use of SerializableCoder to encode the data.
+   * In many cases though, relying on Serializable could be
+   * less preferred for efficiency considerations. In addition, Serializable may not be applicable
+   * in all situations. There are two alternatives to make data encoding work for AverageFn:
+   *
+   * <ul>
+   * <li> Generic Coder class. Implement an encoder class explicitly and use {@code @DefaultCoder} tag.
+   * <li> {@link CombineFn} Specific way. While extending {@link CombineFn}, overwrite
+   * both {@link #getAccumulatorCoder}
+   * and {@link #getDefaultOutputCoder}.
+   * </ul>
    *
    * @param <InputT> type of input values
    * @param <AccumT> type of mutable accumulator values
