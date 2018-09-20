@@ -1,6 +1,6 @@
 ---
 layout: section
-title: 'Beam Testing Guide'
+title: 'Beam Testing'
 section_menu: section-menu/contribute.html
 permalink: /contribute/testing/
 ---
@@ -18,277 +18,63 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam Testing Documentation
+# Beam Testing
 
-* TOC
-{:toc}
-
-## Overview
-
-Apache Beam is a rapidly-maturing software project with a strong
-commitment to testing. Consequently, it has many testing-related needs. It
-requires precommit tests to ensure code going into the repository meets a
-certain quality bar and it requires ongoing postcommit tests to make sure that
-more subtle changes which escape precommit are nonetheless caught. This document
-outlines how to write tests, which tests are appropriate where, and when tests
-are run, with some additional information about the testing systems at the
-bottom.
-
-If you’re writing tests, take a look at the testing matrix first, find what you
-want to test, then look into the “Scenarios” and “Types” sections below for more
-details on those testing types.
-
-## Testing Matrix
-
-### Java SDK
-
-<table>
-  <tr>
-   <td><strong>Component to Test</strong>
-   </td>
-   <td><strong>Test Scenario</strong>
-   </td>
-   <td><strong>Tool to Use</strong>
-   </td>
-   <td><strong>Link to Example</strong>
-   </td>
-   <td><strong>Type</strong>
-   </td>
-   <td><strong>Runs In</strong>
-   </td>
-  </tr>
-   <td>BoundedSource
-   </td>
-   <td>Correctly Reads Input
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L128">SourceTestUtils.readFromSource</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L972">TextIOTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit, Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Correct Initial Splitting
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L201">SourceTestUtils.assertSourcesEqualReferenceSource</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/8b1e64a668489297e11926124c4eee6c8f69a3a7/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L339">BigtableTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit, Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Correct Dynamic Splitting
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L541">SourceTestUtils. assertSplitAtFractionExhaustive</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L1021">TextIOTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit, Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>Transform
-   </td>
-   <td>Correctness
-   </td>
-   <td>@NeedsRunner Test
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java#L1199">ParDoTest</a>
-   </td>
-   <td>@NeedsRunner
-   </td>
-   <td>
-   </td>
-  </tr>
-  <tr>
-   <td>Example Pipeline
-   </td>
-   <td>Verify Behavior on Each Runner
-   </td>
-   <td>E2E Test
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L76">WordCountIT</a>
-   </td>
-   <td>E2E
-   </td>
-   <td>Postcommit (Except WordCountIT)
-   </td>
-  </tr>
-  <tr>
-   <td>Source/Sink with external resource
-   </td>
-   <td>External Resource Faked
-   </td>
-   <td>Unit / @NeedsRunner Test
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L646">FakeBigtableService in BigtableTest</a>
-   </td>
-   <td>Unit / @NeedsRunner
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Real Interactions With External Resource
-   </td>
-   <td>E2E Test
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableReadIT.java#L40">BigtableReadIT</a>
-   </td>
-   <td>E2E
-   </td>
-   <td>Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>Runner
-   </td>
-   <td>Correctness
-   </td>
-   <td>E2E Test, @ValidatesRunner
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
-   </td>
-   <td>E2E, @ValidatesRunner
-   </td>
-   <td>Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>Coders
-   </td>
-   <td>Encoding/decoding elements
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Serialization/deserialization of Coder
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Sizing of elements
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Deterministic
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
-   <td>
-   </td>
-   <td>Structural value equality
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
-   </td>
-   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-</table>
-
-### Python SDK
-
-The Python SDK has postcommit tests by a Jenkins build; precommit testing and a
-full testing matrix will be coming soon.
+This document outlines how to write tests, which tests are appropriate where,
+and when tests are run, with some additional information about the testing
+systems at the bottom.
 
 ## Testing Scenarios
 
-With the tools at our disposal, we have a good set of utilities which we can use
-to verify Beam correctness. To ensure an ongoing high quality of code, we use
-precommit and postcommit testing.
+Ideally, all available tests should be run against a pull request (PR) before
+it's allowed to be committed to Beam's [Github](https://github.com/apache/beam)
+repo. This is not possible, however, due to a combination of time and resource
+constraints. Running all tests for each PR would take hours or even days using
+available resources, which would slow down development considerably.
 
-### Precommit
+Thus tests are split into *pre-commit* and *post-commit* suites. Pre-commit is
+fast, while post-commit is comprehensive. As their names imply, pre-commit tests
+are run on each PR before it is committed, while post-commits run periodically
+against the master branch (i.e. on already committed PRs).
 
-For precommit testing, Beam uses
-[Jenkins](https://builds.apache.org/view/A-D/view/Beam/) and a code coverage tool
-called [Coveralls](https://coveralls.io/github/apache/beam), hooked up
-to [Github](https://github.com/apache/beam), to ensure that pull
-requests meet a certain quality bar. These precommits verify correctness via two
-of the below testing tools: unit tests (with coverage monitored by Coveralls)
-and E2E tests. We run the full slate of unit tests in precommit, ensuring
-correctness at a basic level, and then run the WordCount E2E test in both batch
-and streaming (coming soon!) against each supported SDK / runner combination as
-a smoke test, to verify that a basic level of functionality exists. We think
-that this hits the appropriate tradeoff between a desire for short (ideally
-\<30m) precommit times and a desire to verify that pull requests going into Beam
-function in the way in which they are intended.
+Beam uses [Jenkins](https://builds.apache.org/view/A-D/view/Beam/) to run
+pre-commit and post-commit tests.
 
-Precommit tests are kicked off when a user makes a Pull Request against the
-`apache/beam` repository and the Jenkins and Coveralls statuses are displayed at
-the bottom of the pull request page. Clicking on “Details” will open the status
-page in the selected tool; there, test status and output can be viewed.
+### Pre-commit
 
-### Postcommit
+The pre-commit test suite verifies correctness via two testing tools: unit tests
+and end-to-end (E2E) tests. Unit tests ensure correctness at a basic level,
+while WordCount E2E tests are run againsts each supported SDK / runner
+combination as a smoke test, to verify that a basic level of functionality
+exists.
 
-Running in postcommit removes as stringent of a time constraint, which gives us
-the ability to do some more comprehensive testing. In postcommit we have a test
+This combination of tests hits the appropriate tradeoff between a desire for
+short (ideally \<30m) pre-commit times and a desire to verify that PRs going
+into Beam function in the way in which they are intended.
+
+Pre-commit jobs are kicked off when a contributor makes a PR against the
+`apache/beam` repository. Job statuses are displayed at the bottom of the PR
+page. Clicking on “Details” will open the status page in the selected tool;
+there, you can view test status and output.
+
+### Post-commit
+
+Running in post-commit removes as stringent of a time constraint, which gives us
+the ability to do some more comprehensive testing. In post-commit we have a test
 suite running the ValidatesRunner tests against each supported runner, and
 another for running the full set of E2E tests against each runner.
 Currently-supported runners are Dataflow, Flink, Spark, and Gearpump, with
 others soon to follow. Work is ongoing to enable Flink, Spark, and Gearpump in
-the E2E framework, with full support targeted for end of August 2016. Postcommit
-tests run periodically, with timing defined in their Jenkins configurations.
+the E2E framework, with full support targeted for end of August 2016.
+Post-commit tests run periodically, with timing defined in their Jenkins
+configurations.
 
-Adding new postcommit E2E tests is generally as easy as adding a \*IT.java file
+Adding new post-commit E2E tests is generally as easy as adding a \*IT.java file
 to the repository - Failsafe will notice it and run it - but if you want to do
 more interesting things, take a look at
 [WordCountIT.java](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java).
 
-Postcommit test results can be found in
+Post-commit test results can be found in
 [Jenkins](https://builds.apache.org/view/A-D/view/Beam/).
 
 ## Testing Types
@@ -308,7 +94,7 @@ To run all unit tests, execute the following command in the ``sdks/python``
 subdirectory
 
 ```
-python setup.py test [-s apache_beam.package.module.TestClass.test_method]
+$ python setup.py test [-s apache_beam.package.module.TestClass.test_method]
 ```
 
 We also provide a [tox](https://tox.readthedocs.io/en/latest/) configuration
@@ -561,3 +347,84 @@ classes which reside under `"org[.]apache[.]beam[.].*Test.*"`,
 `"org[.]apache[.]beam[.].*IT"` or `"java[.]lang.*"`, belong to neither
 of the packages: `org.apache.beam.x`, `org.apache.beam.y`, `org.apache.beam.z`,
 nor equal to `Other.class`.
+
+## Best practices for writing tests {#best_practices}
+
+The following best practices help you to write reliable and maintainable tests.
+
+### Aim for one failure path
+
+An ideal test has one failure path. When you create your tests, minimize the
+possible reasons for a test failure. A developer can debug a problem more
+easily when there are fewer failure paths.
+
+### Avoid non-deterministic code
+
+Reliable tests are predictable and deterministic. Tests that contain
+non-deterministic code are hard to debug and are often flaky. Non-deterministic
+code includes the use of randomness, time, and multithreading.
+
+To avoid non-deterministic code, mock the corresponding methods or classes.
+
+### Use descriptive test names
+
+Helpful test names contain details about your test, such as test parameters and
+the expected result. Ideally, a developer can read the test name and know where
+the buggy code is and how to reproduce the bug.
+
+An easy and effective way to name your methods is to use these three questions:
+
+*   What you are testing?
+*   What are the parameters of the test?
+*   What is the expected result of the test?
+
+For example, consider a scenario where you want to add a test for the
+`Divide` method:
+
+```java
+float Divide(float dividend, float divisor) {
+  return dividend / divisor;
+}
+
+...
+
+@Test
+void <--TestMethodName-->() {
+    assertThrows(Divide(10, 0))
+}
+```
+
+If you use a simple test name, such as `testDivide()`, you are missing important
+information such as the expected action, parameter information, and expected
+test result. As a result, triaging a test failure requires you to look at the
+test implementation to see what the test does.
+
+Instead, use a name such as `invokingDivideWithDivisorEqualToZeroThrowsException()`,
+which specifies:
+
+*   the expected action of the test (`invokingDivide`)
+*   details about important parameters (the divisor is zero)
+*   the expected result (the test throws an exception)
+
+If this test fails, you can look at the descriptive test name to find the most
+probable cause of the failure. In addition, test frameworks and test result
+dashboards use the test name when reporting test results. Descriptive names
+enable contributors to look at test suite results and easily see what
+features are failing.
+
+Long method names are not a problem for test code. Test names are rarely used
+(usually when you triage and debug), and when you do need to look at a
+test, it is helpful to have descriptive names.
+
+
+### Use a pre-commit test if possible
+
+Post-commit tests validate that Beam works correctly in broad variety of
+scenarios. The tests catch errors that are hard to predict in the design and
+implementation stages
+
+However, we often write a test to verify a specific scenario. In this situation,
+it is usually possible to implement the test as a unit test or a component test.
+You can add your unit tests or component tests to the pre-commit test suite, and
+the pre-commit test results give you faster code health feedback during the
+development stage, when a bug is cheap to fix.

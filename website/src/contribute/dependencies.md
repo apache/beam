@@ -44,13 +44,24 @@ One common solution for the diamond dependency problem is [semantic versioning](
 
 A big part of keeping dependencies up to date involves identifying outdated dependencies of Beam that the community should try to upgrade.
 
-Beam currently executes a weekly Jenkins job that tries to identify outdated dependencies for various SDKs. This Jenkins job generates a weekly report that is shared in Beam dev list. In the future we hope to automatically create JIRAs based on this report.
+Beam currently executes a weekly Jenkins job that tries to identify outdated dependencies for various SDKs. This Jenkins job generates a weekly report that is shared in Beam dev list.
 
 In addition to this, Beam community members might identify other critical dependency updates that have to be manually performed. For example,
 * A minor release of a dependency due to a critical security vulnerability. 
 * A dependency conflict that was was triggered by a minor version release of a Beam dependency (this does not apply to Java SDK that depends on exact minor versions of dependencies).
 
 These kind of urgently required upgrades might not get automatically picked up by the Jenkins job for few months. So Beam community has to act to identify such issues and perform upgrades early.
+
+## JIRA Automation
+
+In order to track the dependency upgrade process, JIRA tickets will be created per significant outdated dependency based on the report. A bot named *Beam Jira Bot* was created for managing JIRA issues. Beam community agrees on the following policies that creates and updates issues.
+* Issues will be named as "Beam Dependency Update Request: <dep_name> <dep_newest_version>".
+* Issues will be created under the component *"dependencies"*
+* Issues will be assigned to the primary owner of the dependencies, who are mentioned in the dependency ownership files. ([Java Dependency Owners](https://github.com/apache/beam/blob/master/ownership/JAVA_DEPENDENCY_OWNERS.yaml) and [Python Dependency Owners](https://github.com/apache/beam/blob/master/ownership/PYTHON_DEPENDENCY_OWNERS.yaml))
+* If more than one owners found for a dependency, the first owner will be picked as the primary owner, the others will be pinged in the issue's description.
+* If no owners found, leave the assignee empty. The component lead is responsible for triaging the issue.
+* Avoid creating duplicate issues. Updating the descriptions of the open issues created by the previous dependency check.
+* The dependency sometimes is not able to be upgraded, the issue should be closed as *"won't fix"*. And, the bot should avoid recreating issues with "won't fix".
 
 ## Upgrading identified outdated dependencies
 
@@ -72,7 +83,7 @@ For manually identified critical dependency updates, Beam community members shou
 
 __Dependency declarations may identify owners that are responsible for upgrading respective dependencies.__
 
-Owners can be mentioned in a comment. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.
+Owners can be mentioned in the yaml files. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.
 
 __Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.__
 
