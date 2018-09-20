@@ -59,18 +59,24 @@ primary key(job_name, build_id)
 """
 
 def fetchJobs():
-  url = 'https://builds.apache.org/view/A-D/view/Beam/api/json?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1'
+  url = ('https://builds.apache.org/view/A-D/view/Beam/api/json'
+         '?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1')
   r = requests.get(url)
   jobs = r.json()[u'jobs']
-  result = map(lambda x: (x['name'], int(x['lastCompletedBuild']['id']) if x['lastCompletedBuild'] is not None else -1, x['url']), jobs)
+  result = map(lambda x: (x['name'],
+                          int(x['lastCompletedBuild']['id'])
+                              if x['lastCompletedBuild'] is not None
+                              else -1, x['url']), jobs)
   return result
 
 def initConnection():
-  conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}' port='{port}' password='{dbpassword}'")
+  conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
+                          f" port='{port}' password='{dbpassword}'")
   return conn
 
 def tableExists(cursor, tableName):
-  cursor.execute(f"select * from information_schema.tables where table_name='{tableName}';")
+  cursor.execute(f"select * from information_schema.tables"
+                 f" where table_name='{tableName}';")
   return bool(cursor.rowcount)
 
 
@@ -79,6 +85,7 @@ def initDbTablesIfNeeded():
   cursor = connection.cursor()
 
   buildsTableExists = tableExists(cursor, jenkinsBuildsTableName)
+  print('Builds table exists', buildsTableExists)
   if not buildsTableExists:
     cursor.execute(jenkinsJobsCreateTableQuery)
     if not bool(cursor.rowcount):
@@ -102,15 +109,22 @@ def fetchSyncedJobsBuildVersions(cursor):
 
 
 def fetchBuildsForJob(jobUrl):
-  durFields = 'blockedDurationMillis,buildableDurationMillis,buildingDurationMillis,executingTimeMillis,queuingDurationMillis,totalDurationMillis,waitingDurationMillis'
-  fields = f'result,timestamp,id,url,builtOn,building,duration,estimatedDuration,fullDisplayName,actions[{durFields}]'
+  durFields = ('blockedDurationMillis,buildableDurationMillis,'
+               'buildingDurationMillis,executingTimeMillis,queuingDurationMillis,'
+               'totalDurationMillis,waitingDurationMillis')
+  fields = (f'result,timestamp,id,url,builtOn,building,duration,'
+            f'estimatedDuration,fullDisplayName,actions[{durFields}]')
   url = f'{jobUrl}api/json?depth=1&tree=builds[{fields}]'
   r = requests.get(url)
   return r.json()[u'builds']
 
 
 def buildRowValuesArray(jobName, build):
-  timings = next((x for x in build[u'actions'] if (u'_class' in x) and (x[u'_class'] == u'jenkins.metrics.impl.TimeInQueueAction')), None)
+  timings = next((x
+                  for x in build[u'actions']
+                  if (u'_class' in x)
+                    and (x[u'_class'] == u'jenkins.metrics.impl.TimeInQueueAction')),
+                 None)
   values = [jobName,
           int(build[u'id']),
           build[u'url'],
@@ -131,7 +145,8 @@ def buildRowValuesArray(jobName, build):
 
 
 def insertRow(cursor, rowValues):
-  cursor.execute(f'insert into {jenkinsBuildsTableName} values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', rowValues)
+  cursor.execute(f'insert into {jenkinsBuildsTableName} values (%s, %s, %s, %s,'
+                  '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', rowValues)
 
 
 def fetchNewData():
