@@ -453,11 +453,14 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
@@ -764,11 +767,14 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --output gs://<your-gcs-bucket>/counts \
                       --runner dataflow \
                       --project your-gcp-project \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
+                      --staging_location gs://<your-gcs-bucket>/binaries/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
@@ -1073,11 +1079,14 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
