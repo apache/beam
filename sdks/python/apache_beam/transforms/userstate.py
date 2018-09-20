@@ -27,6 +27,7 @@ import types
 from builtins import object
 
 from apache_beam.coders import Coder
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
 
 
@@ -39,6 +40,9 @@ class StateSpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
+  def to_runner_api(self, context):
+    raise NotImplementedError
+
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
@@ -48,6 +52,11 @@ class BagStateSpec(StateSpec):
     assert isinstance(coder, Coder)
     self.name = name
     self.coder = coder
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.StateSpec(
+        bag_spec=beam_runner_api_pb2.BagStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)))
 
 
 class CombiningValueStateSpec(StateSpec):
@@ -59,11 +68,16 @@ class CombiningValueStateSpec(StateSpec):
 
     assert isinstance(name, str)
     assert isinstance(coder, Coder)
-    assert isinstance(combine_fn, CombineFn)
     self.name = name
     # The coder here should be for the accumulator type of the given CombineFn.
     self.coder = coder
-    self.combine_fn = combine_fn
+    self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.StateSpec(
+        combining_spec=beam_runner_api_pb2.CombiningStateSpec(
+            combine_fn=self.combine_fn.to_runner_api(context),
+            accumulator_coder_id=context.coders.get_id(self.coder)))
 
 
 class TimerSpec(object):
@@ -78,6 +92,10 @@ class TimerSpec(object):
 
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.TimerSpec(
+        time_domain=TimeDomain.to_runner_api(self.time_domain))
 
 
 def on_timer(timer_spec):

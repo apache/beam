@@ -104,7 +104,7 @@ class InterfaceTest(unittest.TestCase):
     CombiningValueStateSpec('statename', VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(AssertionError):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
     # BagStateSpec('bag', )
     # TODO: add more spec tests
