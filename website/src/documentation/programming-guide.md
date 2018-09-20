@@ -1350,6 +1350,7 @@ determined by the input data, or depend on a different branch of your pipeline.
   PCollection<String> wordsBelowCutOff =
   words.apply(ParDo
       .of(new DoFn<String, String>() {
+          @ProcessElement
           public void processElement(@Element String word, OutputReceiver<String> out, ProcessContext c) {
             // In our DoFn, access the side input.
             int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
