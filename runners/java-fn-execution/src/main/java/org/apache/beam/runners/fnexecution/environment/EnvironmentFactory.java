@@ -25,5 +25,5 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 /** Creates {@link Environment environments} which communicate to an {@link SdkHarnessClient}. */
 public interface EnvironmentFactory {
   /** Creates an active {@link Environment} and returns a handle to it. */
-  RemoteEnvironment createEnvironment(RunnerApi.Environment container) throws Exception;
+  RemoteEnvironment createEnvironment(RunnerApi.Environment environment) throws Exception;
 }

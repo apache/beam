@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -64,7 +65,7 @@ public class DockerJobBundleFactoryTest {
   @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
 
-  private final Environment environment = Environment.newBuilder().setUrl("env-url").build();
+  private final Environment environment = Environments.createDockerEnvironment("env-url");
   private final IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
   private final InstructionResponse instructionResponse =
       InstructionResponse.newBuilder().setInstructionId("instruction-id").build();
@@ -136,7 +137,7 @@ public class DockerJobBundleFactoryTest {
 
   @Test
   public void doesNotCacheDifferentEnvironments() throws Exception {
-    Environment envFoo = Environment.newBuilder().setUrl("foo-env-url").build();
+    Environment envFoo = Environments.createDockerEnvironment("foo-env-url");
     RemoteEnvironment remoteEnvFoo = mock(RemoteEnvironment.class);
     InstructionRequestHandler fooInstructionHandler = mock(InstructionRequestHandler.class);
     when(envFactory.createEnvironment(envFoo)).thenReturn(remoteEnvFoo);

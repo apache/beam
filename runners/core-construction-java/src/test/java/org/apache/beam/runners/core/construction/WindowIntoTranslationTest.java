@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
@@ -90,7 +89,7 @@ public class WindowIntoTranslationTest {
     checkState(assign.get() != null);
 
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowIntoPayload payload =
         WindowIntoTranslation.toProto(assign.get().getTransform(), components);
 

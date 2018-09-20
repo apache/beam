@@ -142,7 +142,7 @@ public abstract class JobBundleFactoryBase implements JobBundleFactory {
     return CacheBuilder.newBuilder()
         .removalListener(
             ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
-              LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());
+              LOG.debug("Cleaning up for environment {}", notification.getKey().getUrn());
               try {
                 notification.getValue().close();
               } catch (Exception e) {
