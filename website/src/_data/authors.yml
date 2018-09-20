@@ -41,10 +41,18 @@ jamesmalone:
 jesseanderson:
     name: Jesse Anderson
     twitter: jessetanderson
+jphalip:
+    name: Julien Phalip
+    email: jphalip@google.com
+    twitter: julienphalip
 klk:
     name: Kenneth Knowles
     email: klk@apache.org
     twitter: KennKnowles
+lkuligin:
+    name: Leonid Kuligin
+    email: kuligin@google.com
+    twitter: lkulighin
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -72,3 +80,18 @@ ianand:
     name: Anand Iyer
     email: ianand@google.com
     twitter:
+aromanenko:
+    name: Alexey Romanenko
+    email: aromanenko@apache.org
+    twitter: alexromdev
+pabloem:
+    name: Pablo Estrada
+    email: pabloem@apache.org
+    twitter: polecitoem
+rfernand:
+    name: Rafael Fernández
+    email: rfernand@google.com
+mbaetens:
+    name: Matthias Baetens
+    email: baetensmatthias@gmail.com
+    twitter: matthiasbaetens
