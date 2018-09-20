@@ -37,11 +37,12 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
         TranslatorProvider.of(inputs.get(0).getPipeline()).findTranslator(operator);
 
     if (maybeTranslator.isPresent()) {
-      return Dataset.of(
+      final PCollectionList<InputT> inputList =
           PCollectionList.of(
-                  inputs.stream().map(Dataset::getPCollection).collect(Collectors.toList()))
-              .apply(operator.getName(), new Translation<>(operator, maybeTranslator.get())),
-          operator);
+              inputs.stream().map(Dataset::getPCollection).collect(Collectors.toList()));
+      final PCollection<OutputT> output =
+          inputList.apply(operator.getName().orElseGet(() -> operator.getClass().getName()), new Translation<>(operator, maybeTranslator.get()));
+      return Dataset.of(output, operator);
     }
 
     if (operator instanceof CompositeOperator) {
@@ -55,7 +56,7 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
         "Unable to find translator for basic operator ["
             + operator.getClass()
             + "] with name ["
-            + operator.getName()
+            + operator.getName().orElse(null)
             + ".");
   }
 

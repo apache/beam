@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -52,7 +53,8 @@ public class TopPerKeyTest {
             .output();
     assertTrue(result.getProducer().isPresent());
     final TopPerKey tpk = (TopPerKey) result.getProducer().get();
-    assertEquals("TopPerKey1", tpk.getName());
+    assertTrue(tpk.getName().isPresent());
+    assertEquals("TopPerKey1", tpk.getName().get());
     assertNotNull(tpk.getKeyExtractor());
     assertNotNull(tpk.getValueExtractor());
     assertNotNull(tpk.getScoreExtractor());
@@ -72,7 +74,7 @@ public class TopPerKeyTest {
         TopPerKey.of(dataset).keyBy(s -> s).valueBy(s -> 1L).scoreBy(s -> 1L).output();
     assertTrue(result.getProducer().isPresent());
     final TopPerKey tpk = (TopPerKey) result.getProducer().get();
-    assertEquals("TopPerKey", tpk.getName());
+    assertFalse(tpk.getName().isPresent());
   }
 
   @Test

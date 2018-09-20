@@ -91,7 +91,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> ValueByReduceByBuilder<InputT, InputT> of(Dataset<InputT> input) {
-    return named("ReduceWindow").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -100,8 +100,8 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new Builder(requireNonNull(name));
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
   /** Builder for 'of' step */
@@ -255,7 +255,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
           AccumulatorModeBuilder<OutputT>,
           OutputBuilder<OutputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
     @Nullable private TypeDescriptor<ValueT> valueType;
@@ -264,8 +264,8 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
@@ -353,7 +353,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
   @Nullable private final TypeDescriptor<ValueT> valueType;
 
   private ReduceWindow(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, ValueT> valueExtractor,
       @Nullable TypeDescriptor<ValueT> valueType,
       ReduceFunctor<ValueT, OutputT> reducer,
@@ -393,7 +393,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
   @SuppressWarnings("unchecked")
   public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
     final ReduceByKey.ReduceByBuilder<Byte, ValueT> reduceBy =
-        ReduceByKey.named(getName())
+        ReduceByKey.named(getName().orElse(null))
             .of(Iterables.getOnlyElement(inputs))
             .keyBy(e -> B_ZERO)
             .valueBy(valueExtractor, valueType);

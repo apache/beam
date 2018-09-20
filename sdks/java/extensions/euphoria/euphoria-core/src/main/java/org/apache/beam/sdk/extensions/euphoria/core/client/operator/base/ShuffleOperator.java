@@ -35,7 +35,7 @@ public abstract class ShuffleOperator<InputT, KeyT, OutputT> extends Operator<Ou
   @Nullable private final Window<InputT> window;
 
   protected ShuffleOperator(
-      String name,
+      @Nullable String name,
       @Nullable TypeDescriptor<OutputT> outputType,
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,

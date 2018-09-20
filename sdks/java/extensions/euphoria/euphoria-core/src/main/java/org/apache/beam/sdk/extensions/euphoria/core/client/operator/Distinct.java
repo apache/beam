@@ -82,7 +82,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input) {
-    return named("Distinct").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -91,7 +91,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder(name);
   }
 
@@ -167,13 +167,13 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
           TriggerByBuilder<OutputT>,
           AccumulatorModeBuilder<OutputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     @Nullable private UnaryFunction<InputT, OutputT> mapper;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
+    Builder(@Nullable String name) {
       this.name = name;
     }
 
@@ -237,7 +237,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   }
 
   private Distinct(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, OutputT> mapper,
       @Nullable TypeDescriptor<OutputT> outputType,
       @Nullable Window<InputT> window) {
@@ -247,7 +247,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   @Override
   public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
     final Dataset<KV<OutputT, Void>> distinct =
-        ReduceByKey.named(getName())
+        ReduceByKey.named(getName().orElse(null))
             .of(Iterables.getOnlyElement(inputs))
             .keyBy(getKeyExtractor())
             .valueBy(e -> null, TypeDescriptors.nulls())

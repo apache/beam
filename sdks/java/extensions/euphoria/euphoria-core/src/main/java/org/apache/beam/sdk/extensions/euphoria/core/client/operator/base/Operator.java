@@ -29,22 +29,23 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class Operator<OutputT> implements Serializable, TypeAware.Output<OutputT> {
 
   /** Name of the operator. */
-  private final String name;
+  @Nullable private final String name;
 
+  /** The type of output elements */
   @Nullable private final TypeDescriptor<OutputT> outputType;
 
-  protected Operator(String name, @Nullable TypeDescriptor<OutputT> outputType) {
+  protected Operator(@Nullable String name, @Nullable TypeDescriptor<OutputT> outputType) {
     this.name = name;
     this.outputType = outputType;
   }
 
   /**
-   * Returns non-unique name either given by user or automatically generated.
+   * Returns user provided name of the operator
    *
-   * @return name
+   * @return maybe name
    */
-  public final String getName() {
-    return name;
+  public final Optional<String> getName() {
+    return Optional.ofNullable(name);
   }
 
   @Override

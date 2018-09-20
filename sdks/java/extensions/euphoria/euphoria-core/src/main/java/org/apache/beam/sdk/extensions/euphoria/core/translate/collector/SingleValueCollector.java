@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
@@ -27,11 +30,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 
 /** {@code Collector} for combinable functors. */
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
+
+  private static final String UNSUPPORTED = "Accumulators are supported for named operators only.";
+
   private final AccumulatorProvider accumulators;
-  private final String operatorName;
+  @Nullable private final String operatorName;
   private T elem;
 
-  public SingleValueCollector(AccumulatorProvider accumulators, String operatorName) {
+  public SingleValueCollector(AccumulatorProvider accumulators, @Nullable String operatorName) {
     this.accumulators = accumulators;
     this.operatorName = operatorName;
   }
@@ -53,12 +59,12 @@ public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   @Override
   public Counter getCounter(String name) {
-    return accumulators.getCounter(operatorName, name);
+    return accumulators.getCounter(requireNonNull(operatorName, UNSUPPORTED), name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return accumulators.getHistogram(operatorName, name);
+    return accumulators.getHistogram(requireNonNull(operatorName, UNSUPPORTED), name);
   }
 
   @Override

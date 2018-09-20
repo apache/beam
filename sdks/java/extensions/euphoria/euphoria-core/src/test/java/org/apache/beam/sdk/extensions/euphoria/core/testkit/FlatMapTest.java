@@ -85,7 +85,7 @@ public class FlatMapTest extends AbstractOperatorTest {
 
           @Override
           protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            return FlatMap.of(input)
+            return FlatMap.named("test").of(input)
                 .using(
                     (UnaryFunctor<Integer, Integer>)
                         (elem, collector) -> {

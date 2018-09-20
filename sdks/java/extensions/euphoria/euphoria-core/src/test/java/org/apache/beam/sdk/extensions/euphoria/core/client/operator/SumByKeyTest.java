@@ -42,7 +42,8 @@ public class SumByKeyTest {
         SumByKey.named("SumByKey1").of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
     final SumByKey sum = (SumByKey) counted.getProducer().get();
-    assertEquals("SumByKey1", sum.getName());
+    assertTrue(sum.getName().isPresent());
+    assertEquals("SumByKey1", sum.getName().get());
     assertNotNull(sum.getKeyExtractor());
     assertFalse(sum.getWindow().isPresent());
   }
@@ -53,7 +54,7 @@ public class SumByKeyTest {
     final Dataset<KV<String, Long>> counted = SumByKey.of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
     final SumByKey sum = (SumByKey) counted.getProducer().get();
-    assertEquals("SumByKey", sum.getName());
+    assertFalse(sum.getName().isPresent());
   }
 
   @Test

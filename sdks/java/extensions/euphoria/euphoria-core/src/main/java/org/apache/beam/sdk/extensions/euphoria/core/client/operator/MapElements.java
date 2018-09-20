@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
@@ -56,16 +55,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class MapElements<InputT, OutputT> extends Operator<OutputT>
     implements CompositeOperator<InputT, OutputT>, TypeAware.Output<OutputT> {
 
-  private final UnaryFunctionEnv<InputT, OutputT> mapper;
-
-  private MapElements(
-      String name,
-      UnaryFunctionEnv<InputT, OutputT> mapper,
-      @Nullable TypeDescriptor<OutputT> outputType) {
-    super(name, outputType);
-    this.mapper = mapper;
-  }
-
   /**
    * Starts building a nameless {@link MapElements} operator to process the given input dataset.
    *
@@ -76,7 +65,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new UsingBuilder<>("MapElements", input);
+    return named(null).of(input);
   }
 
   /**
@@ -85,35 +74,19 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name);
   }
 
   /** Builder for the 'of' step */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-      return new UsingBuilder<>(name, input);
-    }
+    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
   }
 
   /** MapElements builder which adds mapper to operator under build. */
-  public static class UsingBuilder<InputT> {
-
-    private final String name;
-    private final Dataset<InputT> input;
-
-    UsingBuilder(String name, Dataset<InputT> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-    }
+  public interface UsingBuilder<InputT> {
 
     /**
      * The mapping function that takes input element and outputs the OutputT type element. If you
@@ -123,13 +96,13 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OutputT> OutputBuilder<InputT, OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
-      return new OutputBuilder<>(name, input, ((el, ctx) -> mapper.apply(el)));
+    default <OutputT> OutputBuilder<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
+      return using(mapper, null);
     }
 
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunction<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputType) {
-      return new OutputBuilder<>(name, input, (el, ctx) -> mapper.apply(el), outputType);
+    default <OutputT> OutputBuilder<OutputT> using(
+        UnaryFunction<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType) {
+      return using((el, ctx) -> mapper.apply(el), outputType);
     }
 
     /**
@@ -139,44 +112,48 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunctionEnv<InputT, OutputT> mapper) {
+    default <OutputT> OutputBuilder<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunctionEnv<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputType) {
-      return new OutputBuilder<>(name, input, mapper, outputType);
-    }
+    <OutputT> OutputBuilder<OutputT> using(
+        UnaryFunctionEnv<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType);
   }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
+  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunctionEnv<InputT, OutputT> mapper;
-    @Nullable private final TypeDescriptor<OutputT> outputType;
+  private static class Builder<InputT, OutputT>
+      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<OutputT> {
 
-    OutputBuilder(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunctionEnv<InputT, OutputT> mapper,
-        @Nullable TypeDescriptor<OutputT> outputType) {
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunctionEnv<InputT, OutputT> mapper;
+    @Nullable private TypeDescriptor<OutputT> outputType;
+
+    Builder(@Nullable String name) {
       this.name = name;
-      this.input = input;
-      this.mapper = mapper;
-      this.outputType = outputType;
     }
 
-    OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper) {
-      this.name = name;
-      this.input = input;
-      this.mapper = mapper;
-      this.outputType = null;
+    @Override
+    public <T> UsingBuilder<T> of(Dataset<T> input) {
+      @SuppressWarnings("unchecked")
+      final Builder<T, ?> casted = (Builder) this;
+      casted.input = input;
+      return casted;
+    }
+
+    @Override
+    public <T> OutputBuilder<T> using(
+        UnaryFunctionEnv<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T> casted = (Builder) this;
+      casted.mapper = mapper;
+      casted.outputType = outputType;
+      return casted;
     }
 
     @Override
@@ -186,9 +163,19 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
   }
 
+  private final UnaryFunctionEnv<InputT, OutputT> mapper;
+
+  private MapElements(
+      @Nullable String name,
+      UnaryFunctionEnv<InputT, OutputT> mapper,
+      @Nullable TypeDescriptor<OutputT> outputType) {
+    super(name, outputType);
+    this.mapper = mapper;
+  }
+
   @Override
   public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
-    return FlatMap.named(getName())
+    return FlatMap.named(getName().orElse(null))
         .of(Iterables.getOnlyElement(inputs))
         .using(
             (InputT elem, Collector<OutputT> coll) ->

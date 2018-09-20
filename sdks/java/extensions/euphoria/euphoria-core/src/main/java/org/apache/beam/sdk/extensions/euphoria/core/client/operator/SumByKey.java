@@ -90,7 +90,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new Builder<>("SumByKey").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -99,7 +99,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder(name);
   }
 
@@ -179,15 +179,15 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
           AccumulatorModeBuilder<KeyT>,
           OutputBuilder<KeyT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     private UnaryFunction<InputT, Long> valueExtractor;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
@@ -264,7 +264,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
   private final UnaryFunction<InputT, Long> valueExtractor;
 
   private SumByKey(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       UnaryFunction<InputT, Long> valueExtractor,
@@ -280,7 +280,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
 
   @Override
   public Dataset<KV<KeyT, Long>> expand(List<Dataset<InputT>> inputs) {
-    return ReduceByKey.named(getName())
+    return ReduceByKey.named(getName().orElse(null))
         .of(Iterables.getOnlyElement(inputs))
         .keyBy(getKeyExtractor())
         .valueBy(getValueExtractor(), TypeDescriptors.longs())

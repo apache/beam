@@ -78,7 +78,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new Builder<>("CountByKey").of(input);
+    return new Builder<>(null).of(input);
   }
 
   /**
@@ -87,7 +87,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder(name);
   }
 
@@ -159,14 +159,14 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
           AccumulatorModeBuilder<KeyT>,
           OutputBuilder<KeyT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
@@ -231,7 +231,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
   }
 
   private CountByKey(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       @Nullable Window<InputT> window,
@@ -241,7 +241,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
 
   @Override
   public Dataset<KV<KeyT, Long>> expand(List<Dataset<InputT>> inputs) {
-    return ReduceByKey.named(getName())
+    return ReduceByKey.named(getName().orElse(null))
         .of(Iterables.getOnlyElement(inputs))
         .keyBy(getKeyExtractor())
         .valueBy(v -> 1L, TypeDescriptors.longs())

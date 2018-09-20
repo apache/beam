@@ -70,7 +70,7 @@ public class MapElementsTest extends AbstractOperatorTest {
 
           @Override
           protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            return MapElements.of(input)
+            return MapElements.named("test").of(input)
                 .using(
                     (UnaryFunctionEnv<Integer, Integer>)
                         (x, context) -> {

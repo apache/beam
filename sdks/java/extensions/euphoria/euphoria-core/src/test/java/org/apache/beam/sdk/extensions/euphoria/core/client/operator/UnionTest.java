@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -40,7 +41,8 @@ public class UnionTest {
 
     assertTrue(unioned.getProducer().isPresent());
     final Union union = (Union) unioned.getProducer().get();
-    assertEquals("Union1", union.getName());
+    assertTrue(union.getName().isPresent());
+    assertEquals("Union1", union.getName().get());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -63,7 +65,8 @@ public class UnionTest {
 
     assertTrue(unioned.getProducer().isPresent());
     final Union union = (Union) unioned.getProducer().get();
-    assertEquals("Union1", union.getName());
+    assertTrue(union.getName().isPresent());
+    assertEquals("Union1", union.getName().get());
   }
 
   @Test
@@ -76,6 +79,6 @@ public class UnionTest {
     final Dataset<String> unioned = Union.of(left, right).output();
     assertTrue(unioned.getProducer().isPresent());
     final Union union = (Union) unioned.getProducer().get();
-    assertEquals("Union", union.getName());
+    assertFalse(union.getName().isPresent());
   }
 }

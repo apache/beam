@@ -96,7 +96,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return named("TopPerKey").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -105,8 +105,8 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new Builder<>(requireNonNull(name));
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name);
   }
 
   /** Builder for 'of' step */
@@ -210,7 +210,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
           AccumulatorModeBuilder<KeyT, ValueT, ScoreT>,
           OutputBuilder<KeyT, ValueT, ScoreT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
@@ -220,8 +220,8 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     @Nullable private TypeDescriptor<ScoreT> scoreType;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
@@ -314,7 +314,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
   @Nullable private TypeDescriptor<ScoreT> scoreType;
 
   private TopPerKey(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       UnaryFunction<InputT, ValueT> valueExtractor,

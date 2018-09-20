@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -51,7 +52,8 @@ public class CountByKeyTest {
             .output();
     assertTrue(counted.getProducer().isPresent());
     final CountByKey count = (CountByKey) counted.getProducer().get();
-    assertEquals("CountByKey1", count.getName());
+    assertTrue(count.getName().isPresent());
+    assertEquals("CountByKey1", count.getName().get());
     assertNotNull(count.getKeyExtractor());
     assertTrue(count.getWindow().isPresent());
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
@@ -66,7 +68,7 @@ public class CountByKeyTest {
     final Dataset<KV<String, Long>> counted = CountByKey.of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
     final CountByKey count = (CountByKey) counted.getProducer().get();
-    assertEquals("CountByKey", count.getName());
+    assertFalse(count.getName().isPresent());
   }
 
   @Test

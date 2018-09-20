@@ -83,19 +83,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     implements TypeAware.Output<OutputT> {
 
-  private final UnaryFunctor<InputT, OutputT> functor;
-  @Nullable private final ExtractEventTime<InputT> eventTimeFn;
-
-  private FlatMap(
-      String name,
-      UnaryFunctor<InputT, OutputT> functor,
-      @Nullable TypeDescriptor<OutputT> outputType,
-      @Nullable ExtractEventTime<InputT> evtTimeFn) {
-    super(name, outputType);
-    this.functor = functor;
-    this.eventTimeFn = evtTimeFn;
-  }
-
   /**
    * Starts building a nameless {@link FlatMap} operator to transform the given input dataset.
    *
@@ -106,7 +93,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new Builder<>("FlatMap", input);
+    return named(null).of(input);
   }
 
   /**
@@ -115,7 +102,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new {@link FlatMap} operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder<>(name);
   }
 
@@ -186,19 +173,14 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
           EventTimeBuilder<InputT, OutputT>,
           OutputBuilder<OutputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunctor<InputT, OutputT> functor;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private ExtractEventTime<InputT> evtTimeFn;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
-    }
-
-    Builder(String name, Dataset<InputT> input) {
+    Builder(@Nullable String name) {
       this.name = name;
-      this.input = input;
     }
 
     @Override
@@ -236,6 +218,19 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
       return Translation.apply(
           new FlatMap<>(name, functor, outputType, evtTimeFn), Collections.singletonList(input));
     }
+  }
+
+  private final UnaryFunctor<InputT, OutputT> functor;
+  @Nullable private final ExtractEventTime<InputT> eventTimeFn;
+
+  private FlatMap(
+      @Nullable String name,
+      UnaryFunctor<InputT, OutputT> functor,
+      @Nullable TypeDescriptor<OutputT> outputType,
+      @Nullable ExtractEventTime<InputT> evtTimeFn) {
+    super(name, outputType);
+    this.functor = functor;
+    this.eventTimeFn = evtTimeFn;
   }
 
   /**

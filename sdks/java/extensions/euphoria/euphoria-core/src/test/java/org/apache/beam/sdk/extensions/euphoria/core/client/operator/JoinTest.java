@@ -62,7 +62,8 @@ public class JoinTest {
             .output();
     assertTrue(joined.getProducer().isPresent());
     final Join join = (Join) joined.getProducer().get();
-    assertEquals("Join1", join.getName());
+    assertTrue(join.getName().isPresent());
+    assertEquals("Join1", join.getName().get());
     assertNotNull(join.getLeftKeyExtractor());
     assertNotNull(join.getRightKeyExtractor());
     assertFalse(join.getWindow().isPresent());
@@ -87,7 +88,8 @@ public class JoinTest {
             .outputValues();
     assertTrue(joined.getProducer().isPresent());
     final MapElements mapElements = (MapElements) joined.getProducer().get();
-    assertEquals("JoinValues::extract-values", mapElements.getName());
+    assertTrue(mapElements.getName().isPresent());
+    assertEquals("JoinValues::extract-values", mapElements.getName().get());
   }
 
   @Test
@@ -109,7 +111,8 @@ public class JoinTest {
             .output();
     assertTrue(joined.getProducer().isPresent());
     final Join join = (Join) joined.getProducer().get();
-    assertEquals("Join1", join.getName());
+    assertTrue(join.getName().isPresent());
+    assertEquals("Join1", join.getName().get());
     assertNotNull(join.getLeftKeyExtractor());
     assertNotNull(join.getRightKeyExtractor());
     assertFalse(join.getWindow().isPresent());
@@ -133,7 +136,7 @@ public class JoinTest {
             .output();
     assertTrue(joined.getProducer().isPresent());
     final Join join = (Join) joined.getProducer().get();
-    assertEquals("Join", join.getName());
+    assertFalse(join.getName().isPresent());
   }
 
   @Test

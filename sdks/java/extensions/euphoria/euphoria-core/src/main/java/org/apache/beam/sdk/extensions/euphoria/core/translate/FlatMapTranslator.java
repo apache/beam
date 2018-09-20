@@ -47,12 +47,12 @@ public class FlatMapTranslator<InputT, OutputT>
         new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
     final Mapper<InputT, OutputT> mapper =
         new Mapper<>(
-            operator.getName(),
+            operator.getName().orElse(null),
             operator.getFunctor(),
             accumulators,
             operator.getEventTimeExtractor().orElse(null));
     return OperatorTranslators.getSingleInput(inputs)
-        .apply(operator.getName(), ParDo.of(mapper))
+        .apply("mapper", ParDo.of(mapper))
         .setTypeDescriptor(TypeAwares.orObjects(operator.getOutputType()));
   }
 
@@ -62,7 +62,7 @@ public class FlatMapTranslator<InputT, OutputT>
     private final AdaptableCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
-        String operatorName,
+        @Nullable String operatorName,
         UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
         @Nullable ExtractEventTime<InputT> eventTimeExtractor) {

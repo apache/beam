@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -36,7 +37,8 @@ public class MapElementsTest {
     final Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
     assertTrue(mapped.getProducer().isPresent());
     final MapElements map = (MapElements) mapped.getProducer().get();
-    assertEquals("Map1", map.getName());
+    assertTrue(map.getName().isPresent());
+    assertEquals("Map1", map.getName().get());
     assertNotNull(map.getMapper());
   }
 
@@ -57,7 +59,8 @@ public class MapElementsTest {
 
     assertTrue(mapped.getProducer().isPresent());
     final MapElements map = (MapElements) mapped.getProducer().get();
-    assertEquals("Map1", map.getName());
+    assertTrue(map.getName().isPresent());
+    assertEquals("Map1", map.getName().get());
     assertNotNull(map.getMapper());
   }
 
@@ -67,7 +70,7 @@ public class MapElementsTest {
     final Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
     assertTrue(mapped.getProducer().isPresent());
     final MapElements map = (MapElements) mapped.getProducer().get();
-    assertEquals("MapElements", map.getName());
+    assertFalse(map.getName().isPresent());
   }
 
   @SuppressWarnings("unchecked")

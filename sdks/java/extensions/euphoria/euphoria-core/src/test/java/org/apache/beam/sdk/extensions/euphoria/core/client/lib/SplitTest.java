@@ -56,10 +56,12 @@ public class SplitTest {
 
     assertTrue(split.positive().getProducer().isPresent());
     final Filter positive = (Filter) split.positive().getProducer().get();
-    assertEquals(Split.DEFAULT_NAME + Split.POSITIVE_FILTER_SUFFIX, positive.getName());
+    assertTrue(positive.getName().isPresent());
+    assertEquals(Split.DEFAULT_NAME + Split.POSITIVE_FILTER_SUFFIX, positive.getName().get());
     assertTrue(split.negative().getProducer().isPresent());
     final Filter negative = (Filter) split.negative().getProducer().get();
-    assertEquals(Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX, negative.getName());
+    assertTrue(negative.getName().isPresent());
+    assertEquals(Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX, negative.getName().get());
   }
 
   @SuppressWarnings("unchecked")

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -35,7 +36,8 @@ public class FilterTest {
         Filter.named("Filter1").of(dataset).by(s -> !s.equals("")).output();
     assertTrue(filtered.getProducer().isPresent());
     final Filter filter = (Filter) filtered.getProducer().get();
-    assertEquals("Filter1", filter.getName());
+    assertTrue(filter.getName().isPresent());
+    assertEquals("Filter1", filter.getName().get());
     assertNotNull(filter.getPredicate());
   }
 
@@ -45,6 +47,6 @@ public class FilterTest {
     final Dataset<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
     assertTrue(filtered.getProducer().isPresent());
     final Filter filter = (Filter) filtered.getProducer().get();
-    assertEquals("Filter", filter.getName());
+    assertFalse(filter.getName().isPresent());
   }
 }

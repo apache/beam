@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -72,7 +73,7 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
 
     final PCollection<KV<KeyT, ValueT>> extracted =
         input
-            .apply(operator.getName() + "::extract-keys", extractor)
+            .apply("extract-keys", extractor)
             .setTypeDescriptor(
                 TypeDescriptors.kvs(
                     TypeAwares.orObjects(operator.getKeyType()),
@@ -85,8 +86,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
       // if operator is combinable we can process it in more efficient way
       final PCollection<KV<KeyT, ValueT>> combined =
           extracted.apply(
-              operator.getName() + "::combine",
-              Combine.perKey(asCombiner(reducer, accumulators, operator.getName())));
+              "combine",
+              Combine.perKey(asCombiner(reducer, accumulators, operator.getName().orElse(null))));
       @SuppressWarnings("unchecked")
       final PCollection<KV<KeyT, OutputT>> casted = (PCollection) combined;
       return casted;
@@ -98,7 +99,9 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
             TypeDescriptors.kvs(
                 TypeAwares.orObjects(operator.getKeyType()),
                 TypeDescriptors.iterables(TypeAwares.orObjects(operator.getValueType()))))
-        .apply("reduce", ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName())))
+        .apply(
+            "reduce",
+            ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName().orElse(null))))
         .setTypeDescriptor(
             operator
                 .getOutputType()
@@ -115,7 +118,7 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
       ReduceFunctor<InputT, OutputT> reducer,
       AccumulatorProvider accumulatorProvider,
-      String operatorName) {
+      @Nullable String operatorName) {
 
     @SuppressWarnings("unchecked")
     final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
@@ -170,7 +173,7 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     ReduceDoFn(
         ReduceFunctor<ValueT, OutputT> reducer,
         AccumulatorProvider accumulators,
-        String operatorName) {
+        @Nullable String operatorName) {
       this.reducer = reducer;
       this.collector =
           new AdaptableCollector<>(

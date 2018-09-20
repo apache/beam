@@ -590,7 +590,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
           @Override
           protected Dataset<KV<Integer, Integer>> getOutput(Dataset<Integer> input) {
-            return ReduceByKey.of(input)
+            return ReduceByKey.named("test").of(input)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
                 .reduceBy(

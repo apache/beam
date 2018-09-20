@@ -104,7 +104,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new Builder<>("ReduceByKey").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -113,7 +113,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder(name);
   }
 
@@ -292,7 +292,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
           AccumulatorModeBuilder<KeyT, OutputT>,
           OutputBuilder<KeyT, OutputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
@@ -303,8 +303,8 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
     @Nullable private Window<InputT> window;
 
-    Builder(String name) {
-      this.name = requireNonNull(name);
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
@@ -408,7 +408,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
 
     @Override
     public Dataset<OutputT> outputValues(OutputHint... outputHints) {
-      return MapElements.named(name + "::extract-values")
+      return MapElements.named(name != null ? name + "::extract-values" : null)
           .of(output(outputHints))
           .using(KV::getValue, outputType)
           .output(outputHints);
@@ -421,7 +421,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
   @Nullable private final TypeDescriptor<ValueT> valueType;
 
   private ReduceByKey(
-      String name,
+      @Nullable String name,
       UnaryFunction<InputT, KeyT> keyExtractor,
       @Nullable TypeDescriptor<KeyT> keyType,
       UnaryFunction<InputT, ValueT> valueExtractor,

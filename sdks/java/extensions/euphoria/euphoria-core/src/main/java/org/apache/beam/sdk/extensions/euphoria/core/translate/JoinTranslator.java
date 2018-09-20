@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static java.util.Objects.requireNonNull;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -50,7 +51,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
         TupleTag<RightT> rightTag,
-        String operatorName,
+        @Nullable String operatorName,
         AccumulatorProvider accumulatorProvider) {
       this.joiner = joiner;
       this.leftTag = leftTag;
@@ -91,7 +92,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
         TupleTag<RightT> rightTag,
-        String operatorName,
+        @Nullable String operatorName,
         AccumulatorProvider accumulatorProvider) {
       super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
@@ -118,7 +119,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
         TupleTag<RightT> rightTag,
-        String operatorName,
+        @Nullable String operatorName,
         AccumulatorProvider accumulatorProvider) {
       super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
@@ -157,7 +158,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
         TupleTag<RightT> rightTag,
-        String operatorName,
+        @Nullable String operatorName,
         AccumulatorProvider accumulatorProvider) {
       super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
@@ -188,7 +189,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         TupleTag<LeftT> leftTag,
         TupleTag<RightT> rightTag,
-        String operatorName,
+        @Nullable String operatorName,
         AccumulatorProvider accumulatorProvider) {
       super(joiner, leftTag, rightTag, operatorName, accumulatorProvider);
     }
@@ -220,13 +221,17 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     final BinaryFunctor<LeftT, RightT, OutputT> joiner = operator.getJoiner();
     switch (operator.getType()) {
       case INNER:
-        return new InnerJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
+        return new InnerJoinFn<>(
+            joiner, leftTag, rightTag, operator.getName().orElse(null), accumulators);
       case LEFT:
-        return new LeftOuterJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
+        return new LeftOuterJoinFn<>(
+            joiner, leftTag, rightTag, operator.getName().orElse(null), accumulators);
       case RIGHT:
-        return new RightOuterJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
+        return new RightOuterJoinFn<>(
+            joiner, leftTag, rightTag, operator.getName().orElse(null), accumulators);
       case FULL:
-        return new FullJoinFn<>(joiner, leftTag, rightTag, operator.getName(), accumulators);
+        return new FullJoinFn<>(
+            joiner, leftTag, rightTag, operator.getName().orElse(null), accumulators);
       default:
         throw new UnsupportedOperationException(
             String.format(

@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
@@ -69,10 +68,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
 public class Union<InputT> extends Operator<InputT> {
 
-  private Union(String name, @Nullable TypeDescriptor<InputT> outputType) {
-    super(name, outputType);
-  }
-
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
@@ -97,7 +92,7 @@ public class Union<InputT> extends Operator<InputT> {
    * @see OfBuilder#of(List)
    */
   public static <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
-    return new OfBuilder("Union").of(dataSets);
+    return named(null).of(dataSets);
   }
 
   /**
@@ -106,18 +101,12 @@ public class Union<InputT> extends Operator<InputT> {
    * @param name a user provided name of the new operator to build
    * @return the next builder to complete the setup of the new {@link Union} operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name);
   }
 
   /** Builder for the 'of' step */
-  public static class OfBuilder {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  public abstract static class OfBuilder {
 
     /**
      * Specifies the two data sets to be "unioned".
@@ -138,23 +127,30 @@ public class Union<InputT> extends Operator<InputT> {
      * @param dataSets at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
-    public <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
-      return new OutputBuilder<>(name, dataSets);
-    }
+    public abstract <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets);
   }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
+  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
 
-    private final String name;
-    private final List<Dataset<InputT>> dataSets;
+  private static class Builder<InputT> extends OfBuilder implements OutputBuilder<InputT> {
 
-    OutputBuilder(String name, List<Dataset<InputT>> dataSets) {
-      this.name = Objects.requireNonNull(name);
-      this.dataSets = dataSets;
+    @Nullable private final String name;
+    private List<Dataset<InputT>> dataSets;
+
+    Builder(@Nullable String name) {
+      this.name = name;
+    }
+
+    @Override
+    public <T> OutputBuilder<T> of(List<Dataset<T>> dataSets) {
+      @SuppressWarnings("unchecked")
+      final Builder<T> casted = (Builder) this;
+      casted.dataSets = dataSets;
+      return casted;
     }
 
     @Override
@@ -162,5 +158,9 @@ public class Union<InputT> extends Operator<InputT> {
       checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
       return Translation.apply(new Union<>(name, dataSets.get(0).getTypeDescriptor()), dataSets);
     }
+  }
+
+  private Union(@Nullable String name, @Nullable TypeDescriptor<InputT> outputType) {
+    super(name, outputType);
   }
 }

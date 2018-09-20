@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
@@ -47,7 +48,8 @@ public class DistinctTest {
             .output();
     assertTrue(uniq.getProducer().isPresent());
     final Distinct distinct = (Distinct) uniq.getProducer().get();
-    assertEquals("Distinct1", distinct.getName());
+    assertTrue(distinct.getName().isPresent());
+    assertEquals("Distinct1", distinct.getName().get());
 
     assertTrue(distinct.getWindow().isPresent());
     @SuppressWarnings("unchecked")
@@ -63,7 +65,7 @@ public class DistinctTest {
     final Dataset<String> uniq = Distinct.of(dataset).output();
     assertTrue(uniq.getProducer().isPresent());
     final Distinct distinct = (Distinct) uniq.getProducer().get();
-    assertEquals("Distinct", distinct.getName());
+    assertFalse(distinct.getName().isPresent());
   }
 
   @Test

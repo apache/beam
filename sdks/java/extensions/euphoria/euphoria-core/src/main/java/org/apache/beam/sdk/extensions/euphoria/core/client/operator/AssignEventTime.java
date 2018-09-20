@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
@@ -52,24 +51,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class AssignEventTime<InputT> extends Operator<InputT>
     implements CompositeOperator<InputT, InputT> {
 
-  private final ExtractEventTime<InputT> eventTimeExtractor;
-
-  private AssignEventTime(
-      String name,
-      ExtractEventTime<InputT> eventTimeExtractor,
-      @Nullable TypeDescriptor<InputT> outputType) {
-    super(name, outputType);
-    this.eventTimeExtractor = eventTimeExtractor;
-  }
-
   /**
    * Starts building a named {@link AssignEventTime} operator.
    *
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new {@link AssignEventTime} operator
    */
-  public static OfBuilder named(String name) {
-    return new Builder(Objects.requireNonNull(name));
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
   /**
@@ -83,7 +72,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return named("AssignEventTime").of(input);
+    return named(null).of(input);
   }
 
   /** Builder for the 'of' step from the builder chain. */
@@ -114,11 +103,11 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   public static class Builder<InputT>
       implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<InputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private ExtractEventTime<InputT> eventTimeExtractor;
 
-    private Builder(String name) {
+    private Builder(@Nullable String name) {
       this.name = name;
     }
 
@@ -144,6 +133,16 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     }
   }
 
+  private final ExtractEventTime<InputT> eventTimeExtractor;
+
+  private AssignEventTime(
+      @Nullable String name,
+      ExtractEventTime<InputT> eventTimeExtractor,
+      @Nullable TypeDescriptor<InputT> outputType) {
+    super(name, outputType);
+    this.eventTimeExtractor = eventTimeExtractor;
+  }
+
   /**
    * @return the user defined event time assigner
    * @see FlatMap#getEventTimeExtractor()
@@ -155,7 +154,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   @Override
   public Dataset<InputT> expand(List<Dataset<InputT>> inputs) {
     final Dataset<InputT> input = Iterables.getOnlyElement(inputs);
-    return FlatMap.named(getName())
+    return FlatMap.named(getName().orElse(null))
         .of(Iterables.getOnlyElement(inputs))
         .using(
             (InputT element, Collector<InputT> coll) -> coll.collect(element),

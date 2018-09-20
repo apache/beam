@@ -81,7 +81,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
-    return named("Join").of(left, right);
+    return named(null).of(left, right);
   }
 
   /**
@@ -90,7 +90,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
    * @param name of operator
    * @return OfBuilder
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder<>(name, Type.INNER);
   }
 
@@ -174,7 +174,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
           AccumulatorModeBuilder<KeyT, OutputT>,
           OutputBuilder<KeyT, OutputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private final Type type;
     private Dataset<LeftT> left;
     private Dataset<RightT> right;
@@ -185,7 +185,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private Window<Object> window;
 
-    Builder(String name, Type type) {
+    Builder(@Nullable String name, Type type) {
       this.name = name;
       this.type = type;
     }
@@ -273,7 +273,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
     @Override
     public Dataset<OutputT> outputValues(OutputHint... outputHints) {
-      return MapElements.named(name + "::extract-values")
+      return MapElements.named(name != null ? name + "::extract-values" : null)
           .of(output(outputHints))
           .using(KV::getValue, outputType)
           .output(outputHints);
@@ -286,7 +286,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
   private final BinaryFunctor<LeftT, RightT, OutputT> functor;
 
   private Join(
-      String name,
+      @Nullable String name,
       Type type,
       UnaryFunction<LeftT, KeyT> leftKeyExtractor,
       UnaryFunction<RightT, KeyT> rightKeyExtractor,

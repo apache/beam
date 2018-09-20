@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -52,7 +53,10 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
         return left.apply(
             ParDo.of(
                     new BroadcastHashLeftJoinFn<>(
-                        broadcastRight, operator.getJoiner(), accumulators, operator.getName()))
+                        broadcastRight,
+                        operator.getJoiner(),
+                        accumulators,
+                        operator.getName().orElse(null)))
                 .withSideInputs(broadcastRight));
       case RIGHT:
         final PCollectionView<Map<KeyT, Iterable<LeftT>>> broadcastLeft =
@@ -60,7 +64,10 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
         return right.apply(
             ParDo.of(
                     new BroadcastHashRightJoinFn<>(
-                        broadcastLeft, operator.getJoiner(), accumulators, operator.getName()))
+                        broadcastLeft,
+                        operator.getJoiner(),
+                        accumulators,
+                        operator.getName().orElse(null)))
                 .withSideInputs(broadcastLeft));
       default:
         throw new UnsupportedOperationException(
@@ -82,7 +89,7 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
         PCollectionView<Map<K, Iterable<LeftT>>> smallSideCollection,
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         AccumulatorProvider accumulators,
-        String operatorName) {
+        @Nullable String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
       this.outCollector =
@@ -115,7 +122,7 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
         PCollectionView<Map<K, Iterable<RightT>>> smallSideCollection,
         BinaryFunctor<LeftT, RightT, OutputT> joiner,
         AccumulatorProvider accumulators,
-        String operatorName) {
+        @Nullable String operatorName) {
       this.smallSideCollection = smallSideCollection;
       this.joiner = joiner;
       this.outCollector =

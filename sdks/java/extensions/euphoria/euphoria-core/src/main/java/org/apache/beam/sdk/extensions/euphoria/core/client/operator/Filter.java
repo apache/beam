@@ -63,7 +63,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> ByBuilder<InputT> of(Dataset<InputT> input) {
-    return named("Filter").of(input);
+    return named(null).of(input);
   }
 
   /**
@@ -72,7 +72,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
+  public static OfBuilder named(@Nullable String name) {
     return new Builder(name);
   }
 
@@ -101,11 +101,11 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
   private static class Builder<InputT>
       implements OfBuilder, ByBuilder<InputT>, OutputBuilder<InputT> {
 
-    private final String name;
+    @Nullable private final String name;
     private Dataset<InputT> input;
     private UnaryPredicate<InputT> predicate;
 
-    private Builder(String name) {
+    private Builder(@Nullable String name) {
       this.name = name;
     }
 
@@ -133,7 +133,9 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
   private final UnaryPredicate<InputT> predicate;
 
   private Filter(
-      String name, UnaryPredicate<InputT> predicate, @Nullable TypeDescriptor<InputT> outputType) {
+      @Nullable String name,
+      UnaryPredicate<InputT> predicate,
+      @Nullable TypeDescriptor<InputT> outputType) {
     super(name, outputType);
     this.predicate = predicate;
   }
@@ -144,7 +146,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
 
   @Override
   public Dataset<InputT> expand(List<Dataset<InputT>> inputs) {
-    return FlatMap.named(getName())
+    return FlatMap.named(getName().orElse(null))
         .of(Iterables.getOnlyElement(inputs))
         .using(
             (InputT element, Collector<InputT> collector) -> {

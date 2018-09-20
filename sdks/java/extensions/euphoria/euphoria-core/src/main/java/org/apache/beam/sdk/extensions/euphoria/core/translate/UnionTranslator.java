@@ -27,6 +27,9 @@ class UnionTranslator<InputT> implements OperatorTranslator<InputT, InputT, Unio
 
   @Override
   public PCollection<InputT> translate(Union<InputT> operator, PCollectionList<InputT> inputs) {
-    return inputs.apply(operator.getName(), Flatten.pCollections());
+    return operator
+        .getName()
+        .map(name -> inputs.apply(name, Flatten.pCollections()))
+        .orElseGet(() -> inputs.apply(Flatten.pCollections()));
   }
 }

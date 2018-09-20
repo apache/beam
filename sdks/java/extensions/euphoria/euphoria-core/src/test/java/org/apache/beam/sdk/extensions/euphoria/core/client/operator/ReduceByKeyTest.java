@@ -59,7 +59,8 @@ public class ReduceByKeyTest {
 
     assertTrue(reduced.getProducer().isPresent());
     final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
-    assertEquals("ReduceByKey1", reduce.getName());
+    assertTrue(reduce.getName().isPresent());
+    assertEquals("ReduceByKey1", reduce.getName().get());
     assertNotNull(reduce.getKeyExtractor());
     assertNotNull(reduce.getValueExtractor());
     assertNotNull(reduce.getReducer());
@@ -86,7 +87,8 @@ public class ReduceByKeyTest {
 
     assertTrue(reduced.getProducer().isPresent());
     final MapElements reduce = (MapElements) reduced.getProducer().get();
-    assertEquals("ReduceByKeyValues::extract-values", reduce.getName());
+    assertTrue(reduce.getName().isPresent());
+    assertEquals("ReduceByKeyValues::extract-values", reduce.getName().get());
   }
 
   @Test
@@ -100,7 +102,7 @@ public class ReduceByKeyTest {
             .output();
     assertTrue(reduced.getProducer().isPresent());
     final ReduceByKey reduce = (ReduceByKey) reduced.getProducer().get();
-    assertEquals("ReduceByKey", reduce.getName());
+    assertFalse(reduce.getName().isPresent());
   }
 
   @Test

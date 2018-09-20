@@ -41,7 +41,8 @@ public class FlatMapTest {
             .output();
     assertTrue(mapped.getProducer().isPresent());
     final FlatMap map = (FlatMap) mapped.getProducer().get();
-    assertEquals("FlatMap1", map.getName());
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap1", map.getName().get());
     assertNotNull(map.getFunctor());
     assertFalse(map.getEventTimeExtractor().isPresent());
   }
@@ -57,7 +58,8 @@ public class FlatMapTest {
             .output();
     assertTrue(mapped.getProducer().isPresent());
     final FlatMap map = (FlatMap) mapped.getProducer().get();
-    assertEquals("FlatMap2", map.getName());
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap2", map.getName().get());
     assertNotNull(map.getFunctor());
     assertTrue(map.getEventTimeExtractor().isPresent());
   }
@@ -76,7 +78,8 @@ public class FlatMapTest {
             .output();
     assertTrue(mapped.getProducer().isPresent());
     final FlatMap map = (FlatMap) mapped.getProducer().get();
-    assertEquals("FlatMap1", map.getName());
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap1", map.getName().get());
     assertNotNull(map.getFunctor());
   }
 
@@ -87,6 +90,6 @@ public class FlatMapTest {
         FlatMap.of(dataset).using((String s, Collector<String> c) -> c.collect(s)).output();
     assertTrue(mapped.getProducer().isPresent());
     final FlatMap map = (FlatMap) mapped.getProducer().get();
-    assertEquals("FlatMap", map.getName());
+    assertFalse(map.getName().isPresent());
   }
 }

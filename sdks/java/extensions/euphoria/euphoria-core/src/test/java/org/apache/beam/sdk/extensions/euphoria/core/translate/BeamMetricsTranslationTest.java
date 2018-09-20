@@ -90,6 +90,7 @@ public class BeamMetricsTranslationTest {
 
     final String counterName2 = "counter2";
     final String operatorName2 = "map_to_integer";
+    final String operatorName3 = "map_elements";
 
     final Dataset<Integer> mapElementsOutput =
         MapElements.named(operatorName2)
@@ -103,9 +104,10 @@ public class BeamMetricsTranslationTest {
                 })
             .output();
 
-    final String defaultOperatorName3 = "MapElements";
     final Dataset<Integer> output =
-        MapElements.of(mapElementsOutput) // mapElementsOutput = [2,4]
+        MapElements
+            .named(operatorName3)
+            .of(mapElementsOutput) // mapElementsOutput = [2,4]
             .using(
                 (value, context) -> {
                   context.getCounter(counterName2).increment(value);
@@ -126,12 +128,12 @@ public class BeamMetricsTranslationTest {
                 MetricsFilter.builder()
                     .addNameFilter(MetricNameFilter.inNamespace(operatorName1))
                     .addNameFilter(MetricNameFilter.inNamespace(operatorName2))
-                    .addNameFilter(MetricNameFilter.inNamespace(defaultOperatorName3))
+                    .addNameFilter(MetricNameFilter.inNamespace(operatorName3))
                     .build());
 
     testStep1Metrics(metricQueryResults, counterName1, operatorName1);
     testStep2Metrics(metricQueryResults, counterName2, operatorName2);
-    testStep3WithDefaultOperatorName(metricQueryResults, counterName2, defaultOperatorName3);
+    testStep3WithDefaultOperatorName(metricQueryResults, counterName2, operatorName3);
   }
 
   private void testStep1Metrics(MetricQueryResults metrics, String counterName1, String stepName1) {
