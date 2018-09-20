@@ -57,19 +57,19 @@ public interface PortablePipelineOptions extends PipelineOptions {
   @Description(
       "Set the default environment type for running user code. "
           + "Possible options are DOCKER and PROCESS.")
-  String getDefaultJavaEnvironmentType();
+  String getDefaultEnvironmentType();
 
-  void setDefaultJavaEnvironmentType(String envitonmentType);
+  void setDefaultEnvironmentType(String envitonmentType);
 
   @Description(
-      "Set environment configuration for running the user code. \n"
-          + " For DOCKER: Url for the docker image. \n"
+      "Set environment configuration for running the user code.\n"
+          + " For DOCKER: Url for the docker image.\n"
           + " For PROCESS: json of the form "
           + "{\"os\": \"<OS>\", \"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "
           + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "
           + "All fields in the json are optional except command.")
   @Nullable
-  String getDefaultJavaEnvironmentConfig();
+  String getDefaultEnvironmentConfig();
 
-  void setDefaultJavaEnvironmentConfig(@Nullable String config);
+  void setDefaultEnvironmentConfig(@Nullable String config);
 }

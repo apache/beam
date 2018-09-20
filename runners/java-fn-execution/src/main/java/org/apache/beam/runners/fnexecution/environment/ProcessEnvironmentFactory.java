@@ -44,23 +44,6 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironmentFactory.class);
 
   public static ProcessEnvironmentFactory create(
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
-    return create(
-        ProcessManager.create(),
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        clientSource,
-        idGenerator);
-  }
-
-  public static ProcessEnvironmentFactory create(
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
@@ -161,5 +144,26 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     }
 
     return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+  }
+
+  /** Provider of ProcessEnvironmentFactory. */
+  public static class Provider implements EnvironmentFactory.Provider {
+    @Override
+    public EnvironmentFactory createEnvironmentFactory(
+        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        ControlClientPool clientPool,
+        IdGenerator idGenerator) {
+      return create(
+          ProcessManager.create(),
+          controlServiceServer,
+          loggingServiceServer,
+          retrievalServiceServer,
+          provisioningServiceServer,
+          clientPool.getSource(),
+          idGenerator);
+    }
   }
 }
