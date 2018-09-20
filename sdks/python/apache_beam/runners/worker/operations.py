@@ -245,6 +245,29 @@ class ReadOperation(Operation):
         self.output(windowed_value)
 
 
+class ImpulseReadOperation(Operation):
+
+  def __init__(self, name_context, counter_factory, state_sampler,
+               consumers, source, output_coder):
+    super(ImpulseReadOperation, self).__init__(
+        name_context, None, counter_factory, state_sampler)
+    self.source = source
+    self.receivers = [
+        ConsumerSet(
+            self.counter_factory, self.name_context.step_name, 0,
+            next(iter(consumers.values())), output_coder)]
+
+  def process(self, unused_impulse):
+    with self.scoped_process_state:
+      range_tracker = self.source.get_range_tracker(None, None)
+      for value in self.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
+
+
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
 
