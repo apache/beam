@@ -20,15 +20,11 @@ limitations under the License.
 
 # IntelliJ Tips
 
-> These are best-effort community-contributed tips, and are not...
->
-> - ... guaranteed to work with any particular IntelliJ setup.
-> - ... the only or best way to work.
-> - ... an endorsement of IntelliJ over alternatives.
->
-> Mastering IntelliJ is, ultimately, your responsibility.
+> These are best-effort community-contributed tips, and are not guaranteed to work with any particular IntelliJ setup. 
 
 ## Create a working Gradle module
+
+(as of Intellij 2018.1.6)
 
 1. Create an empty IntelliJ project outside of the Beam source tree.
 2. Under Project Structure > Project, select a Project SDK.
@@ -39,10 +35,9 @@ limitations under the License.
        from the list.
     3. Tick the following boxes.
        * Create separate module per source set
-       * Store generated project files externally
        * Use default gradle wrapper
-4. Delegate build actions to Gradle by going to Settings > Build, Execution,
-   Deployment > Build Tools > Gradle and checking "Delegate IDE build/run
+4. Delegate build actions to Gradle by going to Preferences/Settings > Build, Execution,
+   Deployment > Build Tools > Gradle > Runner and checking "Delegate IDE build/run
    actions to gradle".
 
 This should result in a working Gradle project. Build the project by executing
@@ -80,6 +75,11 @@ modules as they are not configured for Checkstyle validation.
 
 ## Code Style
 
+Note: As of release 2.6.0 uniform formatting for Java and Groovy code is automated by the build
+through the [Spotless Gradle plugin](https://github.com/diffplug/spotless/tree/master/plugin-gradle).
+Instead of relying on the IDE, now you can run `./gradlew spotlessApply`
+to reformat changes prior to commit.
+
 IntelliJ supports code styles within the IDE. Use one or both of the following
 to ensure your code style matches the project's checkstyle enforcements.
 
@@ -92,4 +92,3 @@ to ensure your code style matches the project's checkstyle enforcements.
     3. Select `sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml`
     4. Click "OK"
     5. Click "Apply" and "OK"
-
