@@ -489,14 +489,14 @@ func (m *marshaller) addDefaultEnv() string {
 	const id = "go"
 	if _, exists := m.environments[id]; !exists {
 		payload := &pb.DockerPayload{ContainerImage: m.opt.ContainerImageURL}
-		serialized_payload, err := proto.Marshal(payload)
+		serializedPayload, err := proto.Marshal(payload)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to serialize Environment payload %v: %v", payload, err))
 		}
 		m.environments[id] = &pb.Environment{
 		  Url: m.opt.ContainerImageURL,
 		  Urn: "beam:env:docker:v1",
-		  Payload: serialized_payload,
+		  Payload: serializedPayload,
 		}
 	}
 	return id
