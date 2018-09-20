@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -441,18 +440,16 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     return windowBy
         .applyIf(
             getWindow().isPresent(),
-            (builder) -> {
-              final WindowDesc<InputT> desc =
-                  WindowDesc.of(
-                      getWindow()
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Unable to resolve windowing for CountByKey expansion.")));
-              return builder
-                  .windowBy(desc.getWindowFn())
-                  .triggeredBy(desc.getTrigger())
-                  .accumulationMode(desc.getAccumulationMode());
+            builder -> {
+              @SuppressWarnings("unchecked")
+              final ReduceByKey.WindowByInternalBuilder<InputT, Byte, OutputT> casted =
+                  (ReduceByKey.WindowByInternalBuilder) builder;
+              return casted.windowBy(
+                  getWindow()
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Unable to resolve windowing for ReduceWindow expansion.")));
             })
         .outputValues();
   }

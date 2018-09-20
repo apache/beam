@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -280,18 +279,16 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
             .combineBy(e -> null)
             .applyIf(
                 getWindow().isPresent(),
-                (builder) -> {
-                  final WindowDesc<InputT> desc =
-                      WindowDesc.of(
-                          getWindow()
-                              .orElseThrow(
-                                  () ->
-                                      new IllegalStateException(
-                                          "Unable to resolve windowing for distinct expansion.")));
-                  return builder
-                      .windowBy(desc.getWindowFn())
-                      .triggeredBy(desc.getTrigger())
-                      .accumulationMode(desc.getAccumulationMode());
+                builder -> {
+                  @SuppressWarnings("unchecked")
+                  final ReduceByKey.WindowByInternalBuilder<InputT, OutputT, Void> casted =
+                      (ReduceByKey.WindowByInternalBuilder) builder;
+                  return casted.windowBy(
+                      getWindow()
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Unable to resolve windowing for Distinct expansion.")));
                 })
             .output();
     return MapElements.named("extract-keys")
