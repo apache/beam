@@ -232,6 +232,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           String message =
               String.format(
                   "Failed to begin staging artifact %s", metadata.getMetadata().getName());
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -245,6 +246,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
               String.format(
                   "Failed to write chunk of artifact %s to %s",
                   metadata.getMetadata().getName(), artifactId);
+          LOG.error(message, e);
           outboundObserver.onError(
               new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
@@ -282,29 +284,42 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     public void onCompleted() {
       // Close the stream.
       LOG.debug("Staging artifact completed for " + artifactId);
-      if (artifactWritableByteChannel != null) {
-        try {
-          artifactWritableByteChannel.close();
-        } catch (IOException e) {
-          onError(e);
-          return;
+      try {
+        if (artifactWritableByteChannel != null) {
+          try {
+            artifactWritableByteChannel.close();
+          } catch (IOException e) {
+            onError(e);
+            return;
+          }
         }
-      }
-      String expectedMd5 = metadata.getMetadata().getMd5();
-      if (expectedMd5 != null && !expectedMd5.isEmpty()) {
-        String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
-        if (!actualMd5.equals(expectedMd5)) {
-          outboundObserver.onError(
-              new StatusRuntimeException(
-                  Status.INVALID_ARGUMENT.withDescription(
-                      String.format(
-                          "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
-                          metadata.getMetadata().getName(), expectedMd5, actualMd5))));
-          return;
+        String expectedMd5 = metadata.getMetadata().getMd5();
+        if (expectedMd5 != null && !expectedMd5.isEmpty()) {
+          String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
+          if (!actualMd5.equals(expectedMd5)) {
+            String message =
+                String.format(
+                    "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
+                    metadata.getMetadata().getName(), expectedMd5, actualMd5);
+            LOG.error(message);
+            outboundObserver.onError(
+                new StatusRuntimeException(
+                    Status.INVALID_ARGUMENT.withDescription(message)));
+            return;
+          }
         }
+        outboundObserver.onNext(PutArtifactResponse.newBuilder().build());
+        outboundObserver.onCompleted();
       }
-      outboundObserver.onNext(PutArtifactResponse.newBuilder().build());
-      outboundObserver.onCompleted();
+    } catch (Exception e) {
+      String message = String.format("Failed to verify artifact %s", artifactId);
+      LOG.error(message, e);
+      outboundObserver.onError(
+          new StatusRuntimeException(
+              Status.DATA_LOSS.withDescription(message).withCause(e)));
+          )
+      )
+
     }
   }
 
