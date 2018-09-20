@@ -69,7 +69,6 @@ import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
-import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
@@ -80,7 +79,6 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
@@ -162,7 +160,6 @@ public class ReferenceRunner {
     ServerFactory serverFactory = createServerFactory();
     ControlClientPool controlClientPool = MapControlClientPool.create();
     ExecutorService dataExecutor = Executors.newCachedThreadPool();
-    // TODO(BEAM-5095): Fill out ProvisionInfo/JobInfo properly, without placeholder values.
     ProvisionInfo provisionInfo =
         ProvisionInfo.newBuilder()
             .setJobId("id")
@@ -171,7 +168,6 @@ public class ReferenceRunner {
             .setWorkerId("foo")
             .setResourceLimits(Resources.getDefaultInstance())
             .build();
-    JobInfo jobInfo = JobInfo.create("id", "reference", "retrieval-token", options);
     try (GrpcFnServer<GrpcLoggingService> logging =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
@@ -202,7 +198,7 @@ public class ReferenceRunner {
           createEnvironmentFactory(
               control, logging, artifact, provisioning, controlClientPool.getSource());
       JobBundleFactory jobBundleFactory =
-          createJobBundleFactory(jobInfo, environmentFactory, data, state);
+          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
 
       TransformEvaluatorRegistry transformRegistry =
           TransformEvaluatorRegistry.portableRegistry(
@@ -251,23 +247,6 @@ public class ReferenceRunner {
       case IN_PROCESS:
         return InProcessEnvironmentFactory.create(
             PipelineOptionsFactory.create(), logging, control, controlClientSource);
-      default:
-        throw new IllegalArgumentException(
-            String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));
-    }
-  }
-
-  private JobBundleFactory createJobBundleFactory(
-      JobInfo jobInfo,
-      EnvironmentFactory environmentFactory,
-      GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state)
-      throws Exception {
-    switch (environmentType) {
-      case DOCKER:
-        return DockerJobBundleFactory.create(jobInfo);
-      case IN_PROCESS:
-        return SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));
