@@ -406,7 +406,7 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Create/Read']
-          .processed_elements.measured.output_element_counts['None'])
+          .processed_elements.measured.output_element_counts['out'])
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Map(sleep)']
