@@ -115,10 +115,11 @@ class PortableStagerTest(unittest.TestCase):
             buffering=2 << 22) as f:
           f.write(''.join(chars))
       if type == 'b':
+        chars = [char.encode('ascii') for char in chars]
         with open(
             os.path.join(self._temp_dir, from_file), 'wb',
             buffering=2 << 22) as f:
-          f.write(''.join(chars))
+          f.write(b''.join(chars))
 
     copied_files, retrieval_tokens = self._stage_files(
         [(from_file, to_file) for (from_file, to_file, _, _) in files])

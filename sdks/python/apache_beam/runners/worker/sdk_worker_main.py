@@ -159,7 +159,7 @@ def _parse_pipeline_options(options_json):
     return PipelineOptions.from_dictionary({
         re.match(portable_option_regex, k).group('key')
         if re.match(portable_option_regex, k) else k: v
-        for k, v in options.iteritems()
+        for k, v in options.items()
     })
 
 

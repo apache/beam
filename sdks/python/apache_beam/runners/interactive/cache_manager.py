@@ -31,6 +31,14 @@ from apache_beam.io import filesystems
 from apache_beam.transforms import combiners
 
 
+try:                    # Python 3
+  unquote_to_bytes = urllib.parse.unquote_to_bytes
+  quote = urllib.parse.quote
+except AttributeError:  # Python 2
+  unquote_to_bytes = urllib.unquote
+  quote = urllib.quote
+
+
 class CacheManager(object):
   """Abstract class for caching PCollections.
 
@@ -193,7 +201,7 @@ class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
   def encode(self, value):
-    return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
+    return quote(coders.coders.FastPrimitivesCoder().encode(value))
 
   def decode(self, value):
-    return coders.coders.FastPrimitivesCoder().decode(urllib.unquote(value))
+    return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))

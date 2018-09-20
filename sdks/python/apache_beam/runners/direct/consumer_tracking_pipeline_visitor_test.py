@@ -45,6 +45,10 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
+    try:                    # Python 2
+      self.assertCountEqual = self.assertItemsEqual
+    except AttributeError:  # Python 3
+      pass
 
   def test_root_transforms(self):
     class DummySource(iobase.BoundedSource):
@@ -60,15 +64,13 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     self.pipeline.visit(self.visitor)
 
-    root_transforms = sorted(
-        [t.transform for t in self.visitor.root_transforms])
+    root_transforms = [t.transform for t in self.visitor.root_transforms]
 
-    self.assertEqual(root_transforms, sorted(
-        [root_read, root_flatten]))
+    self.assertCountEqual(root_transforms, [root_read, root_flatten])
 
-    pbegin_consumers = sorted(
-        [c.transform for c in self.visitor.value_to_consumers[pbegin]])
-    self.assertEqual(pbegin_consumers, sorted([root_read]))
+    pbegin_consumers = [c.transform
+                        for c in self.visitor.value_to_consumers[pbegin]]
+    self.assertCountEqual(pbegin_consumers, [root_read])
     self.assertEqual(len(self.visitor.step_names), 3)
 
   def test_side_inputs(self):
@@ -100,9 +102,8 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     self.pipeline.visit(self.visitor)
 
-    root_transforms = sorted(
-        [t.transform for t in self.visitor.root_transforms])
-    self.assertEqual(root_transforms, sorted([root_read]))
+    root_transforms = [t.transform for t in self.visitor.root_transforms]
+    self.assertEqual(root_transforms, [root_read])
     self.assertEqual(len(self.visitor.step_names), 3)
     self.assertEqual(len(self.visitor.views), 1)
     self.assertTrue(isinstance(self.visitor.views[0],
@@ -115,8 +116,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     self.pipeline.visit(self.visitor)
 
-    root_transforms = sorted(
-        [t.transform for t in self.visitor.root_transforms])
+    root_transforms = [t.transform for t in self.visitor.root_transforms]
     self.assertEqual(len(root_transforms), 2)
     self.assertGreater(
         len(self.visitor.step_names), 3)  # 2 creates + expanded CoGBK

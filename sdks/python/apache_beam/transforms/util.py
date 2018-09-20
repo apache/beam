@@ -153,7 +153,7 @@ class CoGroupByKey(PTransform):
       # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
       # general-purpose code below. The result value constructor creates dicts
       # whose keys are the tags.
-      result_ctor_arg = pcolls.keys()
+      result_ctor_arg = list(pcolls)
       result_ctor = lambda tags: dict((tag, []) for tag in tags)
       pcolls = pcolls.items()
     except AttributeError:

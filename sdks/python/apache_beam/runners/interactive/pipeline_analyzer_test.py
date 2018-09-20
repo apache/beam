@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import unittest
 
 import apache_beam as beam
@@ -86,6 +87,8 @@ class PipelineAnalyzerTest(unittest.TestCase):
     self.assertSetEqual(set(transform_proto1.outputs),
                         set(transform_proto2.outputs))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_basic(self):
     p = beam.Pipeline(runner=self.runner)
 
@@ -128,6 +131,8 @@ class PipelineAnalyzerTest(unittest.TestCase):
     self.assertEqual(len(analyzer.top_level_referenced_pcollection_ids()), 3)
     # No need to actually execute the second run.
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_word_count(self):
     p = beam.Pipeline(runner=self.runner)
 
@@ -210,6 +215,8 @@ class PipelineAnalyzerTest(unittest.TestCase):
     self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
                              expected_pipeline_proto)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_read_cache_expansion(self):
     p = beam.Pipeline(runner=self.runner)
 
