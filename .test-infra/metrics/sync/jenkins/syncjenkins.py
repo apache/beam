@@ -138,6 +138,8 @@ def fetchNewData():
   connection = initConnection()
   cursor = connection.cursor()
   syncedJobs = fetchSyncedJobsBuildVersions(cursor)
+  cursor.close()
+  connection.close()
 
   newJobs = fetchJobs()
 
@@ -146,22 +148,20 @@ def fetchNewData():
     if newJobLastBuildId > syncedJobId:
       builds = fetchBuildsForJob(newJobUrl)
       builds = [x for x in builds if int(x[u'id']) > syncedJobId]
+
+      connection = initConnection()
+      cursor = connection.cursor()
+
       for build in builds:
         if build[u'building']:
           continue;
         rowValues = buildRowValuesArray(newJobName, build)
         print("inserting", newJobName, build[u'id'])
         insertRow(cursor, rowValues)
+
       cursor.close()
       connection.commit()
       connection.close()  # For some reason .commit() doesn't push data
-      connection = initConnection()
-      cursor = connection.cursor()
-
-  cursor.close()
-  connection.commit()
-  connection.close()
-
 
 def probeJenkinsIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
