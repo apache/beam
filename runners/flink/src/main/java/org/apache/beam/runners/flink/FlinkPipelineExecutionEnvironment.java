@@ -18,8 +18,8 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.runners.core.construction.PipelineResources.prepareFilesForStaging;
 
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -83,7 +83,7 @@ class FlinkPipelineExecutionEnvironment {
     pipeline.replaceAll(
         FlinkTransformOverrides.getDefaultOverrides(translationMode == TranslationMode.STREAMING));
 
-    prepareFilesToStageForRemoteClusterExecution();
+    prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
@@ -104,12 +104,13 @@ class FlinkPipelineExecutionEnvironment {
   /**
    * Local configurations work in the same JVM and have no problems with improperly formatted files
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
-   * staging only when using remote cluster.
+   * staging only when using remote cluster (passing the master address explicitly).
    */
-  private void prepareFilesToStageForRemoteClusterExecution() {
-    if (!options.getFlinkMaster().matches("\\[.*\\]")) {
+  private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
+    if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
       options.setFilesToStage(
-          prepareFilesForStaging(options.getFilesToStage(), options.getTempLocation()));
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
     }
   }
 
