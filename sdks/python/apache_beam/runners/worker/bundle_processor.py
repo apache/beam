@@ -110,7 +110,7 @@ class DataInputOperation(RunnerIOOperation):
     self.receivers = [
         operations.ConsumerSet(
             self.counter_factory, self.name_context.step_name, 0,
-            next(itervalues(consumers)), self.windowed_coder)]
+            next(iter(itervalues(consumers))), self.windowed_coder)]
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -160,7 +160,7 @@ class StateBackedSideInputMap(object):
               ptransform_id=self._transform_id,
               side_input_id=self._tag,
               window=self._target_window_coder.encode(target_window),
-              key=''))
+              key=b''))
       state_handler = self._state_handler
       access_pattern = self._side_input_data.access_pattern
 
