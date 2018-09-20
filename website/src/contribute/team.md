@@ -1,3 +1,13 @@
+---
+layout: section
+title: "Beam Team"
+section_menu: section-menu/contribute.html
+permalink: /contribute/team/
+redirect_from:
+  - /project/team/
+  - /team/
+redirect_to: https://home.apache.org/phonebook.html?pmc=beam
+---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,4 +21,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-{% assign count = authors | size %}{% for name in authors %}{% if forloop.first == false and count > 2 %},{% endif %}{% if forloop.last and count > 1 %} &amp;{% endif %}{% assign author = site.data.authors[name] %} {{ author.name }} {% if author.twitter %}[<a href="https://twitter.com/{{ author.twitter }}">@{{ author.twitter }}</a>]{% endif %}{% endfor %}
