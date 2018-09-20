@@ -550,6 +550,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         urn=urn,
         payload=typed_param.SerializeToString()
         if isinstance(typed_param, message.Message)
+        else typed_param.encode('utf-8') if isinstance(typed_param, str)
         else typed_param)
 
   @classmethod

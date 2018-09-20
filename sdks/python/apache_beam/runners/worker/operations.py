@@ -521,13 +521,7 @@ class PGBKCVOperation(Operation):
     # simpler than for the DoFn's of ParDo.
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
-    if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.__func__):
-      # Old versions of the SDK have CombineFns that don't implement add_input.
-      self.combine_fn_add_input = (
-          lambda a, e: self.combine_fn.add_inputs(a, [e]))
-    else:
-      self.combine_fn_add_input = self.combine_fn.add_input
+    self.combine_fn_add_input = self.combine_fn.add_input
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
