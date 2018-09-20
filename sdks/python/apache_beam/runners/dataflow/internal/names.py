@@ -45,7 +45,7 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 BEAM_CONTAINER_VERSION = 'beam-master-20180709'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180801'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180920'
 
 # Package names for different distributions
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
