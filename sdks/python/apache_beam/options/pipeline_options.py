@@ -655,11 +655,18 @@ class PortableOptions(PipelineOptions):
                         help=
                         ('Job service endpoint to use. Should be in the form '
                          'of address and port, e.g. localhost:3000'))
-    parser.add_argument('--harness_docker_image',
-                        default=None,
-                        help=
-                        ('Docker image to use for executing Python code '
-                         'in the pipeline when running using the Fn API.'))
+    parser.add_argument(
+        '--environment_type', default=None,
+        help=('Set the default environment type for running '
+              'user code. Possible options are DOCKER and PROCESS.'))
+    parser.add_argument(
+        '--environment_config', default=None,
+        help=('Set environment configuration for running the user code.\n For '
+              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+              'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
+              '"<process to execute>", "env":{"<Environment variables 1>": '
+              '"<ENV_VAL>"} }. All fields in the json are optional except '
+              'command.'))
 
 
 class FlinkOptions(PipelineOptions):
