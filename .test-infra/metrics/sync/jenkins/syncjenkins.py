@@ -181,11 +181,12 @@ sys.stdout.flush()
 
 while True:
   if not probeJenkinsIsUp():
-    print("Jenkins is unavailabel, skipping sync")
+    print("Jenkins is unavailabel, skipping fetching data.")
     continue
   else:
     fetchNewData()
-    print("Fetched data. Sleeping for 5 min.")
+    print("Fetched data.")
+  print("Sleeping for 5 min.")
   sys.stdout.flush()
   time.sleep(5 * 60)
 
