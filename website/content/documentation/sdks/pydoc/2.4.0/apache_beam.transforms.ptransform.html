@@ -1,0 +1,470 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.transforms.ptransform module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.transforms package" href="apache_beam.transforms.html"/>
+        <link rel="next" title="apache_beam.transforms.sideinputs module" href="apache_beam.transforms.sideinputs.html"/>
+        <link rel="prev" title="apache_beam.transforms.display module" href="apache_beam.transforms.display.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.combiners.html">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.core.html">apache_beam.transforms.core module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.display.html">apache_beam.transforms.display module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.sideinputs.html">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.timeutil.html">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.trigger.html">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.util.html">apache_beam.transforms.util module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.window.html">apache_beam.transforms.window module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.transforms.html">apache_beam.transforms package</a> &raquo;</li>
+        
+      <li>apache_beam.transforms.ptransform module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.transforms.ptransform.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.transforms.ptransform">
+<span id="apache-beam-transforms-ptransform-module"></span><h1>apache_beam.transforms.ptransform module<a class="headerlink" href="#module-apache_beam.transforms.ptransform" title="Permalink to this headline">¶</a></h1>
+<p>PTransform and descendants.</p>
+<p>A PTransform is an object describing (not executing) a computation. The actual
+execution semantics for a transform is captured by a runner object. A transform
+object always belongs to a pipeline object.</p>
+<p>A PTransform derived class needs to define the expand() method that describes
+how one or more PValues are created by the transform.</p>
+<p>The module defines a few standard transforms: FlatMap (parallel do),
+GroupByKey (group by key), etc. Note that the expand() methods for these
+classes contain code that will add nodes to the processing graph associated
+with a pipeline.</p>
+<p>As support for the FlatMap transform, the module also defines a DoFn
+class and wrapper class that allows lambda functions to be used as
+FlatMap processing functions.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.ptransform.PTransform">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.ptransform.</code><code class="descname">PTransform</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.typehints.decorators.html#apache_beam.typehints.decorators.WithTypeHints" title="apache_beam.typehints.decorators.WithTypeHints"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.typehints.decorators.WithTypeHints</span></code></a>, <a class="reference internal" href="apache_beam.transforms.display.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a></p>
+<p>A transform object used to modify one or more PCollections.</p>
+<p>Subclasses must define an expand() method that will be used when the transform
+is applied to some arguments. Typical usage pattern will be:</p>
+<blockquote>
+<div>input | CustomTransform(…)</div></blockquote>
+<p>The expand() method of the CustomTransform object passed in will be called
+with input as an argument.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.ptransform.PTransform.side_inputs">
+<code class="descname">side_inputs</code><em class="property"> = ()</em><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.side_inputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.ptransform.PTransform.pipeline">
+<code class="descname">pipeline</code><em class="property"> = None</em><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.ptransform.PTransform.label">
+<code class="descname">label</code><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.with_input_types">
+<code class="descname">with_input_types</code><span class="sig-paren">(</span><em>input_type_hint</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.with_input_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.with_input_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Annotates the input type of a <a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> with a type-hint.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>input_type_hint</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#type" title="(in Python v2.7)"><em>type</em></a>) – An instance of an allowed built-in type, a custom
+class, or an instance of a
+<code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If <strong>input_type_hint</strong> is not a valid type-hint.
+See
+<code class="xref py py-obj docutils literal"><span class="pre">apache_beam.typehints.typehints.validate_composite_type_param()</span></code>
+for further details.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A reference to the instance of this particular
+<a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> object. This allows chaining type-hinting related
+methods.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform">PTransform</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.with_output_types">
+<code class="descname">with_output_types</code><span class="sig-paren">(</span><em>type_hint</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.with_output_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.with_output_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Annotates the output type of a <a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> with a type-hint.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>type_hint</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#type" title="(in Python v2.7)"><em>type</em></a>) – An instance of an allowed built-in type, a custom class,
+or a <code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If <strong>type_hint</strong> is not a valid type-hint. See
+<code class="xref py py-obj docutils literal"><span class="pre">validate_composite_type_param()</span></code>
+for further details.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A reference to the instance of this particular
+<a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> object. This allows chaining type-hinting related
+methods.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform">PTransform</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.type_check_inputs">
+<code class="descname">type_check_inputs</code><span class="sig-paren">(</span><em>pvalueish</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.type_check_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.type_check_inputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>unused_input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.type_check_outputs">
+<code class="descname">type_check_outputs</code><span class="sig-paren">(</span><em>pvalueish</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.type_check_outputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.type_check_outputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.type_check_inputs_or_outputs">
+<code class="descname">type_check_inputs_or_outputs</code><span class="sig-paren">(</span><em>pvalueish</em>, <em>input_or_output</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.type_check_inputs_or_outputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.type_check_inputs_or_outputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>input_or_inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the window function to be associated with transform’s output.</p>
+<p>By default most transforms just return the windowing function associated
+with the input PCollection (or the first input if several).</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.transforms.ptransform.PTransform.register_urn">
+<em class="property">classmethod </em><code class="descname">register_urn</code><span class="sig-paren">(</span><em>urn</em>, <em>parameter_type</em>, <em>constructor=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.register_urn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.register_urn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.transforms.ptransform.PTransform.from_runner_api">
+<em class="property">classmethod </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.ptransform.PTransform.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.ptransform.PTransform.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>spec_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#PTransform.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.PTransform.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.transforms.ptransform.ptransform_fn">
+<code class="descclassname">apache_beam.transforms.ptransform.</code><code class="descname">ptransform_fn</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#ptransform_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.ptransform_fn" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator for a function-based PTransform.</p>
+<p>Experimental; no backwards-compatibility guarantees.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>fn</strong> – A function implementing a custom PTransform.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A CallablePTransform instance wrapping the function-based PTransform.</td>
+</tr>
+</tbody>
+</table>
+<p>This wrapper provides an alternative, simpler way to define a PTransform.
+The standard method is to subclass from PTransform and override the expand()
+method. An equivalent effect can be obtained by defining a function that
+an input PCollection and additional optional arguments and returns a
+resulting PCollection. For example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@ptransform_fn</span>
+<span class="k">def</span> <span class="nf">CustomMapper</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">mapfn</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">mapfn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The equivalent approach using PTransform subclassing:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">CustomMapper</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mapfn</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">CustomMapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mapfn</span> <span class="o">=</span> <span class="n">mapfn</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">ParDo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mapfn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With either method the custom PTransform can be used in pipelines as if
+it were one of the “native” PTransforms:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">result_pcoll</span> <span class="o">=</span> <span class="n">input_pcoll</span> <span class="o">|</span> <span class="s1">&#39;Label&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">CustomMapper</span><span class="p">(</span><span class="n">somefn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that for both solutions the underlying implementation of the pipe
+operator (i.e., <cite>|</cite>) will inject the pcoll argument in its proper place
+(first argument if no label was specified and second argument otherwise).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.transforms.ptransform.label_from_callable">
+<code class="descclassname">apache_beam.transforms.ptransform.</code><code class="descname">label_from_callable</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/ptransform.html#label_from_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.ptransform.label_from_callable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.transforms.sideinputs.html" class="btn btn-neutral float-right" title="apache_beam.transforms.sideinputs module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.transforms.display.html" class="btn btn-neutral" title="apache_beam.transforms.display module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

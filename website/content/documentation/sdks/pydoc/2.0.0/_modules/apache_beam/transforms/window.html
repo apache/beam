@@ -1,0 +1,551 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.window &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.window</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Windowing concepts.</span>
+
+<span class="sd">A WindowInto transform logically divides up or groups the elements of a</span>
+<span class="sd">PCollection into finite windows according to a windowing function (derived from</span>
+<span class="sd">WindowFn).</span>
+
+<span class="sd">The output of WindowInto contains the same elements as input, but they have been</span>
+<span class="sd">logically assigned to windows. The next GroupByKey(s) transforms, including one</span>
+<span class="sd">within a composite transform, will group by the combination of keys and windows.</span>
+
+<span class="sd">Windowing a PCollection allows chunks of it to be processed individually, before</span>
+<span class="sd">the entire PCollection is available.  This is especially important for</span>
+<span class="sd">PCollection(s) with unbounded size, since the full PCollection is never</span>
+<span class="sd">available at once, since more data is continually arriving. For PCollection(s)</span>
+<span class="sd">with a bounded size (aka. conventional batch mode), by default, all data is</span>
+<span class="sd">implicitly in a single window (see GlobalWindows), unless WindowInto is</span>
+<span class="sd">applied.</span>
+
+<span class="sd">For example, a simple form of windowing divides up the data into fixed-width</span>
+<span class="sd">time intervals, using FixedWindows.</span>
+
+<span class="sd">Seconds are used as the time unit for the built-in windowing primitives here.</span>
+<span class="sd">Integer or floating point seconds can be passed to these primitives.</span>
+
+<span class="sd">Internally, seconds, with microsecond granularity, are stored as</span>
+<span class="sd">timeutil.Timestamp and timeutil.Duration objects. This is done to avoid</span>
+<span class="sd">precision errors that would occur with floating point representations.</span>
+
+<span class="sd">Custom windowing function classes can be created, by subclassing from</span>
+<span class="sd">WindowFn.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">abc</span>
+
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">struct_pb2</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">timeutil</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">proto_utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">urns</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">Duration</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MAX_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">Timestamp</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.windowed_value</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;TimestampCombiner&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;WindowFn&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BoundedWindow&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;IntervalWindow&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TimestampedValue&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GlobalWindow&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;NonMergingWindowFn&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;GlobalWindows&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;FixedWindows&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;SlidingWindows&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Sessions&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<span class="c1"># TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their</span>
+<span class="c1"># behavior.</span>
+<div class="viewcode-block" id="TimestampCombiner"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.TimestampCombiner">[docs]</a><span class="k">class</span> <span class="nc">TimestampCombiner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Determines how output timestamps of grouping operations are assigned.&quot;&quot;&quot;</span>
+
+  <span class="n">OUTPUT_AT_EOW</span> <span class="o">=</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">END_OF_WINDOW</span>
+  <span class="n">OUTPUT_AT_EARLIEST</span> <span class="o">=</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">EARLIEST_IN_PANE</span>
+  <span class="n">OUTPUT_AT_LATEST</span> <span class="o">=</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">LATEST_IN_PANE</span>
+  <span class="c1"># TODO(robertwb): Add this to the runner API or remove it.</span>
+  <span class="n">OUTPUT_AT_EARLIEST_TRANSFORMED</span> <span class="o">=</span> <span class="s1">&#39;OUTPUT_AT_EARLIEST_TRANSFORMED&#39;</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="TimestampCombiner.get_impl"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.TimestampCombiner.get_impl">[docs]</a>  <span class="k">def</span> <span class="nf">get_impl</span><span class="p">(</span><span class="n">timestamp_combiner</span><span class="p">,</span> <span class="n">window_fn</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">timestamp_combiner</span> <span class="o">==</span> <span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EOW</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">timeutil</span><span class="o">.</span><span class="n">OutputAtEndOfWindowImpl</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">timestamp_combiner</span> <span class="o">==</span> <span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EARLIEST</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">timeutil</span><span class="o">.</span><span class="n">OutputAtEarliestInputTimestampImpl</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">timestamp_combiner</span> <span class="o">==</span> <span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_LATEST</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">timeutil</span><span class="o">.</span><span class="n">OutputAtLatestInputTimestampImpl</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">timestamp_combiner</span> <span class="o">==</span> <span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EARLIEST_TRANSFORMED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">timeutil</span><span class="o">.</span><span class="n">OutputAtEarliestTransformedInputTimestampImpl</span><span class="p">(</span><span class="n">window_fn</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid TimestampCombiner: </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">timestamp_combiner</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="WindowFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn">[docs]</a><span class="k">class</span> <span class="nc">WindowFn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An abstract windowing function defining a basic assign and merge.&quot;&quot;&quot;</span>
+
+  <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+<div class="viewcode-block" id="WindowFn.AssignContext"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.AssignContext">[docs]</a>  <span class="k">class</span> <span class="nc">AssignContext</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Context passed to WindowFn.assign().&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">element</span> <span class="o">=</span> <span class="n">element</span></div>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+<div class="viewcode-block" id="WindowFn.assign"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.assign">[docs]</a>  <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">assign_context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Associates a timestamp to an element.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="WindowFn.MergeContext"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.MergeContext">[docs]</a>  <span class="k">class</span> <span class="nc">MergeContext</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Context passed to WindowFn.merge() to perform merging, if any.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windows</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">windows</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">windows</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WindowFn.MergeContext.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.MergeContext.merge">[docs]</a>    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_be_merged</span><span class="p">,</span> <span class="n">merge_result</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+<div class="viewcode-block" id="WindowFn.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge_context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a window that is the result of merging a set of windows.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="WindowFn.is_merging"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.is_merging">[docs]</a>  <span class="k">def</span> <span class="nf">is_merging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns whether this WindowFn merges windows.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+<div class="viewcode-block" id="WindowFn.get_window_coder"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.get_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="WindowFn.get_transformed_output_time"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.WindowFn.get_transformed_output_time">[docs]</a>  <span class="k">def</span> <span class="nf">get_transformed_output_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">input_timestamp</span><span class="p">):</span>  <span class="c1"># pylint: disable=unused-argument</span>
+    <span class="sd">&quot;&quot;&quot;Given input time and output window, returns output time for window.</span>
+
+<span class="sd">    If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the</span>
+<span class="sd">    Windowing, the output timestamp for the given window will be the earliest</span>
+<span class="sd">    of the timestamps returned by get_transformed_output_time() for elements</span>
+<span class="sd">    of the window.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">      window: Output window of element.</span>
+<span class="sd">      input_timestamp: Input timestamp of element as a timeutil.Timestamp</span>
+<span class="sd">        object.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Transformed timestamp.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># By default, just return the input timestamp.</span>
+    <span class="k">return</span> <span class="n">input_timestamp</span></div>
+
+  <span class="n">urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="o">.</span><span class="n">register_pickle_urn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">PICKLED_WINDOW_FN</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BoundedWindow"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.BoundedWindow">[docs]</a><span class="k">class</span> <span class="nc">BoundedWindow</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A window for timestamps in range (-infinity, end).</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    end: End of window.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BoundedWindow.max_timestamp"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.BoundedWindow.max_timestamp">[docs]</a>  <span class="k">def</span> <span class="nf">max_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">predecessor</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># Order first by endpoint, then arbitrarily.</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">cmp</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">hash</span><span class="p">(</span><span class="n">other</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;[?, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IntervalWindow"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.IntervalWindow">[docs]</a><span class="k">class</span> <span class="nc">IntervalWindow</span><span class="p">(</span><span class="n">BoundedWindow</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A window for timestamps in range [start, end).</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    start: Start of window as seconds since Unix epoch.</span>
+<span class="sd">    end: End of window as seconds since Unix epoch.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">IntervalWindow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">start</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;[</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">))</span>
+
+<div class="viewcode-block" id="IntervalWindow.intersects"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.IntervalWindow.intersects">[docs]</a>  <span class="k">def</span> <span class="nf">intersects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">other</span><span class="o">.</span><span class="n">start</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span></div>
+
+<div class="viewcode-block" id="IntervalWindow.union"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.IntervalWindow.union">[docs]</a>  <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">IntervalWindow</span><span class="p">(</span>
+        <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">start</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">end</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TimestampedValue"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.TimestampedValue">[docs]</a><span class="k">class</span> <span class="nc">TimestampedValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A timestamped value having a value and a timestamp.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    value: The underlying value.</span>
+<span class="sd">    timestamp: Timestamp associated with the value as seconds since Unix epoch.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span><span class="p">),</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">timestamp</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GlobalWindow"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindow">[docs]</a><span class="k">class</span> <span class="nc">GlobalWindow</span><span class="p">(</span><span class="n">BoundedWindow</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The default window into which all data is placed (via GlobalWindows).&quot;&quot;&quot;</span>
+  <span class="n">_instance</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">GlobalWindow</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">GlobalWindow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">MAX_TIMESTAMP</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">MIN_TIMESTAMP</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;GlobalWindow&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># Global windows are always and only equal to each other.</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NonMergingWindowFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.NonMergingWindowFn">[docs]</a><span class="k">class</span> <span class="nc">NonMergingWindowFn</span><span class="p">(</span><span class="n">WindowFn</span><span class="p">):</span>
+
+<div class="viewcode-block" id="NonMergingWindowFn.is_merging"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.NonMergingWindowFn.is_merging">[docs]</a>  <span class="k">def</span> <span class="nf">is_merging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="NonMergingWindowFn.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.NonMergingWindowFn.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge_context</span><span class="p">):</span>
+    <span class="k">pass</span>  <span class="c1"># No merging.</span></div></div>
+
+
+<div class="viewcode-block" id="GlobalWindows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows">[docs]</a><span class="k">class</span> <span class="nc">GlobalWindows</span><span class="p">(</span><span class="n">NonMergingWindowFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A windowing function that assigns everything to one global window.&quot;&quot;&quot;</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="GlobalWindows.windowed_value"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows.windowed_value">[docs]</a>  <span class="k">def</span> <span class="nf">windowed_value</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">MIN_TIMESTAMP</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">WindowedValue</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="p">(</span><span class="n">GlobalWindow</span><span class="p">(),))</span></div>
+
+<div class="viewcode-block" id="GlobalWindows.assign"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows.assign">[docs]</a>  <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">assign_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">GlobalWindow</span><span class="p">()]</span></div>
+
+<div class="viewcode-block" id="GlobalWindows.get_window_coder"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows.get_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># Global windowfn is always and only equal to each other.</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+<div class="viewcode-block" id="GlobalWindows.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">urns</span><span class="o">.</span><span class="n">GLOBAL_WINDOWS_FN</span><span class="p">,</span> <span class="kc">None</span></div>
+
+  <span class="nd">@urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">GLOBAL_WINDOWS_FN</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<div class="viewcode-block" id="GlobalWindows.from_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.GlobalWindows.from_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api_parameter</span><span class="p">(</span><span class="n">unused_fn_parameter</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">GlobalWindows</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="FixedWindows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.FixedWindows">[docs]</a><span class="k">class</span> <span class="nc">FixedWindows</span><span class="p">(</span><span class="n">NonMergingWindowFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A windowing function that assigns each element to one time interval.</span>
+
+<span class="sd">  The attributes size and offset determine in what time interval a timestamp</span>
+<span class="sd">  will be slotted. The time intervals have the following formula:</span>
+<span class="sd">  [N * size + offset, (N + 1) * size + offset)</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    size: Size of the window as seconds.</span>
+<span class="sd">    offset: Offset of this window as seconds since Unix epoch. Windows start at</span>
+<span class="sd">      t=N * size + offset where t=0 is the epoch. The offset must be a value</span>
+<span class="sd">      in range [0, size). If it is not it will be normalized to this range.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The size parameter must be strictly positive.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+
+<div class="viewcode-block" id="FixedWindows.assign"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.FixedWindows.assign">[docs]</a>  <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">timestamp</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">timestamp</span> <span class="o">-</span> <span class="p">(</span><span class="n">timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="FixedWindows.get_window_coder"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.FixedWindows.get_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="o">==</span> <span class="n">FixedWindows</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">size</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">offset</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+<div class="viewcode-block" id="FixedWindows.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.FixedWindows.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">FIXED_WINDOWS_FN</span><span class="p">,</span>
+            <span class="n">proto_utils</span><span class="o">.</span><span class="n">pack_Struct</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+                                    <span class="n">offset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="o">.</span><span class="n">micros</span><span class="p">))</span></div>
+
+  <span class="nd">@urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">FIXED_WINDOWS_FN</span><span class="p">,</span> <span class="n">struct_pb2</span><span class="o">.</span><span class="n">Struct</span><span class="p">)</span>
+<div class="viewcode-block" id="FixedWindows.from_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.FixedWindows.from_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api_parameter</span><span class="p">(</span><span class="n">fn_parameter</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FixedWindows</span><span class="p">(</span>
+        <span class="n">size</span><span class="o">=</span><span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;size&#39;</span><span class="p">]),</span>
+        <span class="n">offset</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;offset&#39;</span><span class="p">]))</span></div></div>
+
+
+<div class="viewcode-block" id="SlidingWindows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.SlidingWindows">[docs]</a><span class="k">class</span> <span class="nc">SlidingWindows</span><span class="p">(</span><span class="n">NonMergingWindowFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A windowing function that assigns each element to a set of sliding windows.</span>
+
+<span class="sd">  The attributes size and offset determine in what time interval a timestamp</span>
+<span class="sd">  will be slotted. The time intervals have the following formula:</span>
+<span class="sd">  [N * period + offset, N * period + offset + size)</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    size: Size of the window as seconds.</span>
+<span class="sd">    period: Period of the windows as seconds.</span>
+<span class="sd">    offset: Offset of this window as seconds since Unix epoch. Windows start at</span>
+<span class="sd">      t=N * period + offset where t=0 is the epoch. The offset must be a value</span>
+<span class="sd">      in range [0, period). If it is not it will be normalized to this range.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The size parameter must be strictly positive.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">period</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span> <span class="o">%</span> <span class="n">period</span>
+
+<div class="viewcode-block" id="SlidingWindows.assign"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.SlidingWindows.assign">[docs]</a>  <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">timestamp</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">timestamp</span> <span class="o">-</span> <span class="p">((</span><span class="n">timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">IntervalWindow</span><span class="p">(</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">s</span><span class="p">),</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">s</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+                       <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="o">.</span><span class="n">micros</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="SlidingWindows.get_window_coder"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.SlidingWindows.get_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="o">==</span> <span class="n">SlidingWindows</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">size</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">offset</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">period</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlidingWindows.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.SlidingWindows.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">SLIDING_WINDOWS_FN</span><span class="p">,</span>
+            <span class="n">proto_utils</span><span class="o">.</span><span class="n">pack_Struct</span><span class="p">(</span>
+                <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+                <span class="n">offset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+                <span class="n">period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="o">.</span><span class="n">micros</span><span class="p">))</span></div>
+
+  <span class="nd">@urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">SLIDING_WINDOWS_FN</span><span class="p">,</span> <span class="n">struct_pb2</span><span class="o">.</span><span class="n">Struct</span><span class="p">)</span>
+<div class="viewcode-block" id="SlidingWindows.from_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.SlidingWindows.from_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api_parameter</span><span class="p">(</span><span class="n">fn_parameter</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">SlidingWindows</span><span class="p">(</span>
+        <span class="n">size</span><span class="o">=</span><span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;size&#39;</span><span class="p">]),</span>
+        <span class="n">offset</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;offset&#39;</span><span class="p">]),</span>
+        <span class="n">period</span><span class="o">=</span><span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;period&#39;</span><span class="p">]))</span></div></div>
+
+
+<div class="viewcode-block" id="Sessions"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions">[docs]</a><span class="k">class</span> <span class="nc">Sessions</span><span class="p">(</span><span class="n">WindowFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A windowing function that groups elements into sessions.</span>
+
+<span class="sd">  A session is defined as a series of consecutive events</span>
+<span class="sd">  separated by a specified gap size.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    gap_size: Size of the gap between windows as floating-point seconds.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gap_size</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">gap_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The size parameter must be strictly positive.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gap_size</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">gap_size</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Sessions.assign"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions.assign">[docs]</a>  <span class="k">def</span> <span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">timestamp</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">timestamp</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gap_size</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="Sessions.get_window_coder"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions.get_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Sessions.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge_context</span><span class="p">):</span>
+    <span class="n">to_merge</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">MIN_TIMESTAMP</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">merge_context</span><span class="o">.</span><span class="n">windows</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">to_merge</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">end</span> <span class="o">&gt;</span> <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+          <span class="n">to_merge</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">end</span> <span class="o">&gt;</span> <span class="n">end</span><span class="p">:</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">end</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">to_merge</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">merge_context</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">to_merge</span><span class="p">,</span>
+                                <span class="n">IntervalWindow</span><span class="p">(</span><span class="n">to_merge</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">))</span>
+          <span class="n">to_merge</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span><span class="p">]</span>
+          <span class="n">end</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">end</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">to_merge</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span><span class="p">]</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">end</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">to_merge</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">merge_context</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">to_merge</span><span class="p">,</span> <span class="n">IntervalWindow</span><span class="p">(</span><span class="n">to_merge</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">))</span></div>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="o">==</span> <span class="n">Sessions</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gap_size</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">gap_size</span>
+
+  <span class="nd">@urns</span><span class="o">.</span><span class="n">RunnerApiFn</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">SESSION_WINDOWS_FN</span><span class="p">,</span> <span class="n">struct_pb2</span><span class="o">.</span><span class="n">Struct</span><span class="p">)</span>
+<div class="viewcode-block" id="Sessions.from_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions.from_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api_parameter</span><span class="p">(</span><span class="n">fn_parameter</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Sessions</span><span class="p">(</span><span class="n">gap_size</span><span class="o">=</span><span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">fn_parameter</span><span class="p">[</span><span class="s1">&#39;gap_size&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="Sessions.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window.Sessions.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">SESSION_WINDOWS_FN</span><span class="p">,</span>
+            <span class="n">proto_utils</span><span class="o">.</span><span class="n">pack_Struct</span><span class="p">(</span><span class="n">gap_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gap_size</span><span class="o">.</span><span class="n">micros</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

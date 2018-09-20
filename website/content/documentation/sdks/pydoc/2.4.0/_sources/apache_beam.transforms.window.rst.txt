@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.window module
+=======================================
+
+.. automodule:: apache_beam.transforms.window
+    :members:
+    :undoc-members:
+    :show-inheritance:

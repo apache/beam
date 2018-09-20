@@ -1,0 +1,709 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.coders package" href="apache_beam.coders.html" />
+    <link rel="prev" title="apache_beam" href="index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.error">apache_beam.error module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pipeline">apache_beam.pipeline module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pvalue">apache_beam.pvalue module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.version">apache_beam.version module</a></li>
+<li><a class="reference internal" href="#module-apache_beam">Module contents</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#typical-usage">Typical usage</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">apache_beam</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.coders.html"
+                        title="next chapter">apache_beam.coders package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-package">
+<h1>apache_beam package<a class="headerlink" href="#apache-beam-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coder_impl">apache_beam.coders.coder_impl module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coders">apache_beam.coders.coders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coders_test_common">apache_beam.coders.coders_test_common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.observable">apache_beam.coders.observable module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.proto2_coder_test_messages_pb2">apache_beam.coders.proto2_coder_test_messages_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.slow_stream">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-stream-module">apache_beam.coders.stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.typecoders">apache_beam.coders.typecoders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.auth">apache_beam.internal.gcp.auth module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.json_value">apache_beam.internal.gcp.json_value module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.pickler">apache_beam.internal.pickler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.util">apache_beam.internal.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.html">apache_beam.io.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.datastore.html">apache_beam.io.gcp.datastore package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l7"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#submodules">Submodules</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.datastoreio">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.fake_datastore">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.helper">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.query_splitter">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#module-apache_beam.io.gcp.datastore">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.internal.html">apache_beam.io.gcp.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.internal.html#module-apache_beam.io.gcp.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.tests.html">apache_beam.io.gcp.tests package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests.bigquery_matcher">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.bigquery">apache_beam.io.gcp.bigquery module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.gcsfilesystem">apache_beam.io.gcp.gcsfilesystem module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.gcsio">apache_beam.io.gcp.gcsio module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.pubsub">apache_beam.io.gcp.pubsub module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.avroio">apache_beam.io.avroio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.concat_source">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filebasedsink">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filebasedsource">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filesystem">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filesystems">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.iobase">apache_beam.io.iobase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.localfilesystem">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.range_trackers">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.source_test_utils">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.textio">apache_beam.io.textio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.tfrecordio">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.cells">apache_beam.metrics.cells module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.execution">apache_beam.metrics.execution module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.metric">apache_beam.metrics.metric module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.metricbase">apache_beam.metrics.metricbase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#module-apache_beam.options.pipeline_options">apache_beam.options.pipeline_options module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#module-apache_beam.options.pipeline_options_validator">apache_beam.options.pipeline_options_validator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#module-apache_beam.options.value_provider">apache_beam.options.value_provider module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#module-apache_beam.options">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html">apache_beam.runners.dataflow.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.apiclient">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.dependency">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.names">apache_beam.runners.dataflow.internal.names module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io.iobase">apache_beam.runners.dataflow.native_io.iobase module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_metrics">apache_beam.runners.dataflow.dataflow_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_runner">apache_beam.runners.dataflow.dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.test_dataflow_runner">apache_beam.runners.dataflow.test_dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.bundle_factory">apache_beam.runners.direct.bundle_factory module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.clock">apache_beam.runners.direct.clock module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_metrics">apache_beam.runners.direct.direct_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_runner">apache_beam.runners.direct.direct_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.evaluation_context">apache_beam.runners.direct.evaluation_context module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.executor">apache_beam.runners.direct.executor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.helper_transforms">apache_beam.runners.direct.helper_transforms module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_evaluator">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_result">apache_beam.runners.direct.transform_result module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.watermark_manager">apache_beam.runners.direct.watermark_manager module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.common">apache_beam.runners.common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.pipeline_context">apache_beam.runners.pipeline_context module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.runner">apache_beam.runners.runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing.pipeline_verifiers">apache_beam.testing.pipeline_verifiers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing.test_pipeline">apache_beam.testing.test_pipeline module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing.test_stream">apache_beam.testing.test_stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing.test_utils">apache_beam.testing.test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing.util">apache_beam.testing.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-apache_beam.testing">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.combiners">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.core">apache_beam.transforms.core module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.cy_combiners">apache_beam.transforms.cy_combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.display">apache_beam.transforms.display module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.ptransform">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.sideinputs">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.timeutil">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.trigger">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.util">apache_beam.transforms.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.window">apache_beam.transforms.window module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.decorators">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.opcodes">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.trivial_inference">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typecheck">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typehints">apache_beam.typehints.typehints module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.annotations">apache_beam.utils.annotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.counters">apache_beam.utils.counters module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.processes">apache_beam.utils.processes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.profiler">apache_beam.utils.profiler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.proto_utils">apache_beam.utils.proto_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.retry">apache_beam.utils.retry module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.timestamp">apache_beam.utils.timestamp module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.urns">apache_beam.utils.urns module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.windowed_value">apache_beam.utils.windowed_value module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.error">
+<span id="apache-beam-error-module"></span><h2>apache_beam.error module<a class="headerlink" href="#module-apache_beam.error" title="Permalink to this headline">¶</a></h2>
+<p>Python Dataflow error classes.</p>
+<dl class="exception">
+<dt id="apache_beam.error.BeamError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">BeamError</code><a class="reference internal" href="_modules/apache_beam/error.html#BeamError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.BeamError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+<p>Base class for all Beam errors.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.PValueError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">PValueError</code><a class="reference internal" href="_modules/apache_beam/error.html#PValueError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.PValueError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a PValue object (e.g. value is not computed).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.PipelineError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">PipelineError</code><a class="reference internal" href="_modules/apache_beam/error.html#PipelineError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.PipelineError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error in the pipeline object (e.g. a PValue not linked to it).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.RunnerError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">RunnerError</code><a class="reference internal" href="_modules/apache_beam/error.html#RunnerError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.RunnerError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a Runner object (e.g. cannot find a runner to run).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.RuntimeValueProviderError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">RuntimeValueProviderError</code><a class="reference internal" href="_modules/apache_beam/error.html#RuntimeValueProviderError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.RuntimeValueProviderError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.RuntimeError</span></code></p>
+<p>An error related to a ValueProvider object raised during runtime.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.SideInputError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">SideInputError</code><a class="reference internal" href="_modules/apache_beam/error.html#SideInputError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.SideInputError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a side input to a parallel Do operation.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.TransformError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">TransformError</code><a class="reference internal" href="_modules/apache_beam/error.html#TransformError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.TransformError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a PTransform object.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pipeline">
+<span id="apache-beam-pipeline-module"></span><h2>apache_beam.pipeline module<a class="headerlink" href="#module-apache_beam.pipeline" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline, the top-level Dataflow object.</p>
+<p>A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
+are transforms (PTransform objects) and the edges are values (mostly PCollection
+objects). The transforms take as inputs one or more PValues and output one or
+more PValues.</p>
+<p>The pipeline offers functionality to traverse the graph.  The actual operation
+to be executed for each node visited is specified through a runner object.</p>
+<p>Typical usage:</p>
+<blockquote>
+<div><p># Create a pipeline object using a local runner for execution.
+p = beam.Pipeline(&#8216;DirectRunner&#8217;)</p>
+<p># Add to the pipeline a &#8220;Create&#8221; transform. When executed this
+# transform will produce a PCollection object with the specified values.
+pcoll = p | &#8216;Create&#8217; &gt;&gt; beam.Create([1, 2, 3])</p>
+<p># Another transform could be applied to pcoll, e.g., writing to a text file.
+# For other transforms, refer to transforms/ directory.
+pcoll | &#8216;Write&#8217; &gt;&gt; beam.io.WriteToText(&#8216;./output&#8217;)</p>
+<p># run() will execute the DAG stored in the pipeline.  The execution of the
+# nodes visited is done using the specified local runner.
+p.run()</p>
+</div></blockquote>
+<dl class="class">
+<dt id="apache_beam.pipeline.Pipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">Pipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A pipeline object that manages a DAG of PValues and their PTransforms.</p>
+<p>Conceptually the PValues are the DAG&#8217;s nodes and the PTransforms computing
+the PValues are the edges.</p>
+<p>All the transforms applied to the pipeline must have distinct full labels.
+If same transform instance needs to be applied then the right shift operator
+should be used to designate new names (e.g. <cite>input | &#8220;label&#8221; &gt;&gt; my_tranform</cite>).</p>
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>transform</em>, <em>pvalueish=None</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a custom transform using the pvalueish specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>transform</strong> &#8211; the PTranform to apply.</li>
+<li><strong>pvalueish</strong> &#8211; the input for the PTransform (typically a PCollection).</li>
+<li><strong>label</strong> &#8211; label of the PTransform.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if the transform object extracted from the argument list is
+not a PTransform.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">RuntimeError</span></code> &#8211; if the transform object was already applied to this pipeline
+and needs to be cloned in order to apply again.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.pipeline.Pipeline.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>runner</em>, <em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.pipeline.Pipeline.options">
+<code class="descname">options</code><a class="headerlink" href="#apache_beam.pipeline.Pipeline.options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>test_runner_api=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the pipeline. Returns whatever our runner returns after running.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.visit">
+<code class="descname">visit</code><span class="sig-paren">(</span><em>visitor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.visit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.visit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Visits depth-first every node of a pipeline&#8217;s DAG.</p>
+<p>Runner-internal implementation detail; no backwards-compatibility guarantees</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>visitor</strong> &#8211; PipelineVisitor object whose callbacks will be called for each
+node visited. See PipelineVisitor comments.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if node is specified and is not a PValue.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">pipeline.PipelineError</span></code> &#8211; if node is specified and does not belong to this
+pipeline instance.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pvalue">
+<span id="apache-beam-pvalue-module"></span><h2>apache_beam.pvalue module<a class="headerlink" href="#module-apache_beam.pvalue" title="Permalink to this headline">¶</a></h2>
+<p>PValue, PCollection: one node of a dataflow graph.</p>
+<p>A node of a dataflow processing graph is a PValue. Currently, there is only
+one type: PCollection (a potentially very large set of arbitrary values).
+Once created, a PValue belongs to a pipeline and has an associated
+transform (of type PTransform), which describes how the value will be
+produced when the pipeline gets executed.</p>
+<dl class="class">
+<dt id="apache_beam.pvalue.PCollection">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PCollection</code><span class="sig-paren">(</span><em>pipeline</em>, <em>tag=None</em>, <em>element_type=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></p>
+<p>A multiple values (potentially huge) container.</p>
+<p>Dataflow users should not construct PCollection objects directly in their
+pipelines.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.pvalue.PCollection.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pvalue.PCollection.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.pvalue.PCollection.windowing">
+<code class="descname">windowing</code><a class="headerlink" href="#apache_beam.pvalue.PCollection.windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.TaggedOutput">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">TaggedOutput</code><span class="sig-paren">(</span><em>tag</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#TaggedOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.TaggedOutput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>An object representing a tagged value.</p>
+<p>ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
+are distinguished by string tags. The DoFn will return plain values
+if it wants to emit on the main output and TaggedOutput objects
+if it wants to emit a value on a specific tagged output.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsSingleton">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsSingleton</code><span class="sig-paren">(</span><em>pcoll</em>, <em>default_value=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsSingleton"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsSingleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>When a PCollection is supplied as a side input to a PTransform, it is
+necessary to indicate whether the entire PCollection should be made available
+as a PTransform side argument (in the form of an iterable), or whether just
+one value should be pulled from the PCollection and supplied as the side
+argument (as an ordinary value).</p>
+<p>Wrapping a PCollection side input argument to a PTransform in this container
+(e.g., data.apply(&#8216;label&#8217;, MyPTransform(), AsSingleton(my_side_input) )
+selects the latter behavor.</p>
+<p>The input PCollection must contain exactly one  value per window, unless a
+default is given, in which case it may be empty.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.AsSingleton.element_type">
+<code class="descname">element_type</code><a class="headerlink" href="#apache_beam.pvalue.AsSingleton.element_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsIter">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsIter</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsIter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsIter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>When a PCollection is supplied as a side input to a PTransform, it is
+necessary to indicate whether the entire PCollection should be made available
+as a PTransform side argument (in the form of an iterable), or whether just
+one value should be pulled from the PCollection and supplied as the side
+argument (as an ordinary value).</p>
+<p>Wrapping a PCollection side input argument to a PTransform in this container
+(e.g., data.apply(&#8216;label&#8217;, MyPTransform(), AsIter(my_side_input) ) selects the
+former behavor.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.AsIter.element_type">
+<code class="descname">element_type</code><a class="headerlink" href="#apache_beam.pvalue.AsIter.element_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsList">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsList</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>Intended for use in side-argument specification&#8212;the same places where
+AsSingleton and AsIter are used, but forces materialization of this
+PCollection as a list.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pcoll</strong> &#8211; Input pcollection.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">An AsList-wrapper around a PCollection whose one element is a list
+containing all elements in pcoll.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsDict">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsDict</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying a PCollection to be used as an indexable side input.</p>
+<p>Intended for use in side-argument specification&#8212;the same places where
+AsSingleton and AsIter are used, but returns an interface that allows
+key lookup.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pcoll</strong> &#8211; Input pcollection. All elements should be key-value pairs (i.e.
+2-tuples) with unique keys.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="docutils">
+<dt>An AsDict-wrapper around a PCollection whose one element is a dict with</dt>
+<dd>entries for uniquely-keyed pairs in pcoll.</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.EmptySideInput">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">EmptySideInput</code><a class="reference internal" href="_modules/apache_beam/pvalue.html#EmptySideInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.EmptySideInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Value indicating when a singleton side input was empty.</p>
+<p>If a PCollection was furnished as a singleton side input to a PTransform, and
+that PCollection was empty, then this value is supplied to the DoFn in the
+place where a value from a non-empty PCollection would have gone. This alerts
+the DoFn that the side input PCollection was empty. Users may want to check
+whether side input values are EmptySideInput, but they will very likely never
+want to create new instances of this class themselves.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.version">
+<span id="apache-beam-version-module"></span><h2>apache_beam.version module<a class="headerlink" href="#module-apache_beam.version" title="Permalink to this headline">¶</a></h2>
+<p>Apache Beam SDK version information and utilities.</p>
+</div>
+<div class="section" id="module-apache_beam">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam" title="Permalink to this headline">¶</a></h2>
+<p>Apache Beam SDK for Python.</p>
+<p>Apache Beam &lt;<a class="reference external" href="https://beam.apache.org/">https://beam.apache.org/</a>&gt;
+provides a simple, powerful programming model for building both batch
+and streaming parallel data processing pipelines.</p>
+<p>The Apache Beam SDK for Python provides access to Apache Beam capabilities
+from the Python programming language.</p>
+<div class="section" id="status">
+<h3>Status<a class="headerlink" href="#status" title="Permalink to this headline">¶</a></h3>
+<p>The SDK is still early in its development, and significant changes
+should be expected before the first stable version.</p>
+</div>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p>The key concepts in this programming model are</p>
+<ul class="simple">
+<li>PCollection:  represents a collection of data, which could be
+bounded or unbounded in size.</li>
+<li>PTransform:  represents a computation that transforms input
+PCollections into output PCollections.</li>
+<li>Pipeline:  manages a directed acyclic graph of PTransforms and
+PCollections that is ready for execution.</li>
+<li>Runner:  specifies where and how the Pipeline should execute.</li>
+<li>Reading and Writing Data:  your pipeline can read from an external
+source and write to an external data sink.</li>
+</ul>
+</div>
+<div class="section" id="typical-usage">
+<h3>Typical usage<a class="headerlink" href="#typical-usage" title="Permalink to this headline">¶</a></h3>
+<p>At the top of your source file:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+</pre></div>
+</div>
+<p>After this import statement</p>
+<ul class="simple">
+<li>transform classes are available as beam.FlatMap, beam.GroupByKey, etc.</li>
+<li>Pipeline class is available as beam.Pipeline</li>
+<li>text read/write transforms are available as beam.io.ReadfromText,
+beam.io.WriteToText</li>
+</ul>
+<p class="rubric">Examples</p>
+<p>The examples subdirectory has some examples.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

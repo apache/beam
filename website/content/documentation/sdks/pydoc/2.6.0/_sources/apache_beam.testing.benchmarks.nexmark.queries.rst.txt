@@ -1,0 +1,17 @@
+apache\_beam\.testing\.benchmarks\.nexmark\.queries package
+===========================================================
+
+.. automodule:: apache_beam.testing.benchmarks.nexmark.queries
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.testing.benchmarks.nexmark.queries.query0
+   apache_beam.testing.benchmarks.nexmark.queries.query1
+   apache_beam.testing.benchmarks.nexmark.queries.query2
+

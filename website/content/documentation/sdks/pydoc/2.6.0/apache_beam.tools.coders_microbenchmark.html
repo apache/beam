@@ -1,0 +1,373 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.tools.coders_microbenchmark module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.tools package" href="apache_beam.tools.html"/>
+        <link rel="next" title="apache_beam.tools.distribution_counter_microbenchmark module" href="apache_beam.tools.distribution_counter_microbenchmark.html"/>
+        <link rel="prev" title="apache_beam.tools package" href="apache_beam.tools.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.tools.html">apache_beam.tools package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.tools.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.tools.coders_microbenchmark module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.tools.distribution_counter_microbenchmark.html">apache_beam.tools.distribution_counter_microbenchmark module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.tools.sideinput_microbenchmark.html">apache_beam.tools.sideinput_microbenchmark module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.tools.utils.html">apache_beam.tools.utils module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.tools.html">apache_beam.tools package</a> &raquo;</li>
+        
+      <li>apache_beam.tools.coders_microbenchmark module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.tools.coders_microbenchmark.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.tools.coders_microbenchmark">
+<span id="apache-beam-tools-coders-microbenchmark-module"></span><h1>apache_beam.tools.coders_microbenchmark module<a class="headerlink" href="#module-apache_beam.tools.coders_microbenchmark" title="Permalink to this headline">¶</a></h1>
+<p>A microbenchmark for measuring performance of coders.</p>
+<p>This runs a sequence of encode-decode operations on random inputs
+to collect performance of various coders.</p>
+<p>To evaluate coders performance we approximate the behavior
+how the coders are used in PCollections: we encode and decode
+a list of elements. An element can be a string, a list of integers,
+a windowed value, or any other object we want a coder to process.</p>
+<dl class="docutils">
+<dt>Run as:</dt>
+<dd>python -m apache_beam.tools.coders_microbenchmark</dd>
+</dl>
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.coder_benchmark_factory">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">coder_benchmark_factory</code><span class="sig-paren">(</span><em>coder</em>, <em>generate_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#coder_benchmark_factory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.coder_benchmark_factory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a benchmark that encodes and decodes a list of elements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>coder</strong> – coder to use to encode an element.</li>
+<li><strong>generate_fn</strong> – a callable that generates an element.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.small_int">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">small_int</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#small_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.small_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.large_int">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">large_int</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#large_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.large_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.random_string">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">random_string</code><span class="sig-paren">(</span><em>length</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#random_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.random_string" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.small_string">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">small_string</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#small_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.small_string" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.large_string">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">large_string</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#large_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.large_string" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.list_int">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">list_int</code><span class="sig-paren">(</span><em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#list_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.list_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.dict_int_int">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">dict_int_int</code><span class="sig-paren">(</span><em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#dict_int_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.dict_int_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.small_list">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">small_list</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#small_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.small_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.large_list">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">large_list</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#large_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.large_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.small_tuple">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">small_tuple</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#small_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.small_tuple" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.large_tuple">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">large_tuple</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#large_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.large_tuple" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.small_dict">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">small_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#small_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.small_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.large_dict">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">large_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#large_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.large_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.random_windowed_value">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">random_windowed_value</code><span class="sig-paren">(</span><em>num_windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#random_windowed_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.random_windowed_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.wv_with_one_window">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">wv_with_one_window</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#wv_with_one_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.wv_with_one_window" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.wv_with_multiple_windows">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">wv_with_multiple_windows</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#wv_with_multiple_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.wv_with_multiple_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.tools.coders_microbenchmark.run_coder_benchmarks">
+<code class="descclassname">apache_beam.tools.coders_microbenchmark.</code><code class="descname">run_coder_benchmarks</code><span class="sig-paren">(</span><em>num_runs</em>, <em>input_size</em>, <em>seed</em>, <em>verbose</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/tools/coders_microbenchmark.html#run_coder_benchmarks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.tools.coders_microbenchmark.run_coder_benchmarks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.tools.distribution_counter_microbenchmark.html" class="btn btn-neutral float-right" title="apache_beam.tools.distribution_counter_microbenchmark module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.tools.html" class="btn btn-neutral" title="apache_beam.tools package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

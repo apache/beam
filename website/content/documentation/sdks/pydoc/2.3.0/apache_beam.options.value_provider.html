@@ -1,0 +1,323 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.options.value_provider module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.options package" href="apache_beam.options.html"/>
+        <link rel="next" title="apache_beam.portability package" href="apache_beam.portability.html"/>
+        <link rel="prev" title="apache_beam.options.pipeline_options_validator module" href="apache_beam.options.pipeline_options_validator.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.options.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.options.pipeline_options.html">apache_beam.options.pipeline_options module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.options.pipeline_options_validator.html">apache_beam.options.pipeline_options_validator module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.options.value_provider module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.options.html">apache_beam.options package</a> &raquo;</li>
+        
+      <li>apache_beam.options.value_provider module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.options.value_provider.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.options.value_provider">
+<span id="apache-beam-options-value-provider-module"></span><h1>apache_beam.options.value_provider module<a class="headerlink" href="#module-apache_beam.options.value_provider" title="Permalink to this headline">¶</a></h1>
+<p>A ValueProvider class to implement templates with both statically
+and dynamically provided values.</p>
+<dl class="class">
+<dt id="apache_beam.options.value_provider.ValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">ValueProvider</code><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.options.value_provider.ValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.ValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.value_provider.StaticValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">StaticValueProvider</code><span class="sig-paren">(</span><em>value_type</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.value_provider.ValueProvider</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.options.value_provider.StaticValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.StaticValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">RuntimeValueProvider</code><span class="sig-paren">(</span><em>option_name</em>, <em>value_type</em>, <em>default_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.value_provider.ValueProvider</span></code></a></p>
+<dl class="attribute">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.runtime_options">
+<code class="descname">runtime_options</code><em class="property"> = None</em><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.runtime_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.set_runtime_options">
+<em class="property">classmethod </em><code class="descname">set_runtime_options</code><span class="sig-paren">(</span><em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.set_runtime_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.set_runtime_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.options.value_provider.check_accessible">
+<code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">check_accessible</code><span class="sig-paren">(</span><em>value_provider_list</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#check_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.check_accessible" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check accessibility of a list of ValueProvider objects.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.portability.html" class="btn btn-neutral float-right" title="apache_beam.portability package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.options.pipeline_options_validator.html" class="btn btn-neutral" title="apache_beam.options.pipeline_options_validator module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

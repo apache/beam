@@ -1,0 +1,7 @@
+apache\_beam\.testing\.benchmarks\.nexmark\.queries\.query0 module
+==================================================================
+
+.. automodule:: apache_beam.testing.benchmarks.nexmark.queries.query0
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,15 @@
+apache\_beam\.testing\.benchmarks\.nexmark\.models package
+==========================================================
+
+.. automodule:: apache_beam.testing.benchmarks.nexmark.models
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.testing.benchmarks.nexmark.models.nexmark_model
+

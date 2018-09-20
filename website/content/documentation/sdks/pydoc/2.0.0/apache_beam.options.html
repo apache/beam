@@ -1,0 +1,553 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.options package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.runners package" href="apache_beam.runners.html" />
+    <link rel="prev" title="apache_beam.metrics package" href="apache_beam.metrics.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.metrics.html" title="apache_beam.metrics package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.options package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.options.pipeline_options">apache_beam.options.pipeline_options module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.options.pipeline_options_validator">apache_beam.options.pipeline_options_validator module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.options.value_provider">apache_beam.options.value_provider module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.options">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.metrics.html"
+                        title="previous chapter">apache_beam.metrics package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.runners.html"
+                        title="next chapter">apache_beam.runners package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.options.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-options-package">
+<h1>apache_beam.options package<a class="headerlink" href="#apache-beam-options-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.options.pipeline_options">
+<span id="apache-beam-options-pipeline-options-module"></span><h2>apache_beam.options.pipeline_options module<a class="headerlink" href="#module-apache_beam.options.pipeline_options" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline options obtained from command line parsing.</p>
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">PipelineOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a></p>
+<p>Pipeline options class used as container for command line options.</p>
+<p>The class is essentially a wrapper over the standard argparse Python module
+(see <a class="reference external" href="https://docs.python.org/3/library/argparse.html">https://docs.python.org/3/library/argparse.html</a>).  To define one option
+or a group of options you subclass from PipelineOptions:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">XyzOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--abc&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;start&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--xyz&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;end&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The arguments for the add_argument() method are exactly the ones
+described in the argparse public documentation.</p>
+<p>Pipeline objects require an options object during initialization.
+This is obtained simply by initializing an options class as defined above:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">XyzOptions</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">xyz</span> <span class="o">==</span> <span class="s1">&#39;end&#39;</span><span class="p">:</span>
+  <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Option xyz has an invalid value.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default the options classes will use command line arguments to initialize
+the options.</p>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.from_dictionary">
+<em class="property">classmethod </em><code class="descname">from_dictionary</code><span class="sig-paren">(</span><em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.from_dictionary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.from_dictionary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a PipelineOptions from a dictionary of arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>options</strong> &#8211; Dictinary of argument value pairs.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A PipelineOptions object representing the given arguments.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.get_all_options">
+<code class="descname">get_all_options</code><span class="sig-paren">(</span><em>drop_default=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.get_all_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.get_all_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary of all defined arguments.</p>
+<p>Returns a dictionary of all defined arguments (arguments that are defined in
+any subclass of PipelineOptions) into a dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>drop_default</strong> &#8211; If set to true, options that are equal to their default
+values, are not returned as part of the result dictionary.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Dictionary of all args and values.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.PipelineOptions.view_as">
+<code class="descname">view_as</code><span class="sig-paren">(</span><em>cls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#PipelineOptions.view_as"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.PipelineOptions.view_as" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.StandardOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">StandardOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#StandardOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.StandardOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.StandardOptions.DEFAULT_RUNNER">
+<code class="descname">DEFAULT_RUNNER</code><em class="property"> = 'DirectRunner'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.StandardOptions.DEFAULT_RUNNER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.StandardOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#StandardOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.StandardOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.TypeOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">TypeOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TypeOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TypeOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.DirectOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">DirectOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#DirectOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.DirectOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>DirectRunner-specific execution options.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">GoogleCloudOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#GoogleCloudOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Google Cloud Dataflow service execution options.</p>
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE">
+<code class="descname">BIGQUERY_API_SERVICE</code><em class="property"> = 'bigquery.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE">
+<code class="descname">COMPUTE_API_SERVICE</code><em class="property"> = 'compute.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT">
+<code class="descname">DATAFLOW_ENDPOINT</code><em class="property"> = 'https://dataflow.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE">
+<code class="descname">STORAGE_API_SERVICE</code><em class="property"> = 'storage.googleapis.com'</em><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.GoogleCloudOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#GoogleCloudOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.GoogleCloudOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.WorkerOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">WorkerOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#WorkerOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.WorkerOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Worker pool configuration options.</p>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.WorkerOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#WorkerOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.WorkerOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.DebugOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">DebugOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#DebugOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.DebugOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.ProfilingOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">ProfilingOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#ProfilingOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.ProfilingOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.SetupOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">SetupOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#SetupOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.SetupOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options.TestOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options.</code><code class="descname">TestOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TestOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TestOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.pipeline_options.PipelineOptions</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options.TestOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options.html#TestOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options.TestOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.options.pipeline_options_validator">
+<span id="apache-beam-options-pipeline-options-validator-module"></span><h2>apache_beam.options.pipeline_options_validator module<a class="headerlink" href="#module-apache_beam.options.pipeline_options_validator" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline options validator.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator">
+<em class="property">class </em><code class="descclassname">apache_beam.options.pipeline_options_validator.</code><code class="descname">PipelineOptionsValidator</code><span class="sig-paren">(</span><em>options</em>, <em>runner</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Validates PipelineOptions.</p>
+<p>Goes through a list of known PipelineOption subclassess and calls:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">validate</span><span class="p">(</span><span class="n">validator</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>if one is implemented. Aggregates a list of validation errors from all and
+returns an aggregated list.</p>
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ENDPOINT_PATTERN">
+<code class="descname">ENDPOINT_PATTERN</code><em class="property"> = 'https://[\\S]*googleapis\\.com[/]?'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ENDPOINT_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_BUCKET">
+<code class="descname">ERR_INVALID_GCS_BUCKET</code><em class="property"> = 'Invalid GCS bucket (%s), given for the option: %s. See https://developers.google.com/storage/docs/bucketnaming for more details.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_BUCKET" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_OBJECT">
+<code class="descname">ERR_INVALID_GCS_OBJECT</code><em class="property"> = 'Invalid GCS object (%s), given for the option: %s.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_OBJECT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_PATH">
+<code class="descname">ERR_INVALID_GCS_PATH</code><em class="property"> = 'Invalid GCS path (%s), given for the option: %s.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_PATH" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_JOB_NAME">
+<code class="descname">ERR_INVALID_JOB_NAME</code><em class="property"> = 'Invalid job_name (%s); the name must consist of only the characters [-a-z0-9], starting with a letter and ending with a letter or number'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_JOB_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_NOT_POSITIVE">
+<code class="descname">ERR_INVALID_NOT_POSITIVE</code><em class="property"> = 'Invalid value (%s) for option: %s. Value needs to be positive.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_NOT_POSITIVE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_ID">
+<code class="descname">ERR_INVALID_PROJECT_ID</code><em class="property"> = 'Invalid Project ID (%s). Please make sure you specified the Project ID, not project description.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_ID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_NUMBER">
+<code class="descname">ERR_INVALID_PROJECT_NUMBER</code><em class="property"> = 'Invalid Project ID (%s). Please make sure you specified the Project ID, not project number.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_NUMBER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_TYPE">
+<code class="descname">ERR_INVALID_TEST_MATCHER_TYPE</code><em class="property"> = 'Invalid value (%s) for option: %s. Please extend your matcher object from hamcrest.core.base_matcher.BaseMatcher.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_UNPICKLABLE">
+<code class="descname">ERR_INVALID_TEST_MATCHER_UNPICKLABLE</code><em class="property"> = 'Invalid value (%s) for option: %s. Please make sure the test matcher is unpicklable.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_UNPICKLABLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_GCS_PATH">
+<code class="descname">ERR_MISSING_GCS_PATH</code><em class="property"> = 'Missing GCS path option: %s.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_GCS_PATH" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_OPTION">
+<code class="descname">ERR_MISSING_OPTION</code><em class="property"> = 'Missing required option: %s.'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_OPTION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_BUCKET">
+<code class="descname">GCS_BUCKET</code><em class="property"> = '^[a-z0-9][-_a-z0-9.]+[a-z0-9]$'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_BUCKET" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_SCHEME">
+<code class="descname">GCS_SCHEME</code><em class="property"> = 'gs'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_SCHEME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_URI">
+<code class="descname">GCS_URI</code><em class="property"> = '(?P&lt;SCHEME&gt;[^:]+)://(?P&lt;BUCKET&gt;[^/]+)(/(?P&lt;OBJECT&gt;.*))?'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.GCS_URI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.JOB_PATTERN">
+<code class="descname">JOB_PATTERN</code><em class="property"> = '[a-z]([-a-z0-9]*[a-z0-9])?'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.JOB_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.OPTIONS">
+<code class="descname">OPTIONS</code><em class="property"> = [&lt;class 'apache_beam.options.pipeline_options.DebugOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.GoogleCloudOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.SetupOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.StandardOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.TypeOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.WorkerOptions'&gt;, &lt;class 'apache_beam.options.pipeline_options.TestOptions'&gt;]</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.OPTIONS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.PROJECT_ID_PATTERN">
+<code class="descname">PROJECT_ID_PATTERN</code><em class="property"> = '[a-z][-a-z0-9:.]+[a-z0-9]'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.PROJECT_ID_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.PROJECT_NUMBER_PATTERN">
+<code class="descname">PROJECT_NUMBER_PATTERN</code><em class="property"> = '[0-9]*'</em><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.PROJECT_NUMBER_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_full_string_match">
+<code class="descname">is_full_string_match</code><span class="sig-paren">(</span><em>pattern</em>, <em>string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.is_full_string_match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_full_string_match" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the pattern matches the whole string.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_service_runner">
+<code class="descname">is_service_runner</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.is_service_runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_service_runner" title="Permalink to this definition">¶</a></dt>
+<dd><p>True if pipeline will execute on the Google Cloud Dataflow service.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls validate on subclassess and returns a list of errors.</p>
+<p>validate will call validate method on subclasses, accumulate the returned
+list of errors, and returns the aggregate list.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Aggregate list of errors after all calling all possible validate methods.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_cloud_options">
+<code class="descname">validate_cloud_options</code><span class="sig-paren">(</span><em>view</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.validate_cloud_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_cloud_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates job_name and project arguments.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_gcs_path">
+<code class="descname">validate_gcs_path</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.validate_gcs_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_gcs_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates a GCS path against gs://bucket/object URI format.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_optional_argument_positive">
+<code class="descname">validate_optional_argument_positive</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.validate_optional_argument_positive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_optional_argument_positive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates that an optional argument (if set) has a positive value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_test_matcher">
+<code class="descname">validate_test_matcher</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/pipeline_options_validator.html#PipelineOptionsValidator.validate_test_matcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_test_matcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates that on_success_matcher argument if set.</p>
+<p>Validates that on_success_matcher is unpicklable and is instance
+of <cite>hamcrest.core.base_matcher.BaseMatcher</cite>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.options.value_provider">
+<span id="apache-beam-options-value-provider-module"></span><h2>apache_beam.options.value_provider module<a class="headerlink" href="#module-apache_beam.options.value_provider" title="Permalink to this headline">¶</a></h2>
+<p>A ValueProvider class to implement templates with both statically
+and dynamically provided values.</p>
+<dl class="class">
+<dt id="apache_beam.options.value_provider.ValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">ValueProvider</code><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="apache_beam.options.value_provider.ValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.ValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#ValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.ValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.value_provider.StaticValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">StaticValueProvider</code><span class="sig-paren">(</span><em>value_type</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.value_provider.ValueProvider</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.options.value_provider.StaticValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.StaticValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#StaticValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.StaticValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider">
+<em class="property">class </em><code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">RuntimeValueProvider</code><span class="sig-paren">(</span><em>option_name</em>, <em>value_type</em>, <em>default_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.options.value_provider.ValueProvider" title="apache_beam.options.value_provider.ValueProvider"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.options.value_provider.ValueProvider</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.is_accessible">
+<code class="descname">is_accessible</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.is_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.is_accessible" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.runtime_options">
+<code class="descname">runtime_options</code><em class="property"> = None</em><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.runtime_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.options.value_provider.RuntimeValueProvider.set_runtime_options">
+<em class="property">classmethod </em><code class="descname">set_runtime_options</code><span class="sig-paren">(</span><em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#RuntimeValueProvider.set_runtime_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.RuntimeValueProvider.set_runtime_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.options.value_provider.check_accessible">
+<code class="descclassname">apache_beam.options.value_provider.</code><code class="descname">check_accessible</code><span class="sig-paren">(</span><em>value_provider_list</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/options/value_provider.html#check_accessible"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.options.value_provider.check_accessible" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check accessibility of a list of ValueProvider objects.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.options">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.options" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.metrics.html" title="apache_beam.metrics package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

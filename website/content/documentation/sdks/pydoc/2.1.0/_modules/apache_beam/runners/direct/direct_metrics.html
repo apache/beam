@@ -1,0 +1,202 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct.direct_metrics &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.direct.direct_metrics</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">DirectRunner implementation of MetricResults. It is in charge not only of</span>
+<span class="sd">responding to queries of current metrics, but also of keeping the common</span>
+<span class="sd">state consistent.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">CounterAggregator</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">DistributionAggregator</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metric</span> <span class="k">import</span> <span class="n">MetricResults</span>
+
+
+<div class="viewcode-block" id="DirectMetrics"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetrics">[docs]</a><span class="k">class</span> <span class="nc">DirectMetrics</span><span class="p">(</span><span class="n">MetricResults</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_counters</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">DirectMetric</span><span class="p">(</span><span class="n">CounterAggregator</span><span class="p">()))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_distributions</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">DirectMetric</span><span class="p">(</span><span class="n">DistributionAggregator</span><span class="p">()))</span>
+
+  <span class="k">def</span> <span class="nf">_apply_operation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">updates</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_counters</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">updates</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_distributions</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DirectMetrics.commit_logical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_logical">[docs]</a>  <span class="k">def</span> <span class="nf">commit_logical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">):</span>
+    <span class="n">op</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">obj</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">commit_logical</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_apply_operation</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectMetrics.commit_physical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_physical">[docs]</a>  <span class="k">def</span> <span class="nf">commit_physical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">):</span>
+    <span class="n">op</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">obj</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">commit_physical</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_apply_operation</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectMetrics.update_physical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetrics.update_physical">[docs]</a>  <span class="k">def</span> <span class="nf">update_physical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">):</span>
+    <span class="n">op</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">obj</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">update_physical</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_apply_operation</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectMetrics.query"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetrics.query">[docs]</a>  <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">counters</span> <span class="o">=</span> <span class="p">[</span><span class="n">MetricResult</span><span class="p">(</span><span class="n">MetricKey</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">k</span><span class="o">.</span><span class="n">metric</span><span class="p">),</span>
+                             <span class="n">v</span><span class="o">.</span><span class="n">extract_committed</span><span class="p">(),</span>
+                             <span class="n">v</span><span class="o">.</span><span class="n">extract_latest_attempted</span><span class="p">())</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">k</span><span class="p">)]</span>
+    <span class="n">distributions</span> <span class="o">=</span> <span class="p">[</span><span class="n">MetricResult</span><span class="p">(</span><span class="n">MetricKey</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">k</span><span class="o">.</span><span class="n">metric</span><span class="p">),</span>
+                                  <span class="n">v</span><span class="o">.</span><span class="n">extract_committed</span><span class="p">(),</span>
+                                  <span class="n">v</span><span class="o">.</span><span class="n">extract_latest_attempted</span><span class="p">())</span>
+                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distributions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">k</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;counters&#39;</span><span class="p">:</span> <span class="n">counters</span><span class="p">,</span>
+            <span class="s1">&#39;distributions&#39;</span><span class="p">:</span> <span class="n">distributions</span><span class="p">}</span></div></div>
+
+
+<div class="viewcode-block" id="DirectMetric"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric">[docs]</a><span class="k">class</span> <span class="nc">DirectMetric</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Keeps a consistent state for a single metric.</span>
+
+<span class="sd">  It keeps track of the metric&#39;s physical and logical updates.</span>
+<span class="sd">  It&#39;s thread safe.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span> <span class="o">=</span> <span class="n">aggregator</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_attempted_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finished_attempted</span> <span class="o">=</span> <span class="n">aggregator</span><span class="o">.</span><span class="n">zero</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">inflight_attempted</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_committed_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finished_committed</span> <span class="o">=</span> <span class="n">aggregator</span><span class="o">.</span><span class="n">zero</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DirectMetric.commit_logical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_logical">[docs]</a>  <span class="k">def</span> <span class="nf">commit_logical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_committed_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">finished_committed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">update</span><span class="p">,</span>
+                                                        <span class="bp">self</span><span class="o">.</span><span class="n">finished_committed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectMetric.commit_physical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_physical">[docs]</a>  <span class="k">def</span> <span class="nf">commit_physical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempted_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">inflight_attempted</span><span class="p">[</span><span class="n">bundle</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">finished_attempted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">update</span><span class="p">,</span>
+                                                        <span class="bp">self</span><span class="o">.</span><span class="n">finished_attempted</span><span class="p">)</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">inflight_attempted</span><span class="p">[</span><span class="n">bundle</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="DirectMetric.update_physical"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric.update_physical">[docs]</a>  <span class="k">def</span> <span class="nf">update_physical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">inflight_attempted</span><span class="p">[</span><span class="n">bundle</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span></div>
+
+<div class="viewcode-block" id="DirectMetric.extract_committed"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_committed">[docs]</a>  <span class="k">def</span> <span class="nf">extract_committed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finished_committed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectMetric.extract_latest_attempted"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_latest_attempted">[docs]</a>  <span class="k">def</span> <span class="nf">extract_latest_attempted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished_attempted</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">u</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inflight_attempted</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">res</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

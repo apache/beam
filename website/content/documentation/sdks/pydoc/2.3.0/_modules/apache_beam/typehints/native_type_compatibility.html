@@ -1,0 +1,400 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.typehints.native_type_compatibility &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.typehints.native_type_compatibility</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.typehints.native_type_compatibility</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Module to convert Python&#39;s native typing types to Beam types.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+
+<span class="c1"># Describes an entry in the type map in convert_to_beam_type.</span>
+<span class="c1"># match is a function that takes a user type and returns whether the conversion</span>
+<span class="c1"># should trigger.</span>
+<span class="c1"># arity is the expected arity of the user type. -1 means it&#39;s variadic.</span>
+<span class="c1"># beam_type is the Beam type the user type should map to.</span>
+<span class="n">_TypeMapEntry</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s1">&#39;_TypeMapEntry&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;match&#39;</span><span class="p">,</span> <span class="s1">&#39;arity&#39;</span><span class="p">,</span> <span class="s1">&#39;beam_type&#39;</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">_get_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the index-th argument to the given type.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="n">typ</span><span class="o">.</span><span class="n">__args__</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_len_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the length of the arguments to the given type.&quot;&quot;&quot;</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">typ</span><span class="o">.</span><span class="n">__args__</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+    <span class="c1"># For Any type, which takes no arguments.</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+
+<span class="k">def</span> <span class="nf">_safe_issubclass</span><span class="p">(</span><span class="n">derived</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Like issubclass, but swallows TypeErrors.</span>
+
+<span class="sd">  This is useful for when either parameter might not actually be a class,</span>
+<span class="sd">  e.g. typing.Union isn&#39;t actually a class.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    derived: As in issubclass.</span>
+<span class="sd">    parent: As in issubclass.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    issubclass(derived, parent), or False if a TypeError was raised.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">return</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">derived</span><span class="p">,</span> <span class="n">parent</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">_match_issubclass</span><span class="p">(</span><span class="n">match_against</span><span class="p">):</span>
+  <span class="k">return</span> <span class="k">lambda</span> <span class="n">user_type</span><span class="p">:</span> <span class="n">_safe_issubclass</span><span class="p">(</span><span class="n">user_type</span><span class="p">,</span> <span class="n">match_against</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_match_same_type</span><span class="p">(</span><span class="n">match_against</span><span class="p">):</span>
+  <span class="c1"># For Union types. They can&#39;t be compared with isinstance either, so we</span>
+  <span class="c1"># have to compare their types directly.</span>
+  <span class="k">return</span> <span class="k">lambda</span> <span class="n">user_type</span><span class="p">:</span> <span class="nb">type</span><span class="p">(</span><span class="n">user_type</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">match_against</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_match_is_named_tuple</span><span class="p">(</span><span class="n">user_type</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">_safe_issubclass</span><span class="p">(</span><span class="n">user_type</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Tuple</span><span class="p">)</span> <span class="ow">and</span>
+          <span class="nb">hasattr</span><span class="p">(</span><span class="n">user_type</span><span class="p">,</span> <span class="s1">&#39;_field_types&#39;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="convert_to_beam_type"><a class="viewcode-back" href="../../../apache_beam.typehints.native_type_compatibility.html#apache_beam.typehints.native_type_compatibility.convert_to_beam_type">[docs]</a><span class="k">def</span> <span class="nf">convert_to_beam_type</span><span class="p">(</span><span class="n">typ</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Convert a given typing type to a Beam type.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    typ (type): typing type.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    type: The given type converted to a Beam type as far as we can do the</span>
+<span class="sd">    conversion.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ~exceptions.ValueError: The type was malformed.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">type_map</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_same_type</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">),</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_issubclass</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Dict</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Dict</span><span class="p">),</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_issubclass</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">List</span><span class="p">),</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_issubclass</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Set</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Set</span><span class="p">),</span>
+      <span class="c1"># NamedTuple is a subclass of Tuple, but it needs special handling.</span>
+      <span class="c1"># We just convert it to Any for now.</span>
+      <span class="c1"># This MUST appear before the entry for the normal Tuple.</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_is_named_tuple</span><span class="p">,</span> <span class="n">arity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">),</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_issubclass</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Tuple</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">),</span>
+      <span class="n">_TypeMapEntry</span><span class="p">(</span>
+          <span class="n">match</span><span class="o">=</span><span class="n">_match_same_type</span><span class="p">(</span><span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">),</span>
+          <span class="n">arity</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+          <span class="n">beam_type</span><span class="o">=</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">)</span>
+  <span class="p">]</span>
+
+  <span class="c1"># Find the first matching entry.</span>
+  <span class="n">matched_entry</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">type_map</span> <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">typ</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_entry</span><span class="p">:</span>
+    <span class="c1"># No match: return original type.</span>
+    <span class="k">return</span> <span class="n">typ</span>
+
+  <span class="k">if</span> <span class="n">matched_entry</span><span class="o">.</span><span class="n">arity</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+    <span class="n">arity</span> <span class="o">=</span> <span class="n">_len_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">arity</span> <span class="o">=</span> <span class="n">matched_entry</span><span class="o">.</span><span class="n">arity</span>
+    <span class="k">if</span> <span class="n">_len_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">)</span> <span class="o">!=</span> <span class="n">arity</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;expecting type </span><span class="si">%s</span><span class="s1"> to have arity </span><span class="si">%d</span><span class="s1">, had arity </span><span class="si">%d</span><span class="s1"> &#39;</span>
+                       <span class="s1">&#39;instead&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">typ</span><span class="p">),</span> <span class="n">arity</span><span class="p">,</span> <span class="n">_len_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">)))</span>
+  <span class="n">typs</span> <span class="o">=</span> <span class="p">[</span><span class="n">convert_to_beam_type</span><span class="p">(</span><span class="n">_get_arg</span><span class="p">(</span><span class="n">typ</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">arity</span><span class="p">)]</span>
+  <span class="k">if</span> <span class="n">arity</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="c1"># Nullary types (e.g. Any) don&#39;t accept empty tuples as arguments.</span>
+    <span class="k">return</span> <span class="n">matched_entry</span><span class="o">.</span><span class="n">beam_type</span>
+  <span class="k">elif</span> <span class="n">arity</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="c1"># Unary types (e.g. Set) don&#39;t accept 1-tuples as arguments</span>
+    <span class="k">return</span> <span class="n">matched_entry</span><span class="o">.</span><span class="n">beam_type</span><span class="p">[</span><span class="n">typs</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">matched_entry</span><span class="o">.</span><span class="n">beam_type</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">typs</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="convert_to_beam_types"><a class="viewcode-back" href="../../../apache_beam.typehints.native_type_compatibility.html#apache_beam.typehints.native_type_compatibility.convert_to_beam_types">[docs]</a><span class="k">def</span> <span class="nf">convert_to_beam_types</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Convert the given list or dictionary of args to Beam types.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    args: Either an iterable of types, or a dictionary where the values are</span>
+<span class="sd">    types.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    If given an iterable, a list of converted types. If given a dictionary,</span>
+<span class="sd">    a dictionary with the same keys, and values which have been converted.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">convert_to_beam_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()}</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">convert_to_beam_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

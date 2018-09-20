@@ -1,0 +1,21 @@
+apache\_beam\.portability\.api package
+======================================
+
+.. automodule:: apache_beam.portability.api
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.portability.api.beam_artifact_api_pb2_grpc
+   apache_beam.portability.api.beam_fn_api_pb2_grpc
+   apache_beam.portability.api.beam_job_api_pb2_grpc
+   apache_beam.portability.api.beam_provision_api_pb2_grpc
+   apache_beam.portability.api.beam_runner_api_pb2_grpc
+   apache_beam.portability.api.endpoints_pb2_grpc
+   apache_beam.portability.api.standard_window_fns_pb2_grpc
+

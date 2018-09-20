@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.counters &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.counters</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="c1"># cython: profile=False</span>
+<span class="c1"># cython: overflowcheck=True</span>
+
+<span class="sd">&quot;&quot;&quot;Counters collect the progress of the Worker for reporting to the service.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">cy_combiners</span>
+
+
+<div class="viewcode-block" id="Counter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.Counter">[docs]</a><span class="k">class</span> <span class="nc">Counter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A counter aggregates a series of values.</span>
+
+<span class="sd">  The aggregation kind of the Counter is specified when the Counter</span>
+<span class="sd">  is created.  The values aggregated must be of an appropriate for the</span>
+<span class="sd">  aggregation used.  Aggregations supported are listed in the code.</span>
+
+<span class="sd">  (The aggregated value will be reported to the Dataflow service.)</span>
+
+<span class="sd">  Do not create directly; call CounterFactory.get_counter instead.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    name: the name of the counter, a string</span>
+<span class="sd">    combine_fn: the CombineFn to use for aggregation</span>
+<span class="sd">    accumulator: the accumulator created for the combine_fn</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Handy references to common counters.</span>
+  <span class="n">SUM</span> <span class="o">=</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">SumInt64Fn</span><span class="p">()</span>
+  <span class="n">MEAN</span> <span class="o">=</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanInt64Fn</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a Counter object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name: the name of this counter.  Typically has three parts:</span>
+<span class="sd">        &quot;step-output-counter&quot;.</span>
+<span class="sd">      combine_fn: the CombineFn to use for aggregation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span> <span class="o">=</span> <span class="n">combine_fn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">accumulator</span> <span class="o">=</span> <span class="n">combine_fn</span><span class="o">.</span><span class="n">create_accumulator</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_add_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">add_input</span>
+
+<div class="viewcode-block" id="Counter.update"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.Counter.update">[docs]</a>  <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">accumulator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_input</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Counter.value"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.Counter.value">[docs]</a>  <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accumulator</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">(),</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">_str_internal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="AccumulatorCombineFnCounter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.AccumulatorCombineFnCounter">[docs]</a><span class="k">class</span> <span class="nc">AccumulatorCombineFnCounter</span><span class="p">(</span><span class="n">Counter</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Counter optimized for a mutating accumulator that holds all the logic.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">combine_fn</span><span class="p">,</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AccumulatorCombineFn</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">AccumulatorCombineFnCounter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fast_add_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">accumulator</span><span class="o">.</span><span class="n">add_input</span>
+
+<div class="viewcode-block" id="AccumulatorCombineFnCounter.update"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.AccumulatorCombineFnCounter.update">[docs]</a>  <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fast_add_input</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># Counters that represent Accumulators have names starting with this</span>
+<span class="n">USER_COUNTER_PREFIX</span> <span class="o">=</span> <span class="s1">&#39;user-&#39;</span>
+
+
+<div class="viewcode-block" id="CounterFactory"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.CounterFactory">[docs]</a><span class="k">class</span> <span class="nc">CounterFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Keeps track of unique counters.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">counters</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Lock to be acquired when accessing the counters map.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CounterFactory.get_counter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.CounterFactory.get_counter">[docs]</a>  <span class="k">def</span> <span class="nf">get_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a counter with the requested name.</span>
+
+<span class="sd">    Passing in the same name will return the same counter; the</span>
+<span class="sd">    combine_fn must agree.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name: the name of this counter.  Typically has three parts:</span>
+<span class="sd">        &quot;step-output-counter&quot;.</span>
+<span class="sd">      combine_fn: the CombineFn to use for aggregation</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      A new or existing counter with the requested name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">counter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">counter</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">counter</span><span class="o">.</span><span class="n">combine_fn</span> <span class="o">==</span> <span class="n">combine_fn</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">combine_fn</span><span class="p">,</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+          <span class="n">counter</span> <span class="o">=</span> <span class="n">AccumulatorCombineFnCounter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">counter</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">combine_fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">counter</span>
+      <span class="k">return</span> <span class="n">counter</span></div>
+
+<div class="viewcode-block" id="CounterFactory.get_aggregator_counter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.CounterFactory.get_aggregator_counter">[docs]</a>  <span class="k">def</span> <span class="nf">get_aggregator_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an AggregationCounter for this step&#39;s aggregator.</span>
+
+<span class="sd">    Passing in the same values will return the same counter.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      step_name: the name of this step.</span>
+<span class="sd">      aggregator: an Aggregator object.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      A new or existing counter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_counter</span><span class="p">(</span>
+        <span class="s1">&#39;</span><span class="si">%s%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">USER_COUNTER_PREFIX</span><span class="p">,</span> <span class="n">step_name</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+        <span class="n">aggregator</span><span class="o">.</span><span class="n">combine_fn</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CounterFactory.get_counters"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.CounterFactory.get_counters">[docs]</a>  <span class="k">def</span> <span class="nf">get_counters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the current set of counters.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      An iterable that contains the current set of counters. To make sure that</span>
+<span class="sd">      multiple threads can iterate over the set of counters, we return a new</span>
+<span class="sd">      iterable here. Note that the actual set of counters may get modified after</span>
+<span class="sd">      this method returns hence the returned iterable may be stale.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">values</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CounterFactory.get_aggregator_values"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.CounterFactory.get_aggregator_values">[docs]</a>  <span class="k">def</span> <span class="nf">get_aggregator_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregator_or_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns dict of step names to values of the aggregator.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">get_aggregator_values</span><span class="p">(</span>
+          <span class="n">aggregator_or_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">counter</span><span class="p">:</span> <span class="n">counter</span><span class="o">.</span><span class="n">value</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="get_aggregator_values"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.counters.get_aggregator_values">[docs]</a><span class="k">def</span> <span class="nf">get_aggregator_values</span><span class="p">(</span><span class="n">aggregator_or_name</span><span class="p">,</span> <span class="n">counter_dict</span><span class="p">,</span>
+                          <span class="n">value_extractor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Extracts the named aggregator value from a set of counters.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    aggregator_or_name: an Aggregator object or the name of one.</span>
+<span class="sd">    counter_dict: a dict object of {name: value_wrapper}</span>
+<span class="sd">    value_extractor: a function to convert the value_wrapper into a value.</span>
+<span class="sd">      If None, no extraction is done and the value is return unchanged.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    dict of step names to values of the aggregator.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">name</span> <span class="o">=</span> <span class="n">aggregator_or_name</span>
+  <span class="k">if</span> <span class="n">value_extractor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">value_extractor</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">aggregator_or_name</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">aggregator_or_name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">n</span><span class="p">:</span> <span class="n">value_extractor</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">counter_dict</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">USER_COUNTER_PREFIX</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">n</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)}</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

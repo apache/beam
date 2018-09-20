@@ -1,0 +1,25 @@
+apache\_beam\.runners\.dataflow package
+=======================================
+
+.. automodule:: apache_beam.runners.dataflow
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.runners.dataflow.native_io
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.runners.dataflow.dataflow_metrics
+   apache_beam.runners.dataflow.dataflow_runner
+   apache_beam.runners.dataflow.ptransform_overrides
+   apache_beam.runners.dataflow.test_dataflow_runner
+

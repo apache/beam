@@ -1,0 +1,351 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.testing.test_pipeline module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.testing package" href="apache_beam.testing.html"/>
+        <link rel="next" title="apache_beam.testing.test_stream module" href="apache_beam.testing.test_stream.html"/>
+        <link rel="prev" title="apache_beam.testing.pipeline_verifiers module" href="apache_beam.testing.pipeline_verifiers.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.testing.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.testing.pipeline_verifiers.html">apache_beam.testing.pipeline_verifiers module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.testing.test_pipeline module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.testing.test_stream.html">apache_beam.testing.test_stream module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.testing.test_utils.html">apache_beam.testing.test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.testing.util.html">apache_beam.testing.util module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.testing.html">apache_beam.testing package</a> &raquo;</li>
+        
+      <li>apache_beam.testing.test_pipeline module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.testing.test_pipeline.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.testing.test_pipeline">
+<span id="apache-beam-testing-test-pipeline-module"></span><h1>apache_beam.testing.test_pipeline module<a class="headerlink" href="#module-apache_beam.testing.test_pipeline" title="Permalink to this headline">¶</a></h1>
+<p>Test Pipeline, a wrapper of Pipeline for test purpose</p>
+<dl class="class">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_pipeline.</code><code class="descname">TestPipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em>, <em>is_integration_test=False</em>, <em>blocking=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.pipeline.html#apache_beam.pipeline.Pipeline" title="apache_beam.pipeline.Pipeline"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.Pipeline</span></code></a></p>
+<p><a class="reference internal" href="#apache_beam.testing.test_pipeline.TestPipeline" title="apache_beam.testing.test_pipeline.TestPipeline"><code class="xref py py-class docutils literal"><span class="pre">TestPipeline</span></code></a> class is used inside of Beam tests that can be
+configured to run against pipeline runner.</p>
+<p>It has a functionality to parse arguments from command line and build pipeline
+options for tests who runs against a pipeline runner and utilizes resources
+of the pipeline runner. Those test functions are recommended to be tagged by
+<code class="docutils literal"><span class="pre">&#64;attr(&quot;ValidatesRunner&quot;)</span></code> annotation.</p>
+<p>In order to configure the test with customized pipeline options from command
+line, system argument <code class="docutils literal"><span class="pre">--test-pipeline-options</span></code> can be used to obtains a
+list of pipeline options. If no options specified, default value will be used.</p>
+<p>For example, use following command line to execute all ValidatesRunner tests:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">nosetests</span> <span class="o">-</span><span class="n">a</span> <span class="n">ValidatesRunner</span> \
+    <span class="o">--</span><span class="n">test</span><span class="o">-</span><span class="n">pipeline</span><span class="o">-</span><span class="n">options</span><span class="o">=</span><span class="s2">&quot;--runner=DirectRunner </span><span class="se">\</span>
+<span class="s2">                             --job_name=myJobName </span><span class="se">\</span>
+<span class="s2">                             --num_workers=1&quot;</span>
+</pre></div>
+</div>
+<p>For example, use assert_that for test validation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+<span class="n">pcoll</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Initialize a pipeline object for test.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>runner</strong> (<a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><em>PipelineRunner</em></a>) – An object of type
+<a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><code class="xref py py-class docutils literal"><span class="pre">PipelineRunner</span></code></a> that will be used
+to execute the pipeline. For registered runners, the runner name can be
+specified, otherwise a runner object must be supplied.</li>
+<li><strong>options</strong> (<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><em>PipelineOptions</em></a>) – A configured
+<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">PipelineOptions</span></code></a>
+object containing arguments that should be used for running the
+pipeline job.</li>
+<li><strong>argv</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>]</em>) – A list of arguments (such as <a class="reference external" href="https://docs.python.org/2/library/sys.html#sys.argv" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">sys.argv</span></code></a>) to be
+used for building a
+<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">PipelineOptions</span></code></a> object.
+This will only be used if argument <strong>options</strong> is <a class="reference external" href="https://docs.python.org/2/library/constants.html#None" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">None</span></code></a>.</li>
+<li><strong>is_integration_test</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – <a class="reference external" href="https://docs.python.org/2/library/constants.html#True" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">True</span></code></a> if the test is an integration
+test, <a class="reference external" href="https://docs.python.org/2/library/constants.html#False" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">False</span></code></a> otherwise.</li>
+<li><strong>blocking</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – Run method will wait until pipeline execution is
+completed.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if either the runner or options argument is not
+of the expected type.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.get_full_options_as_args">
+<code class="descname">get_full_options_as_args</code><span class="sig-paren">(</span><em>**extra_opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.get_full_options_as_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.get_full_options_as_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get full pipeline options as an argument list.</p>
+<p>Append extra pipeline options to existing option list if provided.
+Test verifier (if contains in extra options) should be pickled before
+appending, and will be unpickled later in the TestRunner.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.get_option">
+<code class="descname">get_option</code><span class="sig-paren">(</span><em>opt_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.get_option"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.get_option" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a pipeline option value by name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>opt_name</strong> – The name of the pipeline option.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None if option is not found in existing option list which is generated
+by parsing value of argument <cite>test-pipeline-options</cite>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.testing.test_stream.html" class="btn btn-neutral float-right" title="apache_beam.testing.test_stream module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.testing.pipeline_verifiers.html" class="btn btn-neutral" title="apache_beam.testing.pipeline_verifiers module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

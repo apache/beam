@@ -1,0 +1,7 @@
+apache\_beam\.coders\.coders module
+===================================
+
+.. automodule:: apache_beam.coders.coders
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,15 @@
+apache\_beam\.portability package
+=================================
+
+.. automodule:: apache_beam.portability
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.portability.api
+

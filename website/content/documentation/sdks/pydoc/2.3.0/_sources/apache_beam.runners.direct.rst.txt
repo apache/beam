@@ -1,0 +1,26 @@
+apache\_beam\.runners\.direct package
+=====================================
+
+.. automodule:: apache_beam.runners.direct
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.runners.direct.bundle_factory
+   apache_beam.runners.direct.clock
+   apache_beam.runners.direct.consumer_tracking_pipeline_visitor
+   apache_beam.runners.direct.direct_metrics
+   apache_beam.runners.direct.direct_runner
+   apache_beam.runners.direct.evaluation_context
+   apache_beam.runners.direct.executor
+   apache_beam.runners.direct.helper_transforms
+   apache_beam.runners.direct.sdf_direct_runner
+   apache_beam.runners.direct.transform_evaluator
+   apache_beam.runners.direct.util
+   apache_beam.runners.direct.watermark_manager
+

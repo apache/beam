@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.tools.coders_microbenchmark &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.tools.coders_microbenchmark</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.tools.coders_microbenchmark</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;A microbenchmark for measuring performance of coders.</span>
+
+<span class="sd">This runs a sequence of encode-decode operations on random inputs</span>
+<span class="sd">to collect performance of various coders.</span>
+
+<span class="sd">To evaluate coders performance we approximate the behavior</span>
+<span class="sd">how the coders are used in PCollections: we encode and decode</span>
+<span class="sd">a list of elements. An element can be a string, a list of integers,</span>
+<span class="sd">a windowed value, or any other object we want a coder to process.</span>
+
+<span class="sd">Run as:</span>
+<span class="sd">  python -m apache_beam.tools.coders_microbenchmark</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">past.builtins</span> <span class="k">import</span> <span class="n">unicode</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.tools</span> <span class="k">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">windowed_value</span>
+
+
+<div class="viewcode-block" id="coder_benchmark_factory"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.coder_benchmark_factory">[docs]</a><span class="k">def</span> <span class="nf">coder_benchmark_factory</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">generate_fn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creates a benchmark that encodes and decodes a list of elements.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    coder: coder to use to encode an element.</span>
+<span class="sd">    generate_fn: a callable that generates an element.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">CoderBenchmark</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_elements_per_benchmark</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">generate_fn</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_elements_per_benchmark</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="c1"># Calling coder operations on a single element at a time may incur</span>
+      <span class="c1"># unrelevant overhead. To compensate, we use a list elements.</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_list</span><span class="p">))</span>
+
+  <span class="n">CoderBenchmark</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+      <span class="n">generate_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">coder</span><span class="p">))</span>
+
+  <span class="k">return</span> <span class="n">CoderBenchmark</span></div>
+
+
+<div class="viewcode-block" id="small_int"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.small_int">[docs]</a><span class="k">def</span> <span class="nf">small_int</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">127</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="large_int"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.large_int">[docs]</a><span class="k">def</span> <span class="nf">large_int</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span> <span class="o">&gt;&gt;</span> <span class="mi">2</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="random_string"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.random_string">[docs]</a><span class="k">def</span> <span class="nf">random_string</span><span class="p">(</span><span class="n">length</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">unicode</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+      <span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="small_string"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.small_string">[docs]</a><span class="k">def</span> <span class="nf">small_string</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random_string</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="large_string"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.large_string">[docs]</a><span class="k">def</span> <span class="nf">large_string</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random_string</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="list_int"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.list_int">[docs]</a><span class="k">def</span> <span class="nf">list_int</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">[</span><span class="n">small_int</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="dict_int_int"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.dict_int_int">[docs]</a><span class="k">def</span> <span class="nf">dict_int_int</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">list_int</span><span class="p">(</span><span class="n">size</span><span class="p">)}</span></div>
+
+
+<div class="viewcode-block" id="small_list"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.small_list">[docs]</a><span class="k">def</span> <span class="nf">small_list</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">list_int</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="large_list"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.large_list">[docs]</a><span class="k">def</span> <span class="nf">large_list</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">list_int</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="small_tuple"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.small_tuple">[docs]</a><span class="k">def</span> <span class="nf">small_tuple</span><span class="p">():</span>
+  <span class="c1"># Benchmark a common case of 2-element tuples.</span>
+  <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">list_int</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="large_tuple"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.large_tuple">[docs]</a><span class="k">def</span> <span class="nf">large_tuple</span><span class="p">():</span>
+  <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">large_list</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="small_dict"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.small_dict">[docs]</a><span class="k">def</span> <span class="nf">small_dict</span><span class="p">():</span>
+  <span class="k">return</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">small_list</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="large_dict"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.large_dict">[docs]</a><span class="k">def</span> <span class="nf">large_dict</span><span class="p">():</span>
+  <span class="k">return</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">large_list</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="random_windowed_value"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.random_windowed_value">[docs]</a><span class="k">def</span> <span class="nf">random_windowed_value</span><span class="p">(</span><span class="n">num_windows</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span>
+      <span class="n">value</span><span class="o">=</span><span class="n">small_int</span><span class="p">(),</span>
+      <span class="n">timestamp</span><span class="o">=</span><span class="mi">12345678</span><span class="p">,</span>
+      <span class="n">windows</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span>
+          <span class="n">window</span><span class="o">.</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="mi">10</span><span class="p">,</span> <span class="n">i</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="n">small_int</span><span class="p">())</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_windows</span><span class="p">)</span>
+      <span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="wv_with_one_window"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.wv_with_one_window">[docs]</a><span class="k">def</span> <span class="nf">wv_with_one_window</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random_windowed_value</span><span class="p">(</span><span class="n">num_windows</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="wv_with_multiple_windows"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.wv_with_multiple_windows">[docs]</a><span class="k">def</span> <span class="nf">wv_with_multiple_windows</span><span class="p">():</span>
+  <span class="k">return</span> <span class="n">random_windowed_value</span><span class="p">(</span><span class="n">num_windows</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_coder_benchmarks"><a class="viewcode-back" href="../../../apache_beam.tools.coders_microbenchmark.html#apache_beam.tools.coders_microbenchmark.run_coder_benchmarks">[docs]</a><span class="k">def</span> <span class="nf">run_coder_benchmarks</span><span class="p">(</span><span class="n">num_runs</span><span class="p">,</span> <span class="n">input_size</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+  <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+  <span class="c1"># TODO(BEAM-4441): Pick coders using type hints, for example:</span>
+  <span class="c1"># tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int, ...])</span>
+  <span class="n">benchmarks</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span> <span class="n">small_int</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span> <span class="n">large_int</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span> <span class="n">small_string</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span> <span class="n">large_string</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">small_list</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()),</span>
+          <span class="n">small_list</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">large_list</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()),</span>
+          <span class="n">large_list</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">small_tuple</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">large_tuple</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">small_dict</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(),</span>
+          <span class="n">large_dict</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()),</span>
+          <span class="n">wv_with_one_window</span><span class="p">),</span>
+      <span class="n">coder_benchmark_factory</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()),</span>
+          <span class="n">wv_with_multiple_windows</span><span class="p">),</span>
+  <span class="p">]</span>
+
+  <span class="n">suite</span> <span class="o">=</span> <span class="p">[</span><span class="n">utils</span><span class="o">.</span><span class="n">BenchmarkConfig</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">input_size</span><span class="p">,</span> <span class="n">num_runs</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">benchmarks</span><span class="p">]</span>
+  <span class="n">utils</span><span class="o">.</span><span class="n">run_benchmarks</span><span class="p">(</span><span class="n">suite</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+  <span class="n">utils</span><span class="o">.</span><span class="n">check_compiled</span><span class="p">(</span><span class="s2">&quot;apache_beam.coders.coder_impl&quot;</span><span class="p">)</span>
+
+  <span class="n">num_runs</span> <span class="o">=</span> <span class="mi">20</span>
+  <span class="n">num_elements_per_benchmark</span> <span class="o">=</span> <span class="mi">1000</span>
+  <span class="n">seed</span> <span class="o">=</span> <span class="mi">42</span>  <span class="c1"># Fix the seed for better consistency</span>
+
+  <span class="n">run_coder_benchmarks</span><span class="p">(</span><span class="n">num_runs</span><span class="p">,</span> <span class="n">num_elements_per_benchmark</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span>
+                       <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

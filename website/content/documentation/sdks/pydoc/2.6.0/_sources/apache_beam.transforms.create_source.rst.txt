@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.create\_source module
+===============================================
+
+.. automodule:: apache_beam.transforms.create_source
+    :members:
+    :undoc-members:
+    :show-inheritance:

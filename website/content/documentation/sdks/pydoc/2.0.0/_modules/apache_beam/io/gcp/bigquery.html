@@ -1,0 +1,1226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.bigquery &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.bigquery</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;BigQuery sources and sinks.</span>
+
+<span class="sd">This module implements reading from and writing to BigQuery tables. It relies</span>
+<span class="sd">on several classes exposed by the BigQuery API: TableSchema, TableFieldSchema,</span>
+<span class="sd">TableRow, and TableCell. The default mode is to return table rows read from a</span>
+<span class="sd">BigQuery source as dictionaries. Similarly a Write transform to a BigQuerySink</span>
+<span class="sd">accepts PCollections of dictionaries. This is done for more convenient</span>
+<span class="sd">programming.  If desired, the native TableRow objects can be used throughout to</span>
+<span class="sd">represent rows (use an instance of TableRowJsonCoder as a coder argument when</span>
+<span class="sd">creating the sources or sinks respectively).</span>
+
+<span class="sd">Also, for programming convenience, instances of TableReference and TableSchema</span>
+<span class="sd">have a string representation that can be used for the corresponding arguments:</span>
+
+<span class="sd">  - TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.</span>
+<span class="sd">  - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string</span>
+<span class="sd">    (e.g. &#39;month:STRING,event_count:INTEGER&#39;).</span>
+
+<span class="sd">The syntax supported is described here:</span>
+<span class="sd">https://cloud.google.com/bigquery/bq-command-line-tool-quickstart</span>
+
+<span class="sd">BigQuery sources can be used as main inputs or side inputs. A main input</span>
+<span class="sd">(common case) is expected to be massive and will be split into manageable chunks</span>
+<span class="sd">and processed in parallel. Side inputs are expected to be small and will be read</span>
+<span class="sd">completely every time a ParDo DoFn gets executed. In the example below the</span>
+<span class="sd">lambda function implementing the DoFn for the Map transform will get on each</span>
+<span class="sd">call *one* row of the main table and *all* rows of the side table. The runner</span>
+<span class="sd">may use some caching techniques to share the side inputs between calls in order</span>
+<span class="sd">to avoid excessive reading:::</span>
+
+<span class="sd">  main_table = pipeline | &#39;VeryBig&#39; &gt;&gt; beam.io.Read(beam.io.BigQuerySource()</span>
+<span class="sd">  side_table = pipeline | &#39;NotBig&#39; &gt;&gt; beam.io.Read(beam.io.BigQuerySource()</span>
+<span class="sd">  results = (</span>
+<span class="sd">      main_table</span>
+<span class="sd">      | &#39;ProcessData&#39; &gt;&gt; beam.Map(</span>
+<span class="sd">          lambda element, side_input: ..., AsList(side_table)))</span>
+
+<span class="sd">There is no difference in how main and side inputs are read. What makes the</span>
+<span class="sd">side_table a &#39;side input&#39; is the AsList wrapper used when passing the table</span>
+<span class="sd">as a parameter to the Map transform. AsList signals to the execution framework</span>
+<span class="sd">that its input should be made available whole.</span>
+
+<span class="sd">The main and side inputs are implemented differently. Reading a BigQuery table</span>
+<span class="sd">as main input entails exporting the table to a set of GCS files (currently in</span>
+<span class="sd">JSON format) and then processing those files. Reading the same table as a side</span>
+<span class="sd">input entails querying the table for all its rows. The coder argument on</span>
+<span class="sd">BigQuerySource controls the reading of the lines in the export files (i.e.,</span>
+<span class="sd">transform a JSON object into a PCollection element). The coder is not involved</span>
+<span class="sd">when the same table is read as a side input since there is no intermediate</span>
+<span class="sd">format involved. We get the table rows directly from the BigQuery service with</span>
+<span class="sd">a query.</span>
+
+<span class="sd">Users may provide a query to read from rather than reading all of a BigQuery</span>
+<span class="sd">table. If specified, the result obtained by executing the specified query will</span>
+<span class="sd">be used as the data of the input transform.::</span>
+
+<span class="sd">  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(</span>
+<span class="sd">      query=&#39;SELECT year, mean_temp FROM samples.weather_stations&#39;))</span>
+
+<span class="sd">When creating a BigQuery input transform, users should provide either a query</span>
+<span class="sd">or a table. Pipeline construction will fail with a validation error if neither</span>
+<span class="sd">or both are specified.</span>
+
+<span class="sd">*** Short introduction to BigQuery concepts ***</span>
+<span class="sd">Tables have rows (TableRow) and each row has cells (TableCell).</span>
+<span class="sd">A table has a schema (TableSchema), which in turn describes the schema of each</span>
+<span class="sd">cell (TableFieldSchema). The terms field and cell are used interchangeably.</span>
+
+<span class="sd">TableSchema: Describes the schema (types and order) for values in each row.</span>
+<span class="sd">  Has one attribute, &#39;field&#39;, which is list of TableFieldSchema objects.</span>
+
+<span class="sd">TableFieldSchema: Describes the schema (type, name) for one field.</span>
+<span class="sd">  Has several attributes, including &#39;name&#39; and &#39;type&#39;. Common values for</span>
+<span class="sd">  the type attribute are: &#39;STRING&#39;, &#39;INTEGER&#39;, &#39;FLOAT&#39;, &#39;BOOLEAN&#39;. All possible</span>
+<span class="sd">  values are described at:</span>
+<span class="sd">  https://cloud.google.com/bigquery/preparing-data-for-bigquery#datatypes</span>
+
+<span class="sd">TableRow: Holds all values in a table row. Has one attribute, &#39;f&#39;, which is a</span>
+<span class="sd">  list of TableCell instances.</span>
+
+<span class="sd">TableCell: Holds the value for one cell (or field).  Has one attribute,</span>
+<span class="sd">  &#39;v&#39;, which is a JsonValue instance. This class is defined in</span>
+<span class="sd">  apitools.base.py.extra_types.py module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp</span> <span class="k">import</span> <span class="n">auth</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp.json_value</span> <span class="k">import</span> <span class="n">from_json_value</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp.json_value</span> <span class="k">import</span> <span class="n">to_json_value</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.native_io</span> <span class="k">import</span> <span class="n">iobase</span> <span class="k">as</span> <span class="n">dataflow_io</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">retry</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="k">import</span> <span class="n">bigquery</span>
+
+<span class="c1"># Protect against environments where bigquery library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.exceptions</span> <span class="k">import</span> <span class="n">HttpError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="k">pass</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;TableRowJsonCoder&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BigQueryDisposition&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BigQuerySource&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;BigQuerySink&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+<span class="n">JSON_COMPLIANCE_ERROR</span> <span class="o">=</span> <span class="s1">&#39;NAN, INF and -INF values are not JSON compliant.&#39;</span>
+<span class="n">MAX_RETRIES</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<span class="k">class</span> <span class="nc">RowAsDictJsonCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A coder for a table row (represented as a dict) to/from a JSON string.</span>
+
+<span class="sd">  This is the default coder for sources and sinks if the coder argument is not</span>
+<span class="sd">  specified.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_row</span><span class="p">):</span>
+    <span class="c1"># The normal error when dumping NAN/INF values is:</span>
+    <span class="c1"># ValueError: Out of range float values are not JSON compliant</span>
+    <span class="c1"># This code will catch this error to emit an error that explains</span>
+    <span class="c1"># to the programmer that they have used NAN/INF values.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">table_row</span><span class="p">,</span> <span class="n">allow_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">. </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">JSON_COMPLIANCE_ERROR</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded_table_row</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">encoded_table_row</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TableRowJsonCoder"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.TableRowJsonCoder">[docs]</a><span class="k">class</span> <span class="nc">TableRowJsonCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A coder for a TableRow instance to/from a JSON string.</span>
+
+<span class="sd">  Note that the encoding operation (used when writing to sinks) requires the</span>
+<span class="sd">  table schema in order to obtain the ordered list of field names. Reading from</span>
+<span class="sd">  sources on the other hand does not need the table schema.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_schema</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># The table schema is needed for encoding TableRows as JSON (writing to</span>
+    <span class="c1"># sinks) because the ordered list of field names is used in the JSON</span>
+    <span class="c1"># representation.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span> <span class="o">=</span> <span class="n">table_schema</span>
+    <span class="c1"># Precompute field names since we need them for row encoding.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">field_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">fs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TableRowJsonCoder.encode"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.TableRowJsonCoder.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_row</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+          <span class="s1">&#39;The TableRowJsonCoder requires a table schema for &#39;</span>
+          <span class="s1">&#39;encoding operations. Please specify a table_schema argument.&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+          <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span>
+              <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_names</span><span class="p">,</span>
+                  <span class="p">[</span><span class="n">from_json_value</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">table_row</span><span class="o">.</span><span class="n">f</span><span class="p">])),</span>
+          <span class="n">allow_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">. </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">JSON_COMPLIANCE_ERROR</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TableRowJsonCoder.decode"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.TableRowJsonCoder.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded_table_row</span><span class="p">):</span>
+    <span class="n">od</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+        <span class="n">encoded_table_row</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableRow</span><span class="p">(</span>
+        <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="n">bigquery</span><span class="o">.</span><span class="n">TableCell</span><span class="p">(</span><span class="n">v</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">e</span><span class="p">))</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">od</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()])</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">parse_table_schema_from_json</span><span class="p">(</span><span class="n">schema_string</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Parse the Table Schema provided as string.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    schema_string: String serialized table schema, should be a valid JSON.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A TableSchema of the BigQuery export from either the Query or the Table.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">json_schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">schema_string</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_parse_schema_field</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parse a single schema field from dictionary.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      field: Dictionary object containing serialized schema.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A TableFieldSchema for a single column in BigQuery.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+    <span class="n">schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">field</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+    <span class="n">schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">field</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;mode&#39;</span> <span class="ow">in</span> <span class="n">field</span><span class="p">:</span>
+      <span class="n">schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">field</span><span class="p">[</span><span class="s1">&#39;mode&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;NULLABLE&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;description&#39;</span> <span class="ow">in</span> <span class="n">field</span><span class="p">:</span>
+      <span class="n">schema</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">field</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;fields&#39;</span> <span class="ow">in</span> <span class="n">field</span><span class="p">:</span>
+      <span class="n">schema</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">_parse_schema_field</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">field</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">schema</span>
+
+  <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">_parse_schema_field</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">json_schema</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]]</span>
+  <span class="k">return</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="BigQueryDisposition"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQueryDisposition">[docs]</a><span class="k">class</span> <span class="nc">BigQueryDisposition</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Class holding standard strings used for create and write dispositions.&quot;&quot;&quot;</span>
+
+  <span class="n">CREATE_NEVER</span> <span class="o">=</span> <span class="s1">&#39;CREATE_NEVER&#39;</span>
+  <span class="n">CREATE_IF_NEEDED</span> <span class="o">=</span> <span class="s1">&#39;CREATE_IF_NEEDED&#39;</span>
+  <span class="n">WRITE_TRUNCATE</span> <span class="o">=</span> <span class="s1">&#39;WRITE_TRUNCATE&#39;</span>
+  <span class="n">WRITE_APPEND</span> <span class="o">=</span> <span class="s1">&#39;WRITE_APPEND&#39;</span>
+  <span class="n">WRITE_EMPTY</span> <span class="o">=</span> <span class="s1">&#39;WRITE_EMPTY&#39;</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="BigQueryDisposition.validate_create"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_create">[docs]</a>  <span class="k">def</span> <span class="nf">validate_create</span><span class="p">(</span><span class="n">disposition</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_NEVER</span><span class="p">,</span>
+              <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">disposition</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Invalid create disposition </span><span class="si">%s</span><span class="s1">. Expecting </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">disposition</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">disposition</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="BigQueryDisposition.validate_write"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQueryDisposition.validate_write">[docs]</a>  <span class="k">def</span> <span class="nf">validate_write</span><span class="p">(</span><span class="n">disposition</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">,</span>
+              <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_APPEND</span><span class="p">,</span>
+              <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_EMPTY</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">disposition</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Invalid write disposition </span><span class="si">%s</span><span class="s1">. Expecting </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">disposition</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">disposition</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_parse_table_reference</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Parses a table reference into a (project, dataset, table) tuple.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    table: The ID of the table. The ID must contain only letters</span>
+<span class="sd">      (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is None</span>
+<span class="sd">      then the table argument must contain the entire table reference:</span>
+<span class="sd">      &#39;DATASET.TABLE&#39; or &#39;PROJECT:DATASET.TABLE&#39;. This argument can be a</span>
+<span class="sd">      bigquery.TableReference instance in which case dataset and project are</span>
+<span class="sd">      ignored and the reference is returned as a result.  Additionally, for date</span>
+<span class="sd">      partitioned tables, appending &#39;$YYYYmmdd&#39; to the table name is supported,</span>
+<span class="sd">      e.g. &#39;DATASET.TABLE$YYYYmmdd&#39;.</span>
+<span class="sd">    dataset: The ID of the dataset containing this table or null if the table</span>
+<span class="sd">      reference is specified entirely by the table argument.</span>
+<span class="sd">    project: The ID of the project containing this table or null if the table</span>
+<span class="sd">      reference is specified entirely by the table (and possibly dataset)</span>
+<span class="sd">      argument.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A bigquery.TableReference object. The object has the following attributes:</span>
+<span class="sd">    projectId, datasetId, and tableId.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: if the table reference as a string does not match the expected</span>
+<span class="sd">      format.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableReference</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">table</span>
+
+  <span class="n">table_reference</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableReference</span><span class="p">()</span>
+  <span class="c1"># If dataset argument is not specified, the expectation is that the</span>
+  <span class="c1"># table argument will contain a full table reference instead of just a</span>
+  <span class="c1"># table name.</span>
+  <span class="k">if</span> <span class="n">dataset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+        <span class="sa">r</span><span class="s1">&#39;^((?P&lt;project&gt;.+):)?(?P&lt;dataset&gt;\w+)\.(?P&lt;table&gt;[\w\$]+)$&#39;</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Expected a table reference (PROJECT:DATASET.TABLE or &#39;</span>
+          <span class="s1">&#39;DATASET.TABLE) instead of </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">table</span><span class="p">)</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;project&#39;</span><span class="p">)</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;dataset&#39;</span><span class="p">)</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;table&#39;</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="o">=</span> <span class="n">project</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span> <span class="o">=</span> <span class="n">dataset</span>
+    <span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span> <span class="o">=</span> <span class="n">table</span>
+  <span class="k">return</span> <span class="n">table_reference</span>
+
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># BigQuerySource, BigQuerySink.</span>
+
+
+<div class="viewcode-block" id="BigQuerySource"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySource">[docs]</a><span class="k">class</span> <span class="nc">BigQuerySource</span><span class="p">(</span><span class="n">dataflow_io</span><span class="o">.</span><span class="n">NativeSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A source based on a BigQuery table.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_standard_sql</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+               <span class="n">flatten_results</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a BigQuerySource.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      table: The ID of a BigQuery table. If specified all data of the table</span>
+<span class="sd">        will be used as input of the current source. The ID must contain only</span>
+<span class="sd">        letters (a-z, A-Z), numbers (0-9), or underscores (_). If dataset</span>
+<span class="sd">        and query arguments are None then the table argument must contain the</span>
+<span class="sd">        entire table reference specified as: &#39;DATASET.TABLE&#39; or</span>
+<span class="sd">        &#39;PROJECT:DATASET.TABLE&#39;.</span>
+<span class="sd">      dataset: The ID of the dataset containing this table or null if the table</span>
+<span class="sd">        reference is specified entirely by the table argument or a query is</span>
+<span class="sd">        specified.</span>
+<span class="sd">      project: The ID of the project containing this table or null if the table</span>
+<span class="sd">        reference is specified entirely by the table argument or a query is</span>
+<span class="sd">        specified.</span>
+<span class="sd">      query: A query to be used instead of arguments table, dataset, and</span>
+<span class="sd">        project.</span>
+<span class="sd">      validate: If true, various checks will be done when source gets</span>
+<span class="sd">        initialized (e.g., is table present?). This should be True for most</span>
+<span class="sd">        scenarios in order to catch errors as early as possible (pipeline</span>
+<span class="sd">        construction instead of pipeline execution). It should be False if the</span>
+<span class="sd">        table is created during pipeline execution by a previous step.</span>
+<span class="sd">      coder: The coder for the table rows if serialized to disk. If None, then</span>
+<span class="sd">        the default coder is RowAsDictJsonCoder, which will interpret every line</span>
+<span class="sd">        in a file as a JSON serialized dictionary. This argument needs a value</span>
+<span class="sd">        only in special cases when returning table rows as dictionaries is not</span>
+<span class="sd">        desirable.</span>
+<span class="sd">      use_standard_sql: Specifies whether to use BigQuery&#39;s standard</span>
+<span class="sd">        SQL dialect for this query. The default value is False. If set to True,</span>
+<span class="sd">        the query will use BigQuery&#39;s updated SQL dialect with improved</span>
+<span class="sd">        standards compliance. This parameter is ignored for table inputs.</span>
+<span class="sd">      flatten_results: Flattens all nested and repeated fields in the</span>
+<span class="sd">        query results. The default value is true.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if any of the following is true</span>
+<span class="sd">      (1) the table reference as a string does not match the expected format</span>
+<span class="sd">      (2) neither a table nor a query is specified</span>
+<span class="sd">      (3) both a table and a query is specified.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apitools.base</span> <span class="k">import</span> <span class="n">py</span>  <span class="c1"># pylint: disable=unused-variable</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Google Cloud IO not available, &#39;</span>
+          <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">query</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Both a BigQuery table and a query were specified.&#39;</span>
+                       <span class="s1">&#39; Please specify only one of these.&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">table</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">query</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;A BigQuery table or a query must be specified&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span> <span class="o">=</span> <span class="n">_parse_table_reference</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">project</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">use_legacy_sql</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="o">=</span> <span class="n">query</span>
+      <span class="c1"># TODO(BEAM-1082): Change the internal flag to be standard_sql</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">use_legacy_sql</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">use_standard_sql</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">validate</span> <span class="o">=</span> <span class="n">validate</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">flatten_results</span> <span class="o">=</span> <span class="n">flatten_results</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coder</span> <span class="ow">or</span> <span class="n">RowAsDictJsonCoder</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BigQuerySource.display_data"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySource.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Query&#39;</span><span class="p">)}</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tableSpec</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">:</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">tableSpec</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;table&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="n">tableSpec</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Table&#39;</span><span class="p">)}</span>
+
+    <span class="n">res</span><span class="p">[</span><span class="s1">&#39;validation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">,</span>
+                                        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Validation Enabled&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Source format name required for remote execution.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s1">&#39;bigquery&#39;</span>
+
+<div class="viewcode-block" id="BigQuerySource.reader"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySource.reader">[docs]</a>  <span class="k">def</span> <span class="nf">reader</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_bigquery_client</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">BigQueryReader</span><span class="p">(</span>
+        <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">test_bigquery_client</span><span class="o">=</span><span class="n">test_bigquery_client</span><span class="p">,</span>
+        <span class="n">use_legacy_sql</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_legacy_sql</span><span class="p">,</span>
+        <span class="n">flatten_results</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flatten_results</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="BigQuerySink"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySink">[docs]</a><span class="k">class</span> <span class="nc">BigQuerySink</span><span class="p">(</span><span class="n">dataflow_io</span><span class="o">.</span><span class="n">NativeSink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A sink based on a BigQuery table.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">create_disposition</span><span class="o">=</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">,</span>
+               <span class="n">write_disposition</span><span class="o">=</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_EMPTY</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a BigQuerySink.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      table: The ID of the table. The ID must contain only letters</span>
+<span class="sd">        (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is</span>
+<span class="sd">        None then the table argument must contain the entire table reference</span>
+<span class="sd">        specified as: &#39;DATASET.TABLE&#39; or &#39;PROJECT:DATASET.TABLE&#39;.</span>
+<span class="sd">      dataset: The ID of the dataset containing this table or null if the table</span>
+<span class="sd">        reference is specified entirely by the table argument.</span>
+<span class="sd">      project: The ID of the project containing this table or null if the table</span>
+<span class="sd">        reference is specified entirely by the table argument.</span>
+<span class="sd">      schema: The schema to be used if the BigQuery table to write has to be</span>
+<span class="sd">        created. This can be either specified as a &#39;bigquery.TableSchema&#39; object</span>
+<span class="sd">        or a single string  of the form &#39;field1:type1,field2:type2,field3:type3&#39;</span>
+<span class="sd">        that defines a comma separated list of fields. Here &#39;type&#39; should</span>
+<span class="sd">        specify the BigQuery type of the field. Single string based schemas do</span>
+<span class="sd">        not support nested fields, repeated fields, or specifying a BigQuery</span>
+<span class="sd">        mode for fields (mode will always be set to &#39;NULLABLE&#39;).</span>
+<span class="sd">      create_disposition: A string describing what happens if the table does not</span>
+<span class="sd">        exist. Possible values are:</span>
+<span class="sd">        - BigQueryDisposition.CREATE_IF_NEEDED: create if does not exist.</span>
+<span class="sd">        - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.</span>
+<span class="sd">      write_disposition: A string describing what happens if the table has</span>
+<span class="sd">        already some data. Possible values are:</span>
+<span class="sd">        -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.</span>
+<span class="sd">        -  BigQueryDisposition.WRITE_APPEND: add to existing rows.</span>
+<span class="sd">        -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.</span>
+<span class="sd">      validate: If true, various checks will be done when sink gets</span>
+<span class="sd">        initialized (e.g., is table present given the disposition arguments?).</span>
+<span class="sd">        This should be True for most scenarios in order to catch errors as early</span>
+<span class="sd">        as possible (pipeline construction instead of pipeline execution). It</span>
+<span class="sd">        should be False if the table is created during pipeline execution by a</span>
+<span class="sd">        previous step.</span>
+<span class="sd">      coder: The coder for the table rows if serialized to disk. If None, then</span>
+<span class="sd">        the default coder is RowAsDictJsonCoder, which will interpret every</span>
+<span class="sd">        element written to the sink as a dictionary that will be JSON serialized</span>
+<span class="sd">        as a line in a file. This argument needs a value only in special cases</span>
+<span class="sd">        when writing table rows as dictionaries is not desirable.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: if the schema argument is not a string or a TableSchema object.</span>
+<span class="sd">      ValueError: if the table reference as a string does not match the expected</span>
+<span class="sd">      format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apitools.base</span> <span class="k">import</span> <span class="n">py</span>  <span class="c1"># pylint: disable=unused-variable</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Google Cloud IO not available, &#39;</span>
+          <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span> <span class="o">=</span> <span class="n">_parse_table_reference</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">project</span><span class="p">)</span>
+    <span class="c1"># Transform the table schema into a bigquery.TableSchema instance.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="c1"># TODO(silviuc): Should add a regex-based validation of the format.</span>
+      <span class="n">table_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">()</span>
+      <span class="n">schema_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+      <span class="k">for</span> <span class="n">field_and_type</span> <span class="ow">in</span> <span class="n">schema_list</span><span class="p">:</span>
+        <span class="n">field_name</span><span class="p">,</span> <span class="n">field_type</span> <span class="o">=</span> <span class="n">field_and_type</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">field_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+        <span class="n">field_schema</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">field_name</span>
+        <span class="n">field_schema</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">field_type</span>
+        <span class="n">field_schema</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;NULLABLE&#39;</span>
+        <span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field_schema</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span> <span class="o">=</span> <span class="n">table_schema</span>
+    <span class="k">elif</span> <span class="n">schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># TODO(silviuc): Should check that table exists if no schema specified.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span> <span class="o">=</span> <span class="n">schema</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span> <span class="o">=</span> <span class="n">schema</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Unexpected schema argument: </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">schema</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_disposition</span> <span class="o">=</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">validate_create</span><span class="p">(</span>
+        <span class="n">create_disposition</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_disposition</span> <span class="o">=</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">validate_write</span><span class="p">(</span>
+        <span class="n">write_disposition</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">validate</span> <span class="o">=</span> <span class="n">validate</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coder</span> <span class="ow">or</span> <span class="n">RowAsDictJsonCoder</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BigQuerySink.display_data"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySink.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">tableSpec</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">,</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tableSpec</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">:</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span><span class="p">,</span>
+                                   <span class="n">tableSpec</span><span class="p">)</span>
+      <span class="n">res</span><span class="p">[</span><span class="s1">&#39;table&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="n">tableSpec</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Table&#39;</span><span class="p">)</span>
+
+    <span class="n">res</span><span class="p">[</span><span class="s1">&#39;validation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">,</span>
+                                        <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Validation Enabled&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="BigQuerySink.schema_as_json"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySink.schema_as_json">[docs]</a>  <span class="k">def</span> <span class="nf">schema_as_json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the TableSchema associated with the sink as a JSON string.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">schema_list_as_object</span><span class="p">(</span><span class="n">schema_list</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Returns a list of TableFieldSchema objects as a list of dicts.&quot;&quot;&quot;</span>
+      <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">schema_list</span><span class="p">:</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">type</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">description</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">fs</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">description</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">fs</span><span class="p">[</span><span class="s1">&#39;mode&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">mode</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;record&#39;</span><span class="p">:</span>
+          <span class="n">fs</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">schema_list_as_object</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+        <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fs</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">fields</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="n">schema_list_as_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="p">)})</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sink format name required for remote execution.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s1">&#39;bigquery&#39;</span>
+
+<div class="viewcode-block" id="BigQuerySink.writer"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.bigquery.BigQuerySink.writer">[docs]</a>  <span class="k">def</span> <span class="nf">writer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_bigquery_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">buffer_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">BigQueryWriter</span><span class="p">(</span>
+        <span class="n">sink</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_bigquery_client</span><span class="o">=</span><span class="n">test_bigquery_client</span><span class="p">,</span>
+        <span class="n">buffer_size</span><span class="o">=</span><span class="n">buffer_size</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># BigQueryReader, BigQueryWriter.</span>
+
+
+<span class="k">class</span> <span class="nc">BigQueryReader</span><span class="p">(</span><span class="n">dataflow_io</span><span class="o">.</span><span class="n">NativeSourceReader</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A reader for a BigQuery source.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">test_bigquery_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_legacy_sql</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">flatten_results</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">test_bigquery_client</span> <span class="o">=</span> <span class="n">test_bigquery_client</span>
+    <span class="k">if</span> <span class="n">auth</span><span class="o">.</span><span class="n">is_running_in_gce</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span> <span class="o">=</span> <span class="n">auth</span><span class="o">.</span><span class="n">executing_project</span>
+    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s1">&#39;pipeline_options&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">source</span><span class="o">.</span><span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># TODO(silviuc): Try to automatically get it from gcloud config info.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span> <span class="ow">and</span> <span class="n">test_bigquery_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;Missing executing project information. Please use the --project &#39;</span>
+          <span class="s1">&#39;command line option to specify it.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">row_as_dict</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">coder</span><span class="p">,</span> <span class="n">RowAsDictJsonCoder</span><span class="p">)</span>
+    <span class="c1"># Schema for the rows being read by the reader. It is initialized the</span>
+    <span class="c1"># first time something gets read from the table. It is not required</span>
+    <span class="c1"># for reading the field values in each row but could be useful for</span>
+    <span class="c1"># getting additional details.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">use_legacy_sql</span> <span class="o">=</span> <span class="n">use_legacy_sql</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">flatten_results</span> <span class="o">=</span> <span class="n">flatten_results</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">query</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># If table schema did not define a project we default to executing</span>
+      <span class="c1"># project.</span>
+      <span class="n">project_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">project_id</span><span class="p">:</span>
+        <span class="n">project_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="o">=</span> <span class="s1">&#39;SELECT * FROM [</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">];&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">project_id</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">query</span>
+
+  <span class="k">def</span> <span class="nf">_get_source_table_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span>
+    <span class="k">if</span> <span class="n">tr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># TODO: implement location retrieval for query sources</span>
+      <span class="k">return</span>
+
+    <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">projectId</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">source_project_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">source_project_id</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">projectId</span>
+
+    <span class="n">source_dataset_id</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">datasetId</span>
+    <span class="n">source_table_id</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">tableId</span>
+    <span class="n">source_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_table_location</span><span class="p">(</span>
+        <span class="n">source_project_id</span><span class="p">,</span> <span class="n">source_dataset_id</span><span class="p">,</span> <span class="n">source_table_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">source_location</span>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">BigQueryWrapper</span><span class="p">(</span><span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">test_bigquery_client</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">create_temporary_dataset</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_source_table_location</span><span class="p">())</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">clean_up_temporary_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">rows</span><span class="p">,</span> <span class="n">schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run_query</span><span class="p">(</span>
+        <span class="n">project_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">executing_project</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span>
+        <span class="n">use_legacy_sql</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_legacy_sql</span><span class="p">,</span>
+        <span class="n">flatten_results</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flatten_results</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="n">schema</span>
+      <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">row_as_dict</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">convert_row_to_dict</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">row</span>
+
+
+<span class="k">class</span> <span class="nc">BigQueryWriter</span><span class="p">(</span><span class="n">dataflow_io</span><span class="o">.</span><span class="n">NativeSinkWriter</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The sink writer for a BigQuerySink.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sink</span><span class="p">,</span> <span class="n">test_bigquery_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">buffer_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span> <span class="o">=</span> <span class="n">sink</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">test_bigquery_client</span> <span class="o">=</span> <span class="n">test_bigquery_client</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">row_as_dict</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">coder</span><span class="p">,</span> <span class="n">RowAsDictJsonCoder</span><span class="p">)</span>
+    <span class="c1"># Buffer used to batch written rows so we reduce communication with the</span>
+    <span class="c1"># BigQuery service.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer_flush_threshold</span> <span class="o">=</span> <span class="n">buffer_size</span> <span class="ow">or</span> <span class="mi">1000</span>
+    <span class="c1"># Figure out the project, dataset, and table used for the sink.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span>
+
+    <span class="c1"># If table schema did not define a project we default to executing project.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="s1">&#39;pipeline_options&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">sink</span><span class="o">.</span><span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">table_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span>
+
+  <span class="k">def</span> <span class="nf">_flush_rows_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Writing </span><span class="si">%d</span><span class="s1"> rows to </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> table.&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span><span class="p">),</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_id</span><span class="p">)</span>
+      <span class="n">passed</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">insert_rows</span><span class="p">(</span>
+          <span class="n">project_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span><span class="p">,</span>
+          <span class="n">table_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">table_id</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">passed</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Could not successfully insert rows to BigQuery&#39;</span>
+                           <span class="s1">&#39; table [</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">]. Errors: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span>
+                           <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">project_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">table_id</span><span class="p">,</span> <span class="n">errors</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">BigQueryWrapper</span><span class="p">(</span><span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">test_bigquery_client</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_or_create_table</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_schema</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">create_disposition</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">write_disposition</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_flush_rows_buffer</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">Write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows_buffer_flush_threshold</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_flush_rows_buffer</span><span class="p">()</span>
+
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+<span class="c1"># BigQueryWrapper.</span>
+
+
+<span class="k">class</span> <span class="nc">BigQueryWrapper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;BigQuery client wrapper with utilities for querying.</span>
+
+<span class="sd">  The wrapper is used to organize all the BigQuery integration points and</span>
+<span class="sd">  offer a common place where retry logic for failures can be controlled.</span>
+<span class="sd">  In addition it offers various functions used both in sources and sinks</span>
+<span class="sd">  (e.g., find and create tables, query a table, etc.).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">TEMP_TABLE</span> <span class="o">=</span> <span class="s1">&#39;temp_table_&#39;</span>
+  <span class="n">TEMP_DATASET</span> <span class="o">=</span> <span class="s1">&#39;temp_dataset_&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span> <span class="ow">or</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryV2</span><span class="p">(</span>
+        <span class="n">credentials</span><span class="o">=</span><span class="n">auth</span><span class="o">.</span><span class="n">get_service_credentials</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_row_id</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># For testing scenarios where we pass in a client we do not want a</span>
+    <span class="c1"># randomized prefix for row IDs.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_row_id_prefix</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">client</span> <span class="k">else</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_temporary_table_suffix</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">unique_row_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a unique row ID (str) used to avoid multiple insertions.</span>
+
+<span class="sd">    If the row ID is provided, BigQuery will make a best effort to not insert</span>
+<span class="sd">    the same row multiple times for fail and retry scenarios in which the insert</span>
+<span class="sd">    request may be issued several times. This comes into play for sinks executed</span>
+<span class="sd">    in a local runner.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      a unique row ID string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_row_id</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_row_id_prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_row_id</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_get_temp_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_parse_table_reference</span><span class="p">(</span>
+        <span class="n">table</span><span class="o">=</span><span class="n">BigQueryWrapper</span><span class="o">.</span><span class="n">TEMP_TABLE</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_temporary_table_suffix</span><span class="p">,</span>
+        <span class="n">dataset</span><span class="o">=</span><span class="n">BigQueryWrapper</span><span class="o">.</span><span class="n">TEMP_DATASET</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_temporary_table_suffix</span><span class="p">,</span>
+        <span class="n">project</span><span class="o">=</span><span class="n">project_id</span><span class="p">)</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_start_query_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">use_legacy_sql</span><span class="p">,</span> <span class="n">flatten_results</span><span class="p">,</span>
+                       <span class="n">job_id</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">JobReference</span><span class="p">(</span><span class="n">jobId</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryJobsInsertRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span>
+        <span class="n">job</span><span class="o">=</span><span class="n">bigquery</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span>
+            <span class="n">configuration</span><span class="o">=</span><span class="n">bigquery</span><span class="o">.</span><span class="n">JobConfiguration</span><span class="p">(</span>
+                <span class="n">dryRun</span><span class="o">=</span><span class="n">dry_run</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">bigquery</span><span class="o">.</span><span class="n">JobConfigurationQuery</span><span class="p">(</span>
+                    <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                    <span class="n">useLegacySql</span><span class="o">=</span><span class="n">use_legacy_sql</span><span class="p">,</span>
+                    <span class="n">allowLargeResults</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">destinationTable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_temp_table</span><span class="p">(</span><span class="n">project_id</span><span class="p">),</span>
+                    <span class="n">flattenResults</span><span class="o">=</span><span class="n">flatten_results</span><span class="p">)),</span>
+            <span class="n">jobReference</span><span class="o">=</span><span class="n">reference</span><span class="p">))</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">Insert</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">jobReference</span><span class="o">.</span><span class="n">jobId</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_get_query_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span>
+                         <span class="n">page_token</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_results</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryJobsGetQueryResultsRequest</span><span class="p">(</span>
+        <span class="n">jobId</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">pageToken</span><span class="o">=</span><span class="n">page_token</span><span class="p">,</span> <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span>
+        <span class="n">maxResults</span><span class="o">=</span><span class="n">max_results</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">GetQueryResults</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_insert_all_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">,</span> <span class="n">rows</span><span class="p">):</span>
+    <span class="c1"># The rows argument is a list of</span>
+    <span class="c1"># bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as</span>
+    <span class="c1"># required by the InsertAll() method.</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryTabledataInsertAllRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">tableId</span><span class="o">=</span><span class="n">table_id</span><span class="p">,</span>
+        <span class="n">tableDataInsertAllRequest</span><span class="o">=</span><span class="n">bigquery</span><span class="o">.</span><span class="n">TableDataInsertAllRequest</span><span class="p">(</span>
+            <span class="c1"># TODO(silviuc): Should have an option for skipInvalidRows?</span>
+            <span class="c1"># TODO(silviuc): Should have an option for ignoreUnknownValues?</span>
+            <span class="n">rows</span><span class="o">=</span><span class="n">rows</span><span class="p">))</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">tabledata</span><span class="o">.</span><span class="n">InsertAll</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="c1"># response.insertErrors is not [] if errors encountered.</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">insertErrors</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">insertErrors</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_get_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryTablesGetRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">tableId</span><span class="o">=</span><span class="n">table_id</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">tables</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="c1"># The response is a bigquery.Table instance.</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="k">def</span> <span class="nf">_create_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span>
+        <span class="n">tableReference</span><span class="o">=</span><span class="n">bigquery</span><span class="o">.</span><span class="n">TableReference</span><span class="p">(</span>
+            <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">tableId</span><span class="o">=</span><span class="n">table_id</span><span class="p">),</span>
+        <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryTablesInsertRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">table</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">tables</span><span class="o">.</span><span class="n">Insert</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="c1"># The response is a bigquery.Table instance.</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">get_or_create_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Check if dataset already exists otherwise create it</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryDatasetsGetRequest</span><span class="p">(</span>
+          <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">dataset</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="n">dataset_reference</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">DatasetReference</span><span class="p">(</span>
+            <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">datasetReference</span><span class="o">=</span><span class="n">dataset_reference</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">location</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">dataset</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryDatasetsInsertRequest</span><span class="p">(</span>
+            <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Insert</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+        <span class="c1"># The response is a bigquery.Dataset instance.</span>
+        <span class="k">return</span> <span class="n">response</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_is_table_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryTabledataListRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">tableId</span><span class="o">=</span><span class="n">table_id</span><span class="p">,</span>
+        <span class="n">maxResults</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">tabledata</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="c1"># The response is a bigquery.TableDataList instance.</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">totalRows</span> <span class="o">==</span> <span class="mi">0</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_delete_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryTablesDeleteRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span> <span class="n">tableId</span><span class="o">=</span><span class="n">table_id</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">tables</span><span class="o">.</span><span class="n">Delete</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Table </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> does not exist&#39;</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span>
+                        <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_delete_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">delete_contents</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryDatasetsDeleteRequest</span><span class="p">(</span>
+        <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span>
+        <span class="n">deleteContents</span><span class="o">=</span><span class="n">delete_contents</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Delete</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Dataset </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1"> does not exist&#39;</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span>
+                        <span class="n">dataset_id</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">get_table_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">):</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_table</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">location</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">create_temporary_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># TODO: make location required, once &quot;query&quot; locations can be determined</span>
+    <span class="n">dataset_id</span> <span class="o">=</span> <span class="n">BigQueryWrapper</span><span class="o">.</span><span class="n">TEMP_DATASET</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_temporary_table_suffix</span>
+    <span class="c1"># Check if dataset exists to make sure that the temporary id is unique</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryDatasetsGetRequest</span><span class="p">(</span>
+          <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">project_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Unittests don&#39;t pass projectIds so they can be run without error</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;Dataset </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1"> already exists so cannot be used as temporary.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s1">&#39;Dataset </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1"> does not exist so we will create it as temporary &#39;</span>
+            <span class="s1">&#39;with location=</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">location</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_or_create_dataset</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">clean_up_temporary_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">):</span>
+    <span class="n">temp_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_temp_table</span><span class="p">(</span><span class="n">project_id</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="n">bigquery</span><span class="o">.</span><span class="n">BigqueryDatasetsGetRequest</span><span class="p">(</span>
+          <span class="n">projectId</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span> <span class="n">datasetId</span><span class="o">=</span><span class="n">temp_table</span><span class="o">.</span><span class="n">datasetId</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Dataset </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1"> does not exist&#39;</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span>
+                        <span class="n">temp_table</span><span class="o">.</span><span class="n">datasetId</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_delete_dataset</span><span class="p">(</span><span class="n">temp_table</span><span class="o">.</span><span class="n">projectId</span><span class="p">,</span> <span class="n">temp_table</span><span class="o">.</span><span class="n">datasetId</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry</span><span class="o">.</span><span class="n">retry_on_server_errors_and_timeout_filter</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">get_or_create_table</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span>
+      <span class="n">create_disposition</span><span class="p">,</span> <span class="n">write_disposition</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets or creates a table based on create and write dispositions.</span>
+
+<span class="sd">    The function mimics the behavior of BigQuery import jobs when using the</span>
+<span class="sd">    same create and write dispositions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      project_id: The project id owning the table.</span>
+<span class="sd">      dataset_id: The dataset id owning the table.</span>
+<span class="sd">      table_id: The table id.</span>
+<span class="sd">      schema: A bigquery.TableSchema instance or None.</span>
+<span class="sd">      create_disposition: CREATE_NEVER or CREATE_IF_NEEDED.</span>
+<span class="sd">      write_disposition: WRITE_APPEND, WRITE_EMPTY or WRITE_TRUNCATE.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A bigquery.Table instance if table was found or created.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      RuntimeError: For various mismatches between the state of the table and</span>
+<span class="sd">        the create/write dispositions passed in. For example if the table is not</span>
+<span class="sd">        empty and WRITE_EMPTY was specified then an error will be raised since</span>
+<span class="sd">        the table was expected to be empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">found_table</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">found_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_table</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exn</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">create_disposition</span> <span class="o">==</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_NEVER</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+              <span class="s1">&#39;Table </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> not found but create disposition is CREATE_NEVER.&#39;</span>
+              <span class="o">%</span> <span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span>
+
+    <span class="c1"># If table exists already then handle the semantics for WRITE_EMPTY and</span>
+    <span class="c1"># WRITE_TRUNCATE write dispositions.</span>
+    <span class="k">if</span> <span class="n">found_table</span><span class="p">:</span>
+      <span class="n">table_empty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_table_empty</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">table_empty</span> <span class="ow">and</span>
+          <span class="n">write_disposition</span> <span class="o">==</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_EMPTY</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;Table </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> is not empty but write disposition is WRITE_EMPTY.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">))</span>
+      <span class="c1"># Delete the table and recreate it (later) if WRITE_TRUNCATE was</span>
+      <span class="c1"># specified.</span>
+      <span class="k">if</span> <span class="n">write_disposition</span> <span class="o">==</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delete_table</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">)</span>
+
+    <span class="c1"># Create a new table potentially reusing the schema from a previously</span>
+    <span class="c1"># found table in case the schema was not specified.</span>
+    <span class="k">if</span> <span class="n">schema</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">found_table</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;Table </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> requires a schema. None can be inferred because the &#39;</span>
+          <span class="s1">&#39;table does not exist.&#39;</span>
+          <span class="o">%</span> <span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">found_table</span> <span class="ow">and</span> <span class="n">write_disposition</span> <span class="o">!=</span> <span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">found_table</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete</span>
+      <span class="c1"># the table before this point.</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_table</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="n">project_id</span><span class="p">,</span>
+                                <span class="n">dataset_id</span><span class="o">=</span><span class="n">dataset_id</span><span class="p">,</span>
+                                <span class="n">table_id</span><span class="o">=</span><span class="n">table_id</span><span class="p">,</span>
+                                <span class="n">schema</span><span class="o">=</span><span class="n">schema</span> <span class="ow">or</span> <span class="n">found_table</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">run_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">use_legacy_sql</span><span class="p">,</span> <span class="n">flatten_results</span><span class="p">,</span>
+                <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_query_job</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">use_legacy_sql</span><span class="p">,</span>
+                                   <span class="n">flatten_results</span><span class="p">,</span> <span class="n">job_id</span><span class="o">=</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">,</span>
+                                   <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dry_run</span><span class="p">:</span>
+      <span class="c1"># If this was a dry run then the fact that we get here means the</span>
+      <span class="c1"># query has no errors. The start_query_job would raise an error otherwise.</span>
+      <span class="k">return</span>
+    <span class="n">page_token</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_query_results</span><span class="p">(</span><span class="n">project_id</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">page_token</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">jobComplete</span><span class="p">:</span>
+        <span class="c1"># The jobComplete field can be False if the query request times out</span>
+        <span class="c1"># (default is 10 seconds). Note that this is a timeout for the query</span>
+        <span class="c1"># request not for the actual execution of the query in the service.  If</span>
+        <span class="c1"># the request times out we keep trying. This situation is quite possible</span>
+        <span class="c1"># if the query will return a large number of rows.</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Waiting on response from query: </span><span class="si">%s</span><span class="s1"> ...&#39;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">continue</span>
+      <span class="c1"># We got some results. The last page is signalled by a missing pageToken.</span>
+      <span class="k">yield</span> <span class="n">response</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">schema</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">pageToken</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="n">page_token</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">pageToken</span>
+
+  <span class="k">def</span> <span class="nf">insert_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">,</span> <span class="n">rows</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Inserts rows into the specified table.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      project_id: The project id owning the table.</span>
+<span class="sd">      dataset_id: The dataset id owning the table.</span>
+<span class="sd">      table_id: The table id.</span>
+<span class="sd">      rows: A list of plain Python dictionaries. Each dictionary is a row and</span>
+<span class="sd">        each key in it is the name of a field.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A tuple (bool, errors). If first element is False then the second element</span>
+<span class="sd">      will be a bigquery.InserttErrorsValueListEntry instance containing</span>
+<span class="sd">      specific errors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Prepare rows for insertion. Of special note is the row ID that we add to</span>
+    <span class="c1"># each row in order to help BigQuery avoid inserting a row multiple times.</span>
+    <span class="c1"># BigQuery will do a best-effort if unique IDs are provided. This situation</span>
+    <span class="c1"># can happen during retries on failures.</span>
+    <span class="c1"># TODO(silviuc): Must add support to writing TableRow&#39;s instead of dicts.</span>
+    <span class="n">final_rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+      <span class="n">json_object</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">JsonObject</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="n">json_object</span><span class="o">.</span><span class="n">additionalProperties</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">bigquery</span><span class="o">.</span><span class="n">JsonObject</span><span class="o">.</span><span class="n">AdditionalProperty</span><span class="p">(</span>
+                <span class="n">key</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">to_json_value</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+      <span class="n">final_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="n">bigquery</span><span class="o">.</span><span class="n">TableDataInsertAllRequest</span><span class="o">.</span><span class="n">RowsValueListEntry</span><span class="p">(</span>
+              <span class="n">insertId</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_row_id</span><span class="p">),</span>
+              <span class="n">json</span><span class="o">=</span><span class="n">json_object</span><span class="p">))</span>
+    <span class="n">result</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_insert_all_rows</span><span class="p">(</span>
+        <span class="n">project_id</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">table_id</span><span class="p">,</span> <span class="n">final_rows</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">errors</span>
+
+  <span class="k">def</span> <span class="nf">_convert_cell_value_to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;STRING&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;XYZ&quot; --&gt; Output: &quot;XYZ&quot;</span>
+      <span class="k">return</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;BOOLEAN&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;true&quot; --&gt; Output: True</span>
+      <span class="k">return</span> <span class="n">value</span> <span class="o">==</span> <span class="s1">&#39;true&#39;</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;INTEGER&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;123&quot; --&gt; Output: 123</span>
+      <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;1.23&quot; --&gt; Output: 1.23</span>
+      <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;TIMESTAMP&#39;</span><span class="p">:</span>
+      <span class="c1"># The UTC should come from the timezone library but this is a known</span>
+      <span class="c1"># issue in python 2.7 so we&#39;ll just hardcode it as we&#39;re reading using</span>
+      <span class="c1"># utcfromtimestamp.</span>
+      <span class="c1"># Input: 1478134176.985864 --&gt; Output: &quot;2016-11-03 00:49:36.985864 UTC&quot;</span>
+      <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S.</span><span class="si">%f</span><span class="s1"> UTC&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;BYTES&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;YmJi&quot; --&gt; Output: &quot;YmJi&quot;</span>
+      <span class="k">return</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;DATE&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;2016-11-03&quot; --&gt; Output: &quot;2016-11-03&quot;</span>
+      <span class="k">return</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;DATETIME&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;2016-11-03T00:49:36&quot; --&gt; Output: &quot;2016-11-03T00:49:36&quot;</span>
+      <span class="k">return</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;TIME&#39;</span><span class="p">:</span>
+      <span class="c1"># Input: &quot;00:49:36&quot; --&gt; Output: &quot;00:49:36&quot;</span>
+      <span class="k">return</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;RECORD&#39;</span><span class="p">:</span>
+      <span class="c1"># Note that a schema field object supports also a RECORD type. However</span>
+      <span class="c1"># when querying, the repeated and/or record fields are flattened</span>
+      <span class="c1"># unless we pass the flatten_results flag as False to the source</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_row_to_dict</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Unexpected field type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">convert_row_to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts a TableRow instance using the schema to a Python dict.&quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">fields</span><span class="p">):</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">):</span>
+        <span class="n">cell</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">f</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">from_json_value</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="n">cell</span><span class="o">.</span><span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">):</span>
+        <span class="n">cell</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;f&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">cell</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;v&#39;</span> <span class="ow">in</span> <span class="n">cell</span> <span class="k">else</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;REPEATED&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="c1"># Ideally this should never happen as repeated fields default to</span>
+          <span class="c1"># returning an empty list</span>
+          <span class="n">result</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">result</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_convert_cell_value_to_dict</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">],</span> <span class="n">field</span><span class="p">)</span>
+                                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NULLABLE&#39;</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Received </span><span class="se">\&#39;</span><span class="s1">None</span><span class="se">\&#39;</span><span class="s1"> as the value for the field </span><span class="si">%s</span><span class="s1"> &#39;</span>
+                           <span class="s1">&#39;but the field is not NULLABLE.&#39;</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_cell_value_to_dict</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

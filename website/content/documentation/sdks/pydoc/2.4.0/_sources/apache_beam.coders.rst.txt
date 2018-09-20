@@ -1,0 +1,18 @@
+apache\_beam\.coders package
+============================
+
+.. automodule:: apache_beam.coders
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.coders.coders
+   apache_beam.coders.observable
+   apache_beam.coders.slow_stream
+   apache_beam.coders.typecoders
+

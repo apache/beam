@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.options.value_provider &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.options.value_provider</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A ValueProvider class to implement templates with both statically</span>
+<span class="sd">and dynamically provided values.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">wraps</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">error</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;ValueProvider&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;StaticValueProvider&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;RuntimeValueProvider&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;check_accessible&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<div class="viewcode-block" id="ValueProvider"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.ValueProvider">[docs]</a><span class="k">class</span> <span class="nc">ValueProvider</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="ValueProvider.is_accessible"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.ValueProvider.is_accessible">[docs]</a>  <span class="k">def</span> <span class="nf">is_accessible</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="s1">&#39;ValueProvider.is_accessible implemented in derived classes&#39;</span>
+    <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ValueProvider.get"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.ValueProvider.get">[docs]</a>  <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="s1">&#39;ValueProvider.get implemented in derived classes&#39;</span>
+    <span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="StaticValueProvider"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.StaticValueProvider">[docs]</a><span class="k">class</span> <span class="nc">StaticValueProvider</span><span class="p">(</span><span class="n">ValueProvider</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span> <span class="o">=</span> <span class="n">value_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value_type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StaticValueProvider.is_accessible"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.StaticValueProvider.is_accessible">[docs]</a>  <span class="k">def</span> <span class="nf">is_accessible</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="StaticValueProvider.get"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.StaticValueProvider.get">[docs]</a>  <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RuntimeValueProvider"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.RuntimeValueProvider">[docs]</a><span class="k">class</span> <span class="nc">RuntimeValueProvider</span><span class="p">(</span><span class="n">ValueProvider</span><span class="p">):</span>
+  <span class="n">runtime_options</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">option_name</span><span class="p">,</span> <span class="n">value_type</span><span class="p">,</span> <span class="n">default_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">option_name</span> <span class="o">=</span> <span class="n">option_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span> <span class="o">=</span> <span class="n">default_value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span> <span class="o">=</span> <span class="n">value_type</span>
+
+<div class="viewcode-block" id="RuntimeValueProvider.is_accessible"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.RuntimeValueProvider.is_accessible">[docs]</a>  <span class="k">def</span> <span class="nf">is_accessible</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">runtime_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="RuntimeValueProvider.get"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.RuntimeValueProvider.get">[docs]</a>  <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">runtime_options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">error</span><span class="o">.</span><span class="n">RuntimeValueProviderError</span><span class="p">(</span>
+          <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.get() not called from a runtime context&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="n">candidate</span> <span class="o">=</span> <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">runtime_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">candidate</span><span class="p">:</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span>
+    <span class="k">return</span> <span class="n">value</span></div>
+
+  <span class="c1"># TODO(BEAM-1999): Remove _unused_options_id</span>
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RuntimeValueProvider.set_runtime_options"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.RuntimeValueProvider.set_runtime_options">[docs]</a>  <span class="k">def</span> <span class="nf">set_runtime_options</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pipeline_options</span><span class="p">):</span>
+    <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">runtime_options</span> <span class="o">=</span> <span class="n">pipeline_options</span></div>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">(option: </span><span class="si">%s</span><span class="s1">, type: </span><span class="si">%s</span><span class="s1">, default_value: </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">option_name</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+        <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="check_accessible"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.value_provider.check_accessible">[docs]</a><span class="k">def</span> <span class="nf">check_accessible</span><span class="p">(</span><span class="n">value_provider_list</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Check accessibility of a list of ValueProvider objects.&quot;&quot;&quot;</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value_provider_list</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_check_accessible</span><span class="p">(</span><span class="n">fnc</span><span class="p">):</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fnc</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_f</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vp</span><span class="p">)</span> <span class="k">for</span> <span class="n">vp</span> <span class="ow">in</span> <span class="n">value_provider_list</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span><span class="o">.</span><span class="n">is_accessible</span><span class="p">():</span>
+          <span class="k">raise</span> <span class="n">error</span><span class="o">.</span><span class="n">RuntimeValueProviderError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> not accessible&#39;</span> <span class="o">%</span> <span class="n">obj</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">fnc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_f</span>
+  <span class="k">return</span> <span class="n">_check_accessible</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

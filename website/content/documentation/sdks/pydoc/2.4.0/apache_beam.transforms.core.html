@@ -1,0 +1,1256 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.transforms.core module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.transforms package" href="apache_beam.transforms.html"/>
+        <link rel="next" title="apache_beam.transforms.display module" href="apache_beam.transforms.display.html"/>
+        <link rel="prev" title="apache_beam.transforms.combiners module" href="apache_beam.transforms.combiners.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.combiners.html">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.transforms.core module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.display.html">apache_beam.transforms.display module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.ptransform.html">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.sideinputs.html">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.timeutil.html">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.trigger.html">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.util.html">apache_beam.transforms.util module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.window.html">apache_beam.transforms.window module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.transforms.html">apache_beam.transforms package</a> &raquo;</li>
+        
+      <li>apache_beam.transforms.core module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.transforms.core.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.transforms.core">
+<span id="apache-beam-transforms-core-module"></span><h1>apache_beam.transforms.core module<a class="headerlink" href="#module-apache_beam.transforms.core" title="Permalink to this headline">¶</a></h1>
+<p>Core PTransform subclasses, such as FlatMap, GroupByKey, and Map.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.core.DoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">DoFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.typehints.decorators.html#apache_beam.typehints.decorators.WithTypeHints" title="apache_beam.typehints.decorators.WithTypeHints"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.typehints.decorators.WithTypeHints</span></code></a>, <a class="reference internal" href="apache_beam.transforms.display.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a>, <a class="reference internal" href="apache_beam.utils.urns.html#apache_beam.utils.urns.RunnerApiFn" title="apache_beam.utils.urns.RunnerApiFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.urns.RunnerApiFn</span></code></a></p>
+<p>A function object used by a transform with custom processing.</p>
+<p>The ParDo transform is such a transform. The ParDo.apply
+method will take an object of type DoFn and apply it to all elements of a
+PCollection object.</p>
+<p>In order to have concrete DoFn objects one has to subclass from DoFn and
+define the desired behavior (start_bundle/finish_bundle and process) or wrap a
+callable object using the CallableWrapperDoFn class.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.ElementParam">
+<code class="descname">ElementParam</code><em class="property"> = 'ElementParam'</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.ElementParam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.SideInputParam">
+<code class="descname">SideInputParam</code><em class="property"> = 'SideInputParam'</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.SideInputParam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.TimestampParam">
+<code class="descname">TimestampParam</code><em class="property"> = 'TimestampParam'</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.TimestampParam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.WindowParam">
+<code class="descname">WindowParam</code><em class="property"> = 'WindowParam'</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.WindowParam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.WatermarkReporterParam">
+<code class="descname">WatermarkReporterParam</code><em class="property"> = 'WatermarkReporterParam'</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.WatermarkReporterParam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.DoFn.DoFnParams">
+<code class="descname">DoFnParams</code><em class="property"> = ['ElementParam', 'SideInputParam', 'TimestampParam', 'WindowParam']</em><a class="headerlink" href="#apache_beam.transforms.core.DoFn.DoFnParams" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.DoFn.from_callable">
+<em class="property">static </em><code class="descname">from_callable</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.from_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.from_callable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to use for processing elements.</p>
+<p>This is invoked by <code class="docutils literal"><span class="pre">DoFnRunner</span></code> for each element of a input
+<code class="docutils literal"><span class="pre">PCollection</span></code>.</p>
+<p>If specified, following default arguments are used by the <code class="docutils literal"><span class="pre">DoFnRunner</span></code> to
+be able to pass the parameters correctly.</p>
+<p><code class="docutils literal"><span class="pre">DoFn.ElementParam</span></code>: element to be processed.
+<code class="docutils literal"><span class="pre">DoFn.SideInputParam</span></code>: a side input that may be used when processing.
+<code class="docutils literal"><span class="pre">DoFn.TimestampParam</span></code>: timestamp of the input element.
+<code class="docutils literal"><span class="pre">DoFn.WindowParam</span></code>: <code class="docutils literal"><span class="pre">Window</span></code> the input element belongs to.
+A <code class="docutils literal"><span class="pre">RestrictionProvider</span></code> instance: an <code class="docutils literal"><span class="pre">iobase.RestrictionTracker</span></code> will be
+provided here to allow treatment as a Splittable <cite>DoFn`</cite>.
+<code class="docutils literal"><span class="pre">DoFn.WatermarkReporterParam</span></code>: a function that can be used to report
+output watermark of Splittable <code class="docutils literal"><span class="pre">DoFn</span></code> implementations.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>element</strong> – The element to be processed</li>
+<li><strong>*args</strong> – side inputs</li>
+<li><strong>**kwargs</strong> – other keyword arguments.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called before a bundle of elements is processed on a worker.</p>
+<p>Elements to be processed are split into bundles and distributed
+to workers. Before a worker calls process() on the first element
+of its bundle, it calls this method.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.finish_bundle">
+<code class="descname">finish_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.finish_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.finish_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called after a bundle of elements is processed on a worker.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.get_function_arguments">
+<code class="descname">get_function_arguments</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.get_function_arguments"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.get_function_arguments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.is_process_bounded">
+<code class="descname">is_process_bounded</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#DoFn.is_process_bounded"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.DoFn.is_process_bounded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if an object is a bound method on an instance.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.DoFn.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.transforms.core.DoFn.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.CombineFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">CombineFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.typehints.decorators.html#apache_beam.typehints.decorators.WithTypeHints" title="apache_beam.typehints.decorators.WithTypeHints"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.typehints.decorators.WithTypeHints</span></code></a>, <a class="reference internal" href="apache_beam.transforms.display.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a>, <a class="reference internal" href="apache_beam.utils.urns.html#apache_beam.utils.urns.RunnerApiFn" title="apache_beam.utils.urns.RunnerApiFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.urns.RunnerApiFn</span></code></a></p>
+<p>A function object used by a Combine transform with custom processing.</p>
+<p>A CombineFn specifies how multiple values in all or part of a PCollection can
+be merged into a single value—essentially providing the same kind of
+information as the arguments to the Python “reduce” builtin (except for the
+input argument, which is an instance of CombineFnProcessContext). The
+combining process proceeds as follows:</p>
+<ol class="arabic simple">
+<li>Input values are partitioned into one or more batches.</li>
+<li>For each batch, the create_accumulator method is invoked to create a fresh
+initial “accumulator” value representing the combination of zero values.</li>
+<li>For each input value in the batch, the add_input method is invoked to
+combine more values with the accumulator for that batch.</li>
+<li>The merge_accumulators method is invoked to combine accumulators from
+separate batches into a single combined output accumulator value, once all
+of the accumulators have had all the input value in their batches added to
+them. This operation is invoked repeatedly, until there is only one
+accumulator value left.</li>
+<li>The extract_output operation is invoked on the final accumulator to get
+the output value.</li>
+</ol>
+<p>Note: If this <strong>CombineFn</strong> is used with a transform that has defaults,
+<strong>apply</strong> will be called with an empty list at expansion time to get the
+default value.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.create_accumulator">
+<code class="descname">create_accumulator</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.create_accumulator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.create_accumulator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a fresh, empty accumulator for the combine operation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.add_input">
+<code class="descname">add_input</code><span class="sig-paren">(</span><em>accumulator</em>, <em>element</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.add_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.add_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return result of folding element into accumulator.</p>
+<p>CombineFn implementors must override add_input.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>accumulator</strong> – the current accumulator</li>
+<li><strong>element</strong> – the element to add</li>
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.add_inputs">
+<code class="descname">add_inputs</code><span class="sig-paren">(</span><em>accumulator</em>, <em>elements</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.add_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.add_inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the result of folding each element in elements into accumulator.</p>
+<p>This is provided in case the implementation affords more efficient
+bulk addition of elements. The default implementation simply loops
+over the inputs invoking add_input for each one.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>accumulator</strong> – the current accumulator</li>
+<li><strong>elements</strong> – the elements to add</li>
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.merge_accumulators">
+<code class="descname">merge_accumulators</code><span class="sig-paren">(</span><em>accumulators</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.merge_accumulators"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.merge_accumulators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the result of merging several accumulators
+to a single accumulator value.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>accumulators</strong> – the accumulators to merge</li>
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.extract_output">
+<code class="descname">extract_output</code><span class="sig-paren">(</span><em>accumulator</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.extract_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.extract_output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return result of converting accumulator into the output value.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>accumulator</strong> – the final accumulator value computed by this CombineFn
+for the entire input key or PCollection.</li>
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>elements</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns result of applying this CombineFn to the input values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>elements</strong> – the set of values to combine.</li>
+<li><strong>*args</strong> – Additional arguments and side inputs.</li>
+<li><strong>**kwargs</strong> – Additional arguments and side inputs.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.for_input_type">
+<code class="descname">for_input_type</code><span class="sig-paren">(</span><em>input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.for_input_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.for_input_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a specialized implementation of self, if it exists.</p>
+<p>Otherwise, returns self.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>input_type</strong> – the type of input elements.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.CombineFn.from_callable">
+<em class="property">static </em><code class="descname">from_callable</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.from_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.from_callable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.CombineFn.maybe_from_callable">
+<em class="property">static </em><code class="descname">maybe_from_callable</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.maybe_from_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.maybe_from_callable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.get_accumulator_coder">
+<code class="descname">get_accumulator_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineFn.get_accumulator_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.get_accumulator_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineFn.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.transforms.core.CombineFn.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.PartitionFn">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">PartitionFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#PartitionFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.PartitionFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.typehints.decorators.html#apache_beam.typehints.decorators.WithTypeHints" title="apache_beam.typehints.decorators.WithTypeHints"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.typehints.decorators.WithTypeHints</span></code></a></p>
+<p>A function object used by a Partition transform.</p>
+<p>A PartitionFn specifies how individual values in a PCollection will be placed
+into separate partitions, indexed by an integer.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.PartitionFn.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#PartitionFn.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.PartitionFn.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.PartitionFn.partition_for">
+<code class="descname">partition_for</code><span class="sig-paren">(</span><em>element</em>, <em>num_partitions</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#PartitionFn.partition_for"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.PartitionFn.partition_for" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify which partition will receive this element.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>element</strong> – An element of the input PCollection.</li>
+<li><strong>num_partitions</strong> – Number of partitions, i.e., output PCollections.</li>
+<li><strong>*args</strong> – optional parameters and side inputs.</li>
+<li><strong>**kwargs</strong> – optional parameters and side inputs.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">An integer in [0, num_partitions).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.ParDo">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">ParDo</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransformWithSideInputs</span></code></p>
+<p>A <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a> transform.</p>
+<p>Processes an input <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> by applying a
+<a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> to each element and returning the accumulated results into an
+output <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>. The type of the elements is
+not fixed as long as the <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> can deal with it. In reality the type
+is restrained to some extent because the elements sometimes must be persisted
+to external storage. See the <a class="reference internal" href="#apache_beam.transforms.core.ParDo.expand" title="apache_beam.transforms.core.ParDo.expand"><code class="xref py py-meth docutils literal"><span class="pre">expand()</span></code></a> method comments for a
+detailed description of all possible arguments.</p>
+<p>Note that the <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> must return an iterable for each element of the
+input <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>. An easy way to do this is to
+use the <code class="docutils literal"><span class="pre">yield</span></code> keyword in the process method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pcoll</strong> (<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><em>PCollection</em></a>) – a <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> to be processed.</li>
+<li><strong>fn</strong> (<a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><em>DoFn</em></a>) – a <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> object to be applied to each element
+of <strong>pcoll</strong> argument.</li>
+<li><strong>*args</strong> – positional arguments passed to the <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> object.</li>
+<li><strong>**kwargs</strong> – keyword arguments passed to the <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> object.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Note that the positional and keyword arguments will be processed in order
+to detect <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> s that will be computed as
+side inputs to the transform. During pipeline execution whenever the
+<a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> object gets executed (its <a class="reference internal" href="#apache_beam.transforms.core.DoFn.process" title="apache_beam.transforms.core.DoFn.process"><code class="xref py py-meth docutils literal"><span class="pre">DoFn.process()</span></code></a> method gets
+called) the <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> arguments will be
+replaced by values from the <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> in the
+exact positions where they appear in the argument lists.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.default_type_hints">
+<code class="descname">default_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.default_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.default_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.make_fn">
+<code class="descname">make_fn</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.make_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.make_fn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.with_outputs">
+<code class="descname">with_outputs</code><span class="sig-paren">(</span><em>*tags</em>, <em>**main_kw</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.with_outputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.with_outputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a tagged tuple allowing access to the outputs of a
+<a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a>.</p>
+<p>The resulting object supports access to the
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> associated with a tag
+(e.g. <code class="docutils literal"><span class="pre">o.tag</span></code>, <code class="docutils literal"><span class="pre">o[tag]</span></code>) and iterating over the available tags
+(e.g. <code class="docutils literal"><span class="pre">for</span> <span class="pre">tag</span> <span class="pre">in</span> <span class="pre">o:</span> <span class="pre">...</span></code>).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>*tags</strong> – if non-empty, list of valid tags. If a list of valid tags is given,
+it will be an error to use an undeclared tag later in the pipeline.</li>
+<li><strong>**main_kw</strong> – dictionary empty or with one key <code class="docutils literal"><span class="pre">'main'</span></code> defining the tag to
+be used for the main output (which will not have a tag associated with
+it).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">An object of type
+<code class="xref py py-class docutils literal"><span class="pre">DoOutputsTuple</span></code> that bundles together all
+the outputs of a <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a> transform and allows accessing the
+individual <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> s for each output
+using an <code class="docutils literal"><span class="pre">object.tag</span></code> syntax.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first">DoOutputsTuple</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if the <strong>self</strong> object is not a
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> that is the result of a
+<a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a> transform.</li>
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if <strong>main_kw</strong> contains any key other than
+<code class="docutils literal"><span class="pre">'main'</span></code>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.ParDo.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.ParDo.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>pardo_payload</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#ParDo.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.ParDo.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.transforms.core.FlatMap">
+<code class="descclassname">apache_beam.transforms.core.</code><code class="descname">FlatMap</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#FlatMap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.FlatMap" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#apache_beam.transforms.core.FlatMap" title="apache_beam.transforms.core.FlatMap"><code class="xref py py-func docutils literal"><span class="pre">FlatMap()</span></code></a> is like <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a> except it takes a callable to
+specify the transformation.</p>
+<p>The callable must return an iterable for each element of the input
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>. The elements of these iterables will
+be flattened into the output <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) – a callable object.</li>
+<li><strong>*args</strong> – positional arguments passed to the transform callable.</li>
+<li><strong>**kwargs</strong> – keyword arguments passed to the transform callable.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> containing the
+<a class="reference internal" href="#apache_beam.transforms.core.FlatMap" title="apache_beam.transforms.core.FlatMap"><code class="xref py py-func docutils literal"><span class="pre">FlatMap()</span></code></a> outputs.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection">PCollection</a></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If the <strong>fn</strong> passed as argument is not a callable.
+Typical error is to pass a <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> instance which is supported only
+for <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.transforms.core.Map">
+<code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Map</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Map" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#apache_beam.transforms.core.Map" title="apache_beam.transforms.core.Map"><code class="xref py py-func docutils literal"><span class="pre">Map()</span></code></a> is like <a class="reference internal" href="#apache_beam.transforms.core.FlatMap" title="apache_beam.transforms.core.FlatMap"><code class="xref py py-func docutils literal"><span class="pre">FlatMap()</span></code></a> except its callable returns only a
+single element.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) – a callable object.</li>
+<li><strong>*args</strong> – positional arguments passed to the transform callable.</li>
+<li><strong>**kwargs</strong> – keyword arguments passed to the transform callable.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> containing the
+<a class="reference internal" href="#apache_beam.transforms.core.Map" title="apache_beam.transforms.core.Map"><code class="xref py py-func docutils literal"><span class="pre">Map()</span></code></a> outputs.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection">PCollection</a></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If the <strong>fn</strong> passed as argument is not a callable.
+Typical error is to pass a <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> instance which is supported only
+for <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.transforms.core.Filter">
+<code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Filter</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Filter" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#apache_beam.transforms.core.Filter" title="apache_beam.transforms.core.Filter"><code class="xref py py-func docutils literal"><span class="pre">Filter()</span></code></a> is a <a class="reference internal" href="#apache_beam.transforms.core.FlatMap" title="apache_beam.transforms.core.FlatMap"><code class="xref py py-func docutils literal"><span class="pre">FlatMap()</span></code></a> with its callable filtering out
+elements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) – a callable object.</li>
+<li><strong>*args</strong> – positional arguments passed to the transform callable.</li>
+<li><strong>**kwargs</strong> – keyword arguments passed to the transform callable.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> containing the
+<a class="reference internal" href="#apache_beam.transforms.core.Filter" title="apache_beam.transforms.core.Filter"><code class="xref py py-func docutils literal"><span class="pre">Filter()</span></code></a> outputs.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first"><a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection">PCollection</a></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If the <strong>fn</strong> passed as argument is not a callable.
+Typical error is to pass a <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> instance which is supported only
+for <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">ParDo</span></code></a>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.CombineGlobally">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">CombineGlobally</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <a class="reference internal" href="#apache_beam.transforms.core.CombineGlobally" title="apache_beam.transforms.core.CombineGlobally"><code class="xref py py-class docutils literal"><span class="pre">CombineGlobally</span></code></a> transform.</p>
+<p>Reduces a <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> to a single value by
+progressively applying a <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> to portions of the
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> (and to intermediate values created
+thereby). See documentation in <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> for details on the specifics
+on how <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> s are applied.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> (<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><em>PCollection</em></a>) – a <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> to be reduced into a single
+value.</li>
+<li><strong>fn</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) – a <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> object that will be called to
+progressively reduce the <a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> into
+single values, or a callable suitable for wrapping by
+<code class="xref py py-class docutils literal"><span class="pre">CallableWrapperCombineFn</span></code>.</li>
+<li><strong>*args</strong> – positional arguments passed to the <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> object.</li>
+<li><strong>**kwargs</strong> – keyword arguments passed to the <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> object.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – If the output type of the input
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> is not compatible
+with <code class="docutils literal"><span class="pre">Iterable[A]</span></code>.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A single-element
+<a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection"><code class="xref py py-class docutils literal"><span class="pre">PCollection</span></code></a> containing the main output of
+the <a class="reference internal" href="#apache_beam.transforms.core.CombineGlobally" title="apache_beam.transforms.core.CombineGlobally"><code class="xref py py-class docutils literal"><span class="pre">CombineGlobally</span></code></a> transform.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="apache_beam.pvalue.html#apache_beam.pvalue.PCollection" title="apache_beam.pvalue.PCollection">PCollection</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Note that the positional and keyword arguments will be processed in order
+to detect <code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> s that will be computed as side
+inputs to the transform.
+During pipeline execution whenever the <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> object gets executed
+(i.e. any of the <a class="reference internal" href="#apache_beam.transforms.core.CombineFn" title="apache_beam.transforms.core.CombineFn"><code class="xref py py-class docutils literal"><span class="pre">CombineFn</span></code></a> methods get called), the
+<code class="xref py py-class docutils literal"><span class="pre">PValue</span></code> arguments will be replaced by their
+actual value in the exact position where they appear in the argument lists.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.CombineGlobally.has_defaults">
+<code class="descname">has_defaults</code><em class="property"> = True</em><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.has_defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.transforms.core.CombineGlobally.as_view">
+<code class="descname">as_view</code><em class="property"> = False</em><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.as_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.with_defaults">
+<code class="descname">with_defaults</code><span class="sig-paren">(</span><em>has_defaults=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.with_defaults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.with_defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.without_defaults">
+<code class="descname">without_defaults</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.without_defaults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.without_defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.as_singleton_view">
+<code class="descname">as_singleton_view</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.as_singleton_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.as_singleton_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineGlobally.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineGlobally.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineGlobally.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.CombinePerKey">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">CombinePerKey</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransformWithSideInputs</span></code></p>
+<p>A per-key Combine transform.</p>
+<p>Identifies sets of values associated with the same key in the input
+PCollection, then applies a CombineFn to condense those sets to single
+values. See documentation in CombineFn for details on the specifics on how
+CombineFns are applied.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> – input pcollection.</li>
+<li><strong>fn</strong> – instance of CombineFn to apply to all values under the same key in
+pcoll, or a callable whose signature is <code class="docutils literal"><span class="pre">f(iterable,</span> <span class="pre">*args,</span> <span class="pre">**kwargs)</span></code>
+(e.g., sum, max).</li>
+<li><strong>*args</strong> – arguments and side inputs, passed directly to the CombineFn.</li>
+<li><strong>**kwargs</strong> – arguments and side inputs, passed directly to the CombineFn.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A PObject holding the result of the combine operation.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.make_fn">
+<code class="descname">make_fn</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.make_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.make_fn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.default_label">
+<code class="descname">default_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.default_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.default_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.default_type_hints">
+<code class="descname">default_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.default_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.default_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombinePerKey.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.CombinePerKey.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>combine_payload</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombinePerKey.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombinePerKey.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.CombineValues">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">CombineValues</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineValues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransformWithSideInputs</span></code></p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineValues.make_fn">
+<code class="descname">make_fn</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineValues.make_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineValues.make_fn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineValues.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineValues.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineValues.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.CombineValues.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineValues.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineValues.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.CombineValues.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>combine_payload</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#CombineValues.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.CombineValues.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.GroupByKey">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">GroupByKey</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A group by key transform.</p>
+<p>Processes an input PCollection consisting of key/value pairs represented as a
+tuple pair. The result is a PCollection where values having a common key are
+grouped together.  For example (a, 1), (b, 2), (a, 3) will result into
+(a, [1, 3]), (b, [2]).</p>
+<p>The implementation here is used only when run on the local direct runner.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.core.GroupByKey.ReifyWindows">
+<em class="property">class </em><code class="descname">ReifyWindows</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.ReifyWindows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.ReifyWindows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.GroupByKey.ReifyWindows.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em>, <em>timestamp='TimestampParam'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.ReifyWindows.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.ReifyWindows.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.GroupByKey.ReifyWindows.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.ReifyWindows.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.ReifyWindows.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.GroupByKey.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.GroupByKey.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.GroupByKey.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_payload</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#GroupByKey.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.GroupByKey.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.Partition">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Partition</code><span class="sig-paren">(</span><em>fn</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Partition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Partition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransformWithSideInputs</span></code></p>
+<p>Split a PCollection into several partitions.</p>
+<p>Uses the specified PartitionFn to separate an input PCollection into the
+specified number of sub-PCollections.</p>
+<p>When apply()d, a Partition() PTransform requires the following:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>partitionfn</strong> – a PartitionFn, or a callable with the signature described in
+CallableWrapperPartitionFn.</li>
+<li><strong>n</strong> – number of output partitions.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The result of this PTransform is a simple list of the output PCollections
+representing each of n partitions, in order.</p>
+<dl class="class">
+<dt id="apache_beam.transforms.core.Partition.ApplyPartitionFnFn">
+<em class="property">class </em><code class="descname">ApplyPartitionFnFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Partition.ApplyPartitionFnFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Partition.ApplyPartitionFnFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A DoFn that applies a PartitionFn.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.Partition.ApplyPartitionFnFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>partitionfn</em>, <em>n</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Partition.ApplyPartitionFnFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Partition.ApplyPartitionFnFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Partition.make_fn">
+<code class="descname">make_fn</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Partition.make_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Partition.make_fn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Partition.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Partition.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Partition.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.Windowing">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Windowing</code><span class="sig-paren">(</span><em>windowfn</em>, <em>triggerfn=None</em>, <em>accumulation_mode=None</em>, <em>timestamp_combiner=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Windowing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.Windowing.is_default">
+<code class="descname">is_default</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Windowing.is_default"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Windowing.is_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Windowing.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Windowing.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Windowing.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.Windowing.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Windowing.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Windowing.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.WindowInto">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">WindowInto</code><span class="sig-paren">(</span><em>windowfn</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.core.ParDo" title="apache_beam.transforms.core.ParDo"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.ParDo</span></code></a></p>
+<p>A window transform assigning windows to each element of a PCollection.</p>
+<p>Transforms an input PCollection by applying a windowing function to each
+element.  Each transformed element in the result will be a WindowedValue
+element with the same input value and timestamp, with its new set of windows
+determined by the windowing function.</p>
+<p>Initializes a WindowInto transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>windowfn</strong> – Function to be used for windowing</td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="apache_beam.transforms.core.WindowInto.WindowIntoFn">
+<em class="property">class </em><code class="descname">WindowIntoFn</code><span class="sig-paren">(</span><em>windowing</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.WindowIntoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.WindowIntoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A DoFn that applies a WindowInto operation.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.core.WindowInto.WindowIntoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>timestamp='TimestampParam'</em>, <em>window='WindowParam'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.WindowIntoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.WindowIntoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.WindowInto.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>unused_inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.WindowInto.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.WindowInto.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.WindowInto.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.WindowInto.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#WindowInto.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.WindowInto.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.Flatten">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Flatten</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Flatten" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Merges several PCollections into a single PCollection.</p>
+<p>Copies all elements in 0 or more PCollections into a single output
+PCollection. If there are no input PCollections, the resulting PCollection
+will be empty (but see also kwargs below).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>**kwargs</strong> – Accepts a single named argument “pipeline”, which specifies the
+pipeline that “owns” this PTransform. Ordinarily Flatten can obtain this
+information from one of the input PCollections, but if there are none (or
+if there’s a chance there may be none), this argument is the only way to
+provide pipeline information and should be considered mandatory.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.transforms.core.Flatten.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcolls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Flatten.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Flatten.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Flatten.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Flatten.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Flatten.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Flatten.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Flatten.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Flatten.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.transforms.core.Flatten.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_parameter</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Flatten.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Flatten.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.core.Create">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.core.</code><code class="descname">Create</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that creates a PCollection from an iterable.</p>
+<p>Initializes a Create transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> – An object of values for the PCollection</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.transforms.core.Create.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>unused_input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Create.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Create.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Create.get_output_type">
+<code class="descname">get_output_type</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Create.get_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Create.get_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Create.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Create.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Create.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.core.Create.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>unused_inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/core.html#Create.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.core.Create.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.transforms.display.html" class="btn btn-neutral float-right" title="apache_beam.transforms.display module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.transforms.combiners.html" class="btn btn-neutral" title="apache_beam.transforms.combiners module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

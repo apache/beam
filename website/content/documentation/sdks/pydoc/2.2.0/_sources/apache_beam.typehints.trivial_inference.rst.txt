@@ -1,0 +1,7 @@
+apache\_beam\.typehints\.trivial\_inference module
+==================================================
+
+.. automodule:: apache_beam.typehints.trivial_inference
+    :members:
+    :undoc-members:
+    :show-inheritance:

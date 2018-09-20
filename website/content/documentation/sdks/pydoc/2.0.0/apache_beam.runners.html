@@ -1,0 +1,633 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.runners.dataflow package" href="apache_beam.runners.dataflow.html" />
+    <link rel="prev" title="apache_beam.options package" href="apache_beam.options.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.html" title="apache_beam.runners.dataflow package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.options.html" title="apache_beam.options package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.runners package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.common">apache_beam.runners.common module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.pipeline_context">apache_beam.runners.pipeline_context module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.runner">apache_beam.runners.runner module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.options.html"
+                        title="previous chapter">apache_beam.options package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.html"
+                        title="next chapter">apache_beam.runners.dataflow package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.runners.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-runners-package">
+<h1>apache_beam.runners package<a class="headerlink" href="#apache-beam-runners-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html">apache_beam.runners.dataflow.internal package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.apiclient">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.dependency">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.names">apache_beam.runners.dataflow.internal.names module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io.iobase">apache_beam.runners.dataflow.native_io.iobase module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_metrics">apache_beam.runners.dataflow.dataflow_metrics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_runner">apache_beam.runners.dataflow.dataflow_runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.test_dataflow_runner">apache_beam.runners.dataflow.test_dataflow_runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.bundle_factory">apache_beam.runners.direct.bundle_factory module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.clock">apache_beam.runners.direct.clock module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_metrics">apache_beam.runners.direct.direct_metrics module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_runner">apache_beam.runners.direct.direct_runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.evaluation_context">apache_beam.runners.direct.evaluation_context module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.executor">apache_beam.runners.direct.executor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.helper_transforms">apache_beam.runners.direct.helper_transforms module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_evaluator">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_result">apache_beam.runners.direct.transform_result module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.watermark_manager">apache_beam.runners.direct.watermark_manager module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.runners.common">
+<span id="apache-beam-runners-common-module"></span><h2>apache_beam.runners.common module<a class="headerlink" href="#module-apache_beam.runners.common" title="Permalink to this headline">¶</a></h2>
+<p>Worker operations executor.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnContext</code><span class="sig-paren">(</span><em>label</em>, <em>element=None</em>, <em>state=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.common.DoFnContext.element">
+<code class="descname">element</code><a class="headerlink" href="#apache_beam.runners.common.DoFnContext.element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnContext.set_element">
+<code class="descname">set_element</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnContext.set_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnContext.set_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.common.DoFnContext.timestamp">
+<code class="descname">timestamp</code><a class="headerlink" href="#apache_beam.runners.common.DoFnContext.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.common.DoFnContext.windows">
+<code class="descname">windows</code><a class="headerlink" href="#apache_beam.runners.common.DoFnContext.windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnInvoker">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnInvoker</code><span class="sig-paren">(</span><em>output_processor</em>, <em>signature</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnInvoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnInvoker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>An abstraction that can be used to execute DoFn methods.</p>
+<p>A DoFnInvoker describes a particular way for invoking methods of a DoFn
+represented by a given DoFnSignature.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.runners.common.DoFnInvoker.create_invoker">
+<em class="property">static </em><code class="descname">create_invoker</code><span class="sig-paren">(</span><em>output_processor</em>, <em>signature</em>, <em>context</em>, <em>side_inputs</em>, <em>input_args</em>, <em>input_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnInvoker.create_invoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnInvoker.create_invoker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new DoFnInvoker based on given arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>signature</strong> &#8211; a DoFnSignature for the DoFn being invoked.</li>
+<li><strong>context</strong> &#8211; Context to be used when invoking the DoFn (deprecated).</li>
+<li><strong>side_inputs</strong> &#8211; side inputs to be used when invoking th process method.</li>
+<li><strong>input_args</strong> &#8211; arguments to be used when invoking the process method</li>
+<li><strong>input_kwargs</strong> &#8211; kwargs to be used when invoking the process method.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnInvoker.invoke_finish_bundle">
+<code class="descname">invoke_finish_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnInvoker.invoke_finish_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnInvoker.invoke_finish_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invokes the DoFn.finish_bundle() method.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnInvoker.invoke_process">
+<code class="descname">invoke_process</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnInvoker.invoke_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnInvoker.invoke_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invokes the DoFn.process() function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>windowed_value</strong> &#8211; a WindowedValue object that gives the element for which
+process() method should be invoked along with the window
+the element belongs to.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnInvoker.invoke_start_bundle">
+<code class="descname">invoke_start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnInvoker.invoke_start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnInvoker.invoke_start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invokes the DoFn.start_bundle() method.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnMethodWrapper">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnMethodWrapper</code><span class="sig-paren">(</span><em>do_fn</em>, <em>method_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnMethodWrapper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnMethodWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Represents a method of a DoFn object.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnRunner</code><span class="sig-paren">(</span><em>fn</em>, <em>args</em>, <em>kwargs</em>, <em>side_inputs</em>, <em>windowing</em>, <em>context=None</em>, <em>tagged_receivers=None</em>, <em>logger=None</em>, <em>step_name=None</em>, <em>logging_context=None</em>, <em>state=None</em>, <em>scoped_metrics_container=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.runners.common.Receiver" title="apache_beam.runners.common.Receiver"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.common.Receiver</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>A helper class for executing ParDo operations.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnRunner.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnRunner.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnRunner.finish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnRunner.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnRunner.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnRunner.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnRunner.receive">
+<code class="descname">receive</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnRunner.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnRunner.receive" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnRunner.start">
+<code class="descname">start</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnRunner.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnRunner.start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnSignature">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnSignature</code><span class="sig-paren">(</span><em>do_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnSignature"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnSignature" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Represents the signature of a given <code class="docutils literal"><span class="pre">DoFn</span></code> object.</p>
+<p>Signature of a <code class="docutils literal"><span class="pre">DoFn</span></code> provides a view of the properties of a given <code class="docutils literal"><span class="pre">DoFn</span></code>.
+Among other things, this will give an extensible way for for (1) accessing the
+structure of the <code class="docutils literal"><span class="pre">DoFn</span></code> including methods and method parameters
+(2) identifying features that a given <code class="docutils literal"><span class="pre">DoFn</span></code> support, for example, whether
+a given <code class="docutils literal"><span class="pre">DoFn</span></code> is a Splittable <code class="docutils literal"><span class="pre">DoFn</span></code> (
+<a class="reference external" href="https://s.apache.org/splittable-do-fn">https://s.apache.org/splittable-do-fn</a>) (3) validating a <code class="docutils literal"><span class="pre">DoFn</span></code> based on the
+feature set offered by it.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.DoFnState">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">DoFnState</code><span class="sig-paren">(</span><em>counter_factory</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Keeps track of state that DoFns want, currently, user counters.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.DoFnState.counter_for">
+<code class="descname">counter_for</code><span class="sig-paren">(</span><em>aggregator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#DoFnState.counter_for"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.DoFnState.counter_for" title="Permalink to this definition">¶</a></dt>
+<dd><p>Looks up the counter for this aggregator, creating one if necessary.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.LoggingContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">LoggingContext</code><a class="reference internal" href="_modules/apache_beam/runners/common.html#LoggingContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.LoggingContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.LoggingContext.enter">
+<code class="descname">enter</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#LoggingContext.enter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.LoggingContext.enter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.common.LoggingContext.exit">
+<code class="descname">exit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#LoggingContext.exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.LoggingContext.exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.PerWindowInvoker">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">PerWindowInvoker</code><span class="sig-paren">(</span><em>output_processor</em>, <em>signature</em>, <em>context</em>, <em>side_inputs</em>, <em>input_args</em>, <em>input_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#PerWindowInvoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.PerWindowInvoker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.runners.common.DoFnInvoker" title="apache_beam.runners.common.DoFnInvoker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.common.DoFnInvoker</span></code></a></p>
+<p>An invoker that processes elements considering windowing information.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.PerWindowInvoker.invoke_process">
+<code class="descname">invoke_process</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#PerWindowInvoker.invoke_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.PerWindowInvoker.invoke_process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.Receiver">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">Receiver</code><a class="reference internal" href="_modules/apache_beam/runners/common.html#Receiver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.Receiver" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>An object that consumes a WindowedValue.</p>
+<p>This class can be efficiently used to pass values between the
+sdk and worker harnesses.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.Receiver.receive">
+<code class="descname">receive</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#Receiver.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.Receiver.receive" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.common.SimpleInvoker">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.common.</code><code class="descname">SimpleInvoker</code><span class="sig-paren">(</span><em>output_processor</em>, <em>signature</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#SimpleInvoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.SimpleInvoker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.runners.common.DoFnInvoker" title="apache_beam.runners.common.DoFnInvoker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.common.DoFnInvoker</span></code></a></p>
+<p>An invoker that processes elements ignoring windowing information.</p>
+<dl class="method">
+<dt id="apache_beam.runners.common.SimpleInvoker.invoke_process">
+<code class="descname">invoke_process</code><span class="sig-paren">(</span><em>windowed_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#SimpleInvoker.invoke_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.SimpleInvoker.invoke_process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.common.as_receiver">
+<code class="descclassname">apache_beam.runners.common.</code><code class="descname">as_receiver</code><span class="sig-paren">(</span><em>maybe_receiver</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#as_receiver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.as_receiver" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.common.get_logging_context">
+<code class="descclassname">apache_beam.runners.common.</code><code class="descname">get_logging_context</code><span class="sig-paren">(</span><em>maybe_logger</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/common.html#get_logging_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.common.get_logging_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.pipeline_context">
+<span id="apache-beam-runners-pipeline-context-module"></span><h2>apache_beam.runners.pipeline_context module<a class="headerlink" href="#module-apache_beam.runners.pipeline_context" title="Permalink to this headline">¶</a></h2>
+<p>Utility class for serializing pipelines via the runner API.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.runners.pipeline_context.PipelineContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.pipeline_context.</code><code class="descname">PipelineContext</code><span class="sig-paren">(</span><em>context_proto=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/pipeline_context.html#PipelineContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.pipeline_context.PipelineContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Used for accessing and constructing the referenced objects of a Pipeline.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.runners.pipeline_context.PipelineContext.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/pipeline_context.html#PipelineContext.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.pipeline_context.PipelineContext.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.pipeline_context.PipelineContext.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/pipeline_context.html#PipelineContext.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.pipeline_context.PipelineContext.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.runner">
+<span id="apache-beam-runners-runner-module"></span><h2>apache_beam.runners.runner module<a class="headerlink" href="#module-apache_beam.runners.runner" title="Permalink to this headline">¶</a></h2>
+<p>PipelineRunner, an abstract base runner object.</p>
+<dl class="class">
+<dt id="apache_beam.runners.runner.PipelineRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.runner.</code><code class="descname">PipelineRunner</code><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A runner of a pipeline object.</p>
+<p>The base runner provides a run() method for visiting every node in the
+pipeline&#8217;s DAG and executing the transforms computing the PValue in the node.</p>
+<p>A custom runner will typically provide implementations for some of the
+transform methods (ParDo, GroupByKey, Create, etc.). It may also
+provide a new implementation for clear_pvalue(), which is used to wipe out
+materialized values in order to reduce footprint.</p>
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineRunner.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>transform</em>, <em>input</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineRunner.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineRunner.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runner callback for a pipeline.apply call.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transform</strong> &#8211; the transform to apply.</li>
+<li><strong>input</strong> &#8211; transform&#8217;s input (typically a PCollection).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>A concrete implementation of the Runner class may want to do custom
+pipeline construction for a given transform.  To override the behavior
+for a transform class Xyz, implement an apply_Xyz method with this same
+signature.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineRunner.apply_PTransform">
+<code class="descname">apply_PTransform</code><span class="sig-paren">(</span><em>transform</em>, <em>input</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineRunner.apply_PTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineRunner.apply_PTransform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineRunner.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>pipeline</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineRunner.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute the entire pipeline or the sub-DAG reachable from a node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineRunner.run_transform">
+<code class="descname">run_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineRunner.run_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineRunner.run_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runner callback for a pipeline.run call.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>transform_node</strong> &#8211; transform node for the transform to run.</td>
+</tr>
+</tbody>
+</table>
+<p>A concrete implementation of the Runner class must implement run_Abc for
+some class Abc in the method resolution order for every non-composite
+transform Xyz in the pipeline.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.runner.PipelineState">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.runner.</code><code class="descname">PipelineState</code><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>State of the Pipeline, as returned by PipelineResult.state.</p>
+<p>This is meant to be the union of all the states any runner can put a
+pipeline in.  Currently, it represents the values of the dataflow
+API JobState enum.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.CANCELLED">
+<code class="descname">CANCELLED</code><em class="property"> = 'CANCELLED'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.CANCELLED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.DONE">
+<code class="descname">DONE</code><em class="property"> = 'DONE'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.DONE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.DRAINED">
+<code class="descname">DRAINED</code><em class="property"> = 'DRAINED'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.DRAINED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.DRAINING">
+<code class="descname">DRAINING</code><em class="property"> = 'DRAINING'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.DRAINING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.FAILED">
+<code class="descname">FAILED</code><em class="property"> = 'FAILED'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.FAILED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.RUNNING">
+<code class="descname">RUNNING</code><em class="property"> = 'RUNNING'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.RUNNING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.STOPPED">
+<code class="descname">STOPPED</code><em class="property"> = 'STOPPED'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.STOPPED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.UNKNOWN">
+<code class="descname">UNKNOWN</code><em class="property"> = 'UNKNOWN'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.UNKNOWN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineState.UPDATED">
+<code class="descname">UPDATED</code><em class="property"> = 'UPDATED'</em><a class="headerlink" href="#apache_beam.runners.runner.PipelineState.UPDATED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.runner.PipelineResult">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.runner.</code><code class="descname">PipelineResult</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A PipelineResult provides access to info about a pipeline.</p>
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineResult.aggregated_values">
+<code class="descname">aggregated_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineResult.aggregated_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult.aggregated_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a dict of step names to values of the Aggregator.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineResult.cancel">
+<code class="descname">cancel</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineResult.cancel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult.cancel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cancels the pipeline execution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">IOError</span></code> &#8211; If there is a persistent problem getting job information.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">NotImplementedError</span></code> &#8211; If the runner does not support this operation.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The final state of the pipeline.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineResult.metrics">
+<code class="descname">metrics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineResult.metrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult.metrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns MetricsResult object to query metrics from the runner.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="xref py py-exc docutils literal"><span class="pre">NotImplementedError</span></code> &#8211; If the runner does not support this operation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.runner.PipelineResult.state">
+<code class="descname">state</code><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult.state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the current state of the pipeline execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.runner.PipelineResult.wait_until_finish">
+<code class="descname">wait_until_finish</code><span class="sig-paren">(</span><em>duration=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/runner.html#PipelineResult.wait_until_finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.runner.PipelineResult.wait_until_finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Waits until the pipeline finishes and returns the final status.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>duration</strong> &#8211; The time to wait (in milliseconds) for job to finish. If it is
+set to None, it will wait indefinitely until the job is finished.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">IOError</span></code> &#8211; If there is a persistent problem getting job information.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">NotImplementedError</span></code> &#8211; If the runner does not support this operation.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The final state of the pipeline, or None on timeout.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.runners" title="Permalink to this headline">¶</a></h2>
+<p>Runner objects execute a Pipeline.</p>
+<p>This package defines runners, which are used to execute a pipeline.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.html" title="apache_beam.runners.dataflow package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.options.html" title="apache_beam.options package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

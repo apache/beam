@@ -1,0 +1,7 @@
+apache\_beam\.portability\.python\_urns module
+==============================================
+
+.. automodule:: apache_beam.portability.python_urns
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,371 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.tfrecordio &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.tfrecordio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;TFRecord sources and sinks.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsink</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Read</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Write</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">import</span> <span class="nn">crcmod</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ReadFromTFRecord&#39;</span><span class="p">,</span> <span class="s1">&#39;WriteToTFRecord&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_default_crc32c_fn</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Calculates crc32c by either snappy or crcmod based on installation.&quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">_default_crc32c_fn</span><span class="o">.</span><span class="n">fn</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="kn">import</span> <span class="nn">snappy</span>  <span class="c1"># pylint: disable=import-error</span>
+      <span class="n">_default_crc32c_fn</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">snappy</span><span class="o">.</span><span class="n">_crc32c</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Couldn</span><span class="se">\&#39;</span><span class="s1">t find python-snappy so the implementation of &#39;</span>
+                      <span class="s1">&#39;_TFRecordUtil._masked_crc32c is not as fast as it could &#39;</span>
+                      <span class="s1">&#39;be.&#39;</span><span class="p">)</span>
+      <span class="n">_default_crc32c_fn</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">crcmod</span><span class="o">.</span><span class="n">predefined</span><span class="o">.</span><span class="n">mkPredefinedCrcFun</span><span class="p">(</span><span class="s1">&#39;crc-32c&#39;</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">_default_crc32c_fn</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+<span class="n">_default_crc32c_fn</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">class</span> <span class="nc">_TFRecordUtil</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Provides basic TFRecord encoding/decoding with consistency checks.</span>
+
+<span class="sd">  For detailed TFRecord format description see:</span>
+<span class="sd">    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details</span>
+
+<span class="sd">  Note that masks and length are represented in LittleEndian order.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_masked_crc32c</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">crc32c_fn</span><span class="o">=</span><span class="n">_default_crc32c_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute a masked crc32c checksum for a value.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      value: A string for which we compute the crc.</span>
+<span class="sd">      crc32c_fn: A function that can compute a crc32c.</span>
+<span class="sd">        This is a performance hook that also helps with testing. Callers are</span>
+<span class="sd">        not expected to make use of it directly.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      Masked crc32c checksum.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">crc</span> <span class="o">=</span> <span class="n">crc32c_fn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(((</span><span class="n">crc</span> <span class="o">&gt;&gt;</span> <span class="mi">15</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">crc</span> <span class="o">&lt;&lt;</span> <span class="mi">17</span><span class="p">))</span> <span class="o">+</span> <span class="mh">0xa282ead8</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xffffffff</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">encoded_num_bytes</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the number of bytes consumed by a record in its encoded form.&quot;&quot;&quot;</span>
+    <span class="c1"># 16 = 8 (Length) + 4 (crc of length) + 4 (crc of data)</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">record</span><span class="p">)</span> <span class="o">+</span> <span class="mi">16</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">write_record</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Encode a value as a TFRecord.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_handle: The file to write to.</span>
+<span class="sd">      value: A string content of the record.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">encoded_length</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;&lt;Q&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}{}{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">encoded_length</span><span class="p">,</span>
+        <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;&lt;I&#39;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="n">encoded_length</span><span class="p">)),</span>  <span class="c1">#</span>
+        <span class="n">value</span><span class="p">,</span>
+        <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;&lt;I&#39;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="n">value</span><span class="p">))))</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">read_record</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read a record from a TFRecords file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_handle: The file to read from.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      None if EOF is reached; the paylod of the record otherwise.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If file appears to not be a valid TFRecords file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">buf_length_expected</span> <span class="o">=</span> <span class="mi">12</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">file_handle</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf_length_expected</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">buf</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># EOF Reached.</span>
+
+    <span class="c1"># Validate all length related payloads.</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span> <span class="o">!=</span> <span class="n">buf_length_expected</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Not a valid TFRecord. Fewer than </span><span class="si">%d</span><span class="s1"> bytes: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">buf_length_expected</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">)))</span>
+    <span class="n">length</span><span class="p">,</span> <span class="n">length_mask_expected</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;QI&#39;</span><span class="p">,</span> <span class="n">buf</span><span class="p">)</span>
+    <span class="n">length_mask_actual</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="n">buf</span><span class="p">[:</span><span class="mi">8</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">length_mask_actual</span> <span class="o">!=</span> <span class="n">length_mask_expected</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Not a valid TFRecord. Mismatch of length mask: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="n">buf</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">))</span>
+
+    <span class="c1"># Validate all data related payloads.</span>
+    <span class="n">buf_length_expected</span> <span class="o">=</span> <span class="n">length</span> <span class="o">+</span> <span class="mi">4</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">file_handle</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf_length_expected</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span> <span class="o">!=</span> <span class="n">buf_length_expected</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Not a valid TFRecord. Fewer than </span><span class="si">%d</span><span class="s1"> bytes: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">buf_length_expected</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">)))</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">data_mask_expected</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;</span><span class="si">%d</span><span class="s1">sI&#39;</span> <span class="o">%</span> <span class="n">length</span><span class="p">,</span> <span class="n">buf</span><span class="p">)</span>
+    <span class="n">data_mask_actual</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data_mask_actual</span> <span class="o">!=</span> <span class="n">data_mask_expected</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Not a valid TFRecord. Mismatch of data mask: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="n">buf</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">))</span>
+
+    <span class="c1"># All validation checks passed.</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">class</span> <span class="nc">_TFRecordSource</span><span class="p">(</span><span class="n">filebasedsource</span><span class="o">.</span><span class="n">FileBasedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A File source for reading files of TFRecords.</span>
+
+<span class="sd">  For detailed TFRecords format description see:</span>
+<span class="sd">    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_pattern</span><span class="p">,</span>
+               <span class="n">coder</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="p">,</span>
+               <span class="n">validate</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a TFRecordSource.  See ReadFromTFRecord for details.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_TFRecordSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="o">=</span><span class="n">file_pattern</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">,</span>
+        <span class="n">splittable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span> <span class="o">=</span> <span class="n">coder</span>
+
+  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">offset_range_tracker</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">offset_range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Start position not 0:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="n">offset_range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">())</span>
+
+    <span class="n">current_offset</span> <span class="o">=</span> <span class="n">offset_range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">file_handle</span><span class="p">:</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">offset_range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">current_offset</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Unable to claim position: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">current_offset</span><span class="p">)</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">read_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span>  <span class="c1"># Reached EOF</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">current_offset</span> <span class="o">+=</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">encoded_num_bytes</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+          <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReadFromTFRecord"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio.ReadFromTFRecord">[docs]</a><span class="k">class</span> <span class="nc">ReadFromTFRecord</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Transform for reading TFRecord sources.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_pattern</span><span class="p">,</span>
+               <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a ReadFromTFRecord transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_pattern: A file glob pattern to read TFRecords from.</span>
+<span class="sd">      coder: Coder used to decode each record.</span>
+<span class="sd">      compression_type: Used to handle compressed input files. Default value</span>
+<span class="sd">          is CompressionTypes.AUTO, in which case the file_path&#39;s extension will</span>
+<span class="sd">          be used to detect the compression.</span>
+<span class="sd">      validate: Boolean flag to verify that the files exist during the pipeline</span>
+<span class="sd">          creation time.</span>
+<span class="sd">      **kwargs: optional args dictionary. These are passed through to parent</span>
+<span class="sd">        constructor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A ReadFromTFRecord transform object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromTFRecord</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">_TFRecordSource</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">,</span>
+                                   <span class="n">validate</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReadFromTFRecord.expand"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio.ReadFromTFRecord.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">|</span> <span class="n">Read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_TFRecordSink</span><span class="p">(</span><span class="n">filebasedsink</span><span class="o">.</span><span class="n">FileBasedSink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Sink for writing TFRecords files.</span>
+
+<span class="sd">  For detailed TFRecord format description see:</span>
+<span class="sd">    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="p">,</span> <span class="n">num_shards</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a TFRecordSink. See WriteToTFRecord for details.&quot;&quot;&quot;</span>
+
+    <span class="nb">super</span><span class="p">(</span><span class="n">_TFRecordSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">file_path_prefix</span><span class="o">=</span><span class="n">file_path_prefix</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="n">coder</span><span class="p">,</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="n">file_name_suffix</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="n">num_shards</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="n">shard_name_template</span><span class="p">,</span>
+        <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">write_encoded_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WriteToTFRecord"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio.WriteToTFRecord">[docs]</a><span class="k">class</span> <span class="nc">WriteToTFRecord</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Transform for writing to TFRecord sinks.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+               <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="o">=</span><span class="n">filebasedsink</span><span class="o">.</span><span class="n">DEFAULT_SHARD_NAME_TEMPLATE</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+               <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize WriteToTFRecord transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_path_prefix: The file path to write to. The files written will begin</span>
+<span class="sd">        with this prefix, followed by a shard identifier (see num_shards), and</span>
+<span class="sd">        end in a common extension, if given by file_name_suffix.</span>
+<span class="sd">      coder: Coder used to encode each record.</span>
+<span class="sd">      file_name_suffix: Suffix for the files written.</span>
+<span class="sd">      num_shards: The number of files (shards) used for output. If not set, the</span>
+<span class="sd">        default value will be used.</span>
+<span class="sd">      shard_name_template: A template string containing placeholders for</span>
+<span class="sd">        the shard number and shard count. Currently only &#39;&#39; and</span>
+<span class="sd">        &#39;-SSSSS-of-NNNNN&#39; are patterns allowed.</span>
+<span class="sd">        When constructing a filename for a particular shard number, the</span>
+<span class="sd">        upper-case letters &#39;S&#39; and &#39;N&#39; are replaced with the 0-padded shard</span>
+<span class="sd">        number and shard count respectively.  This argument can be &#39;&#39; in which</span>
+<span class="sd">        case it behaves as if num_shards was set to 1 and only one file will be</span>
+<span class="sd">        generated. The default pattern is &#39;-SSSSS-of-NNNNN&#39;.</span>
+<span class="sd">      compression_type: Used to handle compressed output files. Typical value</span>
+<span class="sd">          is CompressionTypes.AUTO, in which case the file_path&#39;s extension will</span>
+<span class="sd">          be used to detect the compression.</span>
+<span class="sd">      **kwargs: Optional args dictionary. These are passed through to parent</span>
+<span class="sd">        constructor.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A WriteToTFRecord transform object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">WriteToTFRecord</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span> <span class="o">=</span> <span class="n">_TFRecordSink</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="p">,</span>
+                               <span class="n">num_shards</span><span class="p">,</span> <span class="n">shard_name_template</span><span class="p">,</span>
+                               <span class="n">compression_type</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WriteToTFRecord.expand"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio.WriteToTFRecord.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

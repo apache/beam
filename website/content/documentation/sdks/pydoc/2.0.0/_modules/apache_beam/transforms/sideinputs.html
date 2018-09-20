@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.sideinputs &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.sideinputs</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Internal side input transforms and implementations.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">Important: this module is an implementation detail and should not be used</span>
+<span class="sd">directly by pipeline writers. Instead, users should use the helper methods</span>
+<span class="sd">AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+
+
+<span class="c1"># Top-level function so we can identify it later.</span>
+<span class="k">def</span> <span class="nf">_global_window_mapping_fn</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">global_window</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">()):</span>
+  <span class="k">return</span> <span class="n">global_window</span>
+
+
+<div class="viewcode-block" id="default_window_mapping_fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs.default_window_mapping_fn">[docs]</a><span class="k">def</span> <span class="nf">default_window_mapping_fn</span><span class="p">(</span><span class="n">target_window_fn</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">target_window_fn</span> <span class="o">==</span> <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_global_window_mapping_fn</span>
+
+  <span class="k">def</span> <span class="nf">map_via_end</span><span class="p">(</span><span class="n">source_window</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">target_window_fn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">source_window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">())))[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+  <span class="k">return</span> <span class="n">map_via_end</span></div>
+
+
+<div class="viewcode-block" id="SideInputMap"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap">[docs]</a><span class="k">class</span> <span class="nc">SideInputMap</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents a mapping of windows to side input values.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view_class</span><span class="p">,</span> <span class="n">view_options</span><span class="p">,</span> <span class="n">iterable</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_window_mapping_fn</span> <span class="o">=</span> <span class="n">view_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="s1">&#39;window_mapping_fn&#39;</span><span class="p">,</span> <span class="n">_global_window_mapping_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_view_class</span> <span class="o">=</span> <span class="n">view_class</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_view_options</span> <span class="o">=</span> <span class="n">view_options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_iterable</span> <span class="o">=</span> <span class="n">iterable</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span>
+      <span class="n">target_window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_mapping_fn</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">window</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_view_class</span><span class="o">.</span><span class="n">_from_runtime_iterable</span><span class="p">(</span>
+          <span class="n">_FilteringIterable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iterable</span><span class="p">,</span> <span class="n">target_window</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_view_options</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">window</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SideInputMap.is_globally_windowed"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap.is_globally_windowed">[docs]</a>  <span class="k">def</span> <span class="nf">is_globally_windowed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_mapping_fn</span> <span class="o">==</span> <span class="n">_global_window_mapping_fn</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_FilteringIterable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An iterable containing only those values in the given window.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iterable</span><span class="p">,</span> <span class="n">target_window</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_iterable</span> <span class="o">=</span> <span class="n">iterable</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_target_window</span> <span class="o">=</span> <span class="n">target_window</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">wv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterable</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_window</span> <span class="ow">in</span> <span class="n">wv</span><span class="o">.</span><span class="n">windows</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">wv</span><span class="o">.</span><span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Pickle self as an already filtered list.</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="p">),)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

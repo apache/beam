@@ -1,0 +1,452 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.interactive.interactive_runner module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.interactive package" href="apache_beam.runners.interactive.html"/>
+        <link rel="next" title="apache_beam.runners.interactive.pipeline_graph module" href="apache_beam.runners.interactive.pipeline_graph.html"/>
+        <link rel="prev" title="apache_beam.runners.interactive.interactive_pipeline_graph module" href="apache_beam.runners.interactive.interactive_pipeline_graph.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.interactive.html">apache_beam.runners.interactive package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.interactive.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.interactive.html">apache_beam.runners.interactive package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.interactive.interactive_runner module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.interactive.interactive_runner.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.interactive.interactive_runner">
+<span id="apache-beam-runners-interactive-interactive-runner-module"></span><h1>apache_beam.runners.interactive.interactive_runner module<a class="headerlink" href="#module-apache_beam.runners.interactive.interactive_runner" title="Permalink to this headline">¶</a></h1>
+<p>A runner that allows running of Beam pipelines interactively.</p>
+<p>This module is experimental. No backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.InteractiveRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">InteractiveRunner</code><span class="sig-paren">(</span><em>underlying_runner=&lt;apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#InteractiveRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.InteractiveRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.runner.PipelineRunner</span></code></a></p>
+<p>An interactive runner for Beam Python pipelines.</p>
+<p>Allows interactively building and running Beam Python pipelines.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.InteractiveRunner.cleanup">
+<code class="descname">cleanup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#InteractiveRunner.cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.InteractiveRunner.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>transform</em>, <em>pvalueish</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#InteractiveRunner.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.apply" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.InteractiveRunner.run_pipeline">
+<code class="descname">run_pipeline</code><span class="sig-paren">(</span><em>pipeline</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#InteractiveRunner.run_pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.run_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.ReadCache">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">ReadCache</code><span class="sig-paren">(</span><em>cache_manager</em>, <em>label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#ReadCache"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.ReadCache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A PTransform that reads the PCollections from the cache.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.ReadCache.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#ReadCache.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.ReadCache.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.WriteCache">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">WriteCache</code><span class="sig-paren">(</span><em>cache_manager</em>, <em>sample=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#WriteCache"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.WriteCache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A PTransform that writes the PCollections to the cache.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.WriteCache.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcolls_to_write</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#WriteCache.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.WriteCache.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">CacheManager</code><span class="sig-paren">(</span><em>temp_dir=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Maps PCollections to files for materialization.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>*labels</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager.exists" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>prefix</em>, <em>cache_label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager.glob_path">
+<code class="descname">glob_path</code><span class="sig-paren">(</span><em>*labels</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager.glob_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager.glob_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager.path">
+<code class="descname">path</code><span class="sig-paren">(</span><em>*labels</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager.path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager.path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.CacheManager.cleanup">
+<code class="descname">cleanup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#CacheManager.cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.CacheManager.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineInfo">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">PipelineInfo</code><span class="sig-paren">(</span><em>proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Provides access to pipeline metadata.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineInfo.all_pcollections">
+<code class="descname">all_pcollections</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineInfo.all_pcollections"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineInfo.all_pcollections" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineInfo.leaf_pcollections">
+<code class="descname">leaf_pcollections</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineInfo.leaf_pcollections"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineInfo.leaf_pcollections" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineInfo.producer">
+<code class="descname">producer</code><span class="sig-paren">(</span><em>pcoll_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineInfo.producer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineInfo.producer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineInfo.derivation">
+<code class="descname">derivation</code><span class="sig-paren">(</span><em>pcoll_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineInfo.derivation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineInfo.derivation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the Derivation corresponding to the PCollection.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.Derivation">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">Derivation</code><span class="sig-paren">(</span><em>inputs</em>, <em>transform_proto</em>, <em>output_tag</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#Derivation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.Derivation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Records derivation info of a PCollection. Helper for PipelineInfo.</p>
+<p>Constructor of Derivation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>inputs</strong> – (Dict[str, str]) a dict that contains input PCollections to the
+producing PTransform of the output PCollection. Maps local names to IDs.</li>
+<li><strong>transform_proto</strong> – (Transform proto) the producing PTransform of the output
+PCollection.</li>
+<li><strong>output_tag</strong> – (str) local name of the output PCollection; this is the
+PCollection in analysis.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.Derivation.cache_label">
+<code class="descname">cache_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#Derivation.cache_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.Derivation.cache_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.Derivation.json">
+<code class="descname">json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#Derivation.json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.Derivation.json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">SafeFastPrimitivesCoder</code><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#SafeFastPrimitivesCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.coders.coders.html#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.Coder</span></code></a></p>
+<p>This class add an quote/unquote step to escape special characters.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#SafeFastPrimitivesCoder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.encode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#SafeFastPrimitivesCoder.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.decode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.interactive.interactive_runner.set_proto_map">
+<code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">set_proto_map</code><span class="sig-paren">(</span><em>proto_map</em>, <em>new_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#set_proto_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.set_proto_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineResult">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.interactive_runner.</code><code class="descname">PipelineResult</code><span class="sig-paren">(</span><em>underlying_result</em>, <em>runner</em>, <em>pipeline_info</em>, <em>cache_manager</em>, <em>pcolls_to_pcoll_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineResult" title="apache_beam.runners.runner.PipelineResult"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.runner.PipelineResult</span></code></a></p>
+<p>Provides access to information about a pipeline.</p>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineResult.wait_until_finish">
+<code class="descname">wait_until_finish</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineResult.wait_until_finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineResult.wait_until_finish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineResult.get">
+<code class="descname">get</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineResult.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineResult.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.interactive_runner.PipelineResult.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/interactive_runner.html#PipelineResult.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.interactive_runner.PipelineResult.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.interactive.pipeline_graph.html" class="btn btn-neutral float-right" title="apache_beam.runners.interactive.pipeline_graph module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.interactive.interactive_pipeline_graph.html" class="btn btn-neutral" title="apache_beam.runners.interactive.interactive_pipeline_graph module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

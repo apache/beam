@@ -1,0 +1,424 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.direct.sdf_direct_runner module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.direct package" href="apache_beam.runners.direct.html"/>
+        <link rel="next" title="apache_beam.runners.direct.transform_evaluator module" href="apache_beam.runners.direct.transform_evaluator.html"/>
+        <link rel="prev" title="apache_beam.runners.direct.helper_transforms module" href="apache_beam.runners.direct.helper_transforms.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.experimental.html">apache_beam.runners.experimental package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.direct.sdf_direct_runner module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.direct.sdf_direct_runner.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.direct.sdf_direct_runner">
+<span id="apache-beam-runners-direct-sdf-direct-runner-module"></span><h1>apache_beam.runners.direct.sdf_direct_runner module<a class="headerlink" href="#module-apache_beam.runners.direct.sdf_direct_runner" title="Permalink to this headline">¶</a></h1>
+<p>This module contains Splittable DoFn logic that is specific to DirectRunner.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.sdf_direct_runner.</code><code class="descname">ProcessKeyedElementsViaKeyedWorkItemsOverride</code><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessKeyedElementsViaKeyedWorkItemsOverride"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.pipeline.html#apache_beam.pipeline.PTransformOverride" title="apache_beam.pipeline.PTransformOverride"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.PTransformOverride</span></code></a></p>
+<p>A transform override for ProcessElements transform.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride.get_matcher">
+<code class="descname">get_matcher</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessKeyedElementsViaKeyedWorkItemsOverride.get_matcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride.get_matcher" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride.get_replacement_transform">
+<code class="descname">get_replacement_transform</code><span class="sig-paren">(</span><em>ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessKeyedElementsViaKeyedWorkItemsOverride.get_replacement_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItemsOverride.get_replacement_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItems">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.sdf_direct_runner.</code><code class="descname">ProcessKeyedElementsViaKeyedWorkItems</code><span class="sig-paren">(</span><em>process_keyed_elements_transform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessKeyedElementsViaKeyedWorkItems"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItems" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that processes Splittable DoFn input via KeyedWorkItems.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItems.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessKeyedElementsViaKeyedWorkItems.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessKeyedElementsViaKeyedWorkItems.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessElements">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.sdf_direct_runner.</code><code class="descname">ProcessElements</code><span class="sig-paren">(</span><em>process_keyed_elements_transform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessElements"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessElements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A primitive transform for processing keyed elements or KeyedWorkItems.</p>
+<p>Will be evaluated by
+<cite>runners.direct.transform_evaluator._ProcessElementsEvaluator</cite>.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessElements.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessElements.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessElements.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessElements.new_process_fn">
+<code class="descname">new_process_fn</code><span class="sig-paren">(</span><em>sdf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessElements.new_process_fn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessElements.new_process_fn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessFn">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.sdf_direct_runner.</code><code class="descname">ProcessFn</code><span class="sig-paren">(</span><em>sdf</em>, <em>args_for_invoker</em>, <em>kwargs_for_invoker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A <cite>DoFn</cite> that executes machineary for invoking a Splittable <cite>DoFn</cite>.</p>
+<p>Input to the <cite>ParDo</cite> step that includes a <cite>ProcessFn</cite> will be a <cite>PCollection</cite>
+of <cite>ElementAndRestriction</cite> objects.</p>
+<p>This class is mainly responsible for following.
+(1) setup environment for properly invoking a Splittable <cite>DoFn</cite>.
+(2) invoke <cite>process()</cite> method of a Splittable <cite>DoFn</cite>.
+(3) after the <cite>process()</cite> invocation of the Splittable <cite>DoFn</cite>, determine if a
+re-invocation of the element is needed. If this is the case, set state and
+a timer for a re-invocation and hold output watermark till this
+re-invocation.
+(4) after the final invocation of a given element clear any previous state set
+for re-invoking the element and release the output watermark.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessFn.step_context">
+<code class="descname">step_context</code><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessFn.step_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessFn.set_process_element_invoker">
+<code class="descname">set_process_element_invoker</code><span class="sig-paren">(</span><em>process_element_invoker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessFn.set_process_element_invoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessFn.set_process_element_invoker" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.ProcessFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>timestamp='TimestampParam'</em>, <em>window='WindowParam'</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#ProcessFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.ProcessFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.sdf_direct_runner.</code><code class="descname">SDFProcessElementInvoker</code><span class="sig-paren">(</span><em>max_num_outputs</em>, <em>max_duration</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#SDFProcessElementInvoker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A utility that invokes SDF <cite>process()</cite> method and requests checkpoints.</p>
+<p>This class is responsible for invoking the <cite>process()</cite> method of a Splittable
+<cite>DoFn</cite> and making sure that invocation terminated properly. Based on the input
+configuration, this class may decide to request a checkpoint for a <cite>process()</cite>
+execution so that runner can process current output and resume the invocation
+at a later time.</p>
+<p>More specifically, when initializing a <cite>SDFProcessElementInvoker</cite>, caller may
+specify the number of output elements or processing time after which a
+checkpoint should be requested. This class is responsible for properly
+requesting a checkpoint based on either of these criteria.
+When the <cite>process()</cite> call of Splittable <cite>DoFn</cite> ends, this class performs
+validations to make sure that processing ended gracefully and returns a
+<cite>SDFProcessElementInvoker.Result</cite> that contains information which can be used
+by the caller to perform another <cite>process()</cite> invocation for the residual.</p>
+<p>A <cite>process()</cite> invocation may decide to give up processing voluntarily by
+returning a <cite>ProcessContinuation</cite> object (see documentation of
+<cite>ProcessContinuation</cite> for more details). So if a ‘ProcessContinuation’ is
+produced this class ends the execution and performs steps to finalize the
+current invocation.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.Result">
+<em class="property">class </em><code class="descname">Result</code><span class="sig-paren">(</span><em>residual_restriction=None</em>, <em>process_continuation=None</em>, <em>future_output_watermark=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#SDFProcessElementInvoker.Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.Result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Returned as a result of a <cite>invoke_process_element()</cite> invocation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>residual_restriction</strong> – a restriction for the unprocessed part of the
+element.</li>
+<li><strong>process_continuation</strong> – a <cite>ProcessContinuation</cite> if one was returned as the
+last element of the SDF <cite>process()</cite> invocation.</li>
+<li><strong>future_output_watermark</strong> – output watermark of the results that will be
+produced when invoking the Splittable <cite>DoFn</cite>
+for the current element with
+<cite>residual_restriction</cite>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.test_method">
+<code class="descname">test_method</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#SDFProcessElementInvoker.test_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.test_method" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.invoke_process_element">
+<code class="descname">invoke_process_element</code><span class="sig-paren">(</span><em>sdf_invoker</em>, <em>element</em>, <em>tracker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/sdf_direct_runner.html#SDFProcessElementInvoker.invoke_process_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.sdf_direct_runner.SDFProcessElementInvoker.invoke_process_element" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invokes <cite>process()</cite> method of a Splittable <cite>DoFn</cite> for a given element.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>sdf_invoker</strong> – a <cite>DoFnInvoker</cite> for the Splittable <cite>DoFn</cite>.</li>
+<li><strong>element</strong> – the element to process</li>
+<li><strong>tracker</strong> – a <cite>RestrictionTracker</cite> for the element that will be passed when
+invoking the <cite>process()</cite> method of the Splittable <cite>DoFn</cite>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a <cite>SDFProcessElementInvoker.Result</cite> object.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.direct.transform_evaluator.html" class="btn btn-neutral float-right" title="apache_beam.runners.direct.transform_evaluator module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.direct.helper_transforms.html" class="btn btn-neutral" title="apache_beam.runners.direct.helper_transforms module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

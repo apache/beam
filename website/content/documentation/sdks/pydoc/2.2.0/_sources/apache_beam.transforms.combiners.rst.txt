@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.combiners module
+==========================================
+
+.. automodule:: apache_beam.transforms.combiners
+    :members:
+    :undoc-members:
+    :show-inheritance:

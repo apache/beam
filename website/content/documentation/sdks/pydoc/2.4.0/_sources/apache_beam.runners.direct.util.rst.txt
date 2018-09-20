@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.util module
+==========================================
+
+.. automodule:: apache_beam.runners.direct.util
+    :members:
+    :undoc-members:
+    :show-inheritance:
