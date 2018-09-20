@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
@@ -54,8 +56,9 @@ public class Environments {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-  static final String ENVIRONMENT_DOCKER = "DOCKER";
-  static final String ENVIRONMENT_PROCESS = "PROCESS";
+  public static final String ENVIRONMENT_DOCKER = "DOCKER";
+  public static final String ENVIRONMENT_PROCESS = "PROCESS";
+  public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
 
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
@@ -77,6 +80,8 @@ public class Environments {
     }
 
     switch (type) {
+      case ENVIRONMENT_EMBEDDED:
+        return createEmbeddedEnvironment(config);
       case ENVIRONMENT_PROCESS:
         return createProcessEnvironment(config);
       case ENVIRONMENT_DOCKER:
@@ -107,6 +112,13 @@ public class Environments {
       throw new RuntimeException(
           String.format("Unable to parse process environment config: %s", config), e);
     }
+  }
+
+  private static Environment createEmbeddedEnvironment(String config) {
+    return Environment.newBuilder()
+        .setUrn(ENVIRONMENT_EMBEDDED)
+        .setPayload(ByteString.copyFromUtf8(MoreObjects.firstNonNull(config, "")))
+        .build();
   }
 
   public static Environment createProcessEnvironment(
@@ -199,23 +211,27 @@ public class Environments {
   }
 
   private static class ProcessPayloadReferenceJSON {
-    private String os;
-    private String arch;
-    private String command;
-    private Map<String, String> env;
+    @Nullable private String os;
+    @Nullable private String arch;
+    @Nullable private String command;
+    @Nullable private Map<String, String> env;
 
+    @Nullable
     public String getOs() {
       return os;
     }
 
+    @Nullable
     public String getArch() {
       return arch;
     }
 
+    @Nullable
     public String getCommand() {
       return command;
     }
 
+    @Nullable
     public Map<String, String> getEnv() {
       return env;
     }

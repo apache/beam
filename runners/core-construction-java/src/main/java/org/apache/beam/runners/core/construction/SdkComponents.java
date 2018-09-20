@@ -64,8 +64,8 @@ public class SdkComponents {
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(
-            portablePipelineOptions.getDefaultJavaEnvironmentType(),
-            portablePipelineOptions.getDefaultJavaEnvironmentConfig()));
+            portablePipelineOptions.getDefaultEnvironmentType(),
+            portablePipelineOptions.getDefaultEnvironmentConfig()));
     return sdkComponents;
   }
 
