@@ -1082,21 +1082,24 @@ class FnApiRunner(runner.PipelineRunner):
       # Note that this eagerly mutates state, assuming any failures are fatal.
       # Thus it is safe to ignore instruction_reference.
       for request in request_stream:
-        if request.get:
+        request_type = request.WhichOneof('request')
+        if request_type == 'get':
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               get=beam_fn_api_pb2.StateGetResponse(
                   data=self.blocking_get(request.state_key)))
-        elif request.append:
+        elif request_type == 'append':
           self.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
-              append=beam_fn_api_pb2.AppendResponse())
-        elif request.clear:
+              append=beam_fn_api_pb2.StateAppendResponse())
+        elif request_type == 'clear':
           self.blocking_clear(request.state_key)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
-              clear=beam_fn_api_pb2.ClearResponse())
+              clear=beam_fn_api_pb2.StateClearResponse())
+        else:
+          raise NotImplementedError('Unknown state request: %s' % request_type)
 
   class SingletonStateHandlerFactory(sdk_worker.StateHandlerFactory):
     """A singleton cache for a StateServicer."""
