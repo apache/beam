@@ -662,6 +662,24 @@ class PortableOptions(PipelineOptions):
                          'in the pipeline when running using the Fn API.'))
 
 
+class FlinkOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        type=str,
+                        help=
+                        ('Address of the Flink master where the pipeline '
+                         'should be executed. Can either be of the form '
+                         '\'host:port\' or one of the special values '
+                         '[local], [collection], or [auto].'))
+    parser.add_argument('--parallelism',
+                        type=int,
+                        help=
+                        ('The degree of parallelism to be used when '
+                         'distributing operations onto workers.'))
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod
