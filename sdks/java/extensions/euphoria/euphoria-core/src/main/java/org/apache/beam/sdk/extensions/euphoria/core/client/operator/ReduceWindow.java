@@ -41,7 +41,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -343,7 +343,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
       final ReduceWindow<InputT, ValueT, OutputT> rw =
           new ReduceWindow<>(
               name, valueExtractor, valueType, reducer, valueComparator, window, outputType);
-      return Translation.apply(rw, Collections.singletonList(input));
+      return OperatorTransform.apply(rw, Collections.singletonList(input));
     }
   }
 

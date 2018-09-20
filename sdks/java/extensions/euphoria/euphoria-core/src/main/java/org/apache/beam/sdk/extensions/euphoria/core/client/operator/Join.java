@@ -34,7 +34,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -268,7 +268,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
               window);
       @SuppressWarnings("unchecked")
       final List<Dataset<Object>> inputs = Arrays.asList((Dataset) left, (Dataset) right);
-      return Translation.apply(join, inputs);
+      return OperatorTransform.apply(join, inputs);
     }
 
     @Override

@@ -27,7 +27,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
+/**
+ * Expand operator to a beam {@link PTransform}.
+ *
+ * @param <InputT> type of input elements
+ * @param <OutputT> type of output elements
+ * @param <OperatorT> type of operator to expand
+ */
+public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<OutputT>>
     extends PTransform<PCollectionList<InputT>, PCollection<OutputT>> {
 
   public static <InputT, OutputT, OperatorT extends Operator<OutputT>> Dataset<OutputT> apply(
@@ -41,14 +48,15 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
           PCollectionList.of(
               inputs.stream().map(Dataset::getPCollection).collect(Collectors.toList()));
       final PCollection<OutputT> output =
-          inputList.apply(operator.getName().orElseGet(() -> operator.getClass().getName()), new Translation<>(operator, maybeTranslator.get()));
+          inputList.apply(
+              operator.getName().orElseGet(() -> operator.getClass().getName()),
+              new OperatorTransform<>(operator, maybeTranslator.get()));
       return Dataset.of(output, operator);
     }
 
     if (operator instanceof CompositeOperator) {
       @SuppressWarnings("unchecked")
       final CompositeOperator<InputT, OutputT> castedOperator = (CompositeOperator) operator;
-      // todo we should propagate expansion tree to data set
       return Dataset.of(castedOperator.expand(inputs).getPCollection(), operator);
     }
 
@@ -63,7 +71,7 @@ public class Translation<InputT, OutputT, OperatorT extends Operator<OutputT>>
   private final OperatorT operator;
   private final OperatorTranslator<InputT, OutputT, OperatorT> translator;
 
-  private Translation(
+  private OperatorTransform(
       OperatorT operator, OperatorTranslator<InputT, OutputT, OperatorT> translator) {
     this.operator = operator;
     this.translator = translator;

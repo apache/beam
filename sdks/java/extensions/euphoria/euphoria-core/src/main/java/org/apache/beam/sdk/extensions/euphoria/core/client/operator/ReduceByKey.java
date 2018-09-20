@@ -39,7 +39,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -403,7 +403,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
               TypeDescriptors.kvs(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)),
                   TypeAwares.orObjects(Optional.ofNullable(outputType))));
-      return Translation.apply(rbk, Collections.singletonList(input));
+      return OperatorTransform.apply(rbk, Collections.singletonList(input));
     }
 
     @Override

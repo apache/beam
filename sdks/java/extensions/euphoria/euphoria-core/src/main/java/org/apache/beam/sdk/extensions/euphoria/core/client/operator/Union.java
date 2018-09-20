@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -156,7 +156,8 @@ public class Union<InputT> extends Operator<InputT> {
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
       checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
-      return Translation.apply(new Union<>(name, dataSets.get(0).getTypeDescriptor()), dataSets);
+      return OperatorTransform.apply(
+          new Union<>(name, dataSets.get(0).getTypeDescriptor()), dataSets);
     }
   }
 

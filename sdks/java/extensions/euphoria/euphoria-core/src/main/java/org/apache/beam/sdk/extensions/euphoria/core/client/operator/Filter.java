@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -126,7 +126,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
       final Filter<InputT> filter = new Filter<>(name, predicate, input.getTypeDescriptor());
-      return Translation.apply(filter, Collections.singletonList(input));
+      return OperatorTransform.apply(filter, Collections.singletonList(input));
     }
   }
 

@@ -46,5 +46,3 @@ tasks.withType(JavaCompile) {
 test {
     jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
 }
-
-test.testLogging.showStandardStreams = true

@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -232,7 +232,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
         this.mapper = (UnaryFunction) UnaryFunction.identity();
       }
       final Distinct<InputT, OutputT> distinct = new Distinct<>(name, mapper, outputType, window);
-      return Translation.apply(distinct, Collections.singletonList(input));
+      return OperatorTransform.apply(distinct, Collections.singletonList(input));
     }
   }
 

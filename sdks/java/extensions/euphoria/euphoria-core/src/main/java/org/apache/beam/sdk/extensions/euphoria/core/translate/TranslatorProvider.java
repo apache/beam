@@ -21,7 +21,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
-/** Simple interface that allows user to provided own translations. */
+/** Simple interface that allows user to define translation of his own. */
 public interface TranslatorProvider {
 
   static TranslatorProvider of(Pipeline pipeline) {

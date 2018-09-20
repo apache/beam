@@ -37,7 +37,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -304,7 +304,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
               scoreType,
               window,
               TypeUtils.triplets(keyType, valueType, scoreType));
-      return Translation.apply(sbk, Collections.singletonList(input));
+      return OperatorTransform.apply(sbk, Collections.singletonList(input));
     }
   }
 

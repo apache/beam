@@ -36,7 +36,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputH
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -226,7 +226,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
               window,
               TypeUtils.keyValues(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
-      return Translation.apply(rbk, Collections.singletonList(input));
+      return OperatorTransform.apply(rbk, Collections.singletonList(input));
     }
   }
 

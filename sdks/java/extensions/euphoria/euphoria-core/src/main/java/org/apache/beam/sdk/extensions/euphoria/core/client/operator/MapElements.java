@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -159,7 +159,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
       final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
-      return Translation.apply(operator, Collections.singletonList(input));
+      return OperatorTransform.apply(operator, Collections.singletonList(input));
     }
   }
 

@@ -105,8 +105,7 @@ public class BeamMetricsTranslationTest {
             .output();
 
     final Dataset<Integer> output =
-        MapElements
-            .named(operatorName3)
+        MapElements.named(operatorName3)
             .of(mapElementsOutput) // mapElementsOutput = [2,4]
             .using(
                 (value, context) -> {

@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.Translation;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -127,7 +127,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
 
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
-      return Translation.apply(
+      return OperatorTransform.apply(
           new AssignEventTime<>(name, eventTimeExtractor, input.getTypeDescriptor()),
           Collections.singletonList(input));
     }
