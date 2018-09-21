@@ -359,7 +359,7 @@ class BigQuerySource(dataflow_io.NativeSource):
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
                validate=False, coder=None, use_standard_sql=False,
-               flatten_results=True):
+               flatten_results=True, location=None):
     """Initialize a :class:`BigQuerySource`.
 
     Args:
@@ -396,6 +396,11 @@ class BigQuerySource(dataflow_io.NativeSource):
         This parameter is ignored for table inputs.
       flatten_results (bool): Flattens all nested and repeated fields in the
         query results. The default value is :data:`True`.
+      location (str): The location of the source table or query.
+        If :data:`None`, the location will be
+        -   "US" for :data:`query` sources.
+        -   Automatically detected for :data:`table` sources.
+        The default value is :data:`None`.
 
     Raises:
       ~exceptions.ValueError: if any of the following is true:
@@ -432,6 +437,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     self.validate = validate
     self.flatten_results = flatten_results
     self.coder = coder or RowAsDictJsonCoder()
+    self.location = location
 
   def display_data(self):
     if self.query is not None:
@@ -661,9 +667,20 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def _get_source_table_location(self):
     tr = self.source.table_reference
-    if tr is None:
-      # TODO: implement location retrieval for query sources
-      return
+    if tr is None:  # it's a query source
+        if self.source.location is not None:
+            logging.info('Using location=%r from BigQuerySource',
+                         self.source.location)
+            return self.source.location
+
+        # TODO(BEAM-5457): Is there a way to get the source location from a query?
+        logging.warning(
+            'Could not reliably determine source location. '
+            'Use BigQuerySource(query=..., location="your-location").'
+            'This might cause '
+            '"Cannot read and write in different locations: [...]" errors.')
+        return
+
 
     if tr.projectId is None:
       source_project_id = self.executing_project
@@ -949,8 +966,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location=None):
-    # TODO: make location required, once "query" locations can be determined
+  def create_temporary_dataset(self, project_id, location):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     # Check if dataset exists to make sure that the temporary id is unique
     try:
