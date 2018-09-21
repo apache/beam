@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueContext;
 
 /** Apply a folding function. */
 public class Fold implements Serializable {
@@ -53,7 +53,6 @@ public class Fold implements Serializable {
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> CombinableReduceFunction<T> of(T identity, BinaryFunction<T, T, T> fold) {
-
     return s -> s.reduce(identity, fold::apply);
   }
 
@@ -67,10 +66,9 @@ public class Fold implements Serializable {
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> ReduceFunctor<T, T> of(T identity, BinaryFunctor<T, T, T> fold) {
-
     return (Stream<T> s, Collector<T> ctx) -> {
-      SingleValueContext<T> wrap = new SingleValueContext<>(ctx.asContext());
-      T ret =
+      final SingleValueContext<T> wrap = new SingleValueContext<>(ctx.asContext());
+      final T ret =
           s.reduce(
               identity,
               (a, b) -> {
@@ -79,35 +77,5 @@ public class Fold implements Serializable {
               });
       ctx.collect(ret);
     };
-  }
-
-  /**
-   * Return a {@link ReduceFunctor} that performs a fold operation and emits partial results after
-   * each input element.
-   *
-   * @param <InputT> type of input value
-   * @param <OutputT> type of output value
-   * @param identity the zero element
-   * @param fold the associative fold function
-   * @return the {@link ReduceFunctor}
-   */
-  @SuppressWarnings("ReturnValueIgnored")
-  public static <InputT, OutputT> ReduceFunctor<InputT, OutputT> whileEmittingEach(
-      OutputT identity, BinaryFunction<OutputT, InputT, OutputT> fold) {
-
-    return (s, ctx) ->
-        s.reduce(
-            identity,
-            (a, b) -> {
-              OutputT v = fold.apply(a, b);
-              ctx.collect(v);
-              return v;
-            },
-            (a, b) -> {
-              if (b != null) {
-                throw new UnsupportedOperationException("Please use sequential streams only!");
-              }
-              return a;
-            });
   }
 }

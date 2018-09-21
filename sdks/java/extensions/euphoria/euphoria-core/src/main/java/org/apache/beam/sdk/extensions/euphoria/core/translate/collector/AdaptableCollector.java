@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.Serializable;
-import java.util.Objects;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,14 +41,16 @@ import org.apache.beam.sdk.transforms.DoFn;
 public class AdaptableCollector<InputT, OutputT, ElemT>
     implements Collector<ElemT>, Context, Serializable {
 
+  private static final String UNSUPPORTED = "Accumulators are supported for named operators only.";
+
   private final AccumulatorProvider accumulators;
   private final CollectorAdapter<InputT, OutputT, ElemT> adapter;
-  private final String operatorName;
+  @Nullable private final String operatorName;
   private transient DoFn<InputT, OutputT>.ProcessContext context;
 
   public AdaptableCollector(
       AccumulatorProvider accumulators,
-      String operatorName,
+      @Nullable String operatorName,
       CollectorAdapter<InputT, OutputT, ElemT> adapter) {
     this.accumulators = accumulators;
     this.operatorName = operatorName;
@@ -57,7 +59,7 @@ public class AdaptableCollector<InputT, OutputT, ElemT>
 
   @Override
   public void collect(ElemT elem) {
-    adapter.collect(Objects.requireNonNull(context), elem);
+    adapter.collect(requireNonNull(context), elem);
   }
 
   @Override
@@ -66,19 +68,13 @@ public class AdaptableCollector<InputT, OutputT, ElemT>
   }
 
   @Override
-  public Window<?> getWindow() {
-    // TODO: this should be removed
-    return GlobalWindowing.Window.get();
-  }
-
-  @Override
   public Counter getCounter(String name) {
-    return accumulators.getCounter(operatorName, name);
+    return accumulators.getCounter(requireNonNull(operatorName, UNSUPPORTED), name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return accumulators.getHistogram(operatorName, name);
+    return accumulators.getHistogram(requireNonNull(operatorName, UNSUPPORTED), name);
   }
 
   @Override
@@ -87,6 +83,6 @@ public class AdaptableCollector<InputT, OutputT, ElemT>
   }
 
   public void setProcessContext(DoFn<InputT, OutputT>.ProcessContext context) {
-    this.context = Objects.requireNonNull(context);
+    this.context = requireNonNull(context);
   }
 }

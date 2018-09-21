@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
+
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.BuilderParams;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -33,9 +33,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Full outer join of two input datasets producing single new dataset.
  *
- * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements from
- * streams into {@link Window}s. The join operation is performed within same windows produced on
- * left and right side of input {@link Dataset}s.
+ * <p>When joining two streams, the join has to specify windowing which groups elements from streams
+ * into {@link org.apache.beam.sdk.transforms.windowing.Window}s. The join operation is performed
+ * within same windows produced on left and right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
  *
@@ -56,9 +56,18 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Audience(Audience.Type.CLIENT)
 public class FullJoin {
 
+  /**
+   * Create builder.
+   *
+   * @param left dataset
+   * @param right dataset
+   * @param <LeftT> type of left dataset
+   * @param <RightT> type of right dataset
+   * @return ByBuilder
+   */
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
-    return new OfBuilder("FullJoin").of(left, right);
+    return named("FullJoin").of(left, right);
   }
 
   /**
@@ -68,96 +77,90 @@ public class FullJoin {
    * @return OfBuilder
    */
   public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+    return new Builder<>(name);
   }
 
-  /** FullJoin builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder {
+  /** Builder for the 'of' step */
+  public interface OfBuilder {
 
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    public <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right) {
-      if (right.getFlow() != left.getFlow()) {
-        throw new IllegalArgumentException("Pass inputs from the same flow");
-      }
-
-      final BuilderParams<LeftT, RightT, ?, ?, ?> params =
-          new BuilderParams<>(
-              Objects.requireNonNull(name),
-              Objects.requireNonNull(left),
-              Objects.requireNonNull(right),
-              Type.FULL);
-
-      return new ByBuilder<>(params);
-    }
+    <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
   }
 
-  /** FullJoin builder which adds key extractors to operator under build. */
-  public static class ByBuilder<LeftT, RightT> {
+  /** Builder for the 'by' step */
+  public interface ByBuilder<LeftT, RightT> {
 
-    private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
+    <KeyT> UsingBuilder<LeftT, RightT, KeyT> by(
+        UnaryFunction<LeftT, KeyT> leftKeyExtractor,
+        UnaryFunction<RightT, KeyT> rightKeyExtractor,
+        @Nullable TypeDescriptor<KeyT> keyType);
 
-    ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor,
-        UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeDescriptor<K> keyType) {
-
-      @SuppressWarnings("unchecked")
-      final BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, ?, ?>) params;
-
-      paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
-      paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
-      paramsCasted.keyType = keyType;
-
-      return new UsingBuilder<>(paramsCasted);
-    }
-
-    public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
+    default <KeyT> UsingBuilder<LeftT, RightT, KeyT> by(
+        UnaryFunction<LeftT, KeyT> leftKeyExtractor,
+        UnaryFunction<RightT, KeyT> rightKeyExtractor) {
       return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }
 
-  /** FullJoin builder which adds join function to operator under build. */
-  public static class UsingBuilder<LeftT, RightT, K> {
+  /** Builder for the 'using' step */
+  public interface UsingBuilder<LeftT, RightT, KeyT> {
 
-    private final BuilderParams<LeftT, RightT, K, ?, ?> params;
-
-    UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+    <OutputT> Join.WindowByBuilder<KeyT, OutputT> using(
         BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
+        @Nullable TypeDescriptor<OutputT> outputType);
 
-      Objects.requireNonNull(joinFunc);
+    default <OutputT> Join.WindowByBuilder<KeyT, OutputT> using(
+        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc) {
+      return using(joinFunc, null);
+    }
+  }
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
+  private static class Builder<LeftT, RightT, KeyT>
+      implements OfBuilder, ByBuilder<LeftT, RightT>, UsingBuilder<LeftT, RightT, KeyT> {
 
-      paramsCasted.joinFunc =
-          (left, right, context) ->
-              joinFunc.apply(Optional.ofNullable(left), Optional.ofNullable(right), context);
-      paramsCasted.outType = outputTypeDescriptor;
+    private final String name;
+    private Dataset<LeftT> left;
+    private Dataset<RightT> right;
+    private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
+    private UnaryFunction<RightT, KeyT> rightKeyExtractor;
+    @Nullable TypeDescriptor<KeyT> keyType;
 
-      return new Join.WindowingBuilder<>(paramsCasted);
+    private Builder(String name) {
+      this.name = name;
     }
 
-    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
-        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc) {
+    @Override
+    public <T, S> ByBuilder<T, S> of(Dataset<T> left, Dataset<S> right) {
+      @SuppressWarnings("unchecked")
+      final Builder<T, S, ?> casted = (Builder) this;
+      casted.left = requireNonNull(left);
+      casted.right = requireNonNull(right);
+      return casted;
+    }
 
-      return using(joinFunc, null);
+    @Override
+    public <T> UsingBuilder<LeftT, RightT, T> by(
+        UnaryFunction<LeftT, T> leftKeyExtractor,
+        UnaryFunction<RightT, T> rightKeyExtractor,
+        @Nullable TypeDescriptor<T> keyType) {
+      @SuppressWarnings("unchecked")
+      final Builder<LeftT, RightT, T> casted = (Builder) this;
+      casted.leftKeyExtractor = requireNonNull(leftKeyExtractor);
+      casted.rightKeyExtractor = requireNonNull(rightKeyExtractor);
+      casted.keyType = keyType;
+      return casted;
+    }
+
+    @Override
+    public <OutputT> Join.WindowByBuilder<KeyT, OutputT> using(
+        BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc,
+        @Nullable TypeDescriptor<OutputT> outputType) {
+      return new Join.Builder<>(name, Type.FULL)
+          .of(left, right)
+          .by(leftKeyExtractor, rightKeyExtractor, keyType)
+          .using(
+              (LeftT l, RightT r, Collector<OutputT> c) ->
+                  joinFunc.apply(Optional.ofNullable(l), Optional.ofNullable(r), c),
+              outputType);
     }
   }
 }

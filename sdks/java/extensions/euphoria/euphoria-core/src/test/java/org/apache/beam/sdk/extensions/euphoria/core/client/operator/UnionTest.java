@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test behavior of operator {@code Union}. */
@@ -28,68 +31,54 @@ public class UnionTest {
 
   @Test
   public void testBuild() {
-    final Flow flow = Flow.create("TEST");
-    final Dataset<String> left = Util.createMockDataset(flow, 2);
-    final Dataset<String> right = Util.createMockDataset(flow, 3);
+    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
 
     final Dataset<String> unioned = Union.named("Union1").of(left, right).output();
 
-    assertEquals(flow, unioned.getFlow());
-    assertEquals(1, flow.size());
-
-    final Union union = (Union) flow.operators().iterator().next();
-    assertEquals(flow, union.getFlow());
-    assertEquals("Union1", union.getName());
-    assertEquals(unioned, union.output());
-    assertEquals(2, union.listInputs().size());
+    assertTrue(unioned.getProducer().isPresent());
+    final Union union = (Union) unioned.getProducer().get();
+    assertTrue(union.getName().isPresent());
+    assertEquals("Union1", union.getName().get());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBuild_OneDataSet() {
-    final Flow flow = Flow.create("TEST");
-    final Dataset<String> first = Util.createMockDataset(flow, 1);
+    final Dataset<String> first = OperatorTests.createMockDataset(TypeDescriptors.strings());
     Union.named("Union1").of(first).output();
   }
 
   @Test
   public void testBuild_ThreeDataSet() {
-    final Flow flow = Flow.create("TEST");
-    final Dataset<String> first = Util.createMockDataset(flow, 1);
-    final Dataset<String> second = Util.createMockDataset(flow, 2);
-    final Dataset<String> third = Util.createMockDataset(flow, 3);
+    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> first =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> second =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> third =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
 
     final Dataset<String> unioned = Union.named("Union1").of(first, second, third).output();
 
-    assertEquals(flow, unioned.getFlow());
-    assertEquals(1, flow.size());
-
-    final Union union = (Union) flow.operators().iterator().next();
-    assertEquals(flow, union.getFlow());
-    assertEquals("Union1", union.getName());
-    assertEquals(unioned, union.output());
-    assertEquals(3, union.listInputs().size());
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testBuild_ThreeDataSet_oneFromDifferentFlow() {
-    final Flow flow = Flow.create("TEST");
-    final Flow flow2 = Flow.create("TEST2");
-    final Dataset<String> first = Util.createMockDataset(flow, 1);
-    final Dataset<String> second = Util.createMockDataset(flow, 2);
-    final Dataset<String> third = Util.createMockDataset(flow2, 3);
-
-    Union.named("Union1").of(first, second, third).output();
+    assertTrue(unioned.getProducer().isPresent());
+    final Union union = (Union) unioned.getProducer().get();
+    assertTrue(union.getName().isPresent());
+    assertEquals("Union1", union.getName().get());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    final Flow flow = Flow.create("TEST");
-    final Dataset<String> left = Util.createMockDataset(flow, 2);
-    final Dataset<String> right = Util.createMockDataset(flow, 3);
-
-    Union.of(left, right).output();
-
-    final Union union = (Union) flow.operators().iterator().next();
-    assertEquals("Union", union.getName());
+    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> unioned = Union.of(left, right).output();
+    assertTrue(unioned.getProducer().isPresent());
+    final Union union = (Union) unioned.getProducer().get();
+    assertFalse(union.getName().isPresent());
   }
 }

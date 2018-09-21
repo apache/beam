@@ -17,51 +17,39 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
+import static java.util.Objects.requireNonNull;
+
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Inner join of two datasets by given key producing single new dataset.
  *
- * <p>When joining two streams, the join has to specify {@link Windowing} which groups elements from
- * streams into {@link Window}s. The join operation is performed within same windows produced on
- * left and right side of input {@link Dataset}s.
+ * <p>When joining two streams, the join has to specify windowing which groups elements from streams
+ * into {@link Window}s. The join operation is performed within same windows produced on left and
+ * right side of input {@link Dataset}s.
  *
  * <h3>Builders:</h3>
  *
@@ -88,68 +76,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
   state = StateComplexity.LINEAR,
   repartitions = 1
 )
-public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-    extends StateAwareWindowWiseOperator<
-        Object, Either<LeftT, RightT>, K, KV<K, OutputT>, W, Join<LeftT, RightT, K, OutputT, W>> {
-
-  @SuppressWarnings("unchecked")
-  private static final ListStorageDescriptor LEFT_STATE_DESCR =
-      ListStorageDescriptor.of("left", (Class) Object.class);
-
-  @SuppressWarnings("unchecked")
-  private static final ListStorageDescriptor RIGHT_STATE_DESCR =
-      ListStorageDescriptor.of("right", (Class) Object.class);
-
-  @VisibleForTesting final UnaryFunction<LeftT, K> leftKeyExtractor;
-  @VisibleForTesting final UnaryFunction<RightT, K> rightKeyExtractor;
-  private final Dataset<LeftT> left;
-  private final Dataset<RightT> right;
-  private final Dataset<KV<K, OutputT>> output;
-  private final BinaryFunctor<LeftT, RightT, OutputT> functor;
-  private final Type type;
-
-  Join(
-      String name,
-      Flow flow,
-      Dataset<LeftT> left,
-      Dataset<RightT> right,
-      UnaryFunction<LeftT, K> leftKeyExtractor,
-      UnaryFunction<RightT, K> rightKeyExtractor,
-      TypeDescriptor<K> keyType,
-      BinaryFunctor<LeftT, RightT, OutputT> functor,
-      TypeDescriptor<KV<K, OutputT>> outputType,
-      Type type,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      Set<OutputHint> outputHints) {
-    super(
-        name,
-        flow,
-        outputType,
-        windowing,
-        euphoriaWindowing,
-        (Either<LeftT, RightT> elem) -> {
-          if (elem.isLeft()) {
-            return leftKeyExtractor.apply(elem.left());
-          }
-          return rightKeyExtractor.apply(elem.right());
-        },
-        keyType);
-
-    this.left = left;
-    this.right = right;
-    this.leftKeyExtractor = leftKeyExtractor;
-    this.rightKeyExtractor = rightKeyExtractor;
-    this.functor = functor;
-    @SuppressWarnings("unchecked")
-    Dataset<KV<K, OutputT>> output = createOutput((Dataset) left, outputHints);
-    this.output = output;
-    this.type = type;
-  }
+public class Join<LeftT, RightT, KeyT, OutputT>
+    extends ShuffleOperator<Object, KeyT, KV<KeyT, OutputT>> {
 
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
       Dataset<LeftT> left, Dataset<RightT> right) {
-    return new OfBuilder("Join").of(left, right);
+    return named(null).of(left, right);
   }
 
   /**
@@ -158,96 +90,8 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
    * @param name of operator
    * @return OfBuilder
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public Collection<Dataset<Object>> listInputs() {
-    return Arrays.asList((Dataset) left, (Dataset) right);
-  }
-
-  @Override
-  public Dataset<KV<K, OutputT>> output() {
-    return output;
-  }
-
-  public Type getType() {
-    return type;
-  }
-
-  public UnaryFunction<LeftT, K> getLeftKeyExtractor() {
-    return leftKeyExtractor;
-  }
-
-  public UnaryFunction<RightT, K> getRightKeyExtractor() {
-    return rightKeyExtractor;
-  }
-
-  public BinaryFunctor<LeftT, RightT, OutputT> getJoiner() {
-    return functor;
-  }
-
-  public Dataset<LeftT> getLeft() {
-    return left;
-  }
-
-  public Dataset<RightT> getRight() {
-    return right;
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public DAG<Operator<?, ?>> getBasicOps() {
-    final Flow flow = getFlow();
-
-    TypeDescriptor<RightT> rightType = TypeUtils.getDatasetElementType(right);
-    TypeDescriptor<LeftT> leftType = TypeUtils.getDatasetElementType(left);
-    TypeDescriptor<Either<LeftT, RightT>> eitherLeftRightType =
-        TypeUtils.eithers(leftType, rightType);
-
-    final MapElements<LeftT, Either<LeftT, RightT>> leftMap =
-        new MapElements<>(getName() + "::Map-left", flow, left, Either::left, eitherLeftRightType);
-
-    final MapElements<RightT, Either<LeftT, RightT>> rightMap =
-        new MapElements<>(
-            getName() + "::Map-right", flow, right, Either::right, eitherLeftRightType);
-
-    final Union<Either<LeftT, RightT>> union =
-        new Union<>(
-            getName() + "::Union",
-            flow,
-            Arrays.asList(leftMap.output(), rightMap.output()),
-            eitherLeftRightType);
-
-    final ReduceStateByKey<
-            Either<LeftT, RightT>, K, Either<LeftT, RightT>, OutputT, StableJoinState, W>
-        reduce =
-            new ReduceStateByKey(
-                getName() + "::ReduceStateByKey",
-                flow,
-                union.output(),
-                keyExtractor,
-                keyType,
-                UnaryFunction.identity(),
-                eitherLeftRightType,
-                getWindowing(),
-                euphoriaWindowing,
-                (StateContext context, Collector ctx) -> {
-                  StorageProvider storages = context.getStorageProvider();
-                  return ctx == null
-                      ? new StableJoinState(storages)
-                      : new EarlyEmittingJoinState(storages, ctx);
-                },
-                new StateSupport.MergeFromStateMerger<>(),
-                outputType,
-                getHints());
-
-    final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
-    dag.add(union, leftMap, rightMap);
-    dag.add(reduce, union);
-    return dag;
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name, Type.INNER);
   }
 
   /** Type of join. */
@@ -258,429 +102,218 @@ public class Join<LeftT, RightT, K, OutputT, W extends BoundedWindow>
     FULL
   }
 
-  /** Parameters of this operator used in builders. */
-  static class BuilderParams<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-      extends WindowingParams<W> {
+  /** Builder for the 'of' step */
+  public interface OfBuilder {
 
-    String name;
-    Dataset<LeftT> left;
-    Dataset<RightT> right;
-    UnaryFunction<LeftT, K> leftKeyExtractor;
-    UnaryFunction<RightT, K> rightKeyExtractor;
-    TypeDescriptor<K> keyType;
-    BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
-    TypeDescriptor<OutputT> outType;
-    Type type;
-
-    BuilderParams(String name, Dataset<LeftT> left, Dataset<RightT> right, Type type) {
-      this.name = name;
-      this.left = left;
-      this.right = right;
-      this.type = type;
-    }
+    <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
   }
 
-  /** Join builder which adds input {@link Dataset Datasets} to operator under build. */
-  public static class OfBuilder {
+  /** Builder for the 'by' step */
+  public interface ByBuilder<LeftT, RightT> {
 
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    public <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right) {
-      if (right.getFlow() != left.getFlow()) {
-        throw new IllegalArgumentException("Pass inputs from the same flow");
-      }
-
-      final BuilderParams<LeftT, RightT, ?, ?, ?> params =
-          new BuilderParams<>(
-              Objects.requireNonNull(name),
-              Objects.requireNonNull(left),
-              Objects.requireNonNull(right),
-              Type.INNER);
-
-      return new ByBuilder<>(params);
-    }
-  }
-
-  /** Join builder which adds key extractors to operator under build. */
-  public static class ByBuilder<LeftT, RightT> {
-
-    private final BuilderParams<LeftT, RightT, ?, ?, ?> params;
-
-    ByBuilder(BuilderParams<LeftT, RightT, ?, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <K> UsingBuilder<LeftT, RightT, K> by(
+    <K> UsingBuilder<LeftT, RightT, K> by(
         UnaryFunction<LeftT, K> leftKeyExtractor,
         UnaryFunction<RightT, K> rightKeyExtractor,
-        TypeDescriptor<K> keyTypeDescriptor) {
+        @Nullable TypeDescriptor<K> keyType);
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, ?, ?> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, ?, ?>) this.params;
-
-      paramsCasted.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
-      paramsCasted.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
-      paramsCasted.keyType = keyTypeDescriptor;
-      return new UsingBuilder<>(paramsCasted);
-    }
-
-    public <K> UsingBuilder<LeftT, RightT, K> by(
-        UnaryFunction<LeftT, K> leftKeyExtractor, UnaryFunction<RightT, K> rightKeyExtractor) {
+    default <T> UsingBuilder<LeftT, RightT, T> by(
+        UnaryFunction<LeftT, T> leftKeyExtractor, UnaryFunction<RightT, T> rightKeyExtractor) {
       return by(leftKeyExtractor, rightKeyExtractor, null);
     }
   }
 
-  /** Join builder which adds joint function to operator under build. */
-  public static class UsingBuilder<LeftT, RightT, K> {
+  /** Builder for the 'using' step */
+  public interface UsingBuilder<LeftT, RightT, KeyT> {
 
-    private final BuilderParams<LeftT, RightT, K, ?, ?> params;
-
-    UsingBuilder(BuilderParams<LeftT, RightT, K, ?, ?> params) {
-      this.params = params;
-    }
-
-    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+    <OutputT> WindowByBuilder<KeyT, OutputT> using(
         BinaryFunctor<LeftT, RightT, OutputT> joinFunc,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
+        @Nullable TypeDescriptor<OutputT> outputTypeDescriptor);
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, OutputT, ?> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, OutputT, ?>) params;
-
-      paramsCasted.joinFunc = Objects.requireNonNull(joinFunc);
-      paramsCasted.outType = outputTypeDescriptor;
-
-      return new Join.WindowingBuilder<>(paramsCasted);
-    }
-
-    public <OutputT> Join.WindowingBuilder<LeftT, RightT, K, OutputT> using(
+    default <OutputT> WindowByBuilder<KeyT, OutputT> using(
         BinaryFunctor<LeftT, RightT, OutputT> joinFunc) {
       return using(joinFunc, null);
     }
   }
 
-  /** Join builder which adds input key extractors to operator under build. */
-  public static class WindowingBuilder<LeftT, RightT, K, OutputT>
-      implements Builders.Output<KV<K, OutputT>>,
-          Builders.OutputValues<K, OutputT>,
-          OptionalMethodBuilder<
-              WindowingBuilder<LeftT, RightT, K, OutputT>,
-              OutputBuilder<LeftT, RightT, K, OutputT, ?>>,
-          Builders.WindowBy<TriggerByBuilder<LeftT, RightT, K, OutputT, ?>> {
-
-    private final BuilderParams<LeftT, RightT, K, OutputT, ?> params;
-
-    WindowingBuilder(BuilderParams<LeftT, RightT, K, OutputT, ?> params) {
-      this.params = params;
-    }
+  /** Builder for the 'windowBy' step */
+  public interface WindowByBuilder<KeyT, OutputT>
+      extends OptionalMethodBuilder<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>>,
+          Builders.WindowBy<TriggeredByBuilder<KeyT, OutputT>>,
+          OutputBuilder<KeyT, OutputT> {
 
     @Override
-    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(params).output(outputHints);
-    }
-
-    @Override
-    public <W extends BoundedWindow> TriggerByBuilder<LeftT, RightT, K, OutputT, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<LeftT, RightT, K, OutputT, W> paramsCasted =
-          (BuilderParams<LeftT, RightT, K, OutputT, W>) params;
-
-      paramsCasted.windowFn = Objects.requireNonNull(windowing);
-
-      return new TriggerByBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <W extends Window<W>> OutputBuilder<LeftT, RightT, K, OutputT, ?> windowBy(
-        Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public OutputBuilder<LeftT, RightT, K, OutputT, ?> applyIf(
+    default OutputBuilder<KeyT, OutputT> applyIf(
         boolean cond,
-        UnaryFunction<
-                WindowingBuilder<LeftT, RightT, K, OutputT>,
-                OutputBuilder<LeftT, RightT, K, OutputT, ?>>
-            applyWhenConditionHolds) {
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      }
-
-      return new OutputBuilder<>(params);
+        UnaryFunction<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>> fn) {
+      return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
-  /** Trigger defining operator builder. */
-  public static class TriggerByBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-      implements Builders.TriggeredBy<AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W>> {
+  /** Builder for the 'triggeredBy' step */
+  public interface TriggeredByBuilder<KeyT, OutputT>
+      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, OutputT>> {}
 
-    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
-
-    TriggerByBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
-      this.params = params;
-    }
-
-    @Override
-    public AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W> triggeredBy(Trigger trigger) {
-      params.trigger = Objects.requireNonNull(trigger);
-      return new AccumulatorModeBuilder<>(params);
-    }
-  }
-
-  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
-  public static class AccumulatorModeBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-      implements Builders.AccumulatorMode<OutputBuilder<LeftT, RightT, K, OutputT, W>> {
-
-    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
-
-    AccumulatorModeBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
-      this.params = params;
-    }
-
-    @Override
-    public OutputBuilder<LeftT, RightT, K, OutputT, W> accumulationMode(
-        WindowingStrategy.AccumulationMode accumulationMode) {
-      params.accumulationMode = Objects.requireNonNull(accumulationMode);
-      return new OutputBuilder<>(params);
-    }
-  }
+  /** Builder for the 'accumulatorMode' step */
+  public interface AccumulatorModeBuilder<KeyT, OutputT>
+      extends Builders.AccumulatorMode<OutputBuilder<KeyT, OutputT>> {}
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<LeftT, RightT, K, OutputT, W extends BoundedWindow>
-      implements Builders.OutputValues<K, OutputT>, Builders.Output<KV<K, OutputT>> {
+  public interface OutputBuilder<KeyT, OutputT>
+      extends Builders.Output<KV<KeyT, OutputT>>, Builders.OutputValues<KeyT, OutputT> {}
 
-    private final BuilderParams<LeftT, RightT, K, OutputT, W> params;
+  /** Parameters of this operator used in builders. */
+  static class Builder<LeftT, RightT, KeyT, OutputT>
+      implements OfBuilder,
+          ByBuilder<LeftT, RightT>,
+          UsingBuilder<LeftT, RightT, KeyT>,
+          WindowByBuilder<KeyT, OutputT>,
+          TriggeredByBuilder<KeyT, OutputT>,
+          AccumulatorModeBuilder<KeyT, OutputT>,
+          OutputBuilder<KeyT, OutputT> {
 
-    OutputBuilder(BuilderParams<LeftT, RightT, K, OutputT, W> params) {
-      this.params = params;
+    @Nullable private final String name;
+    private final Type type;
+    private Dataset<LeftT> left;
+    private Dataset<RightT> right;
+    private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
+    private UnaryFunction<RightT, KeyT> rightKeyExtractor;
+    @Nullable private TypeDescriptor<KeyT> keyType;
+    private BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
+    @Nullable private TypeDescriptor<OutputT> outputType;
+    @Nullable private Window<Object> window;
+
+    Builder(@Nullable String name, Type type) {
+      this.name = name;
+      this.type = type;
     }
 
     @Override
-    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
-      final Flow flow = params.left.getFlow();
-      final Join<LeftT, RightT, K, OutputT, W> join =
+    public <T, S> ByBuilder<T, S> of(Dataset<T> left, Dataset<S> right) {
+      @SuppressWarnings("unchecked")
+      final Builder<T, S, ?, ?> casted = (Builder) this;
+      casted.left = requireNonNull(left);
+      casted.right = requireNonNull(right);
+      return casted;
+    }
+
+    @Override
+    public <T> UsingBuilder<LeftT, RightT, T> by(
+        UnaryFunction<LeftT, T> leftKeyExtractor,
+        UnaryFunction<RightT, T> rightKeyExtractor,
+        @Nullable TypeDescriptor<T> keyType) {
+      @SuppressWarnings("unchecked")
+      final Builder<LeftT, RightT, T, ?> casted = (Builder) this;
+      casted.leftKeyExtractor = leftKeyExtractor;
+      casted.rightKeyExtractor = rightKeyExtractor;
+      casted.keyType = keyType;
+      return casted;
+    }
+
+    @Override
+    public <T> WindowByBuilder<KeyT, T> using(
+        BinaryFunctor<LeftT, RightT, T> joinFunc, @Nullable TypeDescriptor<T> outputType) {
+      @SuppressWarnings("unchecked")
+      final Builder<LeftT, RightT, KeyT, T> casted = (Builder) this;
+      casted.joinFunc = requireNonNull(joinFunc);
+      casted.outputType = outputType;
+      return casted;
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
+        WindowFn<Object, W> windowFn) {
+      this.window = Window.into(requireNonNull(windowFn));
+      return this;
+    }
+
+    @Override
+    public AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
+      this.window = requireNonNull(window).triggering(trigger);
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<KeyT, OutputT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode) {
+      switch (requireNonNull(accumulationMode)) {
+        case DISCARDING_FIRED_PANES:
+          window = requireNonNull(window).discardingFiredPanes();
+          break;
+        case ACCUMULATING_FIRED_PANES:
+          window = requireNonNull(window).accumulatingFiredPanes();
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown accumulation mode [" + accumulationMode + "]");
+      }
+      return this;
+    }
+
+    @Override
+    public Dataset<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+      final Join<LeftT, RightT, KeyT, OutputT> join =
           new Join<>(
-              params.name,
-              flow,
-              params.left,
-              params.right,
-              params.leftKeyExtractor,
-              params.rightKeyExtractor,
-              params.keyType,
-              params.joinFunc,
-              TypeUtils.keyValues(params.keyType, params.outType),
-              params.type,
-              params.getWindowing(),
-              params.euphoriaWindowing,
-              Sets.newHashSet(outputHints));
-      flow.add(join);
-      return join.output();
+              name,
+              type,
+              leftKeyExtractor,
+              rightKeyExtractor,
+              keyType,
+              joinFunc,
+              TypeDescriptors.kvs(
+                  TypeAwares.orObjects(Optional.ofNullable(keyType)),
+                  TypeAwares.orObjects(Optional.ofNullable(outputType))),
+              window);
+      @SuppressWarnings("unchecked")
+      final List<Dataset<Object>> inputs = Arrays.asList((Dataset) left, (Dataset) right);
+      return OperatorTransform.apply(join, inputs);
+    }
+
+    @Override
+    public Dataset<OutputT> outputValues(OutputHint... outputHints) {
+      return MapElements.named(name != null ? name + "::extract-values" : null)
+          .of(output(outputHints))
+          .using(KV::getValue, outputType)
+          .output(outputHints);
     }
   }
 
-  /** Abstract join state base. */
-  private abstract class AbstractJoinState implements State<Either<LeftT, RightT>, OutputT> {
+  private final Type type;
+  private final UnaryFunction<LeftT, KeyT> leftKeyExtractor;
+  private final UnaryFunction<RightT, KeyT> rightKeyExtractor;
+  private final BinaryFunctor<LeftT, RightT, OutputT> functor;
 
-    final ListStorage<LeftT> leftElements;
-    final ListStorage<RightT> rightElements;
-
-    @SuppressWarnings("unchecked")
-    AbstractJoinState(StorageProvider storageProvider) {
-      leftElements = storageProvider.getListStorage(LEFT_STATE_DESCR);
-      rightElements = storageProvider.getListStorage(RIGHT_STATE_DESCR);
-    }
-
-    @Override
-    public void close() {
-      leftElements.clear();
-      rightElements.clear();
-    }
-
-    /** This method can be triggered by all joins except INNER. */
-    void flushUnjoinedElems(
-        Collector<OutputT> context, Iterable<LeftT> lefts, Iterable<RightT> rights) {
-      boolean leftEmpty = !lefts.iterator().hasNext();
-      boolean rightEmpty = !rights.iterator().hasNext();
-      // if just a one collection is empty
-      if (leftEmpty != rightEmpty) {
-        switch (getType()) {
-          case LEFT:
-            if (rightEmpty) {
-              for (LeftT elem : lefts) {
-                functor.apply(elem, null, context);
-              }
-            }
-            break;
-          case RIGHT:
-            if (leftEmpty) {
-              for (RightT elem : rights) {
-                functor.apply(null, elem, context);
-              }
-            }
-            break;
-          case FULL:
-            if (leftEmpty) {
-              for (RightT elem : rights) {
-                functor.apply(null, elem, context);
-              }
-            } else {
-              for (LeftT elem : lefts) {
-                functor.apply(elem, null, context);
-              }
-            }
-            break;
-          default:
-            throw new IllegalArgumentException("Unsupported type: " + getType());
-        }
-      }
-    }
+  private Join(
+      @Nullable String name,
+      Type type,
+      UnaryFunction<LeftT, KeyT> leftKeyExtractor,
+      UnaryFunction<RightT, KeyT> rightKeyExtractor,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      BinaryFunctor<LeftT, RightT, OutputT> functor,
+      @Nullable TypeDescriptor<KV<KeyT, OutputT>> outputType,
+      @Nullable Window<Object> window) {
+    super(name, outputType, null, keyType, window);
+    this.type = type;
+    this.leftKeyExtractor = leftKeyExtractor;
+    this.rightKeyExtractor = rightKeyExtractor;
+    this.functor = functor;
   }
 
-  /**
-   * An implementation of the join state which will accumulate elements until it is flushed at which
-   * point it then emits all elements.
-   *
-   * <p>(This implementation is known to work correctly with merging windowing, early triggering, as
-   * well as with timed multi-window windowing (e.g. time sliding.))
-   */
-  private class StableJoinState extends AbstractJoinState
-      implements StateSupport.MergeFrom<StableJoinState> {
-
-    StableJoinState(StorageProvider storageProvider) {
-      super(storageProvider);
-    }
-
-    @Override
-    public void add(Either<LeftT, RightT> elem) {
-      if (elem.isLeft()) {
-        leftElements.add(elem.left());
-      } else {
-        rightElements.add(elem.right());
-      }
-    }
-
-    @Override
-    public void flush(Collector<OutputT> context) {
-      Iterable<LeftT> lefts = leftElements.get();
-      Iterable<RightT> rights = rightElements.get();
-      for (LeftT l : lefts) {
-        for (RightT r : rights) {
-          functor.apply(l, r, context);
-        }
-      }
-      if (type != Type.INNER) {
-        flushUnjoinedElems(context, lefts, rights);
-      }
-    }
-
-    @Override
-    public void mergeFrom(StableJoinState other) {
-      this.leftElements.addAll(other.leftElements.get());
-      this.rightElements.addAll(other.rightElements.get());
-    }
+  public Type getType() {
+    return type;
   }
 
-  /**
-   * An implementation of the join state which produces results, i.e. emits output, as soon as
-   * possible. It has at least the following short comings and should be used with care (see
-   * https://github.com/seznam/euphoria/issues/118 for more information):
-   *
-   * <ul>
-   *   <li>This implementation will break the join operator if used with a merging windowing
-   *       strategy, since items will be emitted under the hood of a non-final window.
-   *   <li>This implementation cannot be used together with early triggering on any windowing
-   *       strategy as it will emit each identified pair only once during the whole course of the
-   *       state's life cycle.
-   *   <li>This implementation will also break time-sliding windowing, as it will raise the
-   *       watermark too quickly in downstream operators, thus, marking earlier - but actually still
-   *       not too late time-sliding windows as late comers.
-   * </ul>
-   */
-  @Experimental
-  private class EarlyEmittingJoinState extends AbstractJoinState
-      implements State<Either<LeftT, RightT>, OutputT>,
-          StateSupport.MergeFrom<EarlyEmittingJoinState> {
+  public UnaryFunction<LeftT, KeyT> getLeftKeyExtractor() {
+    return leftKeyExtractor;
+  }
 
-    private final Collector<OutputT> context;
+  public UnaryFunction<RightT, KeyT> getRightKeyExtractor() {
+    return rightKeyExtractor;
+  }
 
-    @SuppressWarnings("unchecked")
-    public EarlyEmittingJoinState(StorageProvider storageProvider, Collector<OutputT> context) {
-      super(storageProvider);
-      this.context = Objects.requireNonNull(context);
-    }
-
-    @Override
-    public void add(Either<LeftT, RightT> elem) {
-      if (elem.isLeft()) {
-        leftElements.add(elem.left());
-        emitJoinedElements(elem, rightElements);
-      } else {
-        rightElements.add(elem.right());
-        emitJoinedElements(elem, leftElements);
-      }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void emitJoinedElements(Either<LeftT, RightT> elem, ListStorage others) {
-      assert context != null;
-      if (elem.isLeft()) {
-        for (Object right : others.get()) {
-          functor.apply(elem.left(), (RightT) right, context);
-        }
-      } else {
-        for (Object left : others.get()) {
-          functor.apply((LeftT) left, elem.right(), context);
-        }
-      }
-    }
-
-    @Override
-    public void flush(Collector<OutputT> context) {
-      // ~ no-op; we do all the work already on the fly
-      // and flush any "pending" state _only_ when closing
-      // this state
-    }
-
-    @Override
-    public void close() {
-      if (type != Type.INNER) {
-        flushUnjoinedElems(context, leftElements.get(), rightElements.get());
-      }
-      super.close();
-    }
-
-    @Override
-    public void mergeFrom(EarlyEmittingJoinState other) {
-      Iterable<LeftT> otherLefts = other.leftElements.get();
-      Iterable<RightT> thisRights = this.rightElements.get();
-      for (LeftT l : otherLefts) {
-        for (RightT r : thisRights) {
-          functor.apply(l, r, context);
-        }
-      }
-      Iterable<RightT> otherRights = other.rightElements.get();
-      Iterable<LeftT> thisLefts = this.leftElements.get();
-      for (RightT r : otherRights) {
-        for (LeftT l : thisLefts) {
-          functor.apply(l, r, context);
-        }
-      }
-      this.leftElements.addAll(otherLefts);
-      this.rightElements.addAll(otherRights);
-    }
+  public BinaryFunctor<LeftT, RightT, OutputT> getJoiner() {
+    return functor;
   }
 }

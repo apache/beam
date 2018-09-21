@@ -18,42 +18,42 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.CollectorAdapter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Instant;
 
-class FlatMapTranslator implements OperatorTranslator<FlatMap> {
-
-  private static <InputT, OutputT> PCollection<OutputT> doTranslate(
-      FlatMap<InputT, OutputT> operator, TranslationContext context) {
-    final AccumulatorProvider accumulators =
-        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
-    final Mapper<InputT, OutputT> mapper =
-        new Mapper<>(
-            operator.getName(),
-            operator.getFunctor(),
-            accumulators,
-            operator.getEventTimeExtractor());
-
-    Coder<OutputT> outputCoder = context.getOutputCoder(operator);
-    return context
-        .getInput(operator)
-        .apply(operator.getName(), ParDo.of(mapper))
-        .setCoder(outputCoder);
-  }
+/**
+ * Default translator for {@link FlatMap} operator.
+ *
+ * @param <InputT> type of input
+ * @param <OutputT> type of output
+ */
+public class FlatMapTranslator<InputT, OutputT>
+    implements OperatorTranslator<InputT, OutputT, FlatMap<InputT, OutputT>> {
 
   @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(FlatMap operator, TranslationContext context) {
-    return doTranslate(operator, context);
+  public PCollection<OutputT> translate(
+      FlatMap<InputT, OutputT> operator, PCollectionList<InputT> inputs) {
+    final AccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
+    final Mapper<InputT, OutputT> mapper =
+        new Mapper<>(
+            operator.getName().orElse(null),
+            operator.getFunctor(),
+            accumulators,
+            operator.getEventTimeExtractor().orElse(null));
+    return OperatorTranslators.getSingleInput(inputs)
+        .apply("mapper", ParDo.of(mapper))
+        .setTypeDescriptor(TypeAwares.orObjects(operator.getOutputType()));
   }
 
   private static class Mapper<InputT, OutputT> extends DoFn<InputT, OutputT> {
@@ -62,7 +62,7 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
     private final AdaptableCollector<InputT, OutputT, OutputT> collector;
 
     Mapper(
-        String operatorName,
+        @Nullable String operatorName,
         UnaryFunctor<InputT, OutputT> mapper,
         AccumulatorProvider accumulators,
         @Nullable ExtractEventTime<InputT> eventTimeExtractor) {

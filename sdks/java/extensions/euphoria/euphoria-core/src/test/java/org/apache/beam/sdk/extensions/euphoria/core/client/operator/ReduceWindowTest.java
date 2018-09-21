@@ -19,15 +19,17 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueContext;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Test;
 
@@ -37,24 +39,20 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Long> output = ReduceWindow.of(dataset).valueBy(e -> "").reduceBy(e -> 1L).output();
-
-    ReduceWindow<String, String, Long, ?> producer;
-    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) collectSingle(producer.getReducer(), Stream.of("blah")));
-    assertEquals("", producer.valueExtractor.apply("blah"));
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Long> output =
+        ReduceWindow.of(dataset).valueBy(e -> "").reduceBy(e -> 1L).output();
+    assertTrue(output.getProducer().isPresent());
+    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    assertEquals(1L, (long) collectSingle(rw.getReducer(), Stream.of("blah")));
+    assertEquals("", rw.getValueExtractor().apply("blah"));
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithoutValue() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Long> output =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -62,47 +60,45 @@ public class ReduceWindowTest {
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
 
-    ReduceWindow<String, String, Long, ?> producer;
-    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) collectSingle(producer.getReducer(), Stream.of("blah")));
-    assertEquals("blah", producer.valueExtractor.apply("blah"));
+    assertTrue(output.getProducer().isPresent());
+    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
 
-    WindowingDesc windowingDesc = producer.getWindowing();
-    assertNotNull(windowingDesc);
+    assertEquals(1L, (long) collectSingle(rw.getReducer(), Stream.of("blah")));
+    assertEquals("blah", rw.getValueExtractor().apply("blah"));
+
+    assertTrue(rw.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) rw.getWindow().get());
+    assertNotNull(windowDesc);
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithValueSorted() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Long> output =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
-            .withSortedValues((l, r) -> l.compareTo(r))
+            .withSortedValues(String::compareTo)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-
-    ReduceWindow<String, String, Long, ?> producer;
-    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertNotNull(producer.valueComparator);
+    assertTrue(output.getProducer().isPresent());
+    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    assertTrue(rw.getValueComparator().isPresent());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Long> output =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
-            .withSortedValues((l, r) -> l.compareTo(r))
+            .withSortedValues(String::compareTo)
             .applyIf(
                 true,
                 b ->
@@ -110,23 +106,20 @@ public class ReduceWindowTest {
                         .triggeredBy(DefaultTrigger.of())
                         .discardingFiredPanes())
             .output();
-
+    assertTrue(output.getProducer().isPresent());
+    final ReduceWindow rw = (ReduceWindow) output.getProducer().get();
+    assertTrue(rw.getWindow().isPresent());
     @SuppressWarnings("unchecked")
-    ReduceWindow<String, String, Long, ?> producer =
-        (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    WindowingDesc windowingDesc = producer.getWindowing();
-    assertNotNull(windowingDesc);
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) rw.getWindow().get());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 
   private <InputT, OutputT> OutputT collectSingle(
       ReduceFunctor<InputT, OutputT> fn, Stream<InputT> values) {
-
-    SingleValueContext<OutputT> context;
-    context = new SingleValueContext<>();
+    final SingleValueContext<OutputT> context = new SingleValueContext<>();
     fn.apply(values, context);
     return context.getAndResetValue();
   }

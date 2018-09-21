@@ -23,7 +23,6 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Either;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -102,28 +101,6 @@ public class TypeUtils {
   }
 
   /**
-   * Creates composite {@link TypeDescriptor} of {@code Either<K,V>}. Provided that all given
-   * parameters are non null.
-   *
-   * @param key key type descriptor
-   * @param value value type descriptor
-   * @param <K> key type parameter
-   * @param <V> value type parameter
-   * @return {@link TypeDescriptor} of {@code <Either<K,V>} or {@code null} when any given parameter
-   *     is {@code null}
-   */
-  public static <K, V> TypeDescriptor<Either<K, V>> eithers(
-      TypeDescriptor<K> key, TypeDescriptor<V> value) {
-
-    if (Objects.isNull(key) || Objects.isNull(value)) {
-      return null;
-    }
-
-    return new TypeDescriptor<Either<K, V>>() {}.where(new TypeParameter<K>() {}, key)
-        .where(new TypeParameter<V>() {}, value);
-  }
-
-  /**
    * Returns {@link TypeDescriptor} od elements in given {@code dataset} if available, {@code null}
    * otherwise.
    *
@@ -136,15 +113,11 @@ public class TypeUtils {
    */
   @Nullable
   public static <T> TypeDescriptor<T> getDatasetElementType(Dataset<T> dataset) {
-    if (dataset == null) {
-      return null;
+    if (dataset != null && dataset.getProducer().isPresent()) {
+      @SuppressWarnings("unchecked")
+      final Operator<T> operator = (Operator) dataset.getProducer().get();
+      return operator.getOutputType().orElse(null);
     }
-
-    Operator<?, T> producer = dataset.getProducer();
-    if (producer == null) {
-      return null;
-    }
-
-    return producer.getOutputType();
+    return null;
   }
 }

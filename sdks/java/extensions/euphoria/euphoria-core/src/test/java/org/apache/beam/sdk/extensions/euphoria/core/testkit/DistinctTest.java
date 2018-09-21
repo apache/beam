@@ -23,22 +23,17 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing.Type;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test for the {@link Distinct} operator. */
-@Processing(Type.ALL)
 public class DistinctTest extends AbstractOperatorTest {
 
   /** Test simple duplicates. */
-  // Distinct operator with unbounded dataset without windowing do not work,
-  // since it is translated into GroupByKey."
-  @Processing(Processing.Type.BOUNDED)
   @Test
   public void testSimpleDuplicatesWithNoWindowing() {
     execute(
@@ -57,6 +52,11 @@ public class DistinctTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getInput() {
             return Arrays.asList(1, 2, 3, 3, 2, 1);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
           }
         });
   }
@@ -93,6 +93,11 @@ public class DistinctTest extends AbstractOperatorTest {
                 KV.of(2, 2200L),
                 KV.of(1, 2700L));
           }
+
+          @Override
+          protected TypeDescriptor<KV<Integer, Long>> getInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.longs());
+          }
         });
   }
 
@@ -123,11 +128,16 @@ public class DistinctTest extends AbstractOperatorTest {
             first.addAll(asTimedList(100, 1, 2, 3, 3, 2, 1));
             return first;
           }
+
+          @Override
+          protected TypeDescriptor<KV<Integer, Long>> getInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.longs());
+          }
         });
   }
 
   private List<KV<Integer, Long>> asTimedList(long step, Integer... values) {
-    List<KV<Integer, Long>> ret = new ArrayList<>(values.length);
+    final List<KV<Integer, Long>> ret = new ArrayList<>(values.length);
     long i = step;
     for (Integer v : values) {
       ret.add(KV.of(v, i));

@@ -42,7 +42,7 @@ BeamFlow flow = BeamFlow.create(pipeline);
 
 // Source of data loaded from Beam IO.
 PCollection<String> input =
-    pipeline.apply(Create.of(inputs)).setTypeDescriptor(TypeDescriptor.of(String.class));
+    pipeline.apply(Create.of(dataSets)).setTypeDescriptor(TypeDescriptor.of(String.class));
 // Transform PCollection to euphoria's Dataset.
 Dataset<String> lines = flow.wrapped(input);
 

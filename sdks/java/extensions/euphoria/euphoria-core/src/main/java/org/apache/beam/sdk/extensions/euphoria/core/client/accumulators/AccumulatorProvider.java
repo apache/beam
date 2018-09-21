@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
 
 /**
  * Provides access to an accumulator backend service. It is intended to be implemented by third
@@ -27,6 +28,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
  */
 @Audience(Audience.Type.EXECUTOR)
 public interface AccumulatorProvider {
+
+  static AccumulatorProvider.Factory of(Pipeline pipeline) {
+    return pipeline.getOptions().as(EuphoriaOptions.class).getAccumulatorProviderFactory();
+  }
 
   /**
    * Get an existing instance of a counter or create a new one.
@@ -76,6 +81,7 @@ public interface AccumulatorProvider {
    */
   @FunctionalInterface
   interface Factory extends Serializable {
-    AccumulatorProvider create(Settings settings);
+
+    AccumulatorProvider create();
   }
 }

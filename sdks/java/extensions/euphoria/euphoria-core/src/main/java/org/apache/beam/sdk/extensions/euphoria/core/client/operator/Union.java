@@ -19,22 +19,17 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Sets;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -71,31 +66,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
-public class Union<InputT> extends Operator<InputT, InputT> {
-
-  final Dataset<InputT> output;
-  private final List<Dataset<InputT>> dataSets;
-
-  @SuppressWarnings("unchecked")
-  Union(String name, Flow flow, List<Dataset<InputT>> dataSets, TypeDescriptor<InputT> outputType) {
-    this(name, flow, dataSets, Collections.emptySet(), outputType);
-  }
-
-  @SuppressWarnings("unchecked")
-  Union(
-      String name,
-      Flow flow,
-      List<Dataset<InputT>> dataSets,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<InputT> outputType) {
-    super(name, flow, outputType);
-    checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
-    checkArgument(
-        dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
-        "Only data sets from the same flow can be passed to Union.");
-    this.dataSets = dataSets;
-    this.output = createOutput(dataSets.get(0), outputHints);
-  }
+public class Union<InputT> extends Operator<InputT> {
 
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
@@ -121,7 +92,7 @@ public class Union<InputT> extends Operator<InputT, InputT> {
    * @see OfBuilder#of(List)
    */
   public static <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
-    return new OfBuilder("Union").of(dataSets);
+    return named(null).of(dataSets);
   }
 
   /**
@@ -130,38 +101,12 @@ public class Union<InputT> extends Operator<InputT, InputT> {
    * @param name a user provided name of the new operator to build
    * @return the next builder to complete the setup of the new {@link Union} operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name);
   }
 
-  /**
-   * Retrieves the single-view dataset representing the union of two input datasets.
-   *
-   * @return the output dataset of this operator
-   */
-  @Override
-  public Dataset<InputT> output() {
-    return output;
-  }
-
-  /**
-   * Retrieves the original, user supplied inputs this union represents.
-   *
-   * @return a collection of the two input datasets this union represents
-   */
-  @Override
-  public Collection<Dataset<InputT>> listInputs() {
-    return dataSets;
-  }
-
-  /** Union builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for the 'of' step */
+  public abstract static class OfBuilder {
 
     /**
      * Specifies the two data sets to be "unioned".
@@ -182,47 +127,41 @@ public class Union<InputT> extends Operator<InputT, InputT> {
      * @param dataSets at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
-    public <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
-      return new OutputBuilder<>(name, dataSets);
-    }
+    public abstract <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets);
   }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
+  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
 
-    private final String name;
-    private final List<Dataset<InputT>> dataSets;
-    private final TypeDescriptor<InputT> outputType;
+  private static class Builder<InputT> extends OfBuilder implements OutputBuilder<InputT> {
 
-    OutputBuilder(String name, List<Dataset<InputT>> dataSets) {
-      checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
-      checkArgument(
-          dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
-          "Only data sets from the same flow can be passed to Union.");
+    @Nullable private final String name;
+    private List<Dataset<InputT>> dataSets;
 
-      TypeDescriptor<InputT> outputType = null;
-      for (Dataset<InputT> dataset : dataSets) {
-        outputType = TypeUtils.getDatasetElementType(dataset);
-        if (outputType != null) {
-          break;
-        }
-      }
+    Builder(@Nullable String name) {
+      this.name = name;
+    }
 
-      this.outputType = outputType;
-      this.name = Objects.requireNonNull(name);
-      this.dataSets = dataSets;
+    @Override
+    public <T> OutputBuilder<T> of(List<Dataset<T>> dataSets) {
+      @SuppressWarnings("unchecked")
+      final Builder<T> casted = (Builder) this;
+      casted.dataSets = dataSets;
+      return casted;
     }
 
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
-      final Flow flow = dataSets.get(0).getFlow();
-      final Union<InputT> union =
-          new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints), outputType);
-      flow.add(union);
-      return union.output();
+      checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+      return OperatorTransform.apply(
+          new Union<>(name, dataSets.get(0).getTypeDescriptor()), dataSets);
     }
+  }
+
+  private Union(@Nullable String name, @Nullable TypeDescriptor<InputT> outputType) {
+    super(name, outputType);
   }
 }

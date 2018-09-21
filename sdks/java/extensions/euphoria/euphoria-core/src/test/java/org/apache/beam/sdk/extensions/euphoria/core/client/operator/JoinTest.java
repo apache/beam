@@ -18,25 +18,20 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
 import java.util.Optional;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.SizeHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingRequiredException;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -51,11 +46,12 @@ public class JoinTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 2);
-    Dataset<String> right = Util.createMockDataset(flow, 3);
-
-    Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -64,27 +60,24 @@ public class JoinTest {
                   // no-op
                 })
             .output();
-
-    assertEquals(flow, joined.getFlow());
-    assertEquals(1, flow.size());
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(flow, join.getFlow());
-    assertEquals("Join1", join.getName());
-    assertNotNull(join.leftKeyExtractor);
-    assertNotNull(join.rightKeyExtractor);
-    assertEquals(joined, join.output());
-    assertNull(join.getWindowing());
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertTrue(join.getName().isPresent());
+    assertEquals("Join1", join.getName().get());
+    assertNotNull(join.getLeftKeyExtractor());
+    assertNotNull(join.getRightKeyExtractor());
+    assertFalse(join.getWindow().isPresent());
     assertEquals(Join.Type.INNER, join.getType());
   }
 
   @Test
   public void testBuild_OutputValues() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 2);
-    Dataset<String> right = Util.createMockDataset(flow, 3);
-
-    Dataset<String> joined =
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> joined =
         Join.named("JoinValues")
             .of(left, right)
             .by(String::length, String::length)
@@ -93,26 +86,20 @@ public class JoinTest {
                   // no-op
                 })
             .outputValues();
-
-    assertEquals(flow, joined.getFlow());
-    assertEquals(2, flow.size());
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(flow, join.getFlow());
-    assertEquals("JoinValues", join.getName());
-    assertNotNull(join.getLeftKeyExtractor());
-    assertNotNull(join.getRightKeyExtractor());
-    assertNull(join.getWindowing());
-    assertEquals(Join.Type.INNER, join.getType());
+    assertTrue(joined.getProducer().isPresent());
+    final MapElements mapElements = (MapElements) joined.getProducer().get();
+    assertTrue(mapElements.getName().isPresent());
+    assertEquals("JoinValues::extract-values", mapElements.getName().get());
   }
 
   @Test
   public void testBuild_WithCounters() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 2);
-    Dataset<String> right = Util.createMockDataset(flow, 3);
-
-    Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length)
@@ -122,244 +109,164 @@ public class JoinTest {
                   c.collect(l + r);
                 })
             .output();
-
-    assertEquals(flow, joined.getFlow());
-    assertEquals(1, flow.size());
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(flow, join.getFlow());
-    assertEquals("Join1", join.getName());
-    assertNotNull(join.leftKeyExtractor);
-    assertNotNull(join.rightKeyExtractor);
-    assertEquals(joined, join.output());
-    assertNull(join.getWindowing());
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertTrue(join.getName().isPresent());
+    assertEquals("Join1", join.getName().get());
+    assertNotNull(join.getLeftKeyExtractor());
+    assertNotNull(join.getRightKeyExtractor());
+    assertFalse(join.getWindow().isPresent());
     assertEquals(Join.Type.INNER, join.getType());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    Join.of(left, right)
-        .by(String::length, String::length)
-        .using(
-            (String l, String r, Collector<String> c) -> {
-              // no-op
-            })
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals("Join", join.getName());
-  }
-
-  @Test
-  public void testBuild_LeftJoin() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    LeftJoin.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using(
-            (String l, Optional<String> r, Collector<String> c) -> {
-              // no-op
-            })
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(Join.Type.LEFT, join.getType());
-  }
-
-  @Test
-  public void testBuild_RightJoin() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    RightJoin.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using(
-            (Optional<String> l, String r, Collector<String> c) -> {
-              // no-op
-            })
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(Join.Type.RIGHT, join.getType());
-  }
-
-  @Test
-  public void testBuild_FullJoin() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    FullJoin.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using(
-            (Optional<String> l, Optional<String> r, Collector<String> c) ->
-                c.collect(l.orElse(null) + r.orElse(null)))
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(Join.Type.FULL, join.getType());
-  }
-
-  @Test
-  public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    Join.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(AfterWatermark.pastEndOfWindow())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    WindowingDesc windowing = join.getWindowing();
-
-    assertNotNull(windowing);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
-    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
-  }
-
-  @Test
-  public void testBuild_OptionalWindowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    Join.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length)
-        .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-        .applyIf(
-            true,
-            b ->
-                b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-                    .triggeredBy(AfterWatermark.pastEndOfWindow())
-                    .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    WindowingDesc windowing = join.getWindowing();
-
-    assertNotNull(windowing);
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
-    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testBuild_Hints() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    Dataset<String> outputDataset =
-        Join.named("Join1")
-            .of(
-                MapElements.of(left)
-                    .using(i -> i)
-                    .output(new Util.TestHint(), new Util.TestHint2()),
-                right)
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        Join.of(left, right)
             .by(String::length, String::length)
             .using(
                 (String l, String r, Collector<String> c) -> {
                   // no-op
                 })
-            .outputValues(SizeHint.FITS_IN_MEMORY);
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertFalse(join.getName().isPresent());
+  }
 
-    assertTrue(outputDataset.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
+  @Test
+  public void testBuild_LeftJoin() {
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        LeftJoin.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (String l, Optional<String> r, Collector<String> c) -> {
+                  // no-op
+                })
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertEquals(Join.Type.LEFT, join.getType());
+  }
 
-    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
-    assertTrue(
-        join.listInputs()
-            .stream()
-            .anyMatch(
-                input -> ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
+  @Test
+  public void testBuild_RightJoin() {
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        RightJoin.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (Optional<String> l, String r, Collector<String> c) -> {
+                  // no-op
+                })
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertEquals(Join.Type.RIGHT, join.getType());
+  }
 
-    assertTrue(
-        join.listInputs()
-            .stream()
-            .anyMatch(
-                input ->
-                    ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
+  @Test
+  public void testBuild_FullJoin() {
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        FullJoin.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using(
+                (Optional<String> l, Optional<String> r, Collector<String> c) ->
+                    c.collect(l.orElse(null) + r.orElse(null)))
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertEquals(Join.Type.FULL, join.getType());
+  }
 
+  @Test
+  public void testBuild_Windowing() {
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        Join.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(AfterWatermark.pastEndOfWindow())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertTrue(join.getWindow().isPresent());
+    final Window<?> window = (Window) join.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), WindowDesc.of(window).getTrigger());
     assertEquals(
-        2,
-        ((Dataset) join.listInputs().stream().findFirst().get()).getProducer().getHints().size());
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
+  }
+
+  @Test
+  public void testBuild_OptionalWindowing() {
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<KV<Integer, String>> joined =
+        Join.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length)
+            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+                        .triggeredBy(AfterWatermark.pastEndOfWindow())
+                        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    assertTrue(join.getWindow().isPresent());
+    final Window<?> window = (Window) join.getWindow().get();
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
+    assertEquals(AfterWatermark.pastEndOfWindow(), WindowDesc.of(window).getTrigger());
+    assertEquals(
+        AccumulationMode.DISCARDING_FIRED_PANES, WindowDesc.of(window).getAccumulationMode());
   }
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testBuild_Hints_afterWindowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    Join.named("Join1")
-        .of(
-            MapElements.of(left)
-                .using(i -> i)
-                .output(new Util.TestHint(), new Util.TestHint2(), new Util.TestHint2()),
-            right)
-        .by(String::length, String::length)
-        .using(
-            (String l, String r, Collector<String> c) -> {
-              // no-op
-            })
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(AfterWatermark.pastEndOfWindow())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
-    assertTrue(
-        join.listInputs()
-            .stream()
-            .anyMatch(
-                input -> ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
-
-    assertTrue(
-        join.listInputs()
-            .stream()
-            .anyMatch(
-                input ->
-                    ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
-
-    assertEquals(
-        2,
-        ((Dataset) join.listInputs().stream().findFirst().get()).getProducer().getHints().size());
-
-    WindowingDesc windowing = join.getWindowing();
-    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowing.getWindowFn());
-    assertEquals(AfterWatermark.pastEndOfWindow(), windowing.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowing.getAccumulationMode());
-  }
-
-  @Test
   public void testBuildTypePropagation() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 2);
-    Dataset<String> right = Util.createMockDataset(flow, 3);
-
-    TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
-    TypeDescriptor<String> outputType = TypeDescriptors.strings();
-
-    Dataset<KV<Integer, String>> joined =
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
+    final TypeDescriptor<String> outputType = TypeDescriptors.strings();
+    final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
             .by(String::length, String::length, keyType)
@@ -369,77 +276,58 @@ public class JoinTest {
                 },
                 outputType)
             .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-
-    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testBuild_LeftJoinTypePropagation() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
     TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     TypeDescriptor<String> outputType = TypeDescriptors.strings();
-
-    LeftJoin.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length, keyType)
-        .using(
-            (String l, Optional<String> r, Collector<String> c) -> {
-              // no-op
-            },
-            outputType)
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-
-    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
+    final Dataset<KV<Integer, String>> joined =
+        LeftJoin.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length, keyType)
+            .using(
+                (String l, Optional<String> r, Collector<String> c) -> {
+                  // no-op
+                },
+                outputType)
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testBuild_RightJoinTypePropagation() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 1);
-    Dataset<String> right = Util.createMockDataset(flow, 1);
-
-    TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
-    TypeDescriptor<String> outputType = TypeDescriptors.strings();
-
-    RightJoin.named("Join1")
-        .of(left, right)
-        .by(String::length, String::length, keyType)
-        .using(
-            (Optional<String> l, String r, Collector<String> c) -> {
-              // no-op
-            },
-            outputType)
-        .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-
-    TypePropagationAssert.assertOperatorTypeAwareness(join, outputType, keyType);
-  }
-
-  @Test(expected = WindowingRequiredException.class)
-  public void unboundedJoinWithoutWindowing() {
-    final BeamFlow flow = BeamFlow.of(pipeline);
-    pipeline.enableAutoRunIfMissing(true);
-
-    final ListDataSource<Integer> inputL =
-        ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
-    final ListDataSource<Integer> inputR =
-        ListDataSource.unbounded(Arrays.asList(1, 2, 3, 2, 3, 4));
-
-    Dataset<Integer> inputDatasetL = flow.createInput(inputL);
-    Dataset<Integer> inputDatasetR = flow.createInput(inputR);
-
-    Join.named("unoinded inputs no windowing")
-        .of(inputDatasetL, inputDatasetR)
-        .by(UnaryFunction.identity(), UnaryFunction.identity())
-        .using((l, r, c) -> c.collect(l + r))
-        .output();
+    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Dataset<String> left =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final Dataset<String> right =
+        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+    final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
+    final TypeDescriptor<String> outputType = TypeDescriptors.strings();
+    final Dataset<KV<Integer, String>> joined =
+        RightJoin.named("Join1")
+            .of(left, right)
+            .by(String::length, String::length, keyType)
+            .using(
+                (Optional<String> l, String r, Collector<String> c) -> {
+                  // no-op
+                },
+                outputType)
+            .output();
+    assertTrue(joined.getProducer().isPresent());
+    final Join join = (Join) joined.getProducer().get();
+    TypePropagationAssert.assertOperatorTypeAwareness(join, keyType, outputType);
   }
 }

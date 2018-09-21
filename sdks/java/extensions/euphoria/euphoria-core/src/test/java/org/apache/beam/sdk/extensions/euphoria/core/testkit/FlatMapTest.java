@@ -27,12 +27,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator {@code FlatMap}. */
-@Processing(Processing.Type.ALL)
 public class FlatMapTest extends AbstractOperatorTest {
 
   @Test
@@ -58,6 +57,11 @@ public class FlatMapTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           public List<Integer> getUnorderedOutput() {
             return Arrays.asList(1, 1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 1, 2, 1);
           }
@@ -75,8 +79,14 @@ public class FlatMapTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-            return FlatMap.of(input)
+            return FlatMap.named("test")
+                .of(input)
                 .using(
                     (UnaryFunctor<Integer, Integer>)
                         (elem, collector) -> {

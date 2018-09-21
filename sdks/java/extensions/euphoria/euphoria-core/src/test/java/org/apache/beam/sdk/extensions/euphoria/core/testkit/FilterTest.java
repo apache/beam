@@ -21,12 +21,11 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator {@code Filter}. */
-@Processing(Processing.Type.ALL)
 public class FilterTest extends AbstractOperatorTest {
 
   @Test
@@ -42,6 +41,11 @@ public class FilterTest extends AbstractOperatorTest {
           @Override
           protected List<Integer> getInput() {
             return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+          }
+
+          @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
           }
 
           @Override

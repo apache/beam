@@ -34,17 +34,15 @@ dependencies {
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
     testCompile library.java.hamcrest_library
-    testCompile library.java.slf4j_simple
     testCompile library.java.mockito_core
     testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     testCompile project(':beam-runners-direct-java')
 }
 
-test {
-    // Tests in testkit are not designed to run as standalone test. They need a context to run
-    // which is provided by org.apache.beam.sdk.extensions.euphoria.beam.OperatorsTestSuite.
-    exclude 'org/apache/beam/sdk/extensions/euphoria/core/testkit/**'
-    include "**/*TestSuite.class"
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['-Xlint:deprecation']
 }
 
-test.testLogging.showStandardStreams = false
+test {
+    jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
+}

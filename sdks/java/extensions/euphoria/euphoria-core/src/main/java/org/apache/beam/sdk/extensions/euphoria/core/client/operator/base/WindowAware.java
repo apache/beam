@@ -17,21 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 
 /**
  * Operator aware of windows.
  *
- * @param <InputT> the type of elements processed
- * @param <W> the type of windows handled
+ * @param <T> the type of windowed element
  */
 @Audience(Audience.Type.INTERNAL)
-public interface WindowAware<InputT, W extends BoundedWindow> {
+public interface WindowAware<T> {
 
-  WindowingDesc<InputT, W> getWindowing();
-
-  Windowing getEuphoriaWindowing();
+  /**
+   * Get configured window.
+   *
+   * @return window or empty
+   */
+  Optional<Window<T>> getWindow();
 }

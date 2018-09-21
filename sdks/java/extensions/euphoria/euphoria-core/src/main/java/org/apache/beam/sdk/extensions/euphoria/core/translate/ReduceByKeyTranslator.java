@@ -18,18 +18,17 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.Objects.requireNonNull;
 
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.window.WindowingUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -37,91 +36,89 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 
 /** Translator for {@code ReduceByKey} operator. */
-class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
+public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
+    implements OperatorTranslator<
+        InputT, KV<KeyT, OutputT>, ReduceByKey<InputT, KeyT, ValueT, OutputT>> {
 
-  @SuppressWarnings("unchecked")
-  private static <InputT, K, V, OutputT, W extends BoundedWindow>
-      PCollection<KV<K, OutputT>> doTranslate(
-          ReduceByKey<InputT, K, V, OutputT, W> operator, TranslationContext context) {
+  @Override
+  public PCollection<KV<KeyT, OutputT>> translate(
+      ReduceByKey<InputT, KeyT, ValueT, OutputT> operator, PCollectionList<InputT> inputs) {
 
-    //TODO Could we even do values sorting in Beam ? And do we want it?
-    checkState(operator.getValueComparator() == null, "Values sorting is not supported.");
+    // todo Could we even do values sorting in Beam ? And do we want it?
+    checkState(!operator.getValueComparator().isPresent(), "Values sorting is not supported.");
 
-    final UnaryFunction<InputT, K> keyExtractor = operator.getKeyExtractor();
-    final UnaryFunction<InputT, V> valueExtractor = operator.getValueExtractor();
-    final ReduceFunctor<V, OutputT> reducer = operator.getReducer();
-
-    // ~ resolve coders
-    final Coder<K> keyCoder = context.getKeyCoder(operator);
-    final Coder<V> valueCoder = context.getValueCoder(operator);
+    final UnaryFunction<InputT, KeyT> keyExtractor = operator.getKeyExtractor();
+    final UnaryFunction<InputT, ValueT> valueExtractor = operator.getValueExtractor();
+    final ReduceFunctor<ValueT, OutputT> reducer = operator.getReducer();
 
     final PCollection<InputT> input =
-        WindowingUtils.applyWindowingIfSpecified(
-            operator, context.getInput(operator), context.getAllowedLateness(operator));
+        operator
+            .getWindow()
+            .map(
+                window ->
+                    OperatorTranslators.getSingleInput(inputs)
+                        .apply(window.withAllowedLateness(Duration.ZERO)))
+            .orElseGet(() -> OperatorTranslators.getSingleInput(inputs));
 
     // ~ create key & value extractor
-    final MapElements<InputT, KV<K, V>> extractor =
-        MapElements.via(
-            new SimpleFunction<InputT, KV<K, V>>() {
-              @Override
-              public KV<K, V> apply(InputT in) {
-                return KV.of(keyExtractor.apply(in), valueExtractor.apply(in));
-              }
-            });
-    final PCollection<KV<K, V>> extracted =
+    final MapElements<InputT, KV<KeyT, ValueT>> extractor =
+        MapElements.via(new KeyValueExtractor<>(keyExtractor, valueExtractor));
+
+    final PCollection<KV<KeyT, ValueT>> extracted =
         input
-            .apply(operator.getName() + "::extract-keys", extractor)
-            .setCoder(KvCoder.of(keyCoder, valueCoder));
+            .apply("extract-keys", extractor)
+            .setTypeDescriptor(
+                TypeDescriptors.kvs(
+                    TypeAwares.orObjects(operator.getKeyType()),
+                    TypeAwares.orObjects(operator.getValueType())));
 
     final AccumulatorProvider accumulators =
-        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
-
-    WindowingUtils.checkGroupByKeyApplicable(operator, extracted);
-
-    Coder<KV<K, OutputT>> outputCoder = context.getOutputCoder(operator);
+        new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
 
     if (operator.isCombinable()) {
-      final PCollection combined =
+      // if operator is combinable we can process it in more efficient way
+      final PCollection<KV<KeyT, ValueT>> combined =
           extracted.apply(
-              operator.getName() + "::combine",
-              Combine.perKey(asCombiner(reducer, accumulators, operator.getName())));
-      combined.setCoder(outputCoder);
-
-      return combined;
-
-    } else {
-      // reduce
-
-      final PCollection<KV<K, Iterable<V>>> grouped =
-          extracted
-              .apply(operator.getName() + "::group", GroupByKey.create())
-              .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
-
-      PCollection<KV<K, OutputT>> reduced =
-          grouped.apply(
-              operator.getName() + "::reduce",
-              ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName())));
-      reduced.setCoder(outputCoder);
-
-      return reduced;
+              "combine",
+              Combine.perKey(asCombiner(reducer, accumulators, operator.getName().orElse(null))));
+      @SuppressWarnings("unchecked")
+      final PCollection<KV<KeyT, OutputT>> casted = (PCollection) combined;
+      return casted;
     }
+
+    return extracted
+        .apply("group", GroupByKey.create())
+        .setTypeDescriptor(
+            TypeDescriptors.kvs(
+                TypeAwares.orObjects(operator.getKeyType()),
+                TypeDescriptors.iterables(TypeAwares.orObjects(operator.getValueType()))))
+        .apply(
+            "reduce",
+            ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName().orElse(null))))
+        .setTypeDescriptor(
+            operator
+                .getOutputType()
+                .orElseThrow(
+                    () -> new IllegalStateException("Unable to infer output type descriptor.")));
   }
 
   @Override
   public boolean canTranslate(ReduceByKey operator) {
     // translation of sorted values is not supported yet
-    return operator.getValueComparator() == null;
+    return !operator.getValueComparator().isPresent();
   }
 
   private static <InputT, OutputT> SerializableFunction<Iterable<InputT>, InputT> asCombiner(
       ReduceFunctor<InputT, OutputT> reducer,
       AccumulatorProvider accumulatorProvider,
-      String operatorName) {
+      @Nullable String operatorName) {
 
     @SuppressWarnings("unchecked")
     final ReduceFunctor<InputT, InputT> combiner = (ReduceFunctor<InputT, InputT>) reducer;
@@ -134,33 +131,65 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     };
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public PCollection<?> translate(ReduceByKey operator, TranslationContext context) {
-    return doTranslate(operator, context);
+  /**
+   * Extract key and values from input data set.
+   *
+   * @param <InputT> type of input
+   * @param <KeyT> type of key
+   * @param <ValueT> type of value
+   */
+  private static class KeyValueExtractor<InputT, KeyT, ValueT>
+      extends SimpleFunction<InputT, KV<KeyT, ValueT>> {
+
+    private final UnaryFunction<InputT, KeyT> keyExtractor;
+    private final UnaryFunction<InputT, ValueT> valueExtractor;
+
+    KeyValueExtractor(
+        UnaryFunction<InputT, KeyT> keyExtractor, UnaryFunction<InputT, ValueT> valueExtractor) {
+      this.keyExtractor = keyExtractor;
+      this.valueExtractor = valueExtractor;
+    }
+
+    @Override
+    public KV<KeyT, ValueT> apply(InputT in) {
+      return KV.of(keyExtractor.apply(in), valueExtractor.apply(in));
+    }
   }
 
-  private static class ReduceDoFn<K, V, OutT> extends DoFn<KV<K, Iterable<V>>, KV<K, OutT>> {
+  /**
+   * Perform reduction of given elements.
+   *
+   * @param <KeyT> type of key
+   * @param <ValueT> type of value
+   * @param <OutputT> type of output
+   */
+  private static class ReduceDoFn<KeyT, ValueT, OutputT>
+      extends DoFn<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>> {
 
-    private final ReduceFunctor<V, OutT> reducer;
-    private final AdaptableCollector<KV<K, Iterable<V>>, KV<K, OutT>, OutT> collector;
+    private final ReduceFunctor<ValueT, OutputT> reducer;
+    private final AdaptableCollector<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>, OutputT>
+        collector;
 
     ReduceDoFn(
-        ReduceFunctor<V, OutT> reducer, AccumulatorProvider accumulators, String operatorName) {
+        ReduceFunctor<ValueT, OutputT> reducer,
+        AccumulatorProvider accumulators,
+        @Nullable String operatorName) {
       this.reducer = reducer;
       this.collector =
           new AdaptableCollector<>(
               accumulators,
               operatorName,
-              (DoFn<KV<K, Iterable<V>>, KV<K, OutT>>.ProcessContext ctx, OutT out) ->
-                  ctx.output(KV.of(ctx.element().getKey(), out)));
+              (DoFn<KV<KeyT, Iterable<ValueT>>, KV<KeyT, OutputT>>.ProcessContext ctx,
+                  OutputT out) -> ctx.output(KV.of(ctx.element().getKey(), out)));
     }
 
     @ProcessElement
     @SuppressWarnings("unused")
     public void processElement(ProcessContext ctx) {
       collector.setProcessContext(ctx);
-      reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false), collector);
+      reducer.apply(
+          StreamSupport.stream(requireNonNull(ctx.element().getValue()).spliterator(), false),
+          collector);
     }
   }
 }

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
 /**
  * An accumulator provider gathering accumulators in-memory.
@@ -140,7 +139,7 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
     }
 
     @Override
-    public AccumulatorProvider create(Settings settings) {
+    public AccumulatorProvider create() {
       return providerInstance();
     }
 

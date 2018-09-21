@@ -23,31 +23,27 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider.Factory;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * {@link SingleValueCollector} unit tests.
- */
+/** {@link SingleValueCollector} unit tests. */
 public class SingleValueCollectorTest {
 
   private static final String TEST_COUNTER_NAME = "test-counter";
   private static final String TEST_HISTOGRAM_NAME = "test-histogram";
 
-  Factory singleJVMaccFactory = SingleJvmAccumulatorProvider.Factory.get();
+  private final Factory accumulatorFactory = SingleJvmAccumulatorProvider.Factory.get();
 
   @Test
   public void testBasicAccumulatorsAccess() {
 
-    final AccumulatorProvider accumulators = singleJVMaccFactory.create(new Settings());
+    final AccumulatorProvider accumulators = accumulatorFactory.create();
 
     SingleValueCollector collector = new SingleValueCollector(accumulators, "test-no_op_name");
 
     Counter counter = collector.getCounter(TEST_COUNTER_NAME);
     Assert.assertNotNull(counter);
-
     Histogram histogram = collector.getHistogram(TEST_HISTOGRAM_NAME);
     Assert.assertNotNull(histogram);
 
@@ -56,7 +52,7 @@ public class SingleValueCollectorTest {
 
   @Test
   public void testBasicAccumulatorsFunction() {
-    final AccumulatorProvider accumulators = singleJVMaccFactory.create(new Settings());
+    final AccumulatorProvider accumulators = accumulatorFactory.create();
 
     SingleValueCollector collector = new SingleValueCollector(accumulators, "test-no_op_name");
 
@@ -66,7 +62,7 @@ public class SingleValueCollectorTest {
     counter.increment();
     counter.increment(2);
 
-    Map<String, Long> counterSnapshots = singleJVMaccFactory.getCounterSnapshots();
+    Map<String, Long> counterSnapshots = accumulatorFactory.getCounterSnapshots();
     long counteValue = counterSnapshots.get(TEST_COUNTER_NAME);
     Assert.assertEquals(3L, counteValue);
 
@@ -76,7 +72,7 @@ public class SingleValueCollectorTest {
     histogram.add(1);
     histogram.add(2, 2);
 
-    Map<String, Map<Long, Long>> histogramSnapshots = singleJVMaccFactory.getHistogramSnapshots();
+    Map<String, Map<Long, Long>> histogramSnapshots = accumulatorFactory.getHistogramSnapshots();
     Map<Long, Long> histogramValue = histogramSnapshots.get(TEST_HISTOGRAM_NAME);
 
     long numOfValuesOfOne = histogramValue.get(1L);
@@ -87,11 +83,9 @@ public class SingleValueCollectorTest {
     // collector.getTimer() <- not yet supported
   }
 
-  /**
-   * need to delete all metrics from accumulator before running another test
-   */
+  /** need to delete all metrics from accumulator before running another test */
   @After
   public void cleanUp() {
-    singleJVMaccFactory.clear();
+    accumulatorFactory.clear();
   }
 }

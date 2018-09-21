@@ -25,15 +25,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Correctness tests of {@link TopPerKey}. */
-@Processing(Processing.Type.ALL)
 public class TopPerKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -76,6 +74,11 @@ public class TopPerKeyTest extends AbstractOperatorTest {
                 new Item("three", "2-three", 0, 6L),
                 new Item("one", "one-XXX-100", 100, 7L),
                 new Item("three", "3-three", 2, 8L));
+          }
+
+          @Override
+          protected TypeDescriptor<Item> getInputType() {
+            return new TypeDescriptor<Item>() {};
           }
         });
   }
@@ -124,6 +127,11 @@ public class TopPerKeyTest extends AbstractOperatorTest {
                 new Item("three", "2-three", 0, 16L),
                 new Item("one", "one-XXX-100", 100, 12L),
                 new Item("three", "3-three", 2, 8L));
+          }
+
+          @Override
+          protected TypeDescriptor<Item> getInputType() {
+            return new TypeDescriptor<Item>() {};
           }
         });
   }

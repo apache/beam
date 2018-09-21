@@ -17,51 +17,36 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Set;
+import static java.util.Objects.requireNonNull;
+
+import java.util.Collections;
+import java.util.Optional;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.SpillTools;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ListStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateFactory;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StorageProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.util.SingleValueContext;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -72,7 +57,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * shuffle. If the function is not combinable all values must be first sent through the network and
  * the reduction is done afterwards on target machines.
  *
- * <p>Custom {@link Windowing} can be set, otherwise values from input operator are used.
+ * <p>Custom windowing can be set, otherwise values from input operator are used.
  *
  * <h3>Builders:</h3>
  *
@@ -93,8 +78,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * </ol>
  *
  * @param <InputT> Type of input records
- * @param <K> Output type of #keyBy method
- * @param <V> Output type of #valueBy method
+ * @param <KeyT> Output type of #keyBy method
+ * @param <ValueT> Output type of #valueBy method
  * @param <OutputT> Type of output value
  */
 @Audience(Audience.Type.CLIENT)
@@ -106,78 +91,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
   state = StateComplexity.CONSTANT_IF_COMBINABLE,
   repartitions = 1
 )
-public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
-    extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, KV<K, OutputT>, W, ReduceByKey<InputT, K, V, OutputT, W>>
-    implements TypeAware.Value<V> {
-
-  final ReduceFunctor<V, OutputT> reducer;
-
-  // builder classes used when input is Dataset<InputT> ----------------------
-  final UnaryFunction<InputT, V> valueExtractor;
-  @Nullable final BinaryFunction<V, V, Integer> valueComparator;
-  @Nullable final TypeDescriptor<V> valueType;
-
-  @SuppressWarnings("unchecked")
-  ReduceByKey(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyExtractor,
-      @Nullable TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, V> valueExtractor,
-      @Nullable TypeDescriptor<V> valueType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      CombinableReduceFunction<OutputT> reducer,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<KV<K, OutputT>> outputTypeDescriptor) {
-    this(
-        name,
-        flow,
-        input,
-        keyExtractor,
-        keyType,
-        valueExtractor,
-        valueType,
-        windowing,
-        euphoriaWindowing,
-        (ReduceFunctor<V, OutputT>) toReduceFunctor(reducer),
-        null,
-        outputHints,
-        outputTypeDescriptor);
-  }
-
-  ReduceByKey(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyExtractor,
-      @Nullable TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, V> valueExtractor,
-      @Nullable TypeDescriptor<V> valueType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      ReduceFunctor<V, OutputT> reducer,
-      @Nullable BinaryFunction<V, V, Integer> valueComparator,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<KV<K, OutputT>> outputTypeDescriptor) {
-
-    super(
-        name,
-        flow,
-        input,
-        outputTypeDescriptor,
-        keyExtractor,
-        keyType,
-        windowing,
-        euphoriaWindowing,
-        outputHints);
-    this.reducer = reducer;
-    this.valueExtractor = valueExtractor;
-    this.valueType = valueType;
-    this.valueComparator = valueComparator;
-  }
+public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
+    extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
 
   /**
    * Starts building a nameless {@link ReduceByKey} operator to process the given input dataset.
@@ -189,7 +104,7 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new KeyByBuilder<>("ReduceByKey", input);
+    return named(null).of(input);
   }
 
   /**
@@ -198,77 +113,33 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
-  static <V> ReduceFunctor<V, V> toReduceFunctor(CombinableReduceFunction<V> combinableFunction) {
+  /** Builder for 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
-    return new ReduceFunctor<V, V>() {
-
-      @Override
-      public boolean isCombinable() {
-        return true;
-      }
-
-      @Override
-      public void apply(Stream<V> elem, Collector<V> context) {
-        context.collect(combinableFunction.apply(elem));
-      }
-    };
+    @Override
+    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  public ReduceFunctor<V, OutputT> getReducer() {
-    return reducer;
+  /** Builder for 'keyBy' step */
+  public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
+
+    @Override
+    <T> ValueByReduceByBuilder<InputT, T, InputT> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, TypeDescriptor<T> keyType);
+
+    @Override
+    default <T> ValueByReduceByBuilder<InputT, T, InputT> keyBy(
+        UnaryFunction<InputT, T> keyExtractor) {
+      return keyBy(keyExtractor, null);
+    }
   }
 
-  public boolean isCombinable() {
-    return reducer.isCombinable();
-  }
-
-  public UnaryFunction<InputT, V> getValueExtractor() {
-    return valueExtractor;
-  }
-
-  @Nullable
-  public BinaryFunction<V, V, Integer> getValueComparator() {
-    return valueComparator;
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    StateSupport.MergeFromStateMerger stateCombine = new StateSupport.MergeFromStateMerger<>();
-    StateFactory stateFactory =
-        reducer.isCombinable()
-            ? new CombiningReduceState.Factory<>((ReduceFunctor) reducer)
-            : new NonCombiningReduceState.Factory<>(reducer, valueComparator);
-    Flow flow = getFlow();
-    Operator reduceState =
-        new ReduceStateByKey(
-            getName(),
-            flow,
-            input,
-            keyExtractor,
-            keyType,
-            valueExtractor,
-            valueType,
-            windowing,
-            euphoriaWindowing,
-            stateFactory,
-            stateCombine,
-            outputType,
-            getHints());
-    return DAG.of(reduceState);
-  }
-
-  @Override
-  public TypeDescriptor<V> getValueType() {
-    return valueType;
-  }
-
-  /** ReduceByKey builder which adds reduce function to operator under build. */
-  public interface ReduceBy<InputT, K, V> {
+  /** Builder for 'reduceBy' step */
+  public interface ReduceByBuilder<KeyT, ValueT> {
 
     /**
      * Define a function that reduces all values related to one key into one result object. The
@@ -279,16 +150,17 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @param reducer function that reduces all values into one output object
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunction<V, OutputT> reducer) {
-      return reduceBy((Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)));
+    default <OutputT> WithSortedValuesBuilder<KeyT, ValueT, OutputT> reduceBy(
+        ReduceFunction<ValueT, OutputT> reducer) {
+      return reduceBy(
+          (Stream<ValueT> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)));
     }
 
-    default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunction<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor) {
+    default <OutputT> WithSortedValuesBuilder<KeyT, ValueT, OutputT> reduceBy(
+        ReduceFunction<ValueT, OutputT> reducer, TypeDescriptor<OutputT> outputType) {
       return reduceBy(
-          (Stream<V> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)),
-          outputTypeDescriptor);
+          (Stream<ValueT> in, Collector<OutputT> ctx) -> ctx.collect(reducer.apply(in)),
+          outputType);
     }
 
     /**
@@ -300,13 +172,13 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @param reducer function that reduces all values into output values
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    default <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer) {
+    default <OutputT> WithSortedValuesBuilder<KeyT, ValueT, OutputT> reduceBy(
+        ReduceFunctor<ValueT, OutputT> reducer) {
       return reduceBy(reducer, null);
     }
 
-    <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer, TypeDescriptor<OutputT> outputTypeDescriptor);
+    <OutputT> WithSortedValuesBuilder<KeyT, ValueT, OutputT> reduceBy(
+        ReduceFunctor<ValueT, OutputT> reducer, @Nullable TypeDescriptor<OutputT> outputType);
 
     /**
      * Define a function that reduces all values related to one key into one result object. The
@@ -316,226 +188,41 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @param reducer function that reduces all values into one output object
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    default WindowByBuilder<InputT, K, V, V> combineBy(CombinableReduceFunction<V> reducer) {
-      return reduceBy(toReduceFunctor(reducer));
+    default WindowByBuilder<KeyT, ValueT> combineBy(CombinableReduceFunction<ValueT> reducer) {
+      return reduceBy(ReduceFunctor.of(reducer));
     }
 
-    default WindowByBuilder<InputT, K, V, V> combineBy(
-        CombinableReduceFunction<V> reducer, TypeDescriptor<V> outType) {
-      return reduceBy(toReduceFunctor(reducer), outType);
-    }
-  }
-
-  /** Parameters of this operator used in builders. */
-  private static final class BuilderParams<InputT, K, V, OutputT, W extends BoundedWindow>
-      extends WindowingParams<W> {
-
-    String name;
-    Dataset<InputT> input;
-    UnaryFunction<InputT, K> keyExtractor;
-    @Nullable TypeDescriptor<K> keyType;
-
-    UnaryFunction<InputT, V> valueExtractor;
-    @Nullable TypeDescriptor<V> valueType;
-
-    ReduceFunctor<V, OutputT> reducer;
-    @Nullable TypeDescriptor<OutputT> outputType;
-
-    @Nullable BinaryFunction<V, V, Integer> valuesComparator;
-  }
-
-  /** ReduceByKey builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-      return new KeyByBuilder<>(name, input);
+    default WindowByBuilder<KeyT, ValueT> combineBy(
+        CombinableReduceFunction<ValueT> reducer, TypeDescriptor<ValueT> outputType) {
+      return reduceBy(ReduceFunctor.of(reducer), outputType);
     }
   }
 
-  /** ReduceByKey builder which adds key extractor function to operator under build. */
-  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
-
-    private final BuilderParams<InputT, ?, ?, ?, ?> params = new BuilderParams<>();
-
-    KeyByBuilder(String name, Dataset<InputT> input) {
-      params.name = Objects.requireNonNull(name);
-      params.input = Objects.requireNonNull(input);
-    }
-
-    @Override
-    public <K> ValueByReduceByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, ?, ?, ?> paramsCasted = (BuilderParams<InputT, K, ?, ?, ?>) params;
-
-      paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
-      paramsCasted.keyType = keyType;
-      return new ValueByReduceByBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <K> ValueByReduceByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
-      return keyBy(keyExtractor, null);
-    }
-  }
-
-  /** ReduceByKey builder which adds value extractor to operator under build. */
-  public static class ValueByReduceByBuilder<InputT, K> implements ReduceBy<InputT, K, InputT> {
-
-    private final BuilderParams<InputT, K, ?, ?, ?> params;
-
-    ValueByReduceByBuilder(BuilderParams<InputT, K, ?, ?, ?> params) {
-      this.params = params;
-    }
+  /** Builder for 'valueBy' / 'reduceBy' step */
+  public interface ValueByReduceByBuilder<InputT, KeyT, ValueT>
+      extends ReduceByBuilder<KeyT, ValueT> {
 
     /**
      * Specifies the function to derive a value from the {@link ReduceByKey} operator's input
      * elements to get reduced by a later supplied reduce function.
      *
-     * @param <V> the type of the extracted values
+     * @param <T> the type of the extracted values
      * @param valueExtractor a user defined function to extract values from the processed input
      *     dataset's elements for later reduction
      * @param valueType {@link TypeDescriptor} of value type {@code <V>}
      * @return the next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    public <V> ReduceByCombineByBuilder<InputT, K, V> valueBy(
-        UnaryFunction<InputT, V> valueExtractor, TypeDescriptor<V> valueType) {
+    <T> ReduceByBuilder<KeyT, T> valueBy(
+        UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType);
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, V, ?, ?> paramsCasted = (BuilderParams<InputT, K, V, ?, ?>) params;
-
-      paramsCasted.valueExtractor = Objects.requireNonNull(valueExtractor);
-      paramsCasted.valueType = valueType;
-      return new ReduceByCombineByBuilder<>(paramsCasted);
-    }
-
-    public <V> ReduceByCombineByBuilder<InputT, K, V> valueBy(
-        UnaryFunction<InputT, V> valueExtractor) {
+    default <T> ReduceByBuilder<KeyT, T> valueBy(UnaryFunction<InputT, T> valueExtractor) {
       return valueBy(valueExtractor, null);
     }
-
-    @Override
-    public <OutputT> WithSortedValuesBuilder<InputT, K, InputT, OutputT> reduceBy(
-        ReduceFunctor<InputT, OutputT> reducer, TypeDescriptor<OutputT> outType) {
-
-      @SuppressWarnings("unchecked")
-      final BuilderParams<InputT, K, InputT, OutputT, ?> paramsCasted =
-          (BuilderParams<InputT, K, InputT, OutputT, ?>) params;
-
-      paramsCasted.valueExtractor = UnaryFunction.identity();
-      paramsCasted.valueType = TypeUtils.getDatasetElementType(paramsCasted.input);
-      paramsCasted.reducer = Objects.requireNonNull(reducer);
-      paramsCasted.outputType = outType;
-      return new WithSortedValuesBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <OutputT> WithSortedValuesBuilder<InputT, K, InputT, OutputT> reduceBy(
-        ReduceFunctor<InputT, OutputT> reducer) {
-      return reduceBy(reducer, null);
-    }
   }
 
-  /** ReduceByKey builder which adds combinable reduce function to operator under build. */
-  public static class ReduceByCombineByBuilder<InputT, K, V> implements ReduceBy<InputT, K, V> {
-
-    private final BuilderParams<InputT, K, V, ?, ?> params;
-
-    ReduceByCombineByBuilder(BuilderParams<InputT, K, V, ?, ?> params) {
-      this.params = params;
-    }
-
-    @Override
-    public <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer, TypeDescriptor<OutputT> outType) {
-
-      @SuppressWarnings("unchecked")
-      final BuilderParams<InputT, K, V, OutputT, ?> paramsCasted =
-          (BuilderParams<InputT, K, V, OutputT, ?>) params;
-
-      paramsCasted.reducer = Objects.requireNonNull(reducer);
-      paramsCasted.outputType = outType;
-
-      return new WithSortedValuesBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <OutputT> WithSortedValuesBuilder<InputT, K, V, OutputT> reduceBy(
-        ReduceFunctor<V, OutputT> reducer) {
-      return reduceBy(reducer, null);
-    }
-  }
-
-  /** ReduceByKey builder which adds widowing to operator under build. */
-  public static class WindowByBuilder<InputT, K, V, OutputT>
-      implements Builders.Output<KV<K, OutputT>>,
-          Builders.OutputValues<K, OutputT>,
-          Builders.WindowBy<TriggerByBuilder<InputT, K, V, OutputT, ?>>,
-          OptionalMethodBuilder<
-              WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>> {
-
-    final BuilderParams<InputT, K, V, OutputT, ?> params;
-
-    WindowByBuilder(BuilderParams<InputT, K, V, OutputT, ?> params) {
-      this.params = params;
-    }
-
-    @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, V, OutputT, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, V, OutputT, W> paramsCast =
-          (BuilderParams<InputT, K, V, OutputT, W>) params;
-
-      paramsCast.windowFn = Objects.requireNonNull(windowing);
-      return new TriggerByBuilder<>(paramsCast);
-    }
-
-    @Override
-    public <W extends Window<W>> OutputBuilder<InputT, K, V, OutputT, ?> windowBy(
-        Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(params).output(outputHints);
-    }
-
-    @Override
-    public OutputBuilder<InputT, K, V, OutputT, ?> applyIf(
-        boolean cond,
-        UnaryFunction<
-                WindowByBuilder<InputT, K, V, OutputT>, OutputBuilder<InputT, K, V, OutputT, ?>>
-            applyWhenConditionHolds) {
-
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      }
-
-      return new OutputBuilder<>(params);
-    }
-  }
-
-  /** ReduceByKey builder which adds comparator to operator under build. */
-  public static class WithSortedValuesBuilder<InputT, K, V, OutputT>
-      extends WindowByBuilder<InputT, K, V, OutputT> {
-
-    WithSortedValuesBuilder(BuilderParams<InputT, K, V, OutputT, ?> params) {
-      super(params);
-    }
+  /** Builder for 'withSortedValues' step */
+  public interface WithSortedValuesBuilder<KeyT, ValueT, OutputT>
+      extends WindowByBuilder<KeyT, OutputT> {
 
     /**
      * Sort values going to `reduceBy` function by given comparator.
@@ -543,230 +230,231 @@ public class ReduceByKey<InputT, K, V, OutputT, W extends BoundedWindow>
      * @param comparator function with contract defined by {@code java.util.Comparator#compare}.
      * @return next step builder
      */
-    public WindowByBuilder<InputT, K, V, OutputT> withSortedValues(
-        BinaryFunction<V, V, Integer> comparator) {
+    WindowByBuilder<KeyT, OutputT> withSortedValues(
+        BinaryFunction<ValueT, ValueT, Integer> comparator);
+  }
 
-      throw new UnsupportedOperationException(
-          String.format(
-              "Cannot build %s named '%s' with sorted values. Sorted values are not yet supported.",
-              ReduceByKey.class.getSimpleName(), params.name));
-      //      params.valuesComparator = Objects.requireNonNull(comparator);
-      //      return new WithSortedValuesBuilder<>(params);
+  /** Builder for 'windowBy' step */
+  public interface WindowByBuilder<KeyT, OutputT>
+      extends Builders.WindowBy<TriggeredByBuilder<KeyT, OutputT>>,
+          OptionalMethodBuilder<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>>,
+          OutputBuilder<KeyT, OutputT> {
+
+    @Override
+    <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
+        WindowFn<Object, W> windowing);
+
+    @Override
+    default OutputBuilder<KeyT, OutputT> applyIf(
+        boolean cond,
+        UnaryFunction<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>> fn) {
+      requireNonNull(fn);
+      return cond ? fn.apply(this) : this;
     }
   }
+
+  /** Builder for 'triggeredBy' step */
+  public interface TriggeredByBuilder<KeyT, OutputT>
+      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT, OutputT>> {
+
+    @Override
+    AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger);
+  }
+
+  /** Builder for 'accumulationMode' step */
+  public interface AccumulatorModeBuilder<KeyT, OutputT>
+      extends Builders.AccumulatorMode<OutputBuilder<KeyT, OutputT>> {
+
+    @Override
+    OutputBuilder<KeyT, OutputT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode);
+  }
+
+  /** Builder for 'output' step */
+  public interface OutputBuilder<KeyT, OutputT>
+      extends Builders.Output<KV<KeyT, OutputT>>, Builders.OutputValues<KeyT, OutputT> {}
 
   /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
+   * Builder for ReduceByKey operator.
+   *
+   * @param <InputT> type of input
+   * @param <KeyT> type of key
+   * @param <ValueT> type of value
+   * @param <OutputT> type ouf output
    */
-  public static class OutputBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-      implements Builders.OutputValues<K, OutputT> {
+  private static class Builder<InputT, KeyT, ValueT, OutputT>
+      implements OfBuilder,
+          KeyByBuilder<InputT>,
+          ValueByReduceByBuilder<InputT, KeyT, ValueT>,
+          WithSortedValuesBuilder<KeyT, ValueT, OutputT>,
+          WindowByBuilder<KeyT, OutputT>,
+          TriggeredByBuilder<KeyT, OutputT>,
+          AccumulatorModeBuilder<KeyT, OutputT>,
+          OutputBuilder<KeyT, OutputT> {
 
-    private final BuilderParams<InputT, K, V, OutputT, W> params;
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunction<InputT, KeyT> keyExtractor;
+    @Nullable private TypeDescriptor<KeyT> keyType;
+    @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
+    @Nullable private TypeDescriptor<ValueT> valueType;
+    private ReduceFunctor<ValueT, OutputT> reducer;
+    @Nullable private TypeDescriptor<OutputT> outputType;
+    @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+    @Nullable private Window<InputT> window;
 
-    OutputBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
-      this.params = params;
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
-    public Dataset<KV<K, OutputT>> output(OutputHint... outputHints) {
-      Flow flow = params.input.getFlow();
-      ReduceByKey<InputT, K, V, OutputT, W> reduce =
-          new ReduceByKey<>(
-              params.name,
-              flow,
-              params.input,
-              params.keyExtractor,
-              params.keyType,
-              params.valueExtractor,
-              params.valueType,
-              params.getWindowing(),
-              params.euphoriaWindowing,
-              params.reducer,
-              params.valuesComparator,
-              Sets.newHashSet(outputHints),
-              TypeUtils.keyValues(params.keyType, params.outputType));
-      flow.add(reduce);
-      return reduce.output();
-    }
-  }
-
-  /** Trigger defining operator builder. */
-  public static class TriggerByBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, V, OutputT, W>> {
-
-    private final BuilderParams<InputT, K, V, OutputT, W> params;
-
-    TriggerByBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
-      this.params = params;
+    @SuppressWarnings("unchecked")
+    public <T> KeyByBuilder<T> of(Dataset<T> input) {
+      @SuppressWarnings("unchecked")
+      final Builder<T, ?, ?, ?> casted = (Builder) this;
+      casted.input = input;
+      return casted;
     }
 
     @Override
-    public AccumulatorModeBuilder<InputT, K, V, OutputT, W> triggeredBy(Trigger trigger) {
-      params.trigger = Objects.requireNonNull(trigger);
-      return new AccumulatorModeBuilder<>(params);
-    }
-  }
-
-  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
-  public static class AccumulatorModeBuilder<InputT, K, V, OutputT, W extends BoundedWindow>
-      implements Builders.AccumulatorMode<OutputBuilder<InputT, K, V, OutputT, W>> {
-
-    private final BuilderParams<InputT, K, V, OutputT, W> params;
-
-    AccumulatorModeBuilder(BuilderParams<InputT, K, V, OutputT, W> params) {
-      this.params = params;
+    public <T> ValueByReduceByBuilder<InputT, T, InputT> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T, InputT, ?> casted = (Builder) this;
+      casted.keyExtractor = requireNonNull(keyExtractor);
+      casted.keyType = keyType;
+      return casted;
     }
 
     @Override
-    public OutputBuilder<InputT, K, V, OutputT, W> accumulationMode(
+    public <T> ReduceByBuilder<KeyT, T> valueBy(
+        UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, KeyT, T, ?> casted = (Builder) this;
+      casted.valueExtractor = requireNonNull(valueExtractor);
+      casted.valueType = valueType;
+      return casted;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> WithSortedValuesBuilder<KeyT, ValueT, T> reduceBy(
+        ReduceFunctor<ValueT, T> reducer, @Nullable TypeDescriptor<T> outputType) {
+      if (valueExtractor == null) {
+        // if the valueExtractor was not set in 'valueBy' step, we use untouched input element
+        valueExtractor = (UnaryFunction) UnaryFunction.identity();
+      }
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, KeyT, ValueT, T> casted = (Builder) this;
+      casted.reducer = requireNonNull(reducer);
+      casted.outputType = outputType;
+      return casted;
+    }
+
+    @Override
+    public WindowByBuilder<KeyT, OutputT> withSortedValues(
+        BinaryFunction<ValueT, ValueT, Integer> valueComparator) {
+      this.valueComparator = requireNonNull(valueComparator);
+      return this;
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
+        WindowFn<Object, W> windowFn) {
+      window = Window.into(requireNonNull(windowFn));
+      return this;
+    }
+
+    @Override
+    public AccumulatorModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
+      window = requireNonNull(window).triggering(requireNonNull(trigger));
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<KeyT, OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
+      switch (requireNonNull(accumulationMode)) {
+        case DISCARDING_FIRED_PANES:
+          window = requireNonNull(window).discardingFiredPanes();
+          break;
+        case ACCUMULATING_FIRED_PANES:
+          window = requireNonNull(window).accumulatingFiredPanes();
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown accumulation mode [" + accumulationMode + "]");
+      }
+      return this;
+    }
 
-      params.accumulationMode = Objects.requireNonNull(accumulationMode);
-      return new OutputBuilder<>(params);
+    @Override
+    public Dataset<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+      final ReduceByKey<InputT, KeyT, ValueT, OutputT> rbk =
+          new ReduceByKey<>(
+              name,
+              keyExtractor,
+              keyType,
+              valueExtractor,
+              valueType,
+              reducer,
+              valueComparator,
+              window,
+              TypeDescriptors.kvs(
+                  TypeAwares.orObjects(Optional.ofNullable(keyType)),
+                  TypeAwares.orObjects(Optional.ofNullable(outputType))));
+      return OperatorTransform.apply(rbk, Collections.singletonList(input));
+    }
+
+    @Override
+    public Dataset<OutputT> outputValues(OutputHint... outputHints) {
+      return MapElements.named(name != null ? name + "::extract-values" : null)
+          .of(output(outputHints))
+          .using(KV::getValue, outputType)
+          .output(outputHints);
     }
   }
 
-  /** TODO: complete javadoc when ReduceStateByKey is supported. */
-  static class CombiningReduceState<V1>
-      implements State<V1, V1>, StateSupport.MergeFrom<CombiningReduceState<V1>> {
+  private final ReduceFunctor<ValueT, OutputT> reducer;
+  private final UnaryFunction<InputT, ValueT> valueExtractor;
+  @Nullable private final BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+  @Nullable private final TypeDescriptor<ValueT> valueType;
 
-    @SuppressWarnings("unchecked")
-    private static final ValueStorageDescriptor STORAGE_DESC =
-        ValueStorageDescriptor.of("rbsk-value", (Class) Object.class, null);
-
-    private final ReduceFunctor<V1, V1> reducer;
-    private final ValueStorage<V1> storage;
-    private final SingleValueContext<V1> context = new SingleValueContext<>();
-
-    CombiningReduceState(StorageProvider storageProvider, ReduceFunctor<V1, V1> reducer) {
-      this.reducer = Objects.requireNonNull(reducer);
-
-      @SuppressWarnings("unchecked")
-      ValueStorage<V1> vs = storageProvider.getValueStorage(STORAGE_DESC);
-      this.storage = vs;
-    }
-
-    @Override
-    public void add(V1 element) {
-      V1 v = this.storage.get();
-      if (v == null) {
-        this.storage.set(element);
-      } else {
-        this.reducer.apply(Stream.of(v, element), context);
-        this.storage.set(context.getAndResetValue());
-      }
-    }
-
-    @Override
-    public void flush(Collector<V1> context) {
-      context.collect(storage.get());
-    }
-
-    @Override
-    public void close() {
-      storage.clear();
-    }
-
-    @Override
-    public void mergeFrom(CombiningReduceState<V1> other) {
-      this.add(other.storage.get());
-    }
-
-    static final class Factory<T> implements StateFactory<T, T, State<T, T>> {
-
-      private final ReduceFunctor<T, T> r;
-
-      Factory(ReduceFunctor<T, T> r) {
-        this.r = Objects.requireNonNull(r);
-      }
-
-      @Override
-      public State<T, T> createState(StateContext context, Collector<T> collector) {
-        return new CombiningReduceState<>(context.getStorageProvider(), r);
-      }
-    }
+  private ReduceByKey(
+      @Nullable String name,
+      UnaryFunction<InputT, KeyT> keyExtractor,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      UnaryFunction<InputT, ValueT> valueExtractor,
+      @Nullable TypeDescriptor<ValueT> valueType,
+      ReduceFunctor<ValueT, OutputT> reducer,
+      @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator,
+      @Nullable Window<InputT> window,
+      TypeDescriptor<KV<KeyT, OutputT>> outputType) {
+    super(name, outputType, keyExtractor, keyType, window);
+    this.reducer = reducer;
+    this.valueExtractor = valueExtractor;
+    this.valueType = valueType;
+    this.valueComparator = valueComparator;
   }
 
-  /** TODO: complete javadoc when supported. */
-  private static class NonCombiningReduceState<InputT, OutputT>
-      implements State<InputT, OutputT>,
-          StateSupport.MergeFrom<NonCombiningReduceState<InputT, OutputT>> {
+  public ReduceFunctor<ValueT, OutputT> getReducer() {
+    return reducer;
+  }
 
-    @SuppressWarnings("unchecked")
-    private static final ListStorageDescriptor STORAGE_DESC =
-        ListStorageDescriptor.of("values", (Class) Object.class);
+  public boolean isCombinable() {
+    return reducer.isCombinable();
+  }
 
-    private final ReduceFunctor<InputT, OutputT> reducer;
-    private final ListStorage<InputT> reducibleValues;
-    private final SpillTools spill;
-    @Nullable private final BinaryFunction<InputT, InputT, Integer> comparator;
+  public UnaryFunction<InputT, ValueT> getValueExtractor() {
+    return valueExtractor;
+  }
 
-    NonCombiningReduceState(
-        StateContext context,
-        ReduceFunctor<InputT, OutputT> reducer,
-        BinaryFunction<InputT, InputT, Integer> comparator) {
+  public Optional<BinaryFunction<ValueT, ValueT, Integer>> getValueComparator() {
+    return Optional.ofNullable(valueComparator);
+  }
 
-      this.reducer = Objects.requireNonNull(reducer);
-      this.comparator = comparator;
-
-      @SuppressWarnings("unchecked")
-      ListStorage<InputT> ls = context.getStorageProvider().getListStorage(STORAGE_DESC);
-      reducibleValues = ls;
-      this.spill = context.getSpillTools();
-    }
-
-    @Override
-    public void add(InputT element) {
-      reducibleValues.add(element);
-    }
-
-    @Override
-    public void flush(Collector<OutputT> ctx) {
-      if (comparator != null) {
-        try {
-          Comparator<InputT> c = comparator::apply;
-          Iterable<InputT> values = reducibleValues.get();
-          try (ExternalIterable<InputT> sorted = spill.sorted(values, c)) {
-            reducer.apply(StreamSupport.stream(sorted.spliterator(), false), ctx);
-          }
-        } catch (InterruptedException ex) {
-          throw new RuntimeException(ex);
-        }
-      } else {
-        reducer.apply(StreamSupport.stream(reducibleValues.get().spliterator(), false), ctx);
-      }
-    }
-
-    @Override
-    public void close() {
-      reducibleValues.clear();
-    }
-
-    @Override
-    public void mergeFrom(NonCombiningReduceState<InputT, OutputT> other) {
-      this.reducibleValues.addAll(other.reducibleValues.get());
-    }
-
-    static final class Factory<InputT, OutputT>
-        implements StateFactory<InputT, OutputT, NonCombiningReduceState<InputT, OutputT>> {
-
-      private final ReduceFunctor<InputT, OutputT> r;
-      private final BinaryFunction<InputT, InputT, Integer> comparator;
-
-      Factory(
-          ReduceFunctor<InputT, OutputT> r,
-          @Nullable BinaryFunction<InputT, InputT, Integer> comparator) {
-
-        this.r = Objects.requireNonNull(r);
-        this.comparator = comparator;
-      }
-
-      @Override
-      public NonCombiningReduceState<InputT, OutputT> createState(
-          StateContext context, Collector<OutputT> collector) {
-        return new NonCombiningReduceState<>(context, r, comparator);
-      }
-    }
+  @Override
+  public Optional<TypeDescriptor<ValueT>> getValueType() {
+    return Optional.ofNullable(valueType);
   }
 }

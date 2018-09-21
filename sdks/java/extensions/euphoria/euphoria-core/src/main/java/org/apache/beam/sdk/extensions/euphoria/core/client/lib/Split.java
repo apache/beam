@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class Split<InputT> {
+public class Split {
 
   static final String DEFAULT_NAME = "Split";
   static final String POSITIVE_FILTER_SUFFIX = "-positive";
@@ -43,7 +43,7 @@ public class Split<InputT> {
   }
 
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new UsingBuilder<InputT>(DEFAULT_NAME, input);
+    return new UsingBuilder<>(DEFAULT_NAME, input);
   }
 
   /** Starting builder. */

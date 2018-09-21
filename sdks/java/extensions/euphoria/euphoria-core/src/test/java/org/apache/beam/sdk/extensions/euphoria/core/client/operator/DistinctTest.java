@@ -18,14 +18,15 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -35,86 +36,77 @@ public class DistinctTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
-    DefaultTrigger trigger = DefaultTrigger.of();
-    Dataset<String> uniq =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    final DefaultTrigger trigger = DefaultTrigger.of();
+    final Dataset<String> uniq =
         Distinct.named("Distinct1")
             .of(dataset)
             .windowBy(windowing)
             .triggeredBy(trigger)
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
+    assertTrue(uniq.getProducer().isPresent());
+    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    assertTrue(distinct.getName().isPresent());
+    assertEquals("Distinct1", distinct.getName().get());
 
-    assertEquals(flow, uniq.getFlow());
-    assertEquals(1, flow.size());
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertEquals(flow, distinct.getFlow());
-    assertEquals("Distinct1", distinct.getName());
-    assertEquals(uniq, distinct.output());
-
-    WindowingDesc windowingDesc = distinct.getWindowing();
-    assertNotNull(windowingDesc);
-    assertSame(windowing, windowingDesc.getWindowFn());
-    assertSame(trigger, windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    assertTrue(distinct.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) distinct.getWindow().get());
+    assertEquals(windowing, windowDesc.getWindowFn());
+    assertEquals(trigger, windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<String> uniq = Distinct.of(dataset).output();
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertEquals("Distinct", distinct.getName());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> uniq = Distinct.of(dataset).output();
+    assertTrue(uniq.getProducer().isPresent());
+    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    assertFalse(distinct.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<String> uniq =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> uniq =
         Distinct.of(dataset)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-
-    WindowingDesc windowingDesc = distinct.getWindowing();
-    assertNotNull(windowingDesc);
+    assertTrue(uniq.getProducer().isPresent());
+    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    assertTrue(distinct.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) distinct.getWindow().get());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Distinct.of(dataset)
-        .applyIf(
-            true,
-            b ->
-                b.windowBy(FixedWindows.of(Duration.standardHours(1)))
-                    .triggeredBy(DefaultTrigger.of())
-                    .discardingFiredPanes())
-        .output();
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = distinct.getWindowing();
-    assertNotNull(windowingDesc);
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> uniq =
+        Distinct.of(dataset)
+            .applyIf(
+                true,
+                b ->
+                    b.windowBy(FixedWindows.of(Duration.standardHours(1)))
+                        .triggeredBy(DefaultTrigger.of())
+                        .discardingFiredPanes())
+            .output();
+    assertTrue(uniq.getProducer().isPresent());
+    final Distinct distinct = (Distinct) uniq.getProducer().get();
+    assertTrue(distinct.getWindow().isPresent());
+    @SuppressWarnings("unchecked")
+    final WindowDesc<?> windowDesc = WindowDesc.of((Window) distinct.getWindow().get());
     assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowDesc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), windowDesc.getTrigger());
+    assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, windowDesc.getAccumulationMode());
   }
 }

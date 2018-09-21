@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator FlatMap. */
@@ -32,55 +33,41 @@ public class FlatMapTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> mapped =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped =
         FlatMap.named("FlatMap1")
             .of(dataset)
             .using((String s, Collector<String> c) -> c.collect(s))
             .output();
-
-    assertEquals(flow, mapped.getFlow());
-    assertEquals(1, flow.size());
-
-    FlatMap map = (FlatMap) flow.operators().iterator().next();
-    assertEquals(flow, map.getFlow());
-    assertEquals("FlatMap1", map.getName());
+    assertTrue(mapped.getProducer().isPresent());
+    final FlatMap map = (FlatMap) mapped.getProducer().get();
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap1", map.getName().get());
     assertNotNull(map.getFunctor());
-    assertEquals(mapped, map.output());
-    assertNull(map.getEventTimeExtractor());
+    assertFalse(map.getEventTimeExtractor().isPresent());
   }
 
   @Test
   public void testBuild_EventTimeExtractor() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<BigDecimal> mapped =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<BigDecimal> mapped =
         FlatMap.named("FlatMap2")
             .of(dataset)
             .using((String s, Collector<BigDecimal> c) -> c.collect(null))
             .eventTimeBy(Long::parseLong) // ~ consuming the original input elements
             .output();
-
-    assertEquals(flow, mapped.getFlow());
-    assertEquals(1, flow.size());
-
-    FlatMap map = (FlatMap) flow.operators().iterator().next();
-    assertEquals(flow, map.getFlow());
-    assertEquals("FlatMap2", map.getName());
+    assertTrue(mapped.getProducer().isPresent());
+    final FlatMap map = (FlatMap) mapped.getProducer().get();
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap2", map.getName().get());
     assertNotNull(map.getFunctor());
-    assertEquals(mapped, map.output());
-    assertNotNull(map.getEventTimeExtractor());
+    assertTrue(map.getEventTimeExtractor().isPresent());
   }
 
   @Test
   public void testBuild_WithCounters() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    Dataset<String> mapped =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped =
         FlatMap.named("FlatMap1")
             .of(dataset)
             .using(
@@ -89,25 +76,20 @@ public class FlatMapTest {
                   c.collect(s);
                 })
             .output();
-
-    assertEquals(flow, mapped.getFlow());
-    assertEquals(1, flow.size());
-
-    FlatMap map = (FlatMap) flow.operators().iterator().next();
-    assertEquals(flow, map.getFlow());
-    assertEquals("FlatMap1", map.getName());
+    assertTrue(mapped.getProducer().isPresent());
+    final FlatMap map = (FlatMap) mapped.getProducer().get();
+    assertTrue(map.getName().isPresent());
+    assertEquals("FlatMap1", map.getName().get());
     assertNotNull(map.getFunctor());
-    assertEquals(mapped, map.output());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 1);
-
-    FlatMap.of(dataset).using((String s, Collector<String> c) -> c.collect(s)).output();
-
-    FlatMap map = (FlatMap) flow.operators().iterator().next();
-    assertEquals("FlatMap", map.getName());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> mapped =
+        FlatMap.of(dataset).using((String s, Collector<String> c) -> c.collect(s)).output();
+    assertTrue(mapped.getProducer().isPresent());
+    final FlatMap map = (FlatMap) mapped.getProducer().get();
+    assertFalse(map.getName().isPresent());
   }
 }

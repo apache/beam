@@ -17,22 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -52,45 +52,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, OutputT> {
-
-  final UnaryFunctionEnv<InputT, OutputT> mapper;
-
-  MapElements(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, OutputT> mapper,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    this(
-        name,
-        flow,
-        input,
-        (el, ctx) -> mapper.apply(el),
-        Collections.emptySet(),
-        outputTypeDescriptor);
-  }
-
-  MapElements(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints, outputTypeDescriptor);
-  }
-
-  MapElements(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunctionEnv<InputT, OutputT> mapper,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<OutputT> outputTypeDescriptor) {
-    super(name, flow, input, outputHints, outputTypeDescriptor);
-    this.mapper = mapper;
-  }
+public class MapElements<InputT, OutputT> extends Operator<OutputT>
+    implements CompositeOperator<InputT, OutputT>, TypeAware.Output<OutputT> {
 
   /**
    * Starts building a nameless {@link MapElements} operator to process the given input dataset.
@@ -102,7 +65,7 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new UsingBuilder<>("MapElements", input);
+    return named(null).of(input);
   }
 
   /**
@@ -111,59 +74,19 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder<>(name);
   }
 
-  /**
-   * This is not a basic operator. It can be straightforwardly implemented by using {@code FlatMap}
-   * operator.
-   *
-   * @return the operator chain representing this operation including FlatMap
-   */
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(
-        // do not use the client API here, because it modifies the Flow!
-        new FlatMap<InputT, OutputT>(
-            getName(),
-            getFlow(),
-            input,
-            (i, c) -> c.collect(mapper.apply(i, c.asContext())),
-            null,
-            getHints(),
-            outputType));
-  }
-
-  public UnaryFunctionEnv<InputT, OutputT> getMapper() {
-    return mapper;
-  }
-
-  /** MapElements builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for the 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-      return new UsingBuilder<>(name, input);
-    }
+    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
   }
 
   /** MapElements builder which adds mapper to operator under build. */
-  public static class UsingBuilder<InputT> {
-
-    private final String name;
-    private final Dataset<InputT> input;
-
-    UsingBuilder(String name, Dataset<InputT> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-    }
+  public interface UsingBuilder<InputT> {
 
     /**
      * The mapping function that takes input element and outputs the OutputT type element. If you
@@ -173,13 +96,13 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OutputT> OutputBuilder<InputT, OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
-      return new OutputBuilder<>(name, input, ((el, ctx) -> mapper.apply(el)));
+    default <OutputT> OutputBuilder<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
+      return using(mapper, null);
     }
 
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunction<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputType) {
-      return new OutputBuilder<>(name, input, (el, ctx) -> mapper.apply(el), outputType);
+    default <OutputT> OutputBuilder<OutputT> using(
+        UnaryFunction<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType) {
+      return using((el, ctx) -> mapper.apply(el), outputType);
     }
 
     /**
@@ -189,55 +112,79 @@ public class MapElements<InputT, OutputT> extends ElementWiseOperator<InputT, Ou
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunctionEnv<InputT, OutputT> mapper) {
+    default <OutputT> OutputBuilder<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    public <OutputT> OutputBuilder<InputT, OutputT> using(
-        UnaryFunctionEnv<InputT, OutputT> mapper, TypeDescriptor<OutputT> outputType) {
-      return new OutputBuilder<>(name, input, mapper, outputType);
-    }
+    <OutputT> OutputBuilder<OutputT> using(
+        UnaryFunctionEnv<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType);
   }
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public static class OutputBuilder<InputT, OutputT> implements Builders.Output<OutputT> {
+  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryFunctionEnv<InputT, OutputT> mapper;
-    private final TypeDescriptor<OutputT> outputTypeDescriptor;
+  private static class Builder<InputT, OutputT>
+      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<OutputT> {
 
-    OutputBuilder(
-        String name,
-        Dataset<InputT> input,
-        UnaryFunctionEnv<InputT, OutputT> mapper,
-        TypeDescriptor<OutputT> outputTypeDescriptor) {
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunctionEnv<InputT, OutputT> mapper;
+    @Nullable private TypeDescriptor<OutputT> outputType;
+
+    Builder(@Nullable String name) {
       this.name = name;
-      this.input = input;
-      this.mapper = mapper;
-      this.outputTypeDescriptor = outputTypeDescriptor;
     }
 
-    OutputBuilder(String name, Dataset<InputT> input, UnaryFunctionEnv<InputT, OutputT> mapper) {
-      this.name = name;
-      this.input = input;
-      this.mapper = mapper;
-      this.outputTypeDescriptor = null;
+    @Override
+    public <T> UsingBuilder<T> of(Dataset<T> input) {
+      @SuppressWarnings("unchecked")
+      final Builder<T, ?> casted = (Builder) this;
+      casted.input = input;
+      return casted;
+    }
+
+    @Override
+    public <T> OutputBuilder<T> using(
+        UnaryFunctionEnv<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T> casted = (Builder) this;
+      casted.mapper = mapper;
+      casted.outputType = outputType;
+      return casted;
     }
 
     @Override
     public Dataset<OutputT> output(OutputHint... outputHints) {
-      Flow flow = input.getFlow();
-      MapElements<InputT, OutputT> map =
-          new MapElements<>(
-              name, flow, input, mapper, Sets.newHashSet(outputHints), outputTypeDescriptor);
-      flow.add(map);
-
-      return map.output();
+      final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
+      return OperatorTransform.apply(operator, Collections.singletonList(input));
     }
+  }
+
+  private final UnaryFunctionEnv<InputT, OutputT> mapper;
+
+  private MapElements(
+      @Nullable String name,
+      UnaryFunctionEnv<InputT, OutputT> mapper,
+      @Nullable TypeDescriptor<OutputT> outputType) {
+    super(name, outputType);
+    this.mapper = mapper;
+  }
+
+  @Override
+  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
+    return FlatMap.named(getName().orElse(null))
+        .of(Iterables.getOnlyElement(inputs))
+        .using(
+            (InputT elem, Collector<OutputT> coll) ->
+                coll.collect(getMapper().apply(elem, coll.asContext())),
+            getOutputType().orElse(null))
+        .output();
+  }
+
+  public UnaryFunctionEnv<InputT, OutputT> getMapper() {
+    return mapper;
   }
 }

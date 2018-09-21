@@ -22,17 +22,15 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing.Type;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.junit.Test;
 
 /** Test operator {@code CountByKey}. */
-@Processing(Type.ALL)
 public class CountByKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -57,6 +55,11 @@ public class CountByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           public List<KV<Integer, Long>> getUnorderedOutput() {
             return Arrays.asList(
                 KV.of(2, 1L),
@@ -77,6 +80,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
   public void testWithEventTimeWindow() {
     execute(
         new AbstractTestCase<KV<Integer, Long>, KV<Integer, Long>>() {
+
           @Override
           protected Dataset<KV<Integer, Long>> getOutput(Dataset<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
@@ -111,6 +115,11 @@ public class CountByKeyTest extends AbstractOperatorTest {
                 KV.of(9, 5500L),
                 KV.of(9, 6300L),
                 KV.of(9, 6700L));
+          }
+
+          @Override
+          protected TypeDescriptor<KV<Integer, Long>> getInputType() {
+            return TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.longs());
           }
 
           @Override

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 
 /**
  * Reduce function reducing iterable of elements into multiple elements (of possibly different
@@ -27,6 +28,29 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface ReduceFunctor<InputT, OutputT> extends UnaryFunctor<Stream<InputT>, OutputT> {
+
+  /**
+   * Create reduce functor from combinable function
+   *
+   * @param combinableFunction combinable function
+   * @param <V> value type
+   * @return reduce functor
+   */
+  static <V> ReduceFunctor<V, V> of(CombinableReduceFunction<V> combinableFunction) {
+
+    return new ReduceFunctor<V, V>() {
+
+      @Override
+      public boolean isCombinable() {
+        return true;
+      }
+
+      @Override
+      public void apply(Stream<V> elem, Collector<V> context) {
+        context.collect(combinableFunction.apply(elem));
+      }
+    };
+  }
 
   /**
    * Is this a commutative associative function with single final output?

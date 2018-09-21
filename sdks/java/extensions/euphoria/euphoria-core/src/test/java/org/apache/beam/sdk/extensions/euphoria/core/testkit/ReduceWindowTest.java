@@ -17,31 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
-import static java.util.Arrays.asList;
-
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.BeamFlow;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.joda.time.Duration;
-import org.junit.Rule;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test operator {@code ReduceByKey}. */
-@Processing(Processing.Type.ALL)
 public class ReduceWindowTest extends AbstractOperatorTest {
-
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testReduceWithWindowing() {
@@ -66,8 +56,13 @@ public class ReduceWindowTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           public List<Integer> getUnorderedOutput() {
-            return Arrays.asList(55);
+            return Collections.singletonList(55);
           }
         });
   }
@@ -82,14 +77,15 @@ public class ReduceWindowTest extends AbstractOperatorTest {
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
             Dataset<Integer> first =
-                ReduceWindow.of(withEventTime)
+                ReduceWindow.named("first-reduce")
+                    .of(withEventTime)
                     .combineBy(Sums.ofInts())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
                     .triggeredBy(DefaultTrigger.of())
                     .discardingFiredPanes()
                     .output();
 
-            return ReduceWindow.of(first).combineBy(Sums.ofInts()).output();
+            return ReduceWindow.named("second-reduce").of(first).combineBy(Sums.ofInts()).output();
           }
 
           @Override
@@ -98,8 +94,13 @@ public class ReduceWindowTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           public List<Integer> getUnorderedOutput() {
-            return Arrays.asList(55);
+            return Collections.singletonList(55);
           }
         });
   }
@@ -114,14 +115,15 @@ public class ReduceWindowTest extends AbstractOperatorTest {
                 AssignEventTime.of(input).using(i -> 1000L * i).output();
 
             Dataset<Integer> first =
-                ReduceWindow.of(withEventTime)
+                ReduceWindow.named("first-reduce")
+                    .of(withEventTime)
                     .combineBy(Sums.ofInts())
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(5)))
                     .triggeredBy(DefaultTrigger.of())
                     .discardingFiredPanes()
                     .output();
 
-            return ReduceWindow.of(first).combineBy(Sums.ofInts()).output();
+            return ReduceWindow.named("second-reduce").of(first).combineBy(Sums.ofInts()).output();
           }
 
           @Override
@@ -130,31 +132,14 @@ public class ReduceWindowTest extends AbstractOperatorTest {
           }
 
           @Override
+          protected TypeDescriptor<Integer> getInputType() {
+            return TypeDescriptors.integers();
+          }
+
+          @Override
           public List<Integer> getUnorderedOutput() {
             return Arrays.asList(10, 35, 10, 100);
           }
         });
-  }
-
-  @Test
-  public void testReduceWithWindowingMoreWindowsTestPipeline() {
-
-    BeamFlow flow = BeamFlow.of(pipeline);
-    Dataset<Integer> input =
-        flow.createInput(ListDataSource.bounded(asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100)));
-
-    Dataset<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
-
-    Dataset<Integer> output =
-        ReduceWindow.of(withEventTime)
-            .combineBy(Sums.ofInts())
-            .windowBy(FixedWindows.of(Duration.standardSeconds(5)))
-            .triggeredBy(DefaultTrigger.of())
-            .discardingFiredPanes()
-            .output();
-
-    PAssert.that(flow.unwrapped(output)).containsInAnyOrder(10, 35, 10, 100);
-
-    pipeline.run();
   }
 }

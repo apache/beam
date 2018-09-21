@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset;
 
-import java.io.Serializable;
-import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A dataset abstraction.
@@ -32,51 +36,65 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
  * @param <T> type of elements of this data set
  */
 @Audience(Audience.Type.CLIENT)
-public interface Dataset<T> extends Serializable {
+public class Dataset<T> implements PValue {
 
-  /** @return the flow associated with this data set */
-  Flow getFlow();
+  public static <T> Dataset<T> of(PCollection<T> pCollection) {
+    return new Dataset<>(pCollection, null);
+  }
 
-  /**
-   * Retrieve source of data associated with this dataset. This might be null, if this dataset has
-   * no explicit source, it is calculated. If this method returns null, getProducer returns non null
-   * and vice versa.
-   *
-   * @return this dataset's explicit source - if any
-   */
-  @Nullable
-  DataSource<T> getSource();
+  public static <T> Dataset<T> of(PCollection<T> pCollection, Operator producer) {
+    return new Dataset<>(pCollection, producer);
+  }
 
-  /** @return the operator that produced this dataset - if any */
-  @Nullable
-  Operator<?, T> getProducer();
+  private final PCollection<T> pCollection;
+  @Nullable private final Operator producer;
 
-  /**
-   * Retrieve collection of consumers of this dataset.
-   *
-   * @return the list of currently known consumers (this can change if another consumer is added to
-   *     the flow).
-   */
-  Collection<Operator<?, ?>> getConsumers();
+  private Dataset(PCollection<T> pCollection, @Nullable Operator producer) {
+    this.pCollection = pCollection;
+    this.producer = producer;
+  }
 
-  /** @return {@code true} if this is a bounded data set, {@code false} if it is unbounded. */
-  boolean isBounded();
+  @Override
+  public String getName() {
+    return pCollection.getName();
+  }
 
-  /**
-   * Persist this dataset.
-   *
-   * @param sink the sink to use to persist this data set's data to
-   */
-  void persist(DataSink<T> sink);
-
-  /**
-   * Retrieve output sink for this dataset.
-   *
-   * @return {@code null} if there is no explicitly set sink this data set is supposed to be
-   *     persisted to, otherwise the sink provided through {@link #persist(DataSink)}.
-   */
-  @Nullable
-  default DataSink<T> getOutputSink() {
+  @Deprecated
+  @Override
+  public Map<TupleTag<?>, PValue> expand() {
     return null;
+  }
+
+  @Override
+  public void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform) {
+    pCollection.finishSpecifying(upstreamInput, upstreamTransform);
+  }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pCollection.getPipeline();
+  }
+
+  @Override
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    pCollection.finishSpecifyingOutput(transformName, input, transform);
+  }
+
+  /**
+   * Get underlying {@link PCollection}.
+   *
+   * @return pCollection
+   */
+  public PCollection<T> getPCollection() {
+    return pCollection;
+  }
+
+  public Optional<Operator> getProducer() {
+    return Optional.ofNullable(producer);
+  }
+
+  public TypeDescriptor<T> getTypeDescriptor() {
+    return pCollection.getTypeDescriptor();
   }
 }

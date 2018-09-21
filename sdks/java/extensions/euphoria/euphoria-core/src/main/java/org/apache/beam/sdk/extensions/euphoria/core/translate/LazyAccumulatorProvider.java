@@ -17,25 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.Serializable;
-import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 
 /** Instantiate accumulator provider on the first usage. Thus {@link Serializable}. */
 class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
 
-  private final AccumulatorProvider.Factory factory;
-  private final Settings settings;
+  private final Factory factory;
 
   private transient AccumulatorProvider accumulators;
 
-  LazyAccumulatorProvider(AccumulatorProvider.Factory factory, Settings settings) {
-    this.factory = Objects.requireNonNull(factory);
-    this.settings = Objects.requireNonNull(settings);
+  LazyAccumulatorProvider(Factory factory) {
+    this.factory = requireNonNull(factory);
   }
 
   @Override
@@ -65,7 +63,7 @@ class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
 
   private AccumulatorProvider getAccumulatorProvider() {
     if (accumulators == null) {
-      accumulators = factory.create(settings);
+      accumulators = factory.create();
     }
     return accumulators;
   }

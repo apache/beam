@@ -18,15 +18,16 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -38,13 +39,10 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
-    DefaultTrigger trigger = DefaultTrigger.of();
-
-    Dataset<KV<String, Long>> counted =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    final DefaultTrigger trigger = DefaultTrigger.of();
+    final Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -52,89 +50,79 @@ public class CountByKeyTest {
             .triggeredBy(trigger)
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-
-    assertEquals(flow, counted.getFlow());
-    assertEquals(1, flow.size());
-
-    CountByKey count = (CountByKey) flow.operators().iterator().next();
-    assertEquals(flow, count.getFlow());
-    assertEquals("CountByKey1", count.getName());
+    assertTrue(counted.getProducer().isPresent());
+    final CountByKey count = (CountByKey) counted.getProducer().get();
+    assertTrue(count.getName().isPresent());
+    assertEquals("CountByKey1", count.getName().get());
     assertNotNull(count.getKeyExtractor());
-    assertEquals(counted, count.output());
-
-    WindowingDesc windowingDesc = count.getWindowing();
-    assertNotNull(windowingDesc);
-    assertSame(windowing, windowingDesc.getWindowFn());
-    assertSame(trigger, windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    assertTrue(count.getWindow().isPresent());
+    final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
+    assertSame(windowing, desc.getWindowFn());
+    assertSame(trigger, desc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
   }
 
   @Test
   public void testBuild_ImplicitName() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    CountByKey.of(dataset).keyBy(s -> s).output();
-
-    CountByKey count = (CountByKey) flow.operators().iterator().next();
-    assertEquals("CountByKey", count.getName());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted = CountByKey.of(dataset).keyBy(s -> s).output();
+    assertTrue(counted.getProducer().isPresent());
+    final CountByKey count = (CountByKey) counted.getProducer().get();
+    assertFalse(count.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    CountByKey.named("CountByKey1")
-        .of(dataset)
-        .keyBy(s -> s)
-        .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
-        .triggeredBy(DefaultTrigger.of())
-        .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
-        .output();
-
-    CountByKey count = (CountByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = count.getWindowing();
-    assertNotNull(windowingDesc);
-    assertEquals(
-        FixedWindows.of(org.joda.time.Duration.standardHours(1)), windowingDesc.getWindowFn());
-    assertEquals(DefaultTrigger.of(), windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<KV<String, Long>> counted =
+        CountByKey.named("CountByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
+            .triggeredBy(DefaultTrigger.of())
+            .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .output();
+    assertTrue(counted.getProducer().isPresent());
+    final CountByKey count = (CountByKey) counted.getProducer().get();
+    assertTrue(count.getWindow().isPresent());
+    final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
+    assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), desc.getWindowFn());
+    assertEquals(DefaultTrigger.of(), desc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
   }
 
   @Test
   public void testWindow_applyIf() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
-    DefaultTrigger trigger = DefaultTrigger.of();
-
-    CountByKey.named("CountByKey1")
-        .of(dataset)
-        .keyBy(s -> s)
-        .applyIf(true, b -> b.windowBy(windowing).triggeredBy(trigger).discardingFiredPanes())
-        .output();
-
-    CountByKey count = (CountByKey) flow.operators().iterator().next();
-    WindowingDesc windowingDesc = count.getWindowing();
-    assertNotNull(windowingDesc);
-    assertSame(windowing, windowingDesc.getWindowFn());
-    assertSame(trigger, windowingDesc.getTrigger());
-    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, windowingDesc.getAccumulationMode());
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
+    final DefaultTrigger trigger = DefaultTrigger.of();
+    final Dataset<KV<String, Long>> counted =
+        CountByKey.named("CountByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .applyIf(true, b -> b.windowBy(windowing).triggeredBy(trigger).discardingFiredPanes())
+            .output();
+    assertTrue(counted.getProducer().isPresent());
+    final CountByKey count = (CountByKey) counted.getProducer().get();
+    assertTrue(count.getWindow().isPresent());
+    final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
+    assertSame(windowing, desc.getWindowFn());
+    assertSame(trigger, desc.getTrigger());
+    assertSame(AccumulationMode.DISCARDING_FIRED_PANES, desc.getAccumulationMode());
   }
 
   @Test
   public void testBuildTypePropagation() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    TypeDescriptor<Long> outputType = TypeDescriptors.longs();
-    TypeDescriptor<String> keyType = TypeDescriptors.strings();
-    Dataset<KV<String, Long>> counted =
+    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final TypeDescriptor<String> keyType = TypeDescriptors.strings();
+    final Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s, keyType).output();
-
-    CountByKey count = (CountByKey) flow.operators().iterator().next();
-    TypePropagationAssert.assertOperatorTypeAwareness(count, outputType, keyType);
+    assertTrue(counted.getProducer().isPresent());
+    final CountByKey count = (CountByKey) counted.getProducer().get();
+    assertTrue(count.getKeyType().isPresent());
+    assertEquals(count.getKeyType().get(), keyType);
+    assertTrue(count.getOutputType().isPresent());
+    assertEquals(
+        TypeDescriptors.kvs(keyType, TypeDescriptors.longs()), count.getOutputType().get());
   }
 }

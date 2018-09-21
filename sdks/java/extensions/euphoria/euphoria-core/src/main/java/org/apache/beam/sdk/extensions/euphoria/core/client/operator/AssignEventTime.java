@@ -17,21 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
-import java.util.Objects;
-import java.util.Set;
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -49,20 +48,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT> {
-
-  private final ExtractEventTime<InputT> eventTimeFn;
-
-  AssignEventTime(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      ExtractEventTime<InputT> eventTimeFn,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<InputT> outputType) {
-    super(name, flow, input, outputHints, outputType);
-    this.eventTimeFn = eventTimeFn;
-  }
+public class AssignEventTime<InputT> extends Operator<InputT>
+    implements CompositeOperator<InputT, InputT> {
 
   /**
    * Starts building a named {@link AssignEventTime} operator.
@@ -70,8 +57,8 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new {@link AssignEventTime} operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(Objects.requireNonNull(name));
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
   /**
@@ -85,20 +72,75 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-    return new UsingBuilder<>("AssignEventTime", input);
+    return named(null).of(input);
   }
 
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(
-        new FlatMap<>(
-            getName(),
-            getFlow(),
-            input,
-            (i, c) -> c.collect(i),
-            eventTimeFn,
-            getHints(),
-            outputType));
+  /** Builder for the 'of' step from the builder chain. */
+  public interface OfBuilder extends Builders.Of {
+
+    @Override
+    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
+  }
+
+  /** Builder for the 'using' step from the builder chain. */
+  public interface UsingBuilder<InputT> {
+
+    /**
+     * @param fn the event time extraction function
+     * @return the next builder to complete the setup
+     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
+     */
+    OutputBuilder<InputT> using(ExtractEventTime<InputT> fn);
+  }
+
+  /** Builder for the 'output' step from the builder chain. */
+  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
+
+  /**
+   * Last builder in a chain. It concludes this operators creation by calling {@link
+   * #output(OutputHint...)}.
+   */
+  public static class Builder<InputT>
+      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<InputT> {
+
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private ExtractEventTime<InputT> eventTimeExtractor;
+
+    private Builder(@Nullable String name) {
+      this.name = name;
+    }
+
+    @Override
+    public <T> UsingBuilder<T> of(Dataset<T> input) {
+      @SuppressWarnings("unchecked")
+      final Builder<T> casted = (Builder<T>) this;
+      casted.input = input;
+      return casted;
+    }
+
+    @Override
+    public OutputBuilder<InputT> using(ExtractEventTime<InputT> eventTimeExtractor) {
+      this.eventTimeExtractor = eventTimeExtractor;
+      return this;
+    }
+
+    @Override
+    public Dataset<InputT> output(OutputHint... outputHints) {
+      return OperatorTransform.apply(
+          new AssignEventTime<>(name, eventTimeExtractor, input.getTypeDescriptor()),
+          Collections.singletonList(input));
+    }
+  }
+
+  private final ExtractEventTime<InputT> eventTimeExtractor;
+
+  private AssignEventTime(
+      @Nullable String name,
+      ExtractEventTime<InputT> eventTimeExtractor,
+      @Nullable TypeDescriptor<InputT> outputType) {
+    super(name, outputType);
+    this.eventTimeExtractor = eventTimeExtractor;
   }
 
   /**
@@ -106,76 +148,18 @@ public class AssignEventTime<InputT> extends ElementWiseOperator<InputT, InputT>
    * @see FlatMap#getEventTimeExtractor()
    */
   public ExtractEventTime<InputT> getEventTimeExtractor() {
-    return eventTimeFn;
+    return eventTimeExtractor;
   }
 
-  /** AssignEventTime builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
-      return new UsingBuilder<>(name, Objects.requireNonNull(input));
-    }
-  }
-
-  /** AssignEventTime builder which adds event time extractor to operator under build. */
-  public static class UsingBuilder<InputT> {
-
-    private final String name;
-    private final Dataset<InputT> input;
-
-    UsingBuilder(String name, Dataset<InputT> input) {
-      this.name = name;
-      this.input = input;
-    }
-
-    /**
-     * @param fn the event time extraction function
-     * @return the next builder to complete the setup
-     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
-     */
-    public OutputBuilder<InputT> using(ExtractEventTime<InputT> fn) {
-      return new OutputBuilder<>(name, input, Objects.requireNonNull(fn));
-    }
-  }
-
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
-
-    private final String name;
-    private final Dataset<InputT> input;
-    private final ExtractEventTime<InputT> eventTimeFn;
-
-    OutputBuilder(String name, Dataset<InputT> input, ExtractEventTime<InputT> eventTimeFn) {
-      this.name = name;
-      this.input = input;
-      this.eventTimeFn = eventTimeFn;
-    }
-
-    @Override
-    public Dataset<InputT> output(OutputHint... outputHints) {
-      Flow flow = input.getFlow();
-
-      AssignEventTime<InputT> op =
-          new AssignEventTime<>(
-              name,
-              flow,
-              input,
-              eventTimeFn,
-              Sets.newHashSet(outputHints),
-              TypeUtils.getDatasetElementType(input));
-
-      flow.add(op);
-      return op.output();
-    }
+  @Override
+  public Dataset<InputT> expand(List<Dataset<InputT>> inputs) {
+    final Dataset<InputT> input = Iterables.getOnlyElement(inputs);
+    return FlatMap.named(getName().orElse(null))
+        .of(Iterables.getOnlyElement(inputs))
+        .using(
+            (InputT element, Collector<InputT> coll) -> coll.collect(element),
+            input.getTypeDescriptor())
+        .eventTimeBy(getEventTimeExtractor())
+        .output();
   }
 }

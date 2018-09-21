@@ -21,27 +21,39 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.junit.Assert.assertThat;
 
-import java.util.Arrays;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
+import org.apache.beam.sdk.extensions.euphoria.core.coder.KryoCoder;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.Matchers;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Testing translation of accumulators to Beam {@link org.apache.beam.sdk.metrics.Metrics}. */
 public class BeamMetricsTranslationTest {
+
+  @Rule public TestPipeline testPipeline = TestPipeline.create();
+
+  @Before
+  public void setup() {
+    testPipeline
+        .getCoderRegistry()
+        .registerCoderForClass(Object.class, KryoCoder.withoutClassRegistration());
+  }
 
   /**
    * Test metrics counters on {@link ReduceByKey} and {@link MapElements} operators Flow:
@@ -55,16 +67,14 @@ public class BeamMetricsTranslationTest {
    */
   @Test
   public void testBeamMetricsTranslation() {
-    Flow flow = Flow.create();
-    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(1, 2, 3, 4, 5));
-    ListDataSink<Integer> sink = ListDataSink.get();
-    Dataset<Integer> input = flow.createInput(source);
+    final PCollection<Integer> input =
+        testPipeline.apply("input", Create.of(1, 2, 3, 4, 5).withType(TypeDescriptors.integers()));
     final String counterName1 = "counter1";
     final String operatorName1 = "count_elements_and_save_even_numbers";
 
     final Dataset<KV<Integer, Integer>> kvInput =
         ReduceByKey.named(operatorName1)
-            .of(input)
+            .of(Dataset.of(input))
             .keyBy(e -> e)
             .reduceBy(
                 (Stream<Integer> list, Collector<Integer> coll) ->
@@ -80,6 +90,7 @@ public class BeamMetricsTranslationTest {
 
     final String counterName2 = "counter2";
     final String operatorName2 = "map_to_integer";
+    final String operatorName3 = "map_elements";
 
     final Dataset<Integer> mapElementsOutput =
         MapElements.named(operatorName2)
@@ -93,19 +104,21 @@ public class BeamMetricsTranslationTest {
                 })
             .output();
 
-    final String defaultOperatorName3 = "MapElements";
-    MapElements.of(mapElementsOutput) // mapElementsOutput = [2,4]
-        .using(
-            (value, context) -> {
-              context.getCounter(counterName2).increment(value);
-              context.getHistogram(counterName2).add(value, 2);
-              return value;
-            })
-        .output()
-        .persist(sink);
+    final Dataset<Integer> output =
+        MapElements.named(operatorName3)
+            .of(mapElementsOutput) // mapElementsOutput = [2,4]
+            .using(
+                (value, context) -> {
+                  context.getCounter(counterName2).increment(value);
+                  context.getHistogram(counterName2).add(value, 2);
+                  return value;
+                })
+            .output();
 
-    BeamRunnerWrapper beamRunnerWrapper = BeamRunnerWrapper.ofDirect();
-    PipelineResult result = beamRunnerWrapper.executeSync(flow).getResult();
+    PAssert.that(output.getPCollection()).containsInAnyOrder(2, 4);
+
+    final PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
 
     final MetricQueryResults metricQueryResults =
         result
@@ -114,16 +127,12 @@ public class BeamMetricsTranslationTest {
                 MetricsFilter.builder()
                     .addNameFilter(MetricNameFilter.inNamespace(operatorName1))
                     .addNameFilter(MetricNameFilter.inNamespace(operatorName2))
-                    .addNameFilter(MetricNameFilter.inNamespace(defaultOperatorName3))
+                    .addNameFilter(MetricNameFilter.inNamespace(operatorName3))
                     .build());
 
     testStep1Metrics(metricQueryResults, counterName1, operatorName1);
-
     testStep2Metrics(metricQueryResults, counterName2, operatorName2);
-
-    testStep3WithDefaultOperatorName(metricQueryResults, counterName2, defaultOperatorName3);
-
-    DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 4);
+    testStep3WithDefaultOperatorName(metricQueryResults, counterName2, operatorName3);
   }
 
   private void testStep1Metrics(MetricQueryResults metrics, String counterName1, String stepName1) {

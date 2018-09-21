@@ -23,7 +23,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider.Factory;
-import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -42,7 +41,7 @@ public class SingleJvmAccumulatorProviderTest {
 
   @Test
   public void testBasicAccumulatorsFunction() {
-    final AccumulatorProvider accumulators = accFactory.create(new Settings());
+    final AccumulatorProvider accumulators = accFactory.create();
 
     Counter counter = accumulators.getCounter(TEST_COUNTER_NAME);
     Assert.assertNotNull(counter);
@@ -71,9 +70,7 @@ public class SingleJvmAccumulatorProviderTest {
     // collector.getTimer() <- not yet supported
   }
 
-  /**
-   * need to delete all metrics from accumulator before running another test
-   */
+  /** need to delete all metrics from accumulator before running another test */
   @After
   public void cleanUp() {
     accFactory.clear();

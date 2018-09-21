@@ -17,31 +17,30 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
+import static java.util.Objects.requireNonNull;
+
+import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.StateAwareWindowWiseSingleInputOperator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.windowing.WindowingDesc;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -78,59 +77,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
-public class SumByKey<InputT, K, W extends BoundedWindow>
-    extends StateAwareWindowWiseSingleInputOperator<
-        InputT, InputT, K, KV<K, Long>, W, SumByKey<InputT, K, W>>
-    implements TypeAware.Value<Long> {
-
-  private final UnaryFunction<InputT, Long> valueExtractor;
-
-  SumByKey(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyExtractor,
-      TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, Long> valueExtractor,
-      @Nullable TypeDescriptor<KV<K, Long>> outputType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing) {
-    this(
-        name,
-        flow,
-        input,
-        keyExtractor,
-        keyType,
-        valueExtractor,
-        outputType,
-        windowing,
-        euphoriaWindowing,
-        Collections.emptySet());
-  }
-
-  SumByKey(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryFunction<InputT, K> keyExtractor,
-      TypeDescriptor<K> keyType,
-      UnaryFunction<InputT, Long> valueExtractor,
-      @Nullable TypeDescriptor<KV<K, Long>> outputType,
-      @Nullable WindowingDesc<Object, W> windowing,
-      @Nullable Windowing euphoriaWindowing,
-      Set<OutputHint> outputHints) {
-    super(
-        name,
-        flow,
-        input,
-        outputType,
-        keyExtractor,
-        keyType,
-        windowing,
-        euphoriaWindowing,
-        outputHints);
-    this.valueExtractor = valueExtractor;
-  }
+public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<KeyT, Long>>
+    implements CompositeOperator<InputT, KV<KeyT, Long>> {
 
   /**
    * Starts building a nameless {@link SumByKey} operator to process the given input dataset.
@@ -142,7 +90,7 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-    return new KeyByBuilder<>("SumByKey", input);
+    return named(null).of(input);
   }
 
   /**
@@ -151,254 +99,207 @@ public class SumByKey<InputT, K, W extends BoundedWindow>
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    ReduceByKey<InputT, K, Long, Long, W> reduceByKey =
-        new ReduceByKey<>(
-            getName(),
-            input.getFlow(),
-            input,
-            keyExtractor,
-            keyType,
-            valueExtractor,
-            getValueType(),
-            windowing,
-            euphoriaWindowing,
-            Sums.ofLongs(),
-            getHints(),
-            outputType);
-    return DAG.of(reduceByKey);
-  }
-
-  @Override
-  public TypeDescriptor<Long> getValueType() {
-    return TypeDescriptors.longs();
-  }
-
-  /** Parameters of this operator used in builders. */
-  private static class BuilderParams<InputT, K, W extends BoundedWindow>
-      extends WindowingParams<W> {
-
-    String name;
-    Dataset<InputT> input;
-    UnaryFunction<InputT, K> keyExtractor;
-    TypeDescriptor<K> keyType;
-    UnaryFunction<InputT, Long> valueExtractor;
-
-    BuilderParams(String name, Dataset<InputT> input) {
-      this.name = name;
-      this.input = input;
-    }
-  }
-
-  /** SumByKey builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
-      return new KeyByBuilder<>(name, input);
-    }
+    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** SumByKey builder which adds key extractor to operator under build. */
-  public static class KeyByBuilder<InputT> implements Builders.KeyBy<InputT> {
-
-    private final BuilderParams<InputT, ?, ?> params;
-
-    KeyByBuilder(String name, Dataset<InputT> input) {
-      this.params =
-          new BuilderParams<>(Objects.requireNonNull(name), Objects.requireNonNull(input));
-    }
+  /** Builder for 'keyBy' step */
+  public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
 
     @Override
-    public <K> ValueByWindowByBuilder<InputT, K> keyBy(UnaryFunction<InputT, K> keyExtractor) {
+    <T> ValueByBuilder<InputT, T> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, TypeDescriptor<T> keyType);
+
+    @Override
+    default <T> ValueByBuilder<InputT, T> keyBy(UnaryFunction<InputT, T> keyExtractor) {
       return keyBy(keyExtractor, null);
     }
+  }
+
+  /** Builder for 'valueBy' step */
+  public interface ValueByBuilder<InputT, KeyT> extends WindowByBuilder<KeyT> {
+
+    WindowByBuilder<KeyT> valueBy(UnaryFunction<InputT, Long> valueExtractor);
+  }
+
+  /** Builder for 'windowBy' step */
+  public interface WindowByBuilder<KeyT>
+      extends Builders.WindowBy<TriggeredByBuilder<KeyT>>,
+          OptionalMethodBuilder<WindowByBuilder<KeyT>, OutputBuilder<KeyT>>,
+          OutputBuilder<KeyT> {
 
     @Override
-    public <K> ValueByWindowByBuilder<InputT, K> keyBy(
-        UnaryFunction<InputT, K> keyExtractor, TypeDescriptor<K> keyType) {
+    <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(WindowFn<Object, W> windowing);
 
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, ?> paramsCasted = (BuilderParams<InputT, K, ?>) params;
-
-      paramsCasted.keyExtractor = Objects.requireNonNull(keyExtractor);
-      paramsCasted.keyType = keyType;
-
-      return new ValueByWindowByBuilder<>(paramsCasted);
+    @Override
+    default OutputBuilder<KeyT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<KeyT>, OutputBuilder<KeyT>> fn) {
+      return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
-  /** SumByKey builder which adds value extractor to operator under build. */
-  public static class ValueByWindowByBuilder<InputT, K>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-          Builders.Output<KV<K, Long>>,
-          Builders.OutputValues<K, Long> {
-
-    private final BuilderParams<InputT, K, ?> params;
-
-    ValueByWindowByBuilder(BuilderParams<InputT, K, ?> params) {
-      this.params = params;
-    }
-
-    public WindowByBuilder<InputT, K> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
-      params.valueExtractor = valueExtractor;
-      return new WindowByBuilder<>(params);
-    }
+  /** Builder for 'triggeredBy' step */
+  public interface TriggeredByBuilder<KeyT>
+      extends Builders.TriggeredBy<AccumulatorModeBuilder<KeyT>> {
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, W> paramsCasted = (BuilderParams<InputT, K, W>) params;
-
-      paramsCasted.windowFn = Objects.requireNonNull(windowing);
-      return new TriggerByBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <W extends Window<W>> OutputBuilder<InputT, K, ?> windowBy(Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
-
-      params.valueExtractor = e -> 1L;
-
-      return new OutputBuilder<>(params).output(outputHints);
-    }
+    AccumulatorModeBuilder<KeyT> triggeredBy(Trigger trigger);
   }
 
-  /** SumByKey builder which adds windowing to operator under build. */
-  public static class WindowByBuilder<InputT, K>
-      implements Builders.WindowBy<TriggerByBuilder<InputT, K, ?>>,
-          Builders.Output<KV<K, Long>>,
-          Builders.OutputValues<K, Long>,
-          OptionalMethodBuilder<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>> {
-
-    private final BuilderParams<InputT, K, ?> params;
-
-    WindowByBuilder(BuilderParams<InputT, K, ?> params) {
-      this.params = params;
-    }
+  /** Builder for 'accumulationMode' step */
+  public interface AccumulatorModeBuilder<KeyT>
+      extends Builders.AccumulatorMode<OutputBuilder<KeyT>> {
 
     @Override
-    public <W extends BoundedWindow> TriggerByBuilder<InputT, K, W> windowBy(
-        WindowFn<Object, W> windowing) {
-
-      @SuppressWarnings("unchecked")
-      BuilderParams<InputT, K, W> paramsCasted = (BuilderParams<InputT, K, W>) params;
-
-      paramsCasted.windowFn = Objects.requireNonNull(windowing);
-      return new TriggerByBuilder<>(paramsCasted);
-    }
-
-    @Override
-    public <W extends Window<W>> OutputBuilder<InputT, K, ?> windowBy(Windowing<?, W> windowing) {
-      params.euphoriaWindowing = Objects.requireNonNull(windowing);
-      return new OutputBuilder<>(params);
-    }
-
-    @Override
-    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
-      return new OutputBuilder<>(params).output(outputHints);
-    }
-
-    @Override
-    public OutputBuilder<InputT, K, ?> applyIf(
-        boolean cond,
-        UnaryFunction<WindowByBuilder<InputT, K>, OutputBuilder<InputT, K, ?>>
-            applyWhenConditionHolds) {
-      Objects.requireNonNull(applyWhenConditionHolds);
-
-      if (cond) {
-        return applyWhenConditionHolds.apply(this);
-      }
-
-      return new OutputBuilder<>(params);
-    }
+    OutputBuilder<KeyT> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Trigger defining operator builder. */
-  public static class TriggerByBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.TriggeredBy<AccumulatorModeBuilder<InputT, K, W>> {
-
-    private final BuilderParams<InputT, K, W> params;
-
-    TriggerByBuilder(BuilderParams<InputT, K, W> params) {
-      this.params = params;
-    }
-
-    @Override
-    public AccumulatorModeBuilder<InputT, K, W> triggeredBy(Trigger trigger) {
-      params.trigger = Objects.requireNonNull(trigger);
-      return new AccumulatorModeBuilder<>(params);
-    }
-  }
-
-  /** {@link WindowingStrategy.AccumulationMode} defining operator builder. */
-  public static class AccumulatorModeBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.AccumulatorMode<OutputBuilder<InputT, K, W>> {
-
-    private final BuilderParams<InputT, K, W> params;
-
-    AccumulatorModeBuilder(BuilderParams<InputT, K, W> params) {
-      this.params = params;
-    }
-
-    @Override
-    public OutputBuilder<InputT, K, W> accumulationMode(
-        WindowingStrategy.AccumulationMode accumulationMode) {
-
-      params.accumulationMode = Objects.requireNonNull(accumulationMode);
-      return new OutputBuilder<>(params);
-    }
-  }
+  /** Builder for 'output' step */
+  public interface OutputBuilder<KeyT> extends Builders.Output<KV<KeyT, Long>> {}
 
   /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
+   * Builder for SumByKey operator.
+   *
+   * @param <InputT> type of input
+   * @param <KeyT> type of key
    */
-  public static class OutputBuilder<InputT, K, W extends BoundedWindow>
-      implements Builders.Output<KV<K, Long>>, Builders.OutputValues<K, Long> {
+  private static class Builder<InputT, KeyT>
+      implements OfBuilder,
+          KeyByBuilder<InputT>,
+          ValueByBuilder<InputT, KeyT>,
+          WindowByBuilder<KeyT>,
+          TriggeredByBuilder<KeyT>,
+          AccumulatorModeBuilder<KeyT>,
+          OutputBuilder<KeyT> {
 
-    private final BuilderParams<InputT, K, W> params;
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private UnaryFunction<InputT, KeyT> keyExtractor;
+    @Nullable private TypeDescriptor<KeyT> keyType;
+    private UnaryFunction<InputT, Long> valueExtractor;
+    @Nullable private Window<InputT> window;
 
-    OutputBuilder(BuilderParams<InputT, K, W> params) {
-      this.params = params;
+    Builder(@Nullable String name) {
+      this.name = name;
     }
 
     @Override
-    public Dataset<KV<K, Long>> output(OutputHint... outputHints) {
-      Flow flow = params.input.getFlow();
-
-      SumByKey<InputT, K, W> sumByKey =
-          new SumByKey<>(
-              params.name,
-              flow,
-              params.input,
-              params.keyExtractor,
-              params.keyType,
-              params.valueExtractor,
-              TypeUtils.keyValues(params.keyType, TypeDescriptors.longs()),
-              params.getWindowing(),
-              params.euphoriaWindowing,
-              Sets.newHashSet(outputHints));
-      flow.add(sumByKey);
-      return sumByKey.output();
+    @SuppressWarnings("unchecked")
+    public <T> KeyByBuilder<T> of(Dataset<T> input) {
+      this.input = (Dataset<InputT>) requireNonNull(input);
+      return (KeyByBuilder) this;
     }
+
+    @Override
+    public <T> ValueByBuilder<InputT, T> keyBy(
+        UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
+      @SuppressWarnings("unchecked")
+      final Builder<InputT, T> casted = (Builder<InputT, T>) this;
+      casted.keyExtractor = requireNonNull(keyExtractor);
+      casted.keyType = keyType;
+      return casted;
+    }
+
+    @Override
+    public WindowByBuilder<KeyT> valueBy(UnaryFunction<InputT, Long> valueExtractor) {
+      this.valueExtractor = requireNonNull(valueExtractor);
+      return this;
+    }
+
+    @Override
+    public <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(
+        WindowFn<Object, W> windowFn) {
+      window = Window.into(requireNonNull(windowFn));
+      return this;
+    }
+
+    @Override
+    public AccumulatorModeBuilder<KeyT> triggeredBy(Trigger trigger) {
+      window = requireNonNull(window).triggering(requireNonNull(trigger));
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<KeyT> accumulationMode(
+        WindowingStrategy.AccumulationMode accumulationMode) {
+      switch (requireNonNull(accumulationMode)) {
+        case DISCARDING_FIRED_PANES:
+          window = requireNonNull(window).discardingFiredPanes();
+          break;
+        case ACCUMULATING_FIRED_PANES:
+          window = requireNonNull(window).accumulatingFiredPanes();
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown accumulation mode [" + accumulationMode + "]");
+      }
+      return this;
+    }
+
+    @Override
+    public Dataset<KV<KeyT, Long>> output(OutputHint... outputHints) {
+      if (valueExtractor == null) {
+        valueExtractor = e -> 1L;
+      }
+      final SumByKey<InputT, KeyT> sbk =
+          new SumByKey<>(
+              name,
+              keyExtractor,
+              keyType,
+              valueExtractor,
+              window,
+              TypeUtils.keyValues(
+                  TypeAwares.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
+      return OperatorTransform.apply(sbk, Collections.singletonList(input));
+    }
+  }
+
+  private final UnaryFunction<InputT, Long> valueExtractor;
+
+  private SumByKey(
+      @Nullable String name,
+      UnaryFunction<InputT, KeyT> keyExtractor,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      UnaryFunction<InputT, Long> valueExtractor,
+      @Nullable Window<InputT> window,
+      TypeDescriptor<KV<KeyT, Long>> outputType) {
+    super(name, outputType, keyExtractor, keyType, window);
+    this.valueExtractor = valueExtractor;
+  }
+
+  public UnaryFunction<InputT, Long> getValueExtractor() {
+    return valueExtractor;
+  }
+
+  @Override
+  public Dataset<KV<KeyT, Long>> expand(List<Dataset<InputT>> inputs) {
+    return ReduceByKey.named(getName().orElse(null))
+        .of(Iterables.getOnlyElement(inputs))
+        .keyBy(getKeyExtractor())
+        .valueBy(getValueExtractor(), TypeDescriptors.longs())
+        .combineBy(Sums.ofLongs())
+        .applyIf(
+            getWindow().isPresent(),
+            (builder) -> {
+              final WindowDesc<InputT> desc =
+                  WindowDesc.of(
+                      getWindow()
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Unable to resolve windowing for SumByKey expansion.")));
+              return builder
+                  .windowBy(desc.getWindowFn())
+                  .triggeredBy(desc.getTrigger())
+                  .accumulationMode(desc.getAccumulationMode());
+            })
+        .output();
   }
 }

@@ -17,51 +17,59 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.lang.reflect.TypeVariable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.junit.Assert;
 
 /** Bunch of methods to assert type descriptors in operators. */
 public class TypePropagationAssert {
 
-  public static void assertOperatorTypeAwareness(
-      Operator<?, ?> operator,
-      TypeDescriptor<?> outputType,
-      TypeDescriptor<?> keyType,
-      TypeDescriptor<?> valueType) {
-
+  public static <KeyT, ValueT, OutputT> void assertOperatorTypeAwareness(
+      Operator<OutputT> operator,
+      @Nullable TypeDescriptor<KeyT> keyType,
+      @Nullable TypeDescriptor<ValueT> valueType,
+      TypeDescriptor<OutputT> outputType) {
     if (keyType != null || operator instanceof TypeAware.Key) {
-      Assert.assertSame(keyType, ((TypeAware.Key) operator).getKeyType());
-
-      TypeDescriptor<KV<?, ?>> kvOutputType = (TypeDescriptor<KV<?, ?>>) operator.getOutputType();
-
-      TypeVariable<Class<KV>>[] kvParameters = KV.class.getTypeParameters();
-
-      TypeDescriptor<?> firstType = kvOutputType.resolveType(kvParameters[0]);
-      TypeDescriptor<?> secondType = kvOutputType.resolveType(kvParameters[1]);
-
-      Assert.assertEquals(keyType, firstType);
-      Assert.assertEquals(outputType, secondType);
-
+      @SuppressWarnings("unchecked")
+      final TypeAware.Key<KeyT> keyAware = (TypeAware.Key) operator;
+      assertTrue(keyAware.getKeyType().isPresent());
+      assertEquals(keyType, keyAware.getKeyType().get());
+      assertTrue(operator.getOutputType().isPresent());
+      @SuppressWarnings("unchecked")
+      final TypeDescriptor<KV<KeyT, OutputT>> kvOutputType =
+          (TypeDescriptor) operator.getOutputType().get();
+      final TypeVariable<Class<KV>>[] kvParameters = KV.class.getTypeParameters();
+      final TypeDescriptor<?> firstType = kvOutputType.resolveType(kvParameters[0]);
+      final TypeDescriptor<?> secondType = kvOutputType.resolveType(kvParameters[1]);
+      assertEquals(keyType, firstType);
+      assertEquals(outputType, secondType);
     } else {
       // assert output of non keyed operator
-      Assert.assertSame(outputType, operator.getOutputType());
+      assertEquals(outputType, operator.getOutputType().get());
     }
-
     if (valueType != null || operator instanceof TypeAware.Value) {
-      Assert.assertSame(valueType, ((TypeAware.Value) operator).getValueType());
+      @SuppressWarnings("unchecked")
+      final TypeAware.Value<KeyT> valueAware = (TypeAware.Value) operator;
+      assertTrue(valueAware.getValueType().isPresent());
+      assertEquals(valueType, valueAware.getValueType().get());
     }
   }
 
-  public static void assertOperatorTypeAwareness(
-      Operator<?, ?> operator, TypeDescriptor<?> outputType) {
-    assertOperatorTypeAwareness(operator, outputType, null, null);
+  public static <OutputT> void assertOperatorTypeAwareness(
+      Operator<OutputT> operator, TypeDescriptor<OutputT> outputType) {
+    assertOperatorTypeAwareness(operator, null, null, outputType);
   }
 
-  public static void assertOperatorTypeAwareness(
-      Operator<?, ?> operator, TypeDescriptor<?> outputType, TypeDescriptor<?> keyType) {
-    assertOperatorTypeAwareness(operator, outputType, keyType, null);
+  public static <KeyT, OutputT> void assertOperatorTypeAwareness(
+      ShuffleOperator<?, KeyT, OutputT> operator,
+      TypeDescriptor<KeyT> keyType,
+      TypeDescriptor<OutputT> outputType) {
+    assertOperatorTypeAwareness(operator, keyType, null, outputType);
   }
 }

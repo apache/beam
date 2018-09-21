@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Named;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -34,20 +33,20 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class TypeAware {
 
   /** Returns {@link TypeDescriptor} of this operator output type. */
-  public interface Output<OutputT> extends Named {
+  public interface Output<OutputT> {
 
-    TypeDescriptor<OutputT> getOutputType();
+    Optional<TypeDescriptor<OutputT>> getOutputType();
   }
 
   /** Returns {@link TypeDescriptor} of this operator key type. */
-  public interface Key<KeyT> extends Named {
+  public interface Key<KeyT> {
 
-    TypeDescriptor<KeyT> getKeyType();
+    Optional<TypeDescriptor<KeyT>> getKeyType();
   }
 
   /** Returns {@link TypeDescriptor} of this operator value type. */
-  public interface Value<ValueT> extends Named {
+  public interface Value<ValueT> {
 
-    TypeDescriptor<ValueT> getValueType();
+    Optional<TypeDescriptor<ValueT>> getValueType();
   }
 }

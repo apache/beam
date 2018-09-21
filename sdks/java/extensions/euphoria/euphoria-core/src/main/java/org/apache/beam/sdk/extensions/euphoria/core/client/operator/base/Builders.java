@@ -19,11 +19,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -106,23 +103,9 @@ public class Builders {
      * @param <W> the type of the windowing, subclass of {@link BoundedWindow}
      * @param windowing {@link BoundedWindow} subclass used to represent the windows used by given
      *     {@link WindowFn}.It represents windowing strategy to apply to the input elements.
-     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
+     * @return the next builder to complete the setup of the operator
      */
     <W extends BoundedWindow> OutTriggerBuilderT windowBy(WindowFn<Object, W> windowing);
-
-    /**
-     * Specifies the windowing strategy to be applied to the input dataset. Unless the operator is
-     * already preceded by an event time assignment, it will process the input elements in ingestion
-     * time.
-     *
-     * @param <W> the type of the windowing
-     * @param windowing the windowing strategy to apply to the input dataset
-     * @return the next builder to complete the setup of the {@link ReduceByKey} operator
-     * @deprecated This method is deprecated and will be removed in future. It is left here for
-     *     backward compatibility.
-     */
-    @Deprecated
-    <W extends Window<W>> Object windowBy(Windowing<?, W> windowing);
   }
 
   /**
@@ -176,11 +159,6 @@ public class Builders {
      * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
-    default Dataset<V> outputValues(OutputHint... outputHints) {
-      return MapElements.named("extract-values")
-          .of(output())
-          .using(KV::getValue)
-          .output(outputHints);
-    }
+    Dataset<V> outputValues(OutputHint... outputHints);
   }
 }

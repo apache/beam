@@ -17,21 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Sets;
-import java.util.Objects;
-import java.util.Set;
+import static java.util.Objects.requireNonNull;
+
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ElementWiseOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
-import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -50,20 +51,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
-public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
-
-  final UnaryPredicate<InputT> predicate;
-
-  Filter(
-      String name,
-      Flow flow,
-      Dataset<InputT> input,
-      UnaryPredicate<InputT> predicate,
-      Set<OutputHint> outputHints,
-      TypeDescriptor<InputT> outputType) {
-    super(name, flow, input, outputHints, outputType);
-    this.predicate = predicate;
-  }
+public class Filter<InputT> extends Operator<InputT> implements CompositeOperator<InputT, InputT> {
 
   /**
    * Starts building a nameless {@link Filter} operator to process the given input dataset.
@@ -75,7 +63,7 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
    * @see OfBuilder#of(Dataset)
    */
   public static <InputT> ByBuilder<InputT> of(Dataset<InputT> input) {
-    return new ByBuilder<>("Filter", input);
+    return named(null).of(input);
   }
 
   /**
@@ -84,57 +72,19 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
    * @param name a user provided name of the new operator to build
    * @return a builder to complete the setup of the new operator
    */
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
+  public static OfBuilder named(@Nullable String name) {
+    return new Builder(name);
   }
 
-  public UnaryPredicate<InputT> getPredicate() {
-    return predicate;
-  }
-
-  /** This operator can be implemented using FlatMap. */
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(
-        new FlatMap<>(
-            getName(),
-            getFlow(),
-            input,
-            (elem, collector) -> {
-              if (predicate.apply(elem)) {
-                collector.collect(elem);
-              }
-            },
-            null,
-            getHints(),
-            outputType));
-  }
-
-  /** Filter builder which adds input {@link Dataset} to operator under build. */
-  public static class OfBuilder implements Builders.Of {
-
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
+  /** Builder for the 'of' step */
+  public interface OfBuilder extends Builders.Of {
 
     @Override
-    public <InputT> ByBuilder<InputT> of(Dataset<InputT> input) {
-      return new ByBuilder<>(name, input);
-    }
+    <InputT> ByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** Filter builder which adds filtering predicate to operator under build. */
-  public static class ByBuilder<InputT> {
-
-    private final String name;
-    private final Dataset<InputT> input;
-
-    ByBuilder(String name, Dataset<InputT> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-    }
+  /** Builder for the 'by' step */
+  public interface ByBuilder<InputT> {
 
     /**
      * Specifies the function that is capable of input elements filtering.
@@ -143,42 +93,68 @@ public class Filter<InputT> extends ElementWiseOperator<InputT, InputT> {
      *     is false
      * @return the next builder to complete the setup of the operator
      */
-    public Builders.Output<InputT> by(UnaryPredicate<InputT> predicate) {
-      return new OutputBuilder<>(name, input, predicate);
-    }
+    Builders.Output<InputT> by(UnaryPredicate<InputT> predicate);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public static class OutputBuilder<InputT> implements Builders.Output<InputT> {
+  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
 
-    private final String name;
-    private final Dataset<InputT> input;
-    private final UnaryPredicate<InputT> predicate;
+  private static class Builder<InputT>
+      implements OfBuilder, ByBuilder<InputT>, OutputBuilder<InputT> {
 
-    private OutputBuilder(String name, Dataset<InputT> input, UnaryPredicate<InputT> predicate) {
+    @Nullable private final String name;
+    private Dataset<InputT> input;
+    private UnaryPredicate<InputT> predicate;
+
+    private Builder(@Nullable String name) {
       this.name = name;
-      this.input = input;
-      this.predicate = predicate;
+    }
+
+    @Override
+    public <T> ByBuilder<T> of(Dataset<T> input) {
+      @SuppressWarnings("unchecked")
+      final Builder<T> casted = (Builder) this;
+      casted.input = requireNonNull(input);
+      return casted;
+    }
+
+    @Override
+    public Builders.Output<InputT> by(UnaryPredicate<InputT> predicate) {
+      this.predicate = requireNonNull(predicate);
+      return this;
     }
 
     @Override
     public Dataset<InputT> output(OutputHint... outputHints) {
-      Flow flow = input.getFlow();
-
-      Filter<InputT> filter =
-          new Filter<>(
-              name,
-              flow,
-              input,
-              predicate,
-              Sets.newHashSet(outputHints),
-              TypeUtils.getDatasetElementType(input));
-
-      flow.add(filter);
-      return filter.output();
+      final Filter<InputT> filter = new Filter<>(name, predicate, input.getTypeDescriptor());
+      return OperatorTransform.apply(filter, Collections.singletonList(input));
     }
+  }
+
+  private final UnaryPredicate<InputT> predicate;
+
+  private Filter(
+      @Nullable String name,
+      UnaryPredicate<InputT> predicate,
+      @Nullable TypeDescriptor<InputT> outputType) {
+    super(name, outputType);
+    this.predicate = predicate;
+  }
+
+  public UnaryPredicate<InputT> getPredicate() {
+    return predicate;
+  }
+
+  @Override
+  public Dataset<InputT> expand(List<Dataset<InputT>> inputs) {
+    return FlatMap.named(getName().orElse(null))
+        .of(Iterables.getOnlyElement(inputs))
+        .using(
+            (InputT element, Collector<InputT> collector) -> {
+              if (getPredicate().apply(element)) {
+                collector.collect(element);
+              }
+            },
+            getOutputType().orElse(null))
+        .output();
   }
 }
