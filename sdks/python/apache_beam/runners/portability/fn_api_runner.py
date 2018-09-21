@@ -63,9 +63,9 @@ standard_library.install_aliases()
 ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
     beam.coders.BytesCoder(),
     beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
-        beam.transforms.window.GlobalWindows.windowed_value(''))
+        beam.transforms.window.GlobalWindows.windowed_value(b''))
 
-IMPULSE_BUFFER_PREFIX = 'impulse:'
+IMPULSE_BUFFER_PREFIX = b'impulse:'
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -456,7 +456,8 @@ class FnApiRunner(runner.PipelineRunner):
                     unique_name=transform.unique_name,
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_INPUT_URN,
-                        payload=str(IMPULSE_BUFFER_PREFIX + impulse_pc)),
+                        payload=IMPULSE_BUFFER_PREFIX +
+                        impulse_pc.encode('utf-8')),
                     outputs=transform.outputs))
 
         yield stage
