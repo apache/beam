@@ -376,7 +376,7 @@ class BundleProcessor(object):
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
-        logging.info('start %s', op)
+        logging.debug('start %s', op)
         op.start()
 
       # Inject inputs from data plane.
@@ -388,7 +388,7 @@ class BundleProcessor(object):
 
       # Finish all operations.
       for op in self.ops.values():
-        logging.info('finish %s', op)
+        logging.debug('finish %s', op)
         op.finish()
     finally:
       self.state_sampler.stop_if_still_running()
