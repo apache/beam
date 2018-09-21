@@ -445,4 +445,15 @@ public interface PipelineOptions extends HasDisplayData {
   String getMetricsHttpSinkUrl();
 
   void setMetricsHttpSinkUrl(String metricsSink);
+
+  @Description("The graphite metrics host")
+  String getMetricsGraphiteHost();
+
+  void setMetricsGraphiteHost(String host);
+
+  @Description("The graphite metrics port")
+  @Default.Integer(2003)
+  Integer getMetricsGraphitePort();
+
+  void setMetricsGraphitePort(Integer port);
 }
