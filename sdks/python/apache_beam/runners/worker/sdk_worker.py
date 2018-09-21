@@ -109,7 +109,7 @@ class SdkHarness(object):
         yield response
 
     for work_request in control_stub.Control(get_responses()):
-      logging.info('Got work %s', work_request.instruction_id)
+      logging.debug('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
       # Name spacing the request method with 'request_'. The called method
       # will be like self.request_register(request)
