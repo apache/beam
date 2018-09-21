@@ -21,11 +21,9 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.io.BaseEncoding;
+import com.google.common.hash.Hashing;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -112,19 +110,17 @@ public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBas
     public void onCompleted() {
       if (writer != null) {
         writer.onCompleted();
-        try {
-          artifactBytes.put(
-              destination
-                  .toBuilder()
-                  .setMd5(
-                      BaseEncoding.base64()
-                          .encode(
-                              MessageDigest.getInstance("MD5").digest(writer.stream.toByteArray())))
-                  .build(),
-              writer.stream.toByteArray());
-        } catch (NoSuchAlgorithmException e) {
-          throw new AssertionError("The Java Spec requires all JVMs to support MD5", e);
-        }
+        artifactBytes.put(
+            destination
+                .toBuilder()
+                .setSha256(
+                    Hashing.sha256()
+                        .newHasher()
+                        .putBytes(writer.stream.toByteArray())
+                        .hash()
+                        .toString())
+                .build(),
+            writer.stream.toByteArray());
       }
       responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
       responseObserver.onCompleted();

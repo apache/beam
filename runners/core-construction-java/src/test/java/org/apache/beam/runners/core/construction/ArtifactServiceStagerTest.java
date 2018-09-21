@@ -20,19 +20,17 @@ package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.io.BaseEncoding;
+import com.google.common.hash.Hashing;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -83,7 +81,7 @@ public class ArtifactServiceStagerTest {
     String stagingSessionToken = "token";
     File file = temp.newFile();
     byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
-    byte[] contentMd5 = MessageDigest.getInstance("MD5").digest(content);
+    String contentSha256 = Hashing.sha256().newHasher().putBytes(content).hash().toString();
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
     }
@@ -96,8 +94,8 @@ public class ArtifactServiceStagerTest {
 
     ArtifactMetadata staged = service.getManifest().getArtifact(0);
     assertThat(staged.getName(), equalTo(file.getName()));
-    byte[] manifestMd5 = BaseEncoding.base64().decode(staged.getMd5());
-    assertArrayEquals(contentMd5, manifestMd5);
+    String manifestSha256 = staged.getSha256();
+    assertThat(contentSha256, equalTo(manifestSha256));
 
     assertThat(service.getManifest().getArtifactCount(), equalTo(1));
     assertThat(staged, equalTo(Iterables.getOnlyElement(service.getStagedArtifacts().keySet())));
