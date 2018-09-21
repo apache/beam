@@ -209,8 +209,6 @@ task goPreCommit() {
   dependsOn ":beam-sdks-java-container:build"
   dependsOn ":beam-sdks-python-container:build"
   dependsOn ":beam-sdks-go-container:build"
-  dependsOn ":beam-runners-gcp-gcemd:build"
-  dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {
