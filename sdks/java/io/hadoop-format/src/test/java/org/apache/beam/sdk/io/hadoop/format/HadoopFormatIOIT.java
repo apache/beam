@@ -47,10 +47,13 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.postgresql.ds.PGSimpleDataSource;
 
+//sequencefile
+
 /**
- * A test of {@link org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO} on an independent Postgres
+ * A test of {@link org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO} on an independent postgres
  * instance.
  *
  * <p>This test requires a running instance of Postgres. Pass in connection information using
@@ -81,6 +84,7 @@ public class HadoopFormatIOIT {
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -111,9 +115,11 @@ public class HadoopFormatIOIT {
     conf.set(DBConfiguration.OUTPUT_FIELD_COUNT_PROPERTY, "2");
     conf.setStrings(DBConfiguration.OUTPUT_FIELD_NAMES_PROPERTY, "id", "name");
 
-    conf.setClass(HadoopFormatIO.OUTPUTFORMAT_KEY_CLASS, TestRowDBWritable.class, Object.class);
-    conf.setClass(HadoopFormatIO.OUTPUTFORMAT_VALUE_CLASS, NullWritable.class, Object.class);
-    conf.setClass(HadoopFormatIO.OUTPUTFORMAT_CLASS, DBOutputFormat.class, OutputFormat.class);
+    conf.setClass(HadoopFormatIO.OUTPUT_KEY_CLASS, TestRowDBWritable.class, Object.class);
+    conf.setClass(HadoopFormatIO.OUTPUT_VALUE_CLASS, NullWritable.class, Object.class);
+    conf.setClass(
+        HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR, DBOutputFormat.class, OutputFormat.class);
+    conf.set(HadoopFormatIO.JOB_ID, String.valueOf(1));
 
     hadoopConfiguration = new SerializableConfiguration(conf);
   }
@@ -128,15 +134,18 @@ public class HadoopFormatIOIT {
   }
 
   @Test
-  public void writeUsingHadooFormatIO() {
+  public void writeUsingHadoopOutputFormat() {
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply("Construct rows for DBOutputFormat", ParDo.of(new ConstructDBOutputFormatRowFn()))
         .apply(
-            "Write using HadoopFormatIO",
+            "Write using HadoopOutputFormat",
             HadoopFormatIO.<TestRowDBWritable, NullWritable>write()
-                .withConfiguration(hadoopConfiguration.get()));
+                .withConfiguration(hadoopConfiguration.get())
+                .withPartitioning()
+                .withExternalSynchronization(
+                    new HDFSSynchronization(tmpFolder.getRoot().getAbsolutePath())));
 
     writePipeline.run().waitUntilFinish();
 

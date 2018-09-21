@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 provideIntegrationTestingDependencies()
@@ -23,6 +25,14 @@ enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
+
+configurations.create("sparkRunner")
+configurations.sparkRunner {
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
 
 def log4j_version = "2.6.2"
 
@@ -48,11 +58,43 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-hadoop-input-format", configuration: "shadowTest")
+  testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
   testCompile library.java.postgres
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   shadow library.java.commons_io_2x
+
+  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow"))
+  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadowTest"))
+
+  sparkRunner project(path: ":beam-examples-java", configuration: "shadowTest")
+  sparkRunner project(path: ":beam-runners-spark", configuration: "shadow")
+  sparkRunner project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunner library.java.spark_streaming
+  sparkRunner library.java.spark_core
 }
 
+def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
+task sparkRunner(type: Test) {
+  group = "Verification"
+  def beamTestPipelineOptions = [
+          "--project=hadoop-format",
+          "--tempRoot=/tmp/hadoop-format/",
+          "--streaming=false",
+          "--runner=" + runnerClass,
+          "--enableSparkMetricSinks=false",
+  ]
+  classpath = configurations.sparkRunner
+  include "**/HadoopFormatIOSequenceFileTest.class"
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+  forkEvery 1
+  maxParallelForks 4
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+}
