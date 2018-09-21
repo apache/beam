@@ -174,7 +174,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
           WindowedOutputBuilder<OutputT>,
           OutputBuilder<OutputT> {
 
-    private final WindowState<InputT> windowState = new WindowState<>();
+    private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
@@ -206,46 +206,46 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     @Override
     public <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(
         WindowFn<Object, T> windowFn) {
-      windowState.windowBy(windowFn);
+      windowBuilder.windowBy(windowFn);
       return this;
     }
 
     @Override
     public AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger) {
-      windowState.triggeredBy(trigger);
+      windowBuilder.triggeredBy(trigger);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      windowState.accumulationMode(accumulationMode);
+      windowBuilder.accumulationMode(accumulationMode);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<OutputT> withAllowedLateness(Duration allowedLateness) {
-      windowState.withAllowedLateness(allowedLateness);
+      windowBuilder.withAllowedLateness(allowedLateness);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<OutputT> withAllowedLateness(
         Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
-      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      windowBuilder.withAllowedLateness(allowedLateness, closingBehavior);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<OutputT> withTimestampCombiner(
         TimestampCombiner timestampCombiner) {
-      windowState.withTimestampCombiner(timestampCombiner);
+      windowBuilder.withTimestampCombiner(timestampCombiner);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
-      windowState.withOnTimeBehavior(behavior);
+      windowBuilder.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -256,7 +256,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
         this.mapper = (UnaryFunction) UnaryFunction.identity();
       }
       final Distinct<InputT, OutputT> distinct =
-          new Distinct<>(name, mapper, outputType, windowState.getWindow().orElse(null));
+          new Distinct<>(name, mapper, outputType, windowBuilder.getWindow().orElse(null));
       return OperatorTransform.apply(distinct, Collections.singletonList(input));
     }
   }

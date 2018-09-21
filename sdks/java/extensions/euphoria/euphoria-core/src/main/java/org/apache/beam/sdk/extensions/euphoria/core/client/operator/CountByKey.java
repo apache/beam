@@ -166,7 +166,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
           WindowedOutputBuilder<KeyT>,
           OutputBuilder<KeyT> {
 
-    private final WindowState<InputT> windowState = new WindowState<>();
+    private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
@@ -197,45 +197,45 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
     @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(
         WindowFn<Object, W> windowFn) {
-      windowState.windowBy(windowFn);
+      windowBuilder.windowBy(windowFn);
       return this;
     }
 
     @Override
     public AccumulationModeBuilder<KeyT> triggeredBy(Trigger trigger) {
-      windowState.triggeredBy(trigger);
+      windowBuilder.triggeredBy(trigger);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      windowState.accumulationMode(accumulationMode);
+      windowBuilder.accumulationMode(accumulationMode);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT> withAllowedLateness(Duration allowedLateness) {
-      windowState.withAllowedLateness(allowedLateness);
+      windowBuilder.withAllowedLateness(allowedLateness);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT> withAllowedLateness(
         Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
-      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      windowBuilder.withAllowedLateness(allowedLateness, closingBehavior);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT> withTimestampCombiner(TimestampCombiner timestampCombiner) {
-      windowState.withTimestampCombiner(timestampCombiner);
+      windowBuilder.withTimestampCombiner(timestampCombiner);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
-      windowState.withOnTimeBehavior(behavior);
+      windowBuilder.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -246,7 +246,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
               name,
               keyExtractor,
               keyType,
-              windowState.getWindow().orElse(null),
+              windowBuilder.getWindow().orElse(null),
               TypeUtils.keyValues(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
       return OperatorTransform.apply(rbk, Collections.singletonList(input));

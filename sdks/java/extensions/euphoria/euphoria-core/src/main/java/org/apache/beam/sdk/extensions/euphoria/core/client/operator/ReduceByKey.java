@@ -316,7 +316,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
           WindowedOutputBuilder<KeyT, OutputT>,
           OutputBuilder<KeyT, OutputT> {
 
-    private final WindowState<InputT> windowState = new WindowState<>();
+    private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
     private Dataset<InputT> input;
@@ -385,53 +385,53 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
 
     @Override
     public OutputBuilder<KeyT, OutputT> windowBy(Window<InputT> window) {
-      windowState.setWindow(window);
+      windowBuilder.setWindow(window);
       return this;
     }
 
     @Override
     public <W extends BoundedWindow> TriggeredByBuilder<KeyT, OutputT> windowBy(
         WindowFn<Object, W> windowFn) {
-      windowState.windowBy(windowFn);
+      windowBuilder.windowBy(windowFn);
       return this;
     }
 
     @Override
     public AccumulationModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger) {
-      windowState.triggeredBy(trigger);
+      windowBuilder.triggeredBy(trigger);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT, OutputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
-      windowState.accumulationMode(accumulationMode);
+      windowBuilder.accumulationMode(accumulationMode);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(Duration allowedLateness) {
-      windowState.withAllowedLateness(allowedLateness);
+      windowBuilder.withAllowedLateness(allowedLateness);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT, OutputT> withAllowedLateness(
         Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
-      windowState.withAllowedLateness(allowedLateness, closingBehavior);
+      windowBuilder.withAllowedLateness(allowedLateness, closingBehavior);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT, OutputT> withTimestampCombiner(
         TimestampCombiner timestampCombiner) {
-      windowState.withTimestampCombiner(timestampCombiner);
+      windowBuilder.withTimestampCombiner(timestampCombiner);
       return this;
     }
 
     @Override
     public WindowedOutputBuilder<KeyT, OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
-      windowState.withOnTimeBehavior(behavior);
+      windowBuilder.withOnTimeBehavior(behavior);
       return this;
     }
 
@@ -446,7 +446,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
               valueType,
               reducer,
               valueComparator,
-              windowState.getWindow().orElse(null),
+              windowBuilder.getWindow().orElse(null),
               TypeDescriptors.kvs(
                   TypeAwares.orObjects(Optional.ofNullable(keyType)),
                   TypeAwares.orObjects(Optional.ofNullable(outputType))));

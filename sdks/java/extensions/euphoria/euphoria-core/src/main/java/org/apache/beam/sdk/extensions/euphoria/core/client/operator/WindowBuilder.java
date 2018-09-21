@@ -36,11 +36,11 @@ import org.joda.time.Duration;
  *
  * @param <T> type of windowed element
  */
-class WindowState<T>
-    implements Builders.WindowBy<WindowState<T>>,
-        Builders.TriggeredBy<WindowState<T>>,
-        Builders.AccumulationMode<WindowState<T>>,
-        Builders.WindowedOutput<WindowState<T>> {
+class WindowBuilder<T>
+    implements Builders.WindowBy<WindowBuilder<T>>,
+        Builders.TriggeredBy<WindowBuilder<T>>,
+        Builders.AccumulationMode<WindowBuilder<T>>,
+        Builders.WindowedOutput<WindowBuilder<T>> {
 
   @Nullable private Window<T> window;
 
@@ -65,20 +65,20 @@ class WindowState<T>
   }
 
   @Override
-  public <W extends BoundedWindow> WindowState<T> windowBy(WindowFn<Object, W> windowFn) {
+  public <W extends BoundedWindow> WindowBuilder<T> windowBy(WindowFn<Object, W> windowFn) {
     checkState(window == null, "Window is already set.");
     window = Window.into(windowFn);
     return this;
   }
 
   @Override
-  public WindowState<T> triggeredBy(Trigger trigger) {
+  public WindowBuilder<T> triggeredBy(Trigger trigger) {
     window = requireNonNull(window).triggering(trigger);
     return this;
   }
 
   @Override
-  public WindowState<T> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode) {
+  public WindowBuilder<T> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode) {
     switch (requireNonNull(accumulationMode)) {
       case DISCARDING_FIRED_PANES:
         window = requireNonNull(window).discardingFiredPanes();
@@ -93,13 +93,13 @@ class WindowState<T>
   }
 
   @Override
-  public WindowState<T> withAllowedLateness(Duration allowedLateness) {
+  public WindowBuilder<T> withAllowedLateness(Duration allowedLateness) {
     window = requireNonNull(window).withAllowedLateness(requireNonNull(allowedLateness));
     return this;
   }
 
   @Override
-  public WindowState<T> withAllowedLateness(
+  public WindowBuilder<T> withAllowedLateness(
       Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
     window =
         requireNonNull(window)
@@ -108,13 +108,13 @@ class WindowState<T>
   }
 
   @Override
-  public WindowState<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
+  public WindowBuilder<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
     window = requireNonNull(window).withTimestampCombiner(requireNonNull(timestampCombiner));
     return this;
   }
 
   @Override
-  public WindowState<T> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+  public WindowBuilder<T> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
     window = requireNonNull(window).withOnTimeBehavior(requireNonNull(behavior));
     return this;
   }
