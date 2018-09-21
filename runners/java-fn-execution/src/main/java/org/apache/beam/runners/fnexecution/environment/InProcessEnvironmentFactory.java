@@ -82,7 +82,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment container) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
@@ -121,6 +121,6 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
 
     // TODO: find some way to populate the actual ID in FnHarness.main()
     InstructionRequestHandler handler = clientSource.take("", Duration.ofMinutes(1L));
-    return RemoteEnvironment.forHandler(container, handler);
+    return RemoteEnvironment.forHandler(environment, handler);
   }
 }

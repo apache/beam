@@ -71,7 +71,7 @@ public class BeamDDLNestedTypesTest {
 
   private Table executeCreateTableWith(String fieldType) throws SqlParseException {
     String createTable =
-        "create table tablename ( "
+        "CREATE EXTERNAL TABLE tablename ( "
             + "fieldName "
             + fieldType
             + " ) "

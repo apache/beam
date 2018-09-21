@@ -19,7 +19,6 @@ package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -77,13 +76,7 @@ public class TopWikipediaSessions {
     @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
-      int timestamp;
-      // TODO(BEAM-5390): Avoid this workaround.
-      try {
-        timestamp = ((BigDecimal) row.get("timestamp")).intValue();
-      } catch (ClassCastException e) {
-        timestamp = ((Integer) row.get("timestamp")).intValue();
-      }
+      int timestamp = (Integer) row.get("timestamp");
       String userName = (String) row.get("contributor_username");
       if (userName != null) {
         // Sets the implicit timestamp field to be used in windowing.
@@ -198,7 +191,9 @@ public class TopWikipediaSessions {
     void setOutput(String value);
   }
 
-  public static void run(Options options) {
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
     Pipeline p = Pipeline.create(options);
 
     double samplingThreshold = 0.1;
@@ -206,13 +201,8 @@ public class TopWikipediaSessions {
     p.apply(TextIO.read().from(options.getInput()))
         .apply(MapElements.via(new ParseTableRowJson()))
         .apply(new ComputeTopSessions(samplingThreshold))
-        .apply("Write", TextIO.write().to(options.getOutput()));
+        .apply("Write", TextIO.write().withoutSharding().to(options.getOutput()));
 
     p.run().waitUntilFinish();
-  }
-
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    run(options);
   }
 }

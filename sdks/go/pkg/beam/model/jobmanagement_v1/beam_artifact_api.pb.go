@@ -3,9 +3,11 @@
 
 package jobmanagement_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 import (
 	context "golang.org/x/net/context"
@@ -41,7 +43,7 @@ func (m *ArtifactMetadata) Reset()         { *m = ArtifactMetadata{} }
 func (m *ArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*ArtifactMetadata) ProtoMessage()    {}
 func (*ArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{0}
+	return fileDescriptor_8ef4db42c81e3972, []int{0}
 }
 func (m *ArtifactMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ArtifactMetadata.Unmarshal(m, b)
@@ -49,8 +51,8 @@ func (m *ArtifactMetadata) XXX_Unmarshal(b []byte) error {
 func (m *ArtifactMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ArtifactMetadata.Marshal(b, m, deterministic)
 }
-func (dst *ArtifactMetadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ArtifactMetadata.Merge(dst, src)
+func (m *ArtifactMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactMetadata.Merge(m, src)
 }
 func (m *ArtifactMetadata) XXX_Size() int {
 	return xxx_messageInfo_ArtifactMetadata.Size(m)
@@ -94,7 +96,7 @@ func (m *Manifest) Reset()         { *m = Manifest{} }
 func (m *Manifest) String() string { return proto.CompactTextString(m) }
 func (*Manifest) ProtoMessage()    {}
 func (*Manifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{1}
+	return fileDescriptor_8ef4db42c81e3972, []int{1}
 }
 func (m *Manifest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Manifest.Unmarshal(m, b)
@@ -102,8 +104,8 @@ func (m *Manifest) XXX_Unmarshal(b []byte) error {
 func (m *Manifest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Manifest.Marshal(b, m, deterministic)
 }
-func (dst *Manifest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Manifest.Merge(dst, src)
+func (m *Manifest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Manifest.Merge(m, src)
 }
 func (m *Manifest) XXX_Size() int {
 	return xxx_messageInfo_Manifest.Size(m)
@@ -134,7 +136,7 @@ func (m *ProxyManifest) Reset()         { *m = ProxyManifest{} }
 func (m *ProxyManifest) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest) ProtoMessage()    {}
 func (*ProxyManifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{2}
+	return fileDescriptor_8ef4db42c81e3972, []int{2}
 }
 func (m *ProxyManifest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProxyManifest.Unmarshal(m, b)
@@ -142,8 +144,8 @@ func (m *ProxyManifest) XXX_Unmarshal(b []byte) error {
 func (m *ProxyManifest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProxyManifest.Marshal(b, m, deterministic)
 }
-func (dst *ProxyManifest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProxyManifest.Merge(dst, src)
+func (m *ProxyManifest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProxyManifest.Merge(m, src)
 }
 func (m *ProxyManifest) XXX_Size() int {
 	return xxx_messageInfo_ProxyManifest.Size(m)
@@ -180,7 +182,7 @@ func (m *ProxyManifest_Location) Reset()         { *m = ProxyManifest_Location{}
 func (m *ProxyManifest_Location) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest_Location) ProtoMessage()    {}
 func (*ProxyManifest_Location) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{2, 0}
+	return fileDescriptor_8ef4db42c81e3972, []int{2, 0}
 }
 func (m *ProxyManifest_Location) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProxyManifest_Location.Unmarshal(m, b)
@@ -188,8 +190,8 @@ func (m *ProxyManifest_Location) XXX_Unmarshal(b []byte) error {
 func (m *ProxyManifest_Location) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProxyManifest_Location.Marshal(b, m, deterministic)
 }
-func (dst *ProxyManifest_Location) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProxyManifest_Location.Merge(dst, src)
+func (m *ProxyManifest_Location) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProxyManifest_Location.Merge(m, src)
 }
 func (m *ProxyManifest_Location) XXX_Size() int {
 	return xxx_messageInfo_ProxyManifest_Location.Size(m)
@@ -228,7 +230,7 @@ func (m *GetManifestRequest) Reset()         { *m = GetManifestRequest{} }
 func (m *GetManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*GetManifestRequest) ProtoMessage()    {}
 func (*GetManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{3}
+	return fileDescriptor_8ef4db42c81e3972, []int{3}
 }
 func (m *GetManifestRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetManifestRequest.Unmarshal(m, b)
@@ -236,8 +238,8 @@ func (m *GetManifestRequest) XXX_Unmarshal(b []byte) error {
 func (m *GetManifestRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetManifestRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetManifestRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetManifestRequest.Merge(dst, src)
+func (m *GetManifestRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetManifestRequest.Merge(m, src)
 }
 func (m *GetManifestRequest) XXX_Size() int {
 	return xxx_messageInfo_GetManifestRequest.Size(m)
@@ -267,7 +269,7 @@ func (m *GetManifestResponse) Reset()         { *m = GetManifestResponse{} }
 func (m *GetManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*GetManifestResponse) ProtoMessage()    {}
 func (*GetManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{4}
+	return fileDescriptor_8ef4db42c81e3972, []int{4}
 }
 func (m *GetManifestResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetManifestResponse.Unmarshal(m, b)
@@ -275,8 +277,8 @@ func (m *GetManifestResponse) XXX_Unmarshal(b []byte) error {
 func (m *GetManifestResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetManifestResponse.Marshal(b, m, deterministic)
 }
-func (dst *GetManifestResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetManifestResponse.Merge(dst, src)
+func (m *GetManifestResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetManifestResponse.Merge(m, src)
 }
 func (m *GetManifestResponse) XXX_Size() int {
 	return xxx_messageInfo_GetManifestResponse.Size(m)
@@ -310,7 +312,7 @@ func (m *GetArtifactRequest) Reset()         { *m = GetArtifactRequest{} }
 func (m *GetArtifactRequest) String() string { return proto.CompactTextString(m) }
 func (*GetArtifactRequest) ProtoMessage()    {}
 func (*GetArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{5}
+	return fileDescriptor_8ef4db42c81e3972, []int{5}
 }
 func (m *GetArtifactRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetArtifactRequest.Unmarshal(m, b)
@@ -318,8 +320,8 @@ func (m *GetArtifactRequest) XXX_Unmarshal(b []byte) error {
 func (m *GetArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetArtifactRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetArtifactRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetArtifactRequest.Merge(dst, src)
+func (m *GetArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArtifactRequest.Merge(m, src)
 }
 func (m *GetArtifactRequest) XXX_Size() int {
 	return xxx_messageInfo_GetArtifactRequest.Size(m)
@@ -356,7 +358,7 @@ func (m *ArtifactChunk) Reset()         { *m = ArtifactChunk{} }
 func (m *ArtifactChunk) String() string { return proto.CompactTextString(m) }
 func (*ArtifactChunk) ProtoMessage()    {}
 func (*ArtifactChunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{6}
+	return fileDescriptor_8ef4db42c81e3972, []int{6}
 }
 func (m *ArtifactChunk) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ArtifactChunk.Unmarshal(m, b)
@@ -364,8 +366,8 @@ func (m *ArtifactChunk) XXX_Unmarshal(b []byte) error {
 func (m *ArtifactChunk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ArtifactChunk.Marshal(b, m, deterministic)
 }
-func (dst *ArtifactChunk) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ArtifactChunk.Merge(dst, src)
+func (m *ArtifactChunk) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactChunk.Merge(m, src)
 }
 func (m *ArtifactChunk) XXX_Size() int {
 	return xxx_messageInfo_ArtifactChunk.Size(m)
@@ -398,7 +400,7 @@ func (m *PutArtifactMetadata) Reset()         { *m = PutArtifactMetadata{} }
 func (m *PutArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactMetadata) ProtoMessage()    {}
 func (*PutArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{7}
+	return fileDescriptor_8ef4db42c81e3972, []int{7}
 }
 func (m *PutArtifactMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactMetadata.Unmarshal(m, b)
@@ -406,8 +408,8 @@ func (m *PutArtifactMetadata) XXX_Unmarshal(b []byte) error {
 func (m *PutArtifactMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactMetadata.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactMetadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactMetadata.Merge(dst, src)
+func (m *PutArtifactMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactMetadata.Merge(m, src)
 }
 func (m *PutArtifactMetadata) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactMetadata.Size(m)
@@ -449,7 +451,7 @@ func (m *PutArtifactRequest) Reset()         { *m = PutArtifactRequest{} }
 func (m *PutArtifactRequest) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactRequest) ProtoMessage()    {}
 func (*PutArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{8}
+	return fileDescriptor_8ef4db42c81e3972, []int{8}
 }
 func (m *PutArtifactRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactRequest.Unmarshal(m, b)
@@ -457,8 +459,8 @@ func (m *PutArtifactRequest) XXX_Unmarshal(b []byte) error {
 func (m *PutArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactRequest.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactRequest.Merge(dst, src)
+func (m *PutArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactRequest.Merge(m, src)
 }
 func (m *PutArtifactRequest) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactRequest.Size(m)
@@ -476,12 +478,14 @@ type isPutArtifactRequest_Content interface {
 type PutArtifactRequest_Metadata struct {
 	Metadata *PutArtifactMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
 }
+
 type PutArtifactRequest_Data struct {
 	Data *ArtifactChunk `protobuf:"bytes,2,opt,name=data,proto3,oneof"`
 }
 
 func (*PutArtifactRequest_Metadata) isPutArtifactRequest_Content() {}
-func (*PutArtifactRequest_Data) isPutArtifactRequest_Content()     {}
+
+func (*PutArtifactRequest_Data) isPutArtifactRequest_Content() {}
 
 func (m *PutArtifactRequest) GetContent() isPutArtifactRequest_Content {
 	if m != nil {
@@ -588,7 +592,7 @@ func (m *PutArtifactResponse) Reset()         { *m = PutArtifactResponse{} }
 func (m *PutArtifactResponse) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactResponse) ProtoMessage()    {}
 func (*PutArtifactResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{9}
+	return fileDescriptor_8ef4db42c81e3972, []int{9}
 }
 func (m *PutArtifactResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutArtifactResponse.Unmarshal(m, b)
@@ -596,8 +600,8 @@ func (m *PutArtifactResponse) XXX_Unmarshal(b []byte) error {
 func (m *PutArtifactResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PutArtifactResponse.Marshal(b, m, deterministic)
 }
-func (dst *PutArtifactResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PutArtifactResponse.Merge(dst, src)
+func (m *PutArtifactResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutArtifactResponse.Merge(m, src)
 }
 func (m *PutArtifactResponse) XXX_Size() int {
 	return xxx_messageInfo_PutArtifactResponse.Size(m)
@@ -625,7 +629,7 @@ func (m *CommitManifestRequest) Reset()         { *m = CommitManifestRequest{} }
 func (m *CommitManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestRequest) ProtoMessage()    {}
 func (*CommitManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{10}
+	return fileDescriptor_8ef4db42c81e3972, []int{10}
 }
 func (m *CommitManifestRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitManifestRequest.Unmarshal(m, b)
@@ -633,8 +637,8 @@ func (m *CommitManifestRequest) XXX_Unmarshal(b []byte) error {
 func (m *CommitManifestRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommitManifestRequest.Marshal(b, m, deterministic)
 }
-func (dst *CommitManifestRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CommitManifestRequest.Merge(dst, src)
+func (m *CommitManifestRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitManifestRequest.Merge(m, src)
 }
 func (m *CommitManifestRequest) XXX_Size() int {
 	return xxx_messageInfo_CommitManifestRequest.Size(m)
@@ -674,7 +678,7 @@ func (m *CommitManifestResponse) Reset()         { *m = CommitManifestResponse{}
 func (m *CommitManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestResponse) ProtoMessage()    {}
 func (*CommitManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beam_artifact_api_e055cefa38e30fa8, []int{11}
+	return fileDescriptor_8ef4db42c81e3972, []int{11}
 }
 func (m *CommitManifestResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitManifestResponse.Unmarshal(m, b)
@@ -682,8 +686,8 @@ func (m *CommitManifestResponse) XXX_Unmarshal(b []byte) error {
 func (m *CommitManifestResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommitManifestResponse.Marshal(b, m, deterministic)
 }
-func (dst *CommitManifestResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CommitManifestResponse.Merge(dst, src)
+func (m *CommitManifestResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitManifestResponse.Merge(m, src)
 }
 func (m *CommitManifestResponse) XXX_Size() int {
 	return xxx_messageInfo_CommitManifestResponse.Size(m)
@@ -1000,11 +1004,9 @@ var _ArtifactRetrievalService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "beam_artifact_api.proto",
 }
 
-func init() {
-	proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_beam_artifact_api_e055cefa38e30fa8)
-}
+func init() { proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_8ef4db42c81e3972) }
 
-var fileDescriptor_beam_artifact_api_e055cefa38e30fa8 = []byte{
+var fileDescriptor_8ef4db42c81e3972 = []byte{
 	// 613 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xc1, 0x6e, 0xd3, 0x4c,
 	0x10, 0xee, 0x3a, 0xbf, 0x7e, 0xd2, 0x31, 0x2d, 0xd1, 0x56, 0x2d, 0x56, 0x4e, 0x91, 0x91, 0x68,

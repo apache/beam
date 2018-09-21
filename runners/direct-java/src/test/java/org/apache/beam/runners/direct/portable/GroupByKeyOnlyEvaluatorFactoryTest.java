@@ -25,12 +25,12 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -62,7 +62,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
   public void testInMemoryEvaluator() throws Exception {
     KvCoder<String, Integer> javaCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     String windowingStrategyId =
         sdkComponents.registerWindowingStrategy(WindowingStrategy.globalDefault());
     String coderId = sdkComponents.registerCoder(javaCoder);

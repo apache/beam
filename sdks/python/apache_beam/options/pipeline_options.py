@@ -217,7 +217,7 @@ class PipelineOptions(HasDisplayData):
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result.keys():
+    for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and

@@ -21,14 +21,18 @@ package org.apache.beam.runners.core.construction;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
@@ -55,15 +59,39 @@ public class Environments {
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
       String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
-      Environment.newBuilder().setUrl(JAVA_SDK_HARNESS_CONTAINER_URL).build();
+      createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
   private Environments() {}
 
-  public static Environment createOrGetDefaultEnvironment(String url) {
+  public static Environment createOrGetDefaultDockerEnvironment(String url) {
     if (Strings.isNullOrEmpty(url)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
-    return Environment.newBuilder().setUrl(url).build();
+    return createDockerEnvironment(url);
+  }
+
+  public static Environment createDockerEnvironment(String dockerImageUrl) {
+    return Environment.newBuilder()
+        .setUrl(dockerImageUrl)
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
+        .setPayload(
+            DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
+        .build();
+  }
+
+  public static Environment createProcessEnvironment(
+      String os, String arch, String command, Map<String, String> env) {
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+        .setPayload(
+            ProcessPayload.newBuilder()
+                .setOs(os)
+                .setArch(arch)
+                .setCommand(command)
+                .putAllEnv(env)
+                .build()
+                .toByteString())
+        .build();
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {

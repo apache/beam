@@ -79,17 +79,24 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.6.0 (2018-08-08)
+Official [source code download](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip)
+[SHA-512](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip.sha512)
+[signature](https://dist.apache.org/repos/dist/release/beam/2.6.0/apache-beam-2.6.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343392).
+
 ### 2.5.0 (2018-06-06)
-Official [source code download](https://dist.apache.org/repos/dist/release/beam/2.5.0/apache-beam-2.5.0-source-release.zip)
-[SHA-512](https://dist.apache.org/repos/dist/release/beam/2.5.0/apache-beam-2.5.0-source-release.zip.sha512)
-[signature](https://dist.apache.org/repos/dist/release/beam/2.5.0/apache-beam-2.5.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip)
+[SHA-512](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip.sha512)
+[signature](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12342847).
 
 ### 2.4.0 (2018-03-20)
 Official [source code download](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip)
 
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12341608).
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12342682).
 
 ### 2.3.0 (2018-01-30)
 Official [source code download](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip).
@@ -111,32 +118,3 @@ Official [source code download](https://archive.apache.org/dist/beam/2.0.0/apach
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12339746).
 
-### 0.6.0 (2017-03-11)
-Official [source code download](https://archive.apache.org/dist/beam/0.6.0/apache-beam-0.6.0-source-release.zip).
-
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12339256).
-
-### 0.5.0 (2017-02-02)
-Official [source code download](https://archive.apache.org/dist/beam/0.5.0/apache-beam-0.5.0-source-release.zip).
-
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12338859).
-
-### 0.4.0 (2016-12-29)
-Official [source code download](https://archive.apache.org/dist/beam/0.4.0/apache-beam-0.4.0-source-release.zip).
-
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12338590).
-
-### 0.3.0-incubating (2016-10-31)
-Official [source code download](https://archive.apache.org/dist/beam/0.3.0-incubating/apache-beam-0.3.0-incubating-source-release.zip).
-
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12338051).
-
-### 0.2.0-incubating (2016-08-08)
-Official [source code download](https://archive.apache.org/dist/beam/0.2.0-incubating/apache-beam-0.2.0-incubating-source-release.zip).
-
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12335766).
-
-### 0.1.0-incubating (2016-06-15)
-Official [source code download](https://archive.apache.org/dist/beam/0.1.0-incubating/apache-beam-0.1.0-incubating-source-release.zip).
-
-The first incubating release of Apache Beam.

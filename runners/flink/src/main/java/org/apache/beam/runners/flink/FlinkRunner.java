@@ -83,11 +83,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.debug("Classpath elements: {}", flinkOptions.getFilesToStage());
     }
 
-    // Set Flink Master to [auto] if no option was specified.
-    if (flinkOptions.getFlinkMaster() == null) {
-      flinkOptions.setFlinkMaster("[auto]");
-    }
-
     return new FlinkRunner(flinkOptions);
   }
 

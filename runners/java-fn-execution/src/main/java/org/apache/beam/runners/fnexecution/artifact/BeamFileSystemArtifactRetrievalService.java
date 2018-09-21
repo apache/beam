@@ -100,7 +100,7 @@ public class BeamFileSystemArtifactRetrievalService
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.ArtifactChunk> responseObserver) {
-    LOG.info("GetArtifact {}", request);
+    LOG.debug("GetArtifact {}", request);
     String name = request.getName();
     try {
       ArtifactApi.ProxyManifest proxyManifest = MANIFEST_CACHE.get(request.getRetrievalToken());
@@ -131,7 +131,7 @@ public class BeamFileSystemArtifactRetrievalService
 
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
-      LOG.info("Artifact {} located in {}", name, artifactResourceId);
+      LOG.debug("Artifact {} located in {}", name, artifactResourceId);
       Hasher hasher = Hashing.md5().newHasher();
       byte[] data = new byte[ARTIFACT_CHUNK_SIZE_BYTES];
       try (InputStream stream = Channels.newInputStream(FileSystems.open(artifactResourceId))) {

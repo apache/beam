@@ -488,7 +488,16 @@ func boolToBounded(bounded bool) pb.IsBounded_Enum {
 func (m *marshaller) addDefaultEnv() string {
 	const id = "go"
 	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = &pb.Environment{Url: m.opt.ContainerImageURL}
+		payload := &pb.DockerPayload{ContainerImage: m.opt.ContainerImageURL}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to serialize Environment payload %v: %v", payload, err))
+		}
+		m.environments[id] = &pb.Environment{
+		  Url: m.opt.ContainerImageURL,
+		  Urn: "beam:env:docker:v1",
+		  Payload: serializedPayload,
+		}
 	}
 	return id
 }

@@ -46,7 +46,7 @@ type sideInputAdapter struct {
 // It expects a W<KV<K,V>> coder, because the protocol supports MultiSet access only.
 func NewSideInputAdapter(sid StreamID, c *coder.Coder) SideInputAdapter {
 	if !coder.IsW(c) || !coder.IsKV(coder.SkipW(c)) {
-		panic(fmt.Sprintf("expected WKV coder for side input: %v", c))
+		panic(fmt.Sprintf("expected WKV coder for side input %v: %v", sid, c))
 	}
 
 	wc := MakeWindowEncoder(c.Window)

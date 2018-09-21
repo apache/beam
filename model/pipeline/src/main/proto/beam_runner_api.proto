@@ -989,16 +989,40 @@ message SideInput {
   SdkFunctionSpec window_mapping_fn = 3;
 }
 
-// An environment for executing UDFs. Generally an SDK container URL, but
-// there can be many for a single SDK, for example to provide dependency
-// isolation.
+// An environment for executing UDFs. By default, an SDK container URL, but
+// can also be a process forked by a command, or an externally managed process.
 message Environment {
-
-  // (Required) The URL of a container
-  //
-  // TODO: reconcile with Fn API's DockerContainer structure by
-  // adding adequate metadata to know how to interpret the container
+  // Deprecated
   string url = 1;
+
+  // (Required) The URN of the payload
+  string urn = 2;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 3;
+}
+
+message StandardEnvironments {
+  enum Environments {
+    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"]; // A managed docker container to run user code.
+
+    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
+
+    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+  }
+}
+
+// The payload of a Docker image
+message DockerPayload {
+  string container_image = 1;  // implicitly linux_amd64.
+}
+
+message ProcessPayload {
+  string os = 1;  // "linux", "darwin", ..
+  string arch = 2;  // "amd64", ..
+  string command = 3; // process to execute
+  map<string, string> env = 4; // Environment variables
 }
 
 // A specification of a user defined function.

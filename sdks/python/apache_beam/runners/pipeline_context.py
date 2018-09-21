@@ -27,6 +27,7 @@ from builtins import object
 from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -123,7 +124,11 @@ class PipelineContext(object):
       self._default_environment_id = self.environments.get_id(
           Environment(
               beam_runner_api_pb2.Environment(
-                  url=default_environment_url)))
+                  url=default_environment_url,
+                  urn=common_urns.environments.DOCKER.urn,
+                  payload=beam_runner_api_pb2.DockerPayload(
+                      container_image=default_environment_url
+                  ).SerializeToString())))
     else:
       self._default_environment_id = None
 

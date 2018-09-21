@@ -362,7 +362,9 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       // Here we create a Beam table just to force the calling convention.
       TestTableProvider tableProvider = new TestTableProvider();
       Connection connection = JdbcDriver.connect(tableProvider);
-      connection.createStatement().executeUpdate("CREATE TABLE dummy (dummy BOOLEAN) TYPE 'test'");
+      connection
+          .createStatement()
+          .executeUpdate("CREATE EXTERNAL TABLE dummy (dummy BOOLEAN) TYPE 'test'");
       tableProvider.addRows("dummy", DUMMY_ROW);
 
       for (String expr : exprs) {
