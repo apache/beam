@@ -30,9 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Mock of a network server. */
 class NetworkMockServer {
   private final int port;
-
-  private ServerSocket server;
-  private GraphiteThread thread;
+  private ServerSocket serverSocket;
+  private ServerThread thread;
 
   private Collection<String> messages = new CopyOnWriteArrayList<String>();
 
@@ -45,15 +44,15 @@ class NetworkMockServer {
   }
 
   public NetworkMockServer start() throws IOException {
-    server = new ServerSocket(port);
-    thread = new GraphiteThread(server, messages);
+    serverSocket = new ServerSocket(port);
+    thread = new ServerThread(serverSocket, messages);
     thread.start();
     return this;
   }
 
   public void stop() throws IOException {
     thread.shutdown();
-    server.close();
+    serverSocket.close();
   }
 
   public Collection<String> getMessages() {
@@ -64,13 +63,13 @@ class NetworkMockServer {
     messages.clear();
   }
 
-  private static class GraphiteThread extends Thread {
+  private static class ServerThread extends Thread {
     private final Collection<String> messages;
 
     private final AtomicBoolean done = new AtomicBoolean(false);
     private final ServerSocket server;
 
-    public GraphiteThread(final ServerSocket server, final Collection<String> messages) {
+    public ServerThread(final ServerSocket server, final Collection<String> messages) {
       this.messages = messages;
       this.server = server;
       setName("network-mock-server");
