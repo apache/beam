@@ -318,9 +318,7 @@ class CommonJobProperties {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
-    def beam_root = makePathAbsolute(checkoutDir)
     def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def beam_env = makePathAbsolute("env/.beam_env")
     def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
     context.steps {
@@ -339,16 +337,6 @@ class CommonJobProperties {
 
         // Install Perfkit benchmark requirements.
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
-
-        // Install Beam Python SDK requirements.
-        if (language == "PYTHON") {
-          shell("rm -rf ${beam_env}")
-          shell("virtualenv ${beam_env}")
-          shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
-          shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
-          // Build PythonSDK tar ball.
-          shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
-        }
 
         // Launch performance test.
         shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
