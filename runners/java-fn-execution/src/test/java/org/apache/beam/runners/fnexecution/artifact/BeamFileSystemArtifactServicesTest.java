@@ -31,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -242,7 +241,7 @@ public class BeamFileSystemArtifactServicesTest {
             .put("file10kb", 10 * DATA_1KB /*10 kb*/)
             .put("file100kb", 100 * DATA_1KB /*100 kb*/)
             .build();
-    Map<String, byte[]> md5 = Maps.newHashMap();
+    Map<String, String> hashes = Maps.newHashMap();
 
     final String text = "abcdefghinklmop\n";
     files.forEach(
@@ -255,7 +254,7 @@ public class BeamFileSystemArtifactServicesTest {
                         text, Double.valueOf(Math.ceil(size * 1.0 / text.length())).intValue())
                     .getBytes(StandardCharsets.UTF_8);
             Files.write(filePath, contents);
-            md5.put(fileName, Hashing.md5().hashBytes(contents).asBytes());
+            hashes.put(fileName, Hashing.sha256().hashBytes(contents).toString());
           } catch (IOException ignored) {
           }
         });
@@ -270,10 +269,7 @@ public class BeamFileSystemArtifactServicesTest {
           Paths.get(originalDir.toString(), fileName).toAbsolutePath().toString(),
           fileName);
       metadata.add(
-          ArtifactMetadata.newBuilder()
-              .setName(fileName)
-              .setMd5(Base64.getEncoder().encodeToString(md5.get(fileName)))
-              .build());
+          ArtifactMetadata.newBuilder().setName(fileName).setSha256(hashes.get(fileName)).build());
     }
 
     String retrievalToken = commitManifest(stagingSessionToken, metadata);

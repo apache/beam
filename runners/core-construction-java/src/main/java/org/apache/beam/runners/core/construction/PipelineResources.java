@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.core.Base64Variants;
 import com.google.common.base.Strings;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
@@ -101,10 +100,10 @@ public class PipelineResources {
   }
 
   private static String calculateDirectoryContentHash(File directoryToStage) {
-    Hasher hasher = Hashing.md5().newHasher();
+    Hasher hasher = Hashing.sha256().newHasher();
     try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
       ZipFiles.zipDirectory(directoryToStage, hashStream);
-      return Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
+      return hasher.hash().toString();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

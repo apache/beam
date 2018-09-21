@@ -28,7 +28,6 @@ import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Collections;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
@@ -227,7 +226,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           LOG.debug(
               "Going to stage artifact {} to {}.", metadata.getMetadata().getName(), artifactId);
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
-          hasher = Hashing.md5().newHasher();
+          hasher = Hashing.sha256().newHasher();
         } catch (Exception e) {
           String message =
               String.format(
@@ -290,16 +289,16 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           return;
         }
       }
-      String expectedMd5 = metadata.getMetadata().getMd5();
-      if (expectedMd5 != null && !expectedMd5.isEmpty()) {
-        String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
-        if (!actualMd5.equals(expectedMd5)) {
+      String expectedSha256 = metadata.getMetadata().getSha256();
+      if (expectedSha256 != null && !expectedSha256.isEmpty()) {
+        String actualSha256 = hasher.hash().toString();
+        if (!actualSha256.equals(expectedSha256)) {
           outboundObserver.onError(
               new StatusRuntimeException(
                   Status.INVALID_ARGUMENT.withDescription(
                       String.format(
-                          "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
-                          metadata.getMetadata().getName(), expectedMd5, actualMd5))));
+                          "Artifact %s is corrupt: expected sah256 %s, but has sha256 %s",
+                          metadata.getMetadata().getName(), expectedSha256, actualSha256))));
           return;
         }
       }
