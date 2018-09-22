@@ -176,6 +176,11 @@ import org.slf4j.LoggerFactory;
  * guaranteed that mutations in a group are submitted in the same transaction. Build {@link
  * SpannerIO.Write} transform, and call {@link Write#grouped()} method. It will return a
  * transformation that can be applied to a PCollection of MutationGroup.
+ *
+ * <h3>Streaming Support</h3>
+ *
+ * <p>{@link SpannerIO.Write} currently does not support unbounded writes hence should not be used
+ * as a sink for streaming pipelines.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
