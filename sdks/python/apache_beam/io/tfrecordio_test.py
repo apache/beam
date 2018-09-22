@@ -30,7 +30,6 @@ import unittest
 from builtins import range
 
 import crcmod
-from future import standard_library
 
 import apache_beam as beam
 from apache_beam import Create
@@ -45,8 +44,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-standard_library.install_aliases()
 
 try:
   import tensorflow as tf  # pylint: disable=import-error
