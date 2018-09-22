@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -87,7 +88,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *image == "" {
-		*image = jobopts.GetContainerImage(ctx)
+		*image = getContainerImage(ctx)
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
@@ -143,7 +144,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: *image})
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
 		return fmt.Errorf("failed to generate model pipeline: %v", err)
 	}
@@ -168,7 +169,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
 	return err
 }
-
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])
 	if err != nil {
@@ -182,4 +182,37 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 		}
 		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
 	}
+}
+
+func getContainerImage(ctx context.Context) string {
+	urn := jobopts.GetEnvironmentUrn(ctx)
+	if urn == "" || urn == "beam:env:docker:v1" {
+		return jobopts.GetEnvironmentConfig(ctx)
+	}
+	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+func createEnvironment(ctx context.Context) pb.Environment {
+	var environment pb.Environment
+	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
+	case "beam:env:process:v1":
+		// TODO Support process based SDK Harness.
+		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:docker:v1":
+		fallthrough
+	default:
+		config := jobopts.GetEnvironmentConfig(ctx)
+		payload := &pb.DockerPayload{ContainerImage: config}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+		}
+		environment = pb.Environment{
+			Url:     config,
+			Urn:     urn,
+			Payload: serializedPayload,
+		}
+	}
+	return environment
 }

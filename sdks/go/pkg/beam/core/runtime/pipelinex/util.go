@@ -33,7 +33,7 @@ func Bounded(p *pb.Pipeline) bool {
 func ContainerImages(p *pb.Pipeline) []string {
 	var ret []string
 	for _, t := range p.GetComponents().GetEnvironments() {
-// TODO(angoenka) 09/14/2018 Check t.Urn before parsing the payload.
+		// TODO(angoenka) 09/14/2018 Check t.Urn before parsing the payload.
 		var payload pb.DockerPayload
 		proto.Unmarshal(t.GetPayload(), &payload)
 		ret = append(ret, payload.ContainerImage)
