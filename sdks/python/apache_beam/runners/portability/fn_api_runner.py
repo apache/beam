@@ -30,7 +30,6 @@ from builtins import object
 from concurrent import futures
 
 import grpc
-from future import standard_library
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
@@ -57,7 +56,6 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 
-standard_library.install_aliases()
 # This module is experimental. No backwards-compatibility guarantees.
 
 ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(

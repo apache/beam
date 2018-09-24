@@ -19,7 +19,7 @@ from __future__ import absolute_import
 import functools
 import logging
 import os
-import queue as queue
+import queue
 import subprocess
 import threading
 import time
@@ -29,7 +29,6 @@ from builtins import object
 from concurrent import futures
 
 import grpc
-from future import standard_library
 from google.protobuf import text_format
 
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -37,8 +36,6 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import fn_api_runner
-
-standard_library.install_aliases()
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,

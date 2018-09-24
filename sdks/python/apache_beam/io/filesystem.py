@@ -37,14 +37,11 @@ import zlib
 from builtins import object
 from builtins import zip
 
-from future import standard_library
 from future.utils import with_metaclass
 from past.builtins import long
 from past.builtins import unicode
 
 from apache_beam.utils.plugin import BeamPlugin
-
-standard_library.install_aliases()
 
 logger = logging.getLogger(__name__)
 
