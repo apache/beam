@@ -37,6 +37,10 @@ var (
 	minLength = flag.Int("min_length", 9, "Minimum word length")
 )
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)).Elem())
+}
+
 type WordRow struct {
 	Corpus string `bigquery:"corpus"`
 	Word   string `bigquery:"word"`
