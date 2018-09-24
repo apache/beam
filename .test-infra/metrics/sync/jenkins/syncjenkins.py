@@ -185,27 +185,26 @@ def probeJenkinsIsUp():
 
 
 ################################################################################
-print("Started.")
+if __name__ == '__main__':
+  print("Started.")
 
-print("Checking if DB needs to be initialized.")
-sys.stdout.flush()
-initDbTablesIfNeeded()
-
-print("Start jobs fetching loop.")
-sys.stdout.flush()
-
-while True:
-  if not probeJenkinsIsUp():
-    print("Jenkins is unavailabel, skipping fetching data.")
-    continue
-  else:
-    fetchNewData()
-    print("Fetched data.")
-  print("Sleeping for 5 min.")
+  print("Checking if DB needs to be initialized.")
   sys.stdout.flush()
-  time.sleep(5 * 60)
+  initDbTablesIfNeeded()
 
-print('Done.')
+  print("Start jobs fetching loop.")
+  sys.stdout.flush()
 
+  while True:
+    if not probeJenkinsIsUp():
+      print("Jenkins is unavailabel, skipping fetching data.")
+      continue
+    else:
+      fetchNewData()
+      print("Fetched data.")
+    print("Sleeping for 5 min.")
+    sys.stdout.flush()
+    time.sleep(5 * 60)
 
+  print('Done.')
 
