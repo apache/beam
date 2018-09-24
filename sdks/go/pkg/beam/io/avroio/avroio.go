@@ -29,7 +29,7 @@ func init() {
 // based on avro schema. Support a type via < reflect.TypeOf(YourType{}) >  with
 // JSON tags defined or if you wish to return the raw JSON string, use < reflect.TypeOf("") >
 func Read(s beam.Scope, glob string, t reflect.Type) beam.PCollection {
-	s = s.Scope("textio.ReadAvro")
+	s = s.Scope("avroio.Read")
 	filesystem.ValidateScheme(glob)
 	return read(s, t, beam.Create(s, glob))
 }
@@ -74,24 +74,23 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 
 	fs, err := filesystem.New(ctx, filename)
 	if err != nil {
-		return err
+		return
 	}
 	defer fs.Close()
 
 	fd, err := fs.OpenRead(ctx, filename)
 	if err != nil {
-		return err
+		return
 	}
 	defer fd.Close()
 
 	ar, err := goavro.NewOCFReader(fd)
 	if err != nil {
 		log.Errorf(ctx, "error reading avro: %v", err)
-		return err
+		return
 	}
 
 	val := reflect.New(f.Type.T).Interface()
-	log.Infof(ctx, "type: %v", err)
 	for ar.Scan() {
 		var i interface{}
 		i, err = ar.Read()
@@ -108,14 +107,16 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 			return
 		}
 
-		// only emit row if unmarshal was successful
-		if err := json.Unmarshal(b, val); err == nil {
+		switch reflect.New(f.Type.T).Interface().(type) {
+		case *string:
+			emit(string(b))
+		default:
+			if err = json.Unmarshal(b, val); err != nil {
+				log.Errorf(ctx, "error unmashalling avro to type: %v", err)
+				return
+			}
 			emit(reflect.ValueOf(val).Elem().Interface())
-			continue
 		}
-
-		emit(string(b))
-
 	}
 
 	return ar.Err()
