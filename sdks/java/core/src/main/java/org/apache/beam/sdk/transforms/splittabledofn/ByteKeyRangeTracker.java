@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import java.util.Arrays;
+import com.google.common.primitives.Bytes;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
@@ -131,28 +131,8 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
    */
   @VisibleForTesting
   static ByteKey next(ByteKey key) {
-    return ByteKey.copyFrom(unsignedCopyAndIncrement(key.getBytes()));
+    return ByteKey.copyFrom(Bytes.concat(key.getBytes(), ZERO_BYTE_ARRAY));
   }
 
-  /**
-   * @return The value of the input incremented by one using byte arithmetic. It treats the input
-   *     byte[] as an unsigned series of bytes, most significant bits first.
-   */
-  private static byte[] unsignedCopyAndIncrement(byte[] input) {
-    if (input.length == 0) {
-      return new byte[] {0};
-    }
-    byte[] copy = Arrays.copyOf(input, input.length);
-    for (int i = copy.length - 1; i >= 0; --i) {
-      if (copy[i] != (byte) 0xff) {
-        ++copy[i];
-        return copy;
-      }
-      copy[i] = 0;
-    }
-    byte[] out = new byte[copy.length + 1];
-    out[0] = 1;
-    System.arraycopy(copy, 0, out, 1, copy.length);
-    return out;
-  }
+  private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 }
