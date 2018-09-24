@@ -1177,11 +1177,11 @@ class CombineTest(unittest.TestCase):
       unkeyed_items = p | beam.Create([2, 11, 16, 27])
       items = (unkeyed_items
                | 'key' >> beam.Map(
-                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+                   lambda x: beam.window.TimestampedValue(('k', x), x * 60)))
       # [START setting_session_windows]
       from apache_beam import window
       session_windowed_items = (
-          items | 'window' >> beam.WindowInto(window.Sessions(10)))
+          items | 'window' >> beam.WindowInto(window.Sessions(10 * 60)))
       # [END setting_session_windows]
       summed = (session_windowed_items
                 | 'group' >> beam.GroupByKey()
