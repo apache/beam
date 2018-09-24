@@ -9,7 +9,7 @@ services:
       - beam-postgresql-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=admin
-      - POSGRES_PASSWORD=<PGPasswordHere>
+      - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
   grafana:
     image: grafana/grafana
