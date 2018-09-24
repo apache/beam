@@ -49,7 +49,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
-class BigQueryAvroUtils {
+public class BigQueryAvroUtils {
 
   public static final ImmutableMap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
       ImmutableMap.<String, Type>builder()
