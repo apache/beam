@@ -32,7 +32,6 @@ from builtins import range
 from concurrent import futures
 
 import grpc
-from future import standard_library
 from future.utils import raise_
 from future.utils import with_metaclass
 
@@ -41,8 +40,6 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
-
-standard_library.install_aliases()
 
 
 class SdkHarness(object):

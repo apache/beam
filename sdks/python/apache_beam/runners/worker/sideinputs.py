@@ -27,14 +27,10 @@ import traceback
 from builtins import object
 from builtins import range
 
-from future import standard_library
-
 from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
-
-standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
