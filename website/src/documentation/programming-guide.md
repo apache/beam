@@ -2312,13 +2312,13 @@ into fixed windows, each one minute in length:
 #### 7.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
-into sliding time windows. Each window is 30 minutes in length, and a new window
+into sliding time windows. Each window is 30 seconds in length, and a new window
 begins every five seconds:
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> slidingWindowedItems = items.apply(
-        Window.<String>into(SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5))));
+        Window.<String>into(SlidingWindows.of(Duration.standardSeconds(30)).every(Duration.standardSeconds(5))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_sliding_windows
