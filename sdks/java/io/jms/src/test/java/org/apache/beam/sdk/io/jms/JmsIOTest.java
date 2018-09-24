@@ -54,14 +54,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests of {@link JmsIO}. */
-@Ignore("TODO(BEAM-5144): Fix this test before reenabling.")
 @RunWith(JUnit4.class)
 public class JmsIOTest {
 
@@ -74,7 +72,7 @@ public class JmsIOTest {
 
   private BrokerService broker;
   private ConnectionFactory connectionFactory;
-  private ConnectionFactory connectionFactoryWithoutPrefetch;
+  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -93,6 +91,7 @@ public class JmsIOTest {
     // username and password to use to connect to the broker.
     // This user has users privilege (able to browse, consume, produce, list destinations)
     users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
+    users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
     SimpleAuthenticationPlugin plugin = new SimpleAuthenticationPlugin(users);
     BrokerPlugin[] plugins = new BrokerPlugin[] {plugin};
     broker.setPlugins(plugins);
@@ -101,8 +100,9 @@ public class JmsIOTest {
 
     // create JMS connection factory
     connectionFactory = new ActiveMQConnectionFactory(BROKER_URL);
-    connectionFactoryWithoutPrefetch =
-        new ActiveMQConnectionFactory(BROKER_URL + "?jms.prefetchPolicy.all=0");
+    connectionFactoryWithSyncAcksAndWithoutPrefetch =
+        new ActiveMQConnectionFactory(
+            BROKER_URL + "?jms.prefetchPolicy.all=0&jms.sendAcksAsync=false");
   }
 
   @After
@@ -275,7 +275,10 @@ public class JmsIOTest {
     // test, it means that we can have some latency between the receiveNoWait() method used by
     // the consumer and the prefetch buffer populated by the broker. Using a prefetch to 0 means
     // that the consumer will poll for message, which is exactly what we want for the test.
-    Connection connection = connectionFactoryWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    // We are also sending message acknowledgements synchronously to ensure that they are
+    // processed before any subsequent assertions.
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
@@ -288,7 +291,7 @@ public class JmsIOTest {
 
     JmsIO.Read spec =
         JmsIO.read()
-            .withConnectionFactory(connectionFactoryWithoutPrefetch)
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
