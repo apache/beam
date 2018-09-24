@@ -90,7 +90,7 @@ To view the full code in Python, see
 
 {:.language-go}
 To view the full code in Go, see
-**[wordcount_minimal.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
+**[minimal_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
 
 **Key Concepts:**
 
