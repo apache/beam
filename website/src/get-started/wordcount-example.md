@@ -284,7 +284,7 @@ The MinimalWordCount pipeline contains five transforms:
     %}```
 
     ```go
-    textio.Write(s, "wordcounts.txt", formatted)
+    textio.Write(s, "gs://my-bucket/counts.txt", formatted)
     ```
 
 {:.language-java}
@@ -314,7 +314,9 @@ p.run().waitUntilFinish();
 %}```
 
 ```go
-direct.Execute(context.Background(), p)
+if err := beamx.Run(ctx, p); err != nil {
+  log.Exitf(ctx, "Failed to execute job: %v", err)
+}
 ```
 
 {:.language-java}
