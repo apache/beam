@@ -30,7 +30,6 @@ from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.transforms import combiners
 
-
 try:                    # Python 3
   unquote_to_bytes = urllib.parse.unquote_to_bytes
   quote = urllib.parse.quote
