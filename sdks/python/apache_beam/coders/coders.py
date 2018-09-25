@@ -437,6 +437,34 @@ class TimestampCoder(FastCoder):
     return hash(type(self))
 
 
+class _TimerCoder(FastCoder):
+  """A coder used for timer values.
+
+  For internal use."""
+  def __init__(self, payload_coder):
+    self._payload_coder = payload_coder
+
+  def _get_component_coders(self):
+    return [self._payload_coder]
+
+  def _create_impl(self):
+    return coder_impl.TimerCoderImpl(self._payload_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._payload_coder.is_deterministic()
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._payload_coder == other._payload_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._payload_coder)
+
+
+Coder.register_structured_urn(
+    common_urns.coders.TIMER.urn, _TimerCoder)
+
+
 class SingletonCoder(FastCoder):
   """A coder that always encodes exactly one value."""
 
