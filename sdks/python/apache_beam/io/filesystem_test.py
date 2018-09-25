@@ -32,7 +32,8 @@ from builtins import range
 from io import BytesIO
 
 from future.utils import iteritems
-from parameterized import parameterized, param
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
