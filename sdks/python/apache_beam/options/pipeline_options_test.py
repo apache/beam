@@ -104,6 +104,16 @@ class PipelineOptionsTest(unittest.TestCase):
        'display_data': [
            DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])]
       },
+      {'flags': ['--flink_master=testmaster:8081', '--parallelism=42'],
+       'expected': {'flink_master': 'testmaster:8081',
+                    'parallelism': 42,
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [
+           DisplayDataItemMatcher('flink_master', 'testmaster:8081'),
+           DisplayDataItemMatcher('parallelism', 42)]
+      },
   ]
 
   # Used for testing newly added flags.

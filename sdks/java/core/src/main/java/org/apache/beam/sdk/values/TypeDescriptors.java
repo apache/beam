@@ -22,6 +22,7 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -254,6 +255,15 @@ public class TypeDescriptors {
     TypeDescriptor<Set<T>> typeDescriptor =
         new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
 
+    return typeDescriptor;
+  }
+
+  /** The {@link TypeDescriptor} for {@link Map}. */
+  public static <K, V> TypeDescriptor<Map<K, V>> maps(
+      TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
+    TypeDescriptor<Map<K, V>> typeDescriptor =
+        new TypeDescriptor<Map<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
+            .where(new TypeParameter<V>() {}, valueType);
     return typeDescriptor;
   }
 

@@ -32,7 +32,6 @@ from builtins import range
 from concurrent import futures
 
 import grpc
-from future import standard_library
 from future.utils import raise_
 from future.utils import with_metaclass
 
@@ -41,8 +40,6 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
-
-standard_library.install_aliases()
 
 
 class SdkHarness(object):
@@ -109,7 +106,7 @@ class SdkHarness(object):
         yield response
 
     for work_request in control_stub.Control(get_responses()):
-      logging.info('Got work %s', work_request.instruction_id)
+      logging.debug('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
       # Name spacing the request method with 'request_'. The called method
       # will be like self.request_register(request)

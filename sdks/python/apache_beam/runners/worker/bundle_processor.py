@@ -25,6 +25,7 @@ import base64
 import collections
 import json
 import logging
+import random
 import re
 from builtins import next
 from builtins import object
@@ -46,6 +47,7 @@ from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
+from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 
@@ -88,6 +90,7 @@ class DataOutputOperation(RunnerIOOperation):
   def process(self, windowed_value):
     self.windowed_coder_impl.encode_to_stream(
         windowed_value, self.output_stream, True)
+    self.output_stream.maybe_flush()
 
   def finish(self):
     self.output_stream.close()
@@ -107,7 +110,7 @@ class DataInputOperation(RunnerIOOperation):
     self.receivers = [
         operations.ConsumerSet(
             self.counter_factory, self.name_context.step_name, 0,
-            next(itervalues(consumers)), self.windowed_coder)]
+            next(iter(itervalues(consumers))), self.windowed_coder)]
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -118,6 +121,23 @@ class DataInputOperation(RunnerIOOperation):
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
       self.output(decoded_value)
+
+
+class _StateBackedIterable(object):
+  def __init__(self, state_handler, state_key, coder):
+    self._state_handler = state_handler
+    self._state_key = state_key
+    self._coder_impl = coder.get_impl()
+
+  def __iter__(self):
+    # TODO(robertwb): Support pagination.
+    input_stream = coder_impl.create_InputStream(
+        self._state_handler.blocking_get(self._state_key))
+    while input_stream.size() > 0:
+      yield self._coder_impl.decode_from_stream(input_stream, True)
+
+  def __reduce__(self):
+    return list, (list(self),)
 
 
 class StateBackedSideInputMap(object):
@@ -140,27 +160,13 @@ class StateBackedSideInputMap(object):
               ptransform_id=self._transform_id,
               side_input_id=self._tag,
               window=self._target_window_coder.encode(target_window),
-              key=''))
+              key=b''))
       state_handler = self._state_handler
       access_pattern = self._side_input_data.access_pattern
 
-      class AllElements(object):
-        def __init__(self, state_key, coder):
-          self._state_key = state_key
-          self._coder_impl = coder.get_impl()
-
-        def __iter__(self):
-          # TODO(robertwb): Support pagination.
-          input_stream = coder_impl.create_InputStream(
-              state_handler.blocking_get(self._state_key))
-          while input_stream.size() > 0:
-            yield self._coder_impl.decode_from_stream(input_stream, True)
-
-        def __reduce__(self):
-          return list, (list(self),)
-
       if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-        raw_view = AllElements(state_key, self._element_coder)
+        raw_view = _StateBackedIterable(
+            state_handler, state_key, self._element_coder)
 
       elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
             access_pattern ==
@@ -176,7 +182,8 @@ class StateBackedSideInputMap(object):
               keyed_state_key.CopyFrom(state_key)
               keyed_state_key.multimap_side_input.key = (
                   key_coder_impl.encode_nested(key))
-              cache[key] = AllElements(keyed_state_key, value_coder)
+              cache[key] = _StateBackedIterable(
+                  state_handler, keyed_state_key, value_coder)
             return cache[key]
 
           def __reduce__(self):
@@ -195,6 +202,87 @@ class StateBackedSideInputMap(object):
   def is_globally_windowed(self):
     return (self._side_input_data.window_mapping_fn
             == sideinputs._global_window_mapping_fn)
+
+
+class CombiningValueRuntimeState(userstate.RuntimeState):
+  def __init__(self, underlying_bag_state, combinefn):
+    self._combinefn = combinefn
+    self._underlying_bag_state = underlying_bag_state
+
+  def _read_accumulator(self, rewrite=True):
+    merged_accumulator = self._combinefn.merge_accumulators(
+        self._underlying_bag_state.read())
+    if rewrite:
+      self._underlying_bag_state.clear()
+      self._underlying_bag_state.add(merged_accumulator)
+    return merged_accumulator
+
+  def read(self):
+    return self._combinefn.extract_output(self._read_accumulator())
+
+  def add(self, value):
+    # Prefer blind writes, but don't let them grow unboundedly.
+    # This should be tuned to be much lower, but for now exercise
+    # both paths well.
+    if random.random() < 0.5:
+      accumulator = self._read_accumulator(False)
+      self._underlying_bag_state.clear()
+    else:
+      accumulator = self._combinefn.create_accumulator()
+    self._underlying_bag_state.add(
+        self._combinefn.add_input(accumulator, value))
+
+  def clear(self):
+    self._underlying_bag_state.clear()
+
+
+# TODO(BEAM-5428): Implement cross-bundle state caching.
+class SynchronousBagRuntimeState(userstate.RuntimeState):
+  def __init__(self, state_handler, state_key, value_coder):
+    self._state_handler = state_handler
+    self._state_key = state_key
+    self._value_coder = value_coder
+
+  def read(self):
+    return _StateBackedIterable(
+        self._state_handler, self._state_key, self._value_coder)
+
+  def add(self, value):
+    self._state_handler.blocking_append(
+        self._state_key, self._value_coder.encode(value))
+
+  def clear(self):
+    self._state_handler.blocking_clear(self._state_key)
+
+
+class FnApiUserStateContext(userstate.UserStateContext):
+  def __init__(self, state_handler, transform_id, key_coder, window_coder):
+    self._state_handler = state_handler
+    self._transform_id = transform_id
+    self._key_coder = key_coder
+    self._window_coder = window_coder
+
+  def get_timer(self, timer_spec, key, window):
+    raise NotImplementedError
+
+  def get_state(self, state_spec, key, window):
+    if isinstance(state_spec,
+                  (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
+      bag_state = SynchronousBagRuntimeState(
+          self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+                  ptransform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
+                  key=self._key_coder.encode(key))),
+          value_coder=state_spec.coder)
+      if isinstance(state_spec, userstate.BagStateSpec):
+        return bag_state
+      else:
+        return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
+    else:
+      raise NotImplementedError(state_spec)
 
 
 def memoize(func):
@@ -288,7 +376,7 @@ class BundleProcessor(object):
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
-        logging.info('start %s', op)
+        logging.debug('start %s', op)
         op.start()
 
       # Inject inputs from data plane.
@@ -300,7 +388,7 @@ class BundleProcessor(object):
 
       # Finish all operations.
       for op in self.ops.values():
-        logging.info('finish %s', op)
+        logging.debug('finish %s', op)
         op.finish()
     finally:
       self.state_sampler.stop_if_still_running()
@@ -483,6 +571,19 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
+@BeamTransformFactory.register_urn(
+    python_urns.IMPULSE_READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  return operations.ImpulseReadOperation(
+      transform_proto.unique_name,
+      factory.counter_factory,
+      factory.state_sampler,
+      consumers,
+      iobase.SourceBase.from_runner_api(
+          parameter.source, factory.context),
+      factory.get_only_output_coder(transform_proto))
+
+
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
 def create(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
@@ -544,6 +645,16 @@ def _create_pardo_operation(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
+  if userstate.is_stateful_dofn(dofn_data[0]):
+    input_coder = factory.get_only_input_coder(transform_proto)
+    user_state_context = FnApiUserStateContext(
+        factory.state_handler,
+        transform_id,
+        input_coder.key_coder(),
+        input_coder.window_coder)
+  else:
+    user_state_context = None
+
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
@@ -551,13 +662,15 @@ def _create_pardo_operation(
       input=None,
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
+
   return factory.augment_oldstyle_op(
       operations.DoOperation(
           transform_proto.unique_name,
           spec,
           factory.counter_factory,
           factory.state_sampler,
-          side_input_maps),
+          side_input_maps,
+          user_state_context),
       transform_proto.unique_name,
       consumers,
       output_tags)

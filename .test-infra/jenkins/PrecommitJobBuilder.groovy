@@ -62,6 +62,7 @@ class PrecommitJobBuilder {
     def defaultPathTriggers = [
       '^build.gradle$',
       '^buildSrc/.*$',
+      '^gradle/.*$',
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',

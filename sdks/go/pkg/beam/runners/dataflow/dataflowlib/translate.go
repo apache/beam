@@ -160,7 +160,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			}
 			steps = append(steps, side)
 
-			prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "i0")
+			prop.NonParallelInputs[key] = newOutputReference(side.Name, "i0")
 		}
 
 		in := stringx.SingleValue(rem)

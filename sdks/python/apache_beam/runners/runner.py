@@ -96,7 +96,7 @@ def create_runner(runner_name):
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
     try:
-      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+      return getattr(__import__(module, {}, {}, [runner], 0), runner)()
     except ImportError:
       if runner_name in _KNOWN_DATAFLOW_RUNNERS:
         raise ImportError(

@@ -217,7 +217,7 @@ class PipelineOptions(HasDisplayData):
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result.keys():
+    for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
@@ -660,6 +660,24 @@ class PortableOptions(PipelineOptions):
                         help=
                         ('Docker image to use for executing Python code '
                          'in the pipeline when running using the Fn API.'))
+
+
+class FlinkOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        type=str,
+                        help=
+                        ('Address of the Flink master where the pipeline '
+                         'should be executed. Can either be of the form '
+                         '\'host:port\' or one of the special values '
+                         '[local], [collection], or [auto].'))
+    parser.add_argument('--parallelism',
+                        type=int,
+                        help=
+                        ('The degree of parallelism to be used when '
+                         'distributing operations onto workers.'))
 
 
 class TestOptions(PipelineOptions):

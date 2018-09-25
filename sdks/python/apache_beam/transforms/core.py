@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import logging
 import random
 import re
 import types
@@ -42,6 +43,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
+from apache_beam.transforms import userstate
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
@@ -636,7 +638,12 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @staticmethod
   def maybe_from_callable(fn):
-    return fn if isinstance(fn, CombineFn) else CallableWrapperCombineFn(fn)
+    if isinstance(fn, CombineFn):
+      return fn
+    elif callable(fn):
+      return CallableWrapperCombineFn(fn)
+    else:
+      raise TypeError('Expected a CombineFn or callable, got %r' % fn)
 
   def get_accumulator_coder(self):
     return coders.registry.get_coder(object)
@@ -850,7 +857,7 @@ class ParDo(PTransformWithSideInputs):
 
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
-    DoFnSignature(self.fn)
+    self._signature = DoFnSignature(self.fn)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -873,6 +880,27 @@ class ParDo(PTransformWithSideInputs):
             'fn_dd': self.fn}
 
   def expand(self, pcoll):
+    # In the case of a stateful DoFn, warn if the key coder is not
+    # deterministic.
+    if self._signature.is_stateful_dofn():
+      kv_type_hint = pcoll.element_type
+      if kv_type_hint and kv_type_hint != typehints.Any:
+        coder = coders.registry.get_coder(kv_type_hint)
+        if not coder.is_kv_coder():
+          raise ValueError(
+              'Input elements to the transform %s with stateful DoFn must be '
+              'key-value pairs.' % self)
+        key_coder = coder.key_coder()
+      else:
+        key_coder = coders.registry.get_coder(typehints.Any)
+
+      if not key_coder.is_deterministic():
+        logging.warning(
+            'Key coder %s for transform %s with stateful DoFn may not '
+            'be deterministic. This may cause incorrect behavior for complex '
+            'key types. Consider adding an input type hint for this transform.',
+            key_coder, self)
+
     return pvalue.PCollection(pcoll.pipeline)
 
   def with_outputs(self, *tags, **main_kw):
@@ -920,6 +948,7 @@ class ParDo(PTransformWithSideInputs):
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
+    state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
@@ -928,6 +957,10 @@ class ParDo(PTransformWithSideInputs):
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=python_urns.PICKLED_DOFN_INFO,
                     payload=picked_pardo_fn_data)),
+            state_specs={spec.name: spec.to_runner_api(context)
+                         for spec in state_specs},
+            timer_specs={spec.name: spec.to_runner_api(context)
+                         for spec in timer_specs},
             # It'd be nice to name these according to their actual
             # names/positions in the orignal argument list, but such a
             # transformation is currently irreversible given how

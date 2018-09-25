@@ -84,7 +84,8 @@ public class TFRecordIOTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> LARGE = makeLines(1000);
+  private static final Iterable<String> LARGE = makeLines(1000, 4);
+  private static final Iterable<String> LARGE_RECORDS = makeLines(100, 100000);
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -287,6 +288,18 @@ public class TFRecordIOTest {
     runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, AUTO);
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecords() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void runTestRoundTripLargeRecordsGzip() throws IOException {
+    runTestRoundTrip(LARGE_RECORDS, 10, ".tfrecords", GZIP, GZIP);
+  }
+
   private void runTestRoundTrip(
       Iterable<String> elems,
       int numShards,
@@ -344,10 +357,15 @@ public class TFRecordIOTest {
     readPipeline.run();
   }
 
-  private static Iterable<String> makeLines(int n) {
+  private static Iterable<String> makeLines(int n, int minRecordSize) {
     List<String> ret = Lists.newArrayList();
+    StringBuilder recordBuilder = new StringBuilder();
+    for (int i = 0; i < minRecordSize; i++) {
+      recordBuilder.append("x");
+    }
+    String record = recordBuilder.toString();
     for (int i = 0; i < n; ++i) {
-      ret.add("word" + i);
+      ret.add(record + " " + i);
     }
     return ret;
   }

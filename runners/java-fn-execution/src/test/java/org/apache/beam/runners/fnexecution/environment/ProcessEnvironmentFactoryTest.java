@@ -21,14 +21,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyList;
+import static org.mockito.Matchers.anyMap;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -52,7 +55,8 @@ public class ProcessEnvironmentFactoryTest {
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl("service-url").build();
   private static final String COMMAND = "my-command";
-  private static final Environment ENVIRONMENT = Environment.newBuilder().setUrl(COMMAND).build();
+  private static final Environment ENVIRONMENT =
+      Environments.createProcessEnvironment("", "", COMMAND, Collections.emptyMap());
 
   private static final InspectibleIdGenerator ID_GENERATOR = new InspectibleIdGenerator();
 
@@ -70,7 +74,7 @@ public class ProcessEnvironmentFactoryTest {
   public void initMocks() throws IOException {
     MockitoAnnotations.initMocks(this);
 
-    when(processManager.startProcess(anyString(), anyString(), anyList()))
+    when(processManager.startProcess(anyString(), anyString(), anyList(), anyMap()))
         .thenReturn(Mockito.mock(ProcessManager.RunningProcess.class));
     when(controlServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
     when(loggingServiceServer.getApiServiceDescriptor()).thenReturn(SERVICE_DESCRIPTOR);
@@ -92,7 +96,8 @@ public class ProcessEnvironmentFactoryTest {
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     assertThat(handle.getInstructionRequestHandler(), is(client));
     assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
-    Mockito.verify(processManager).startProcess(eq(ID_GENERATOR.currentId), anyString(), anyList());
+    Mockito.verify(processManager)
+        .startProcess(eq(ID_GENERATOR.currentId), anyString(), anyList(), anyMap());
   }
 
   @Test
@@ -104,11 +109,13 @@ public class ProcessEnvironmentFactoryTest {
 
   @Test
   public void createsMultipleEnvironments() throws Exception {
-    Environment fooEnv = Environment.newBuilder().setUrl("foo").build();
+    Environment fooEnv =
+        Environments.createProcessEnvironment("", "", "foo", Collections.emptyMap());
     RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
     assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
 
-    Environment barEnv = Environment.newBuilder().setUrl("bar").build();
+    Environment barEnv =
+        Environments.createProcessEnvironment("", "", "bar", Collections.emptyMap());
     RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
     assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
   }

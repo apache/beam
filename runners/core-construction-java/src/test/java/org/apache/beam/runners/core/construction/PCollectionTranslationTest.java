@@ -29,7 +29,6 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -110,7 +109,7 @@ public class PCollectionTranslationTest {
   public void testEncodeDecodeCycle() throws Exception {
     // Encode
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.PCollection protoCollection =
         PCollectionTranslation.toProto(testCollection, sdkComponents);
     RehydratedComponents protoComponents =
@@ -132,7 +131,7 @@ public class PCollectionTranslationTest {
   @Test
   public void testEncodeDecodeFields() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.PCollection protoCollection =
         PCollectionTranslation.toProto(testCollection, sdkComponents);
     RehydratedComponents protoComponents =
