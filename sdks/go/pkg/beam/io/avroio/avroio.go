@@ -14,8 +14,7 @@ import (
 
 // Avroio package based directly on textio with some
 // elements borrowed from the bigquery implementation.
-// Supports reading and unmarshalling Avro files and
-// returns either RAW JSON string or Unmarshalled type
+// Supports reading/writing and unmarshalling Avro files.
 // --
 
 func init() {
@@ -122,4 +121,68 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 	return ar.Err()
 }
 
-// TODO: Implement Avroio Write Functionanilty
+// Write writes a PCollection<string> to an AVRO file.
+// Write expects a JSON string with a matching AVRO schema.
+// the process will fail if the schema does not match the JSON
+// provided
+func Write(s beam.Scope, filename, schema string, col beam.PCollection) {
+	s = s.Scope("textio.Write")
+	filesystem.ValidateScheme(filename)
+	pre := beam.AddFixedKey(s, col)
+	post := beam.GroupByKey(s, pre)
+	beam.ParDo0(s, &writeAvroFn{Schema: schema, Filename: filename}, post)
+}
+
+type writeAvroFn struct {
+	Schema   string `json:"schema"`
+	Filename string `json:"filename"`
+}
+
+func (w *writeAvroFn) ProcessElement(ctx context.Context, _ int, lines func(*string) bool) (err error) {
+	fs, err := filesystem.New(ctx, w.Filename)
+	if err != nil {
+		return
+	}
+	defer fs.Close()
+
+	fd, err := fs.OpenWrite(ctx, w.Filename)
+	if err != nil {
+		return
+	}
+
+	defer fd.Close()
+
+	codec, err := goavro.NewCodec(w.Schema)
+	if err != nil {
+		log.Errorf(ctx, "error creating avro codec: %v", err)
+		return
+	}
+
+	ocfw, err := goavro.NewOCFWriter(goavro.OCFConfig{
+		Codec:           codec,
+		CompressionName: goavro.CompressionSnappyLabel,
+		Schema:          w.Schema,
+		W:               fd,
+	})
+
+	if err != nil {
+		log.Errorf(ctx, "error creating avro writer: %v", err)
+		return
+	}
+
+	var j string
+	for lines(&j) {
+		native, _, err := codec.NativeFromTextual([]byte(j))
+		if err != nil {
+			log.Errorf(ctx, "error reading native avro: %v", err)
+			return err
+		}
+
+		if err := ocfw.Append([]interface{}{native}); err != nil {
+			log.Errorf(ctx, "error writing avro: %v", err)
+			return err
+		}
+	}
+
+	return
+}
