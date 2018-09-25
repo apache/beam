@@ -1909,7 +1909,8 @@ class Flatten(PTransform):
     try:
       pvalueish = tuple(pvalueish)
     except TypeError:
-      raise ValueError('Input to Flatten must be an iterable.')
+      raise ValueError('Input to Flatten must be an iterable. '
+                       'Got a value of type %s instead.' % type(pvalueish))
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
