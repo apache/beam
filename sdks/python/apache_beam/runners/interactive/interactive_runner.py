@@ -131,23 +131,18 @@ class InteractiveRunner(runners.PipelineRunner):
         self._underlying_runner,
         pipeline._options)
 
-    pipeline_info = pipeline_analyzer.PipelineInfo(pipeline_proto.components)
-
     display = display_manager.DisplayManager(
-        pipeline_info=pipeline_info,
         pipeline_proto=pipeline_proto,
-        caches_used=analyzer.caches_used(),
+        pipeline_analyzer=analyzer,
         cache_manager=self._cache_manager,
-        referenced_pcollections=analyzer.top_level_referenced_pcollection_ids(),
-        required_transforms=analyzer.top_level_required_transforms(),
         pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
     result = pipeline_to_execute.run()
     result.wait_until_finish()
     display.stop_periodic_update()
 
-    return PipelineResult(result, self, pipeline_info, self._cache_manager,
-                          pcolls_to_pcoll_id)
+    return PipelineResult(result, self, self._analyzer.pipeline_info(),
+                          self._cache_manager, pcolls_to_pcoll_id)
 
   def _pcolls_to_pcoll_id(self, pipeline, original_context):
     """Returns a dict mapping PCollections string to PCollection IDs.
