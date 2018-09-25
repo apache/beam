@@ -670,14 +670,10 @@ class _OutputProcessor(OutputProcessor):
         self.per_element_output_counter.add_input(0)
       return
 
-    # validate results is iterable and non-string
-    try:
-      validate = iter(results)
-    except TypeError:
-      raise TypeError("This is not an iterable")
-    else:
-      if isinstance(results, str):
-        raise TypeError("This shouldn't be string")
+    # validate results is not a string (which is iterable, but is
+    # typically due to an error)
+    if type(results) is str:
+      raise TypeError("Expected a non-string iterable.")
 
     output_element_count = 0
     for result in results:
