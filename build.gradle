@@ -49,7 +49,7 @@ buildscript {
   }
   dependencies {
     classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.18"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
@@ -61,7 +61,7 @@ buildscript {
     classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
     classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
-    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.6"                                            // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
 
     // Plugins which require online access should not be enabled when running in offline mode.
