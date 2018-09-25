@@ -36,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -298,6 +299,12 @@ public class FileSystems {
    *
    * <p>It doesn't support renaming globs.
    *
+   * <p>If the underlying file system reports that a target file already exists and moveOptions
+   * contains {@code StandardMoveOptions.REPLACE_EXISTING} then all target files that existed prior
+   * to calling rename will be deleted and the rename retried. When a retry is attempted then
+   * missing files from the source will be ignored. Some filesystem implementations will <em>always
+   * overwrite</em>.
+   *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
@@ -310,10 +317,11 @@ public class FileSystems {
       return;
     }
 
+    Set<MoveOptions> options = Sets.newHashSet(moveOptions);
+
     List<ResourceId> srcToRename = srcResourceIds;
     List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (options.contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
@@ -322,8 +330,71 @@ public class FileSystems {
     if (srcToRename.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToRename.iterator().next().getScheme())
-        .rename(srcToRename, destToRename);
+
+    boolean replaceExisting =
+        options.contains(MoveOptions.StandardMoveOptions.REPLACE_EXISTING) ? true : false;
+    rename(
+        getFileSystemInternal(srcToRename.iterator().next().getScheme()),
+        srcToRename,
+        destToRename,
+        replaceExisting);
+  }
+
+  /**
+   * Executes a rename of the src which all must exist using the provided filesystem.
+   *
+   * <p>If replaceExisting is enabled and filesystem throws {code FileAlreadyExistsException} then
+   * an attempt to delete the destination is made and the rename is retried. Some filesystem
+   * implementations may apply this automatically without throwing.
+   *
+   * @param fileSystem The filesystem in use
+   * @param srcResourceIds The source resources to move
+   * @param destResourceIds The destinations for the sources to move to (must be same length as
+   *     srcResourceIds)
+   * @param replaceExisting If existing files in destination should be overwritten
+   * @throws IOException If the rename could not be completed
+   */
+  @VisibleForTesting
+  static void rename(
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      boolean replaceExisting)
+      throws IOException {
+    try {
+      fileSystem.rename(srcResourceIds, destResourceIds);
+    } catch (FileAlreadyExistsException e) {
+      if (replaceExisting) {
+
+        // The filesystem has reported a target that existed prior to calling rename. Some files may
+        // have been moved successfully but there are no guarantees on which as some filesystems
+        // batch and run in parallel asynchronously. We determine the state and delete all dest files
+        // still existing in src and issue a retry. This will ignore all non existing src files.
+
+        List<MatchResult> matchResultsSrc = matchResources(srcResourceIds);
+        List<MatchResult> matchResultsDest = matchResources(destResourceIds);
+        List<ResourceId> destResourceIdsToDelete = new ArrayList<>();
+        List<ResourceId> srcResourceIdsToRetry = new ArrayList<>();
+        List<ResourceId> destResourceIdsToRetry = new ArrayList<>();
+
+        for (int i = 0; i < matchResultsSrc.size(); ++i) {
+          boolean srcExists = !matchResultsSrc.get(i).status().equals(Status.NOT_FOUND);
+          boolean destExists = !matchResultsDest.get(i).status().equals(Status.NOT_FOUND);
+          if (srcExists) {
+            srcResourceIdsToRetry.add(srcResourceIds.get(i));
+            destResourceIdsToRetry.add(destResourceIds.get(i));
+            if (destExists) {
+              destResourceIdsToDelete.add(destResourceIds.get(i));
+            }
+          }
+        }
+        fileSystem.delete(destResourceIdsToDelete);
+        fileSystem.rename(srcResourceIdsToRetry, destResourceIdsToRetry);
+
+      } else {
+        throw e;
+      }
+    }
   }
 
   /**
@@ -379,6 +450,7 @@ public class FileSystems {
         .delete(resourceIdsToDelete);
   }
 
+  // filters files that do not exist in srcResourceIds
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
