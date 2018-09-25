@@ -321,6 +321,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
     def __iter__(self):
       return self
 
+    # pylint: disable=next-method-defined
     def next(self):
       return self.__next__()
 

@@ -837,8 +837,8 @@ class FnApiRunner(runner.PipelineRunner):
 
       # Everything that was originally a stage or a replacement, but wasn't
       # replaced, should be in the final graph.
-      final_stages = frozenset(stages).union(replacements.values()).difference(
-          list(replacements.keys()))
+      final_stages = frozenset(stages).union(list(replacements.values()))\
+          .difference(list(replacements))
 
       for stage in final_stages:
         # Update all references to their final values before throwing

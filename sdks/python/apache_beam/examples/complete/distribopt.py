@@ -211,12 +211,12 @@ class OptimizeGrid(beam.PTransform):
 
       # Create (crop, quantity) lists for each greenhouse
       greenhouses = defaultdict(list)
-      for crop, greenhouse in mapping.iteritems():
+      for crop, greenhouse in mapping.items():
         quantity = quantities[crop]
         greenhouses[greenhouse].append((crop, quantity))
 
       # Create input for OptimizeProductParameters
-      for greenhouse, crops in greenhouses.iteritems():
+      for greenhouse, crops in greenhouses.items():
         key = (mapping_identifier, greenhouse)
         yield (key, crops)
 
