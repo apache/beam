@@ -83,7 +83,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       self._position = value
 
     def reset(self):
-      self.data = ''
+      self.data = b''
       self.position = 0
 
   def __init__(self,

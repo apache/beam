@@ -223,6 +223,7 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
+  # TODO(BEAM-5502): Object stager tests are not hermetic.
   @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
                                              'fixed on Python 3')
   def test_with_setup_file(self):
