@@ -1187,8 +1187,7 @@ class CombineTest(unittest.TestCase):
                 | 'group' >> beam.GroupByKey()
                 | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-      assert_that(unkeyed,
-                  equal_to([29, 27]))
+      assert_that(unkeyed, equal_to([29, 27]))
 
   def test_setting_global_window(self):
     with TestPipeline() as p:
