@@ -50,33 +50,28 @@ except (ImportError, NameError):
 class DisplayManager(object):
   """Manages displaying pipeline graph and execution status on the frontend."""
 
-  def __init__(self, pipeline_info, pipeline_proto, caches_used, cache_manager,
-               referenced_pcollections, required_transforms,
+  def __init__(self, pipeline_proto, pipeline_analyzer, cache_manager,
                pipeline_graph_renderer):
     """Constructor of DisplayManager.
 
     Args:
-      pipeline_info: (interactive_runner.PipelineInfo)
       pipeline_proto: (Pipeline proto)
-      caches_used: (set of str) A set of PCollection IDs of those whose cached
-          results are used in the execution.
+      pipeline_analyzer: (PipelineAnalyzer) the pipeline analyzer that
+          corresponds to this round of execution. This will provide more
+          detailed informations about the pipeline
       cache_manager: (interactive_runner.CacheManager) DisplayManager fetches
           the latest status of pipeline execution by querying cache_manager.
-      referenced_pcollections: (dict from str to PCollection proto) PCollection
-          ID mapped to PCollection referenced during pipeline execution.
-      required_transforms: (dict from str to PTransform proto) mapping from
-          transform ID to transforms that leads to visible results.
       pipeline_graph_renderer: (pipeline_graph_renderer.PipelineGraphRenderer)
           decides how a pipeline graph is rendered.
     """
     # Every parameter except cache_manager is expected to remain constant.
+    self._analyzer = pipeline_analyzer
     self._cache_manager = cache_manager
-    self._referenced_pcollections = referenced_pcollections
     self._pipeline_graph = interactive_pipeline_graph.InteractivePipelineGraph(
         pipeline_proto,
-        required_transforms=required_transforms,
-        referenced_pcollections=referenced_pcollections,
-        cached_pcollections=caches_used)
+        required_transforms=self._analyzer.tl_required_trans_ids(),
+        referenced_pcollections=self._analyzer.tl_referenced_pcoll_ids(),
+        cached_pcollections=self._analyzer.caches_used())
     self._renderer = pipeline_graph_renderer
 
     # _text_to_print keeps track of information to be displayed.
@@ -84,20 +79,22 @@ class DisplayManager(object):
     self._text_to_print['summary'] = (
         'Using %s cached PCollections\nExecuting %s of %s '
         'transforms.') % (
-            # TODO(qinyeli): required_transforms includes ReadCache and
-            # WriteCache fix it.
-            len(caches_used), len(required_transforms),
+            len(self._analyzer.caches_used()),
+            (len(self._analyzer.tl_required_trans_ids())
+             - len(self._analyzer.read_cache_ids())
+             - len(self._analyzer.write_cache_ids())),
             len(pipeline_proto.components.transforms[
                 pipeline_proto.root_transform_ids[0]].subtransforms))
-    self._text_to_print.update(
-        {pcoll_id: "" for pcoll_id in referenced_pcollections})
+    self._text_to_print.update({
+        pcoll_id: "" for pcoll_id
+        in self._analyzer.tl_referenced_pcoll_ids()})
 
     # _pcollection_stats maps pcoll_id to
     # { 'cache_label': cache_label, version': version, 'sample': pcoll_in_list }
     self._pcollection_stats = {}
-    for pcoll_id in pipeline_info.all_pcollections():
+    for pcoll_id in self._analyzer.tl_referenced_pcoll_ids():
       self._pcollection_stats[pcoll_id] = {
-          'cache_label': pipeline_info.cache_label(pcoll_id),
+          'cache_label': self._analyzer.pipeline_info().cache_label(pcoll_id),
           'version': -1,
           'sample': []
       }
@@ -137,7 +134,7 @@ class DisplayManager(object):
           stats['version'] = version
           stats_updated = True
 
-          if pcoll_id in self._referenced_pcollections:
+          if pcoll_id in self._analyzer.tl_referenced_pcoll_ids():
             self._text_to_print[pcoll_id] = (str(
                 '%s produced %s' % (
                     self._producers[pcoll_id],

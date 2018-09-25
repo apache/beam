@@ -49,7 +49,7 @@ class PipelineGraph(object):
       or
 
       graph = pipeline_graph.PipelineGraph(pipeline)
-      graph.display_grapy()
+      graph.display_graph()
 
     Args:
       pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
