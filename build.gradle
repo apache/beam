@@ -150,6 +150,9 @@ rat {
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",
+
+    // Json doesn't support comments.
+    "**/*.json",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
