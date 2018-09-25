@@ -81,6 +81,7 @@ class _SideInputsContainer(object):
       self._transform_to_side_inputs[side.pvalue.producer].append(side)
 
   def __repr__(self):
+    # pylint: disable=dict-values-not-iterating
     views_string = (', '.join(str(elm) for elm in self._views.values())
                     if self._views.values() else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
