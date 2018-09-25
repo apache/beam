@@ -28,10 +28,9 @@ import os
 import posixpath
 import tempfile
 import unittest
+from builtins import range
 from io import BytesIO
 
-from builtins import range
-from future import standard_library
 from future.utils import iteritems
 from parameterized import parameterized, param
 
@@ -39,8 +38,6 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-
-standard_library.install_aliases()
 
 
 class TestingFileSystem(FileSystem):

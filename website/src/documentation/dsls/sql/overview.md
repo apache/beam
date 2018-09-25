@@ -32,7 +32,7 @@ There are three main things you will need to know to use SQL in your pipeline:
    basic dialect underlying Beam SQL. We have added additional extensions to
    make it easy to leverage Beam's unified batch/streaming model and support
    for complex data types.
- - [BeamSql]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/BeamSql.html): 
+ - [SqlTransform]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): 
    the interface for creating `PTransforms` from SQL queries.
  - [Row]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/Row.html):
    the type of elements that Beam SQL operates on. A `PCollection<Row>` plays the role of a table.

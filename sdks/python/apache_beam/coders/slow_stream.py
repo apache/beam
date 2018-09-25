@@ -34,15 +34,18 @@ class OutputStream(object):
 
   def __init__(self):
     self.data = []
+    self.byte_count = 0
 
   def write(self, b, nested=False):
     assert isinstance(b, bytes)
     if nested:
       self.write_var_int64(len(b))
     self.data.append(b)
+    self.byte_count += len(b)
 
   def write_byte(self, val):
     self.data.append(chr(val).encode('latin-1'))
+    self.byte_count += 1
 
   def write_var_int64(self, v):
     if v < 0:
@@ -74,7 +77,11 @@ class OutputStream(object):
     return b''.join(self.data)
 
   def size(self):
-    return len(self.data)
+    return self.byte_count
+
+  def _clear(self):
+    self.data = []
+    self.byte_count = 0
 
 
 class ByteCountingOutputStream(OutputStream):

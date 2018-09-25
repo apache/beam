@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -89,6 +90,12 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
                 PTransformOverride.of(
                     PTransformMatchers.splittableProcessKeyedBounded(),
                     new SplittableParDoNaiveBounded.OverrideFactory()))
+            // TODO: [BEAM-5361] Support @RequiresStableInput on Gearpump runner
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.requiresStableInputParDoMulti(),
+                    UnsupportedOverrideFactory.withMessage(
+                        "Gearpump runner currently doesn't support @RequiresStableInput annotation.")))
             .build();
 
     pipeline.replaceAll(overrides);

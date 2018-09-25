@@ -53,7 +53,7 @@ This is a collection of documents that may or may not be up to date.
 - Error Reporting Callback (WIP) [[doc](https://docs.google.com/document/d/1o2VXwCL97k3G-1BR9RSKNc6XtJTIA6SEKPMne91S67Y)]
 - Snapshotting and Updating Beam Pipelines [[doc](https://docs.google.com/document/d/1UWhnYPgui0gUYOsuGcCjLuoOUlGA4QaY91n8p3wz9MY)]
 - Requiring PTransform to set a coder on its resulting collections [[mail](https://lists.apache.org/thread.html/1dde0b5a93c2983cbab5f68ce7c74580102f5bb2baaa816585d7eabb@%3Cdev.beam.apache.org%3E)]
-- [PROPOSAL] Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
+- Support of @RequiresStableInput annotation [[doc](https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM)], [[mail](https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E)]
 - [PROPOSAL] @onwindowexpiration [[mail](https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E)]
 
 ### IO / Filesystem
@@ -87,6 +87,9 @@ This is a collection of documents that may or may not be up to date.
 - Beam DSL_SQL branch API review [[doc](https://s.apache.org/beam-sql-dsl-api-review)]
 - Complex Types Support for Beam SQL DDL [[mail](https://lists.apache.org/thread.html/c494e521cb6865b1ae19a68e8e653afc562df7744e8d08087249cbe0@%3Cdev.beam.apache.org%3E)]
 - [SQL] Reject unsupported inputs to Joins [[mail](https://lists.apache.org/thread.html/e7a442fa9cf6b76a5b435493170508f6c42fb9ccef9bcef434424f79@%3Cdev.beam.apache.org%3E)]
+- Integrating runners & IO [[doc](https://docs.google.com/document/d/1ZFVlnldrIYhUgOfxIT2JcmTFFSWTl4HwAnQsnwiNL1g)]
+- Beam SQL Pipeline Options [[doc](https://docs.google.com/document/d/1UTsSBuruJRfGnVOS9eXbQI6NauCD4WnSAPgA_Y0zjdk)]
+- Unbounded limit [[doc](https://docs.google.com/document/d/13zeTewHH9nfwhSlcE4x77WQwr1U2Z4sTiNRjOXUj2aw)]
 
 ### Portability
 - Fn API

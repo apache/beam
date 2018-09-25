@@ -71,7 +71,7 @@ public class JdbcJarTest {
   public void classLoader_ddl() throws Exception {
     Connection connection = getConnection();
     Statement statement = connection.createStatement();
-    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text'"));
     assertEquals(0, statement.executeUpdate("DROP TABLE test"));
   }
 
@@ -84,7 +84,7 @@ public class JdbcJarTest {
     assertEquals(
         0,
         statement.executeUpdate(
-            "CREATE TABLE test (id INTEGER) TYPE 'text' LOCATION '"
+            "CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text' LOCATION '"
                 + simpleTable.getAbsolutePath()
                 + "'"));
     assertTrue(statement.execute("SELECT * FROM test"));

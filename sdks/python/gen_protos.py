@@ -32,7 +32,8 @@ import warnings
 
 import pkg_resources
 
-GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
+# TODO(BEAM-5414): latest grpcio-tools incompatible with latest protobuf 3.6.1.
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<=1.14.2'
 
 BEAM_PROTO_PATHS = [
     os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),

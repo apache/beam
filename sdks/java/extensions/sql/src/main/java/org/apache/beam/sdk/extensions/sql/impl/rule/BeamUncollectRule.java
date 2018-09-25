@@ -24,9 +24,8 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Uncollect;
-import org.apache.calcite.rel.core.Union;
 
-/** A {@code ConverterRule} to replace {@link Union} with {@link BeamUncollectRule}. */
+/** A {@code ConverterRule} to replace {@link Uncollect} with {@link BeamUncollectRule}. */
 public class BeamUncollectRule extends ConverterRule {
   public static final BeamUncollectRule INSTANCE = new BeamUncollectRule();
 

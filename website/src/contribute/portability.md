@@ -87,7 +87,7 @@ design documents are the following:
  * [Runner API](https://s.apache.org/beam-runner-api). Pipeline
    representation and discussion on primitive/composite transforms and
    optimizations.
-   
+
  * [Job API](https://s.apache.org/beam-job-api). Job submission and
    management protocol.
 
@@ -134,12 +134,12 @@ portability effort. Work already done is not tracked here either.
    windowed wordcount
    [[BEAM-2941](https://issues.apache.org/jira/browse/BEAM-2941)] run
    portably.
-    
+
  * **P2 [Feature complete]**: Design and implement portability support
    for remaining execution-side features, so that any pipeline from
    any SDK can run portably on any runner. These features include side
    inputs
-   [[BEAM-2863](https://issues.apache.org/jira/browse/BEAM-2863)], User
+   [[BEAM-2863](https://issues.apache.org/jira/browse/BEAM-2863)], User state [[BEAM-2862](https://issues.apache.org/jira/browse/BEAM-2862)], User
    timers
    [[BEAM-2925](https://issues.apache.org/jira/browse/BEAM-2925)],
    Splittable DoFn
@@ -148,7 +148,7 @@ portability effort. Work already done is not tracked here either.
    least to the extent that the mobile gaming examples
    [[BEAM-2940](https://issues.apache.org/jira/browse/BEAM-2940)] run
    portably.
-    
+
  * **P3 [Performance]**: Measure and tune performance of portable
    pipelines using benchmarks such as Nexmark. Features such as
    progress reporting
@@ -174,6 +174,26 @@ their respective components.
 
 ### Status
 
-MVP in progress. See the
-[Portability support table](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI/edit?usp=sharing)
+MVP in progress (near completion for Flink runner). See the
+[Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
+
+#### Running Python wordcount on Flink
+
+The Flink runner is currently the only runner to support portable pipeline execution.
+To run a basic Python wordcount (in batch mode) with embedded Flink:
+
+1. Run once to build the SDK harness container: `./gradlew :beam-sdks-python-container:docker`
+2. Start the Flink portable JobService endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow`
+3. Submit the wordcount pipeline to above endpoint: `./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099`
+
+To run the pipeline in streaming mode: `./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
+
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
+
+1. Start local Flink cluster
+2. Create shaded JobService jar: `./gradlew :beam-runners-flink_2.11-job-server:installShadowDist`
+3. Optional optimization step: Place the generated JobServer Jar `beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.7.0-SNAPSHOT.jar` in `flink/lib` and change class loading order for Flink by adding `classloader.resolve-order: parent-first` to `conf/flink-conf.yaml`.
+4. Start JobService with Flink web service endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081`
+5. Submit the pipeline.
+
