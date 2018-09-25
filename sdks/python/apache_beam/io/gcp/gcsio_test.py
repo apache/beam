@@ -219,6 +219,14 @@ class FakeBatchApiRequest(object):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSPathParser(unittest.TestCase):
 
+  BAD_GCS_PATHS = [
+      'gs://',
+      'gs://bucket',
+      'gs:///name',
+      'gs:///',
+      'gs:/blah/bucket/name',
+  ]
+
   def test_gcs_path(self):
     self.assertEqual(
         gcsio.parse_gcs_path('gs://bucket/name'), ('bucket', 'name'))
@@ -226,12 +234,21 @@ class TestGCSPathParser(unittest.TestCase):
         gcsio.parse_gcs_path('gs://bucket/name/sub'), ('bucket', 'name/sub'))
 
   def test_bad_gcs_path(self):
-    self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs://')
-    self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs://bucket')
+    for path in self.BAD_GCS_PATHS:
+      self.assertRaises(ValueError, gcsio.parse_gcs_path, path)
     self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs://bucket/')
-    self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs:///name')
-    self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs:///')
-    self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs:/blah/bucket/name')
+
+  def test_gcs_path_object_optional(self):
+    self.assertEqual(
+        gcsio.parse_gcs_path('gs://bucket/name', object_optional=True),
+        ('bucket', 'name'))
+    self.assertEqual(
+        gcsio.parse_gcs_path('gs://bucket/', object_optional=True),
+        ('bucket', ''))
+
+  def test_bad_gcs_path_object_optional(self):
+    for path in self.BAD_GCS_PATHS:
+      self.assertRaises(ValueError, gcsio.parse_gcs_path, path, True)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
