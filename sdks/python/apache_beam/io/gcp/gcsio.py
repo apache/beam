@@ -142,10 +142,10 @@ def get_new_http():
                        timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
 
 
-def parse_gcs_path(gcs_path):
+def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
-  match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
-  if match is None:
+  match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
+  if match is None or (match.group(2) == '' and not object_optional):
     raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
   return match.group(1), match.group(2)
 
@@ -433,12 +433,12 @@ class GcsIO(object):
     """Lists files matching the prefix.
 
     Args:
-      path: GCS file path pattern in the form gs://<bucket>/<name>.
+      path: GCS file path pattern in the form gs://<bucket>/[name].
 
     Returns:
       Dictionary of file name -> size.
     """
-    bucket, prefix = parse_gcs_path(path)
+    bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0
