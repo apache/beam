@@ -23,14 +23,17 @@ from __future__ import division
 import bz2
 import gzip
 import logging
+import ntpath
 import os
+import posixpath
 import tempfile
 import unittest
-from builtins import range
 from io import BytesIO
 
+from builtins import range
 from future import standard_library
 from future.utils import iteritems
+from parameterized import parameterized, param
 
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
@@ -112,8 +115,58 @@ class TestFileSystem(unittest.TestCase):
             for match_result in match_results
             for file_metadata in match_result.metadata_list]
 
-  def test_match_glob(self):
-    bucket_name = 'gcsio-test'
+  @parameterized.expand([
+      ('**/*', all),
+      ('gs://**/*', all),
+      ('gs://gcsio-test/**', all),
+      ('gs://gcsio-test/*', []),
+      ('gs://gcsio-test/cow/**', [
+          ('cow/cat/fish', 2),
+          ('cow/cat/blubber', 3),
+          ('cow/dog/blubber', 4),
+      ]),
+      ('gs://gcsio-test/cow/ca**', [
+          ('cow/cat/fish', 2),
+          ('cow/cat/blubber', 3),
+      ]),
+      ('gs://gcsio-test/apple/[df]ish/ca*', [
+          ('apple/fish/cat', 10),
+          ('apple/fish/cart', 11),
+          ('apple/fish/carl', 12),
+          ('apple/dish/cat', 14),
+          ('apple/dish/carl', 15),
+      ]),
+      ('gs://gcsio-test/apple/?ish/?a?', [
+          ('apple/fish/cat', 10),
+          ('apple/dish/bat', 13),
+          ('apple/dish/cat', 14),
+      ]),
+      ('gs://gcsio-test/apple/fish/car?', [
+          ('apple/fish/cart', 11),
+          ('apple/fish/carl', 12),
+      ]),
+      ('gs://gcsio-test/apple/fish/b*', [
+          ('apple/fish/blubber', 6),
+          ('apple/fish/blowfish', 7),
+          ('apple/fish/bambi', 8),
+          ('apple/fish/balloon', 9),
+      ]),
+      ('gs://gcsio-test/apple/f*/b*', [
+          ('apple/fish/blubber', 6),
+          ('apple/fish/blowfish', 7),
+          ('apple/fish/bambi', 8),
+          ('apple/fish/balloon', 9),
+      ]),
+      ('gs://gcsio-test/apple/dish/[cb]at', [
+          ('apple/dish/bat', 13),
+          ('apple/dish/cat', 14),
+      ]),
+      ('gs://gcsio-test/banana/cyrano.m?', [
+          ('banana/cyrano.md', 17),
+          ('banana/cyrano.mb', 18),
+      ]),
+  ])
+  def test_match_glob(self, file_pattern, expected_object_names):
     objects = [
         ('cow/cat/fish', 2),
         ('cow/cat/blubber', 3),
@@ -129,66 +182,69 @@ class TestFileSystem(unittest.TestCase):
         ('apple/dish/bat', 13),
         ('apple/dish/cat', 14),
         ('apple/dish/carl', 15),
+        ('banana/cat', 16),
+        ('banana/cyrano.md', 17),
+        ('banana/cyrano.mb', 18),
     ]
-    for (object_name, size) in objects:
+    bucket_name = 'gcsio-test'
+
+    if expected_object_names is all:
+      # A hack around the fact that the parameterized decorator does not have
+      #  access to self.objects
+      expected_object_names = objects
+
+    for object_name, size in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self.fs._insert_random_file(file_name, size)
-    test_cases = [
-        ('gs://*', objects),
-        ('gs://gcsio-test/*', objects),
-        ('gs://gcsio-test/cow/*', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-            ('cow/dog/blubber', 4),
-        ]),
-        ('gs://gcsio-test/cow/ca*', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-        ]),
-        ('gs://gcsio-test/apple/[df]ish/ca*', [
-            ('apple/fish/cat', 10),
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-            ('apple/dish/cat', 14),
-            ('apple/dish/carl', 15),
-        ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-        ('gs://gcsio-test/apple/fish/b*', [
-            ('apple/fish/blubber', 6),
-            ('apple/fish/blowfish', 7),
-            ('apple/fish/bambi', 8),
-            ('apple/fish/balloon', 9),
-        ]),
-        ('gs://gcsio-test/apple/f*/b*', [
-            ('apple/fish/blubber', 6),
-            ('apple/fish/blowfish', 7),
-            ('apple/fish/bambi', 8),
-            ('apple/fish/balloon', 9),
-        ]),
-        ('gs://gcsio-test/apple/dish/[cb]at', [
-            ('apple/dish/bat', 13),
-            ('apple/dish/cat', 14),
-        ]),
+
+    expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
+                           for object_name, size in expected_object_names]
+    actual_file_names = [
+        (file_metadata.path, file_metadata.size_in_bytes)
+        for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
     ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                             for (object_name, size) in expected_object_names]
-      self.assertEqual(
-          set([(file_metadata.path, file_metadata.size_in_bytes)
-               for file_metadata in
-               self._flatten_match(self.fs.match([file_pattern]))]),
-          set(expected_file_names))
+
+    self.maxDiff = None
+    self.assertEqual(set(actual_file_names), set(expected_file_names))
 
     # Check if limits are followed correctly
     limit = 3
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self._flatten_match(self.fs.match([file_pattern], [limit]))),
-          expected_num_items)
+    expected_num_items = min(len(expected_object_names), limit)
+    self.assertEqual(
+        len(self._flatten_match(self.fs.match([file_pattern], [limit]))),
+        expected_num_items)
+
+  @parameterized.expand([
+      param(os_path=posixpath, sep_re='\\/'),
+      param(os_path=ntpath, sep_re='\\\\'),
+  ])
+  def test_translate_pattern(self, os_path, sep_re):
+    star = r'[^/\\]*'
+    double_star = r'.*'
+    join = os_path.join
+
+    def re_join(a, *p):
+      path = a
+      for b in p:
+        if b.startswith(sep_re):
+          path = b
+        elif path == '' or path.endswith(sep_re):
+          path += b
+        else:
+          path += sep_re + b
+      return path
+
+    sep = os_path.sep
+    pattern__expected = [
+        (join('a', '*'), re_join('a', star)),
+        (join('b', '*') + sep, re_join(r'b', star) + sep_re),
+        (r'*[abc\]', star + r'[abc\\]'),
+        (join('d', '**', '*'), re_join('d', double_star, star)),
+    ]
+    for pattern, expected in pattern__expected:
+      expected += r'\Z(?ms)'
+      result = self.fs.translate_pattern(pattern)
+      self.assertEqual(result, expected)
 
 
 class TestFileSystemWithDirs(TestFileSystem):
