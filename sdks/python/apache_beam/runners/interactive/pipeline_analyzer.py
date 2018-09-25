@@ -121,7 +121,7 @@ class PipelineAnalyzer(object):
                                         sample=True)
 
     required_transforms['_root'] = beam_runner_api_pb2.PTransform(
-        subtransforms=list(top_level_required_transforms.keys()))
+        subtransforms=list(top_level_required_transforms))
 
     referenced_pcoll_ids = self._referenced_pcoll_ids(
         required_transforms)
@@ -168,7 +168,7 @@ class PipelineAnalyzer(object):
   def tl_required_trans_ids(self):
     """Returns a set of required top level PTransform IDs.
     """
-    return self._top_level_required_transforms.keys()
+    return list(self._top_level_required_transforms)
 
   def caches_used(self):
     """Returns a set of PCollection IDs to read from cache.
