@@ -466,7 +466,7 @@ class BigQuerySource(dataflow_io.NativeSource):
 class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table.
 
-  This BigQuery sink triggers a Dataflow native sink for BiQuery
+  This BigQuery sink triggers a Dataflow native sink for BigQuery
   that only supports batch pipelines.
   """
 
