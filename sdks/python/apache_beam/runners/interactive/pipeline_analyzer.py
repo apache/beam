@@ -116,7 +116,7 @@ class PipelineAnalyzer(object):
                                         sample=True)
 
     required_transforms['_root'] = beam_runner_api_pb2.PTransform(
-        subtransforms=top_level_required_transforms.keys())
+        subtransforms=list(top_level_required_transforms.keys()))
 
     referenced_pcollection_ids = self._referenced_pcollection_ids(
         required_transforms)

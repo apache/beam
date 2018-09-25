@@ -191,6 +191,7 @@ class WriteCache(beam.PTransform):
 
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
+  # pylint: disable=deprecated-urllib-function
 
   def encode(self, value):
     return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
