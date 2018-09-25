@@ -1084,7 +1084,7 @@ This runner is not yet available for the Python SDK.
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
-**To run this example in Python:**
+**To run this example in Go:**
 
 {:.runner-direct}
 ```
