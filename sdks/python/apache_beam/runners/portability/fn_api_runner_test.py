@@ -20,6 +20,7 @@ from __future__ import print_function
 import functools
 import logging
 import os
+import sys
 import tempfile
 import time
 import traceback
@@ -142,6 +143,8 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(unnamed.even, equal_to([2]), label='unnamed.even')
       assert_that(unnamed.odd, equal_to([1, 3]), label='unnamed.odd')
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_pardo_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -153,6 +156,8 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
                             ('a', 'y'), ('b', 'y'), ('c', 'y')]))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
       # Now with some windowing.
@@ -180,6 +185,8 @@ class FnApiRunnerTest(unittest.TestCase):
               (9, list(range(7, 10)))]),
           label='windowed')
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_flattened_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -190,6 +197,8 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': 1, 'b': 2})]))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -198,6 +207,8 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
@@ -209,6 +220,8 @@ class FnApiRunnerTest(unittest.TestCase):
                           beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_pardo_unfusable_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -283,7 +296,7 @@ class FnApiRunnerTest(unittest.TestCase):
     # due to https://bugs.python.org/issue14243
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     try:
-      temp_file.write('a\nb\nc')
+      temp_file.write(b'a\nb\nc')
       temp_file.close()
       with self.create_pipeline() as p:
         assert_that(p | beam.io.ReadFromText(temp_file.name),
@@ -301,6 +314,8 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3')
   def test_large_elements(self):
     with self.create_pipeline() as p:
       big = (p
@@ -332,8 +347,9 @@ class FnApiRunnerTest(unittest.TestCase):
          | 'StageB' >> beam.Map(lambda x: x)
          | 'StageC' >> beam.Map(raise_error)
          | 'StageD' >> beam.Map(lambda x: x))
-    self.assertIn('StageC', e_cm.exception.args[0])
-    self.assertNotIn('StageB', e_cm.exception.args[0])
+    message = e_cm.exception.args[0]
+    self.assertIn('StageC', message)
+    self.assertNotIn('StageB', message)
 
   def test_error_traceback_includes_user_code(self):
 

@@ -89,9 +89,9 @@ def write_data(
   all_data = []
   with tempfile.NamedTemporaryFile(
       delete=False, dir=directory, prefix=prefix) as f:
-    sep_values = ['\n', '\r\n']
+    sep_values = [b'\n', b'\r\n']
     for i in range(num_lines):
-      data = '' if no_data else 'line' + str(i)
+      data = b'' if no_data else b'line' + str(i).encode()
       all_data.append(data)
 
       if eol == EOL.LF:
@@ -101,7 +101,7 @@ def write_data(
       elif eol == EOL.MIXED:
         sep = sep_values[i % len(sep_values)]
       elif eol == EOL.LF_WITH_NOTHING_AT_LAST_LINE:
-        sep = '' if i == (num_lines - 1) else sep_values[0]
+        sep = b'' if i == (num_lines - 1) else sep_values[0]
       else:
         raise ValueError('Received unknown value %s for eol.' % eol)
 

@@ -106,7 +106,7 @@ class PortableRunner(runner.PipelineRunner):
 
     # TODO: Define URNs for options.
     options = {'beam:option:' + k + ':v1': v
-               for k, v in pipeline._options.get_all_options().iteritems()
+               for k, v in pipeline._options.get_all_options().items()
                if v is not None}
 
     channel = grpc.insecure_channel(job_endpoint)

@@ -101,7 +101,7 @@ class PortableStager(Stager):
 
 def _get_file_hash(path):
   hasher = hashlib.md5()
-  with open(path) as f:
+  with open(path, 'rb') as f:
     while True:
       chunk = f.read(1 << 21)
       if chunk:
