@@ -83,7 +83,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       self._position = value
 
     def reset(self):
-      self.data = ''
+      self.data = b''
       self.position = 0
 
   def __init__(self,
@@ -147,7 +147,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
-    read_buffer = _TextSource.ReadBuffer('', 0)
+    read_buffer = _TextSource.ReadBuffer(b'', 0)
 
     next_record_start_position = -1
 
@@ -251,9 +251,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
       # Using find() here is more efficient than a linear scan of the byte
       # array.
-      next_lf = read_buffer.data.find('\n', current_pos)
+      next_lf = read_buffer.data.find(b'\n', current_pos)
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:

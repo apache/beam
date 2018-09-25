@@ -24,13 +24,12 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import sys
 import traceback
 from builtins import next
 from builtins import object
 from builtins import zip
 
-from future.utils import raise_
+from future.utils import raise_with_traceback
 from past.builtins import unicode
 
 from apache_beam.internal import util
@@ -703,7 +702,6 @@ class DoFnRunner(Receiver):
       raise
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
-    original_traceback = sys.exc_info()[2]
     try:
       # Attempt to construct the same kind of exception
       # with an augmented message.
@@ -716,7 +714,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    raise_(type(new_exn), new_exn, original_traceback)
+    raise_with_traceback(new_exn)
 
 
 class OutputProcessor(object):

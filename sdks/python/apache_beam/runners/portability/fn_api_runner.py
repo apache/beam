@@ -1061,7 +1061,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     def blocking_get(self, state_key):
       with self._lock:
-        return ''.join(self._state[self._to_key(state_key)])
+        return b''.join(self._state[self._to_key(state_key)])
 
     def blocking_append(self, state_key, data):
       with self._lock:

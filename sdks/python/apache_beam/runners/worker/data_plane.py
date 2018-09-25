@@ -229,7 +229,7 @@ class _GrpcDataChannel(DataChannel):
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
               target=target,
-              data=''))
+              data=b''))
     return ClosableOutputStream(
         close_callback, flush_callback=add_to_send_queue)
 
