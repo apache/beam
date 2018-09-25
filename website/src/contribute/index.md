@@ -75,7 +75,7 @@ Coding happens at
 [https://github.com/apache/beam](https://github.com/apache/beam). To
 contribute, follow the usual GitHub process: fork the repo, make your changes,
 and open a pull request and @mention a reviewer. If you have more than one commit
-in your change, you many be asked to rebase and squash the commits.
+in your change, you may be asked to rebase and squash the commits.
 If you are unfamiliar with this workflow, GitHub maintains these helpful guides:
 
  - [Git Handbook](https://guides.github.com/introduction/git-handbook/)
