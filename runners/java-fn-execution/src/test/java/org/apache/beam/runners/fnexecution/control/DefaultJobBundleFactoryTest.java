@@ -23,8 +23,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -33,39 +36,49 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.hamcrest.Matchers;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link ProcessEnvironmentFactory}. */
+/** Tests for {@link DefaultJobBundleFactory}. */
 @RunWith(JUnit4.class)
-public class ProcessJobBundleFactoryTest {
-
-  @Mock private ProcessEnvironmentFactory envFactory;
+public class DefaultJobBundleFactoryTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Mock private EnvironmentFactory envFactory;
   @Mock private RemoteEnvironment remoteEnvironment;
   @Mock private InstructionRequestHandler instructionHandler;
-  @Mock private ServerFactory serverFactory;
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
   @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
+  @Mock private GrpcFnServer<GrpcDataService> dataServer;
+  @Mock private GrpcFnServer<GrpcStateService> stateServer;
 
-  private final Environment environment = Environments.createDockerEnvironment("env-url");
+  private final Environment environment = Environment.newBuilder().setUrn("dummy:urn").build();
   private final IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
   private final InstructionResponse instructionResponse =
       InstructionResponse.newBuilder().setInstructionId("instruction-id").build();
@@ -77,35 +90,139 @@ public class ProcessJobBundleFactoryTest {
     when(remoteEnvironment.getInstructionRequestHandler()).thenReturn(instructionHandler);
     when(instructionHandler.handle(any()))
         .thenReturn(CompletableFuture.completedFuture(instructionResponse));
+    when(dataServer.getApiServiceDescriptor())
+        .thenReturn(ApiServiceDescriptor.getDefaultInstance());
+    when(stateServer.getApiServiceDescriptor())
+        .thenReturn(ApiServiceDescriptor.getDefaultInstance());
   }
 
   @Test
   public void createsCorrectEnvironment() throws Exception {
-    try (ProcessJobBundleFactory bundleFactory =
-        new ProcessJobBundleFactory(
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
             envFactory,
-            serverFactory,
             stageIdGenerator,
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            dataServer,
+            stateServer)) {
       bundleFactory.forStage(getExecutableStage(environment));
       verify(envFactory).createEnvironment(environment);
     }
   }
 
   @Test
+  public void createsMultipleEnvironmentOfSingleType() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createDefault();
+
+    Environment environmentA =
+        Environment.newBuilder()
+            .setUrn("env:urn:a")
+            .setPayload(ByteString.copyFrom(new byte[1]))
+            .build();
+    Environment environmentAA =
+        Environment.newBuilder()
+            .setUrn("env:urn:a")
+            .setPayload(ByteString.copyFrom(new byte[2]))
+            .build();
+    EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
+    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(environmentAA)).thenReturn(remoteEnvironment);
+    EnvironmentFactory.Provider environmentProviderFactoryA =
+        mock(EnvironmentFactory.Provider.class);
+    when(environmentProviderFactoryA.createEnvironmentFactory(
+            any(), any(), any(), any(), any(), any()))
+        .thenReturn(envFactoryA);
+    when(environmentProviderFactoryA.getServerFactory()).thenReturn(serverFactory);
+
+    Environment environmentB = Environment.newBuilder().setUrn("env:urn:b").build();
+    EnvironmentFactory envFactoryB = mock(EnvironmentFactory.class);
+    when(envFactoryB.createEnvironment(environmentB)).thenReturn(remoteEnvironment);
+    EnvironmentFactory.Provider environmentProviderFactoryB =
+        mock(EnvironmentFactory.Provider.class);
+    when(environmentProviderFactoryB.createEnvironmentFactory(
+            any(), any(), any(), any(), any(), any()))
+        .thenReturn(envFactoryB);
+    when(environmentProviderFactoryB.getServerFactory()).thenReturn(serverFactory);
+
+    Map<String, Provider> environmentFactoryProviderMap =
+        ImmutableMap.of(
+            environmentA.getUrn(), environmentProviderFactoryA,
+            environmentB.getUrn(), environmentProviderFactoryB);
+    try (DefaultJobBundleFactory bundleFactory =
+        DefaultJobBundleFactory.create(
+            JobInfo.create("testJob", "testJob", "token", Struct.getDefaultInstance()),
+            environmentFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environmentA));
+      verify(environmentProviderFactoryA, Mockito.times(1))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(environmentProviderFactoryB, Mockito.times(0))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(0)).createEnvironment(environmentAA);
+
+      bundleFactory.forStage(getExecutableStage(environmentAA));
+      verify(environmentProviderFactoryA, Mockito.times(1))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(environmentProviderFactoryB, Mockito.times(0))
+          .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentAA);
+    }
+  }
+
+  @Test
+  public void failedCreatingMultipleEnvironmentFromMultipleTypes() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createDefault();
+
+    Environment environmentA = Environment.newBuilder().setUrn("env:urn:a").build();
+    EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
+    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    EnvironmentFactory.Provider environmentProviderFactoryA =
+        mock(EnvironmentFactory.Provider.class);
+    when(environmentProviderFactoryA.createEnvironmentFactory(
+            any(), any(), any(), any(), any(), any()))
+        .thenReturn(envFactoryA);
+    when(environmentProviderFactoryA.getServerFactory()).thenReturn(serverFactory);
+
+    Environment environmentB = Environment.newBuilder().setUrn("env:urn:b").build();
+    EnvironmentFactory envFactoryB = mock(EnvironmentFactory.class);
+    when(envFactoryB.createEnvironment(environmentB)).thenReturn(remoteEnvironment);
+    EnvironmentFactory.Provider environmentProviderFactoryB =
+        mock(EnvironmentFactory.Provider.class);
+    when(environmentProviderFactoryB.createEnvironmentFactory(
+            any(), any(), any(), any(), any(), any()))
+        .thenReturn(envFactoryB);
+    when(environmentProviderFactoryB.getServerFactory()).thenReturn(serverFactory);
+
+    Map<String, Provider> environmentFactoryProviderMap =
+        ImmutableMap.of(
+            environmentA.getUrn(), environmentProviderFactoryA,
+            environmentB.getUrn(), environmentProviderFactoryB);
+    try (DefaultJobBundleFactory bundleFactory =
+        DefaultJobBundleFactory.create(
+            JobInfo.create("testJob", "testJob", "token", Struct.getDefaultInstance()),
+            environmentFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environmentB));
+      thrown.expectCause(Matchers.any(IllegalArgumentException.class));
+      bundleFactory.forStage(getExecutableStage(environmentA));
+    }
+  }
+
+  @Test
   public void closesEnvironmentOnCleanup() throws Exception {
-    ProcessJobBundleFactory bundleFactory =
-        new ProcessJobBundleFactory(
+    DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
             envFactory,
-            serverFactory,
             stageIdGenerator,
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer);
+            provisioningServer,
+            dataServer,
+            stateServer);
     try (AutoCloseable unused = bundleFactory) {
       bundleFactory.forStage(getExecutableStage(environment));
     }
@@ -114,15 +231,16 @@ public class ProcessJobBundleFactoryTest {
 
   @Test
   public void cachesEnvironment() throws Exception {
-    try (ProcessJobBundleFactory bundleFactory =
-        new ProcessJobBundleFactory(
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
             envFactory,
-            serverFactory,
             stageIdGenerator,
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            dataServer,
+            stateServer)) {
       StageBundleFactory bf1 = bundleFactory.forStage(getExecutableStage(environment));
       StageBundleFactory bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
@@ -137,7 +255,7 @@ public class ProcessJobBundleFactoryTest {
 
   @Test
   public void doesNotCacheDifferentEnvironments() throws Exception {
-    Environment envFoo = Environments.createDockerEnvironment("foo-env-url");
+    Environment envFoo = Environment.newBuilder().setUrn("dummy:urn:another").build();
     RemoteEnvironment remoteEnvFoo = mock(RemoteEnvironment.class);
     InstructionRequestHandler fooInstructionHandler = mock(InstructionRequestHandler.class);
     when(envFactory.createEnvironment(envFoo)).thenReturn(remoteEnvFoo);
@@ -146,15 +264,16 @@ public class ProcessJobBundleFactoryTest {
     when(fooInstructionHandler.handle(any()))
         .thenReturn(CompletableFuture.completedFuture(instructionResponse));
 
-    try (ProcessJobBundleFactory bundleFactory =
-        new ProcessJobBundleFactory(
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
             envFactory,
-            serverFactory,
             stageIdGenerator,
             controlServer,
             loggingServer,
             retrievalServer,
-            provisioningServer)) {
+            provisioningServer,
+            dataServer,
+            stateServer)) {
       bundleFactory.forStage(getExecutableStage(environment));
       bundleFactory.forStage(getExecutableStage(envFoo));
       verify(envFactory).createEnvironment(environment);
