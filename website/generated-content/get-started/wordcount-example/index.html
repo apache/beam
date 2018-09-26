@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam WordCount Examples</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/get-started/wordcount-example/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Get started</span></li>
+<li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+<li>
+  <span class="section-nav-list-title">Quickstarts</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+    <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+    <li><a href="/get-started/quickstart-go/">Quickstart - Go</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Example Walkthroughs</span>
+  <ul class="section-nav-list">
+     <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+     <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+   </ul>
+</li>
+<li><a href="/get-started/downloads">Downloads</a></li>
+
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#minimalwordcount-example">MinimalWordCount example</a>
+    <ul>
+      <li><a href="#creating-the-pipeline">Creating the pipeline</a></li>
+      <li><a href="#applying-pipeline-transforms">Applying pipeline transforms</a></li>
+      <li><a href="#running-the-pipeline">Running the pipeline</a></li>
+    </ul>
+  </li>
+  <li><a href="#wordcount-example">WordCount example</a>
+    <ul>
+      <li><a href="#specifying-explicit-dofns">Specifying explicit DoFns</a></li>
+      <li><a href="#creating-composite-transforms">Creating composite transforms</a></li>
+      <li><a href="#using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</a></li>
+    </ul>
+  </li>
+  <li><a href="#debuggingwordcount-example">DebuggingWordCount example</a>
+    <ul>
+      <li><a href="#logging">Logging</a></li>
+      <li><a href="#testing-your-pipeline-with-asserts">Testing your pipeline with asserts</a></li>
+    </ul>
+  </li>
+  <li><a href="#windowedwordcount-example">WindowedWordCount example</a>
+    <ul>
+      <li><a href="#unbounded-and-bounded-datasets">Unbounded and bounded datasets</a></li>
+      <li><a href="#adding-timestamps-to-data">Adding timestamps to data</a></li>
+      <li><a href="#windowing">Windowing</a></li>
+      <li><a href="#reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</a></li>
+    </ul>
+  </li>
+  <li><a href="#streamingwordcount-example">StreamingWordCount example</a>
+    <ul>
+      <li><a href="#reading-an-unbounded-dataset">Reading an unbounded dataset</a></li>
+      <li><a href="#writing-unbounded-results">Writing unbounded results</a></li>
+    </ul>
+  </li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="apache-beam-wordcount-examples">Apache Beam WordCount Examples</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#minimalwordcount-example" id="markdown-toc-minimalwordcount-example">MinimalWordCount example</a>    <ul>
+      <li><a href="#creating-the-pipeline" id="markdown-toc-creating-the-pipeline">Creating the pipeline</a></li>
+      <li><a href="#applying-pipeline-transforms" id="markdown-toc-applying-pipeline-transforms">Applying pipeline transforms</a></li>
+      <li><a href="#running-the-pipeline" id="markdown-toc-running-the-pipeline">Running the pipeline</a></li>
+    </ul>
+  </li>
+  <li><a href="#wordcount-example" id="markdown-toc-wordcount-example">WordCount example</a>    <ul>
+      <li><a href="#specifying-explicit-dofns" id="markdown-toc-specifying-explicit-dofns">Specifying explicit DoFns</a></li>
+      <li><a href="#creating-composite-transforms" id="markdown-toc-creating-composite-transforms">Creating composite transforms</a></li>
+      <li><a href="#using-parameterizable-pipelineoptions" id="markdown-toc-using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</a></li>
+    </ul>
+  </li>
+  <li><a href="#debuggingwordcount-example" id="markdown-toc-debuggingwordcount-example">DebuggingWordCount example</a>    <ul>
+      <li><a href="#logging" id="markdown-toc-logging">Logging</a>        <ul>
+          <li><a href="#direct-runner" id="markdown-toc-direct-runner">Direct Runner</a></li>
+          <li><a href="#cloud-dataflow-runner" id="markdown-toc-cloud-dataflow-runner">Cloud Dataflow Runner</a></li>
+          <li><a href="#apache-spark-runner" id="markdown-toc-apache-spark-runner">Apache Spark Runner</a></li>
+          <li><a href="#apache-flink-runner" id="markdown-toc-apache-flink-runner">Apache Flink Runner</a></li>
+          <li><a href="#apache-apex-runner" id="markdown-toc-apache-apex-runner">Apache Apex Runner</a></li>
+        </ul>
+      </li>
+      <li><a href="#testing-your-pipeline-with-asserts" id="markdown-toc-testing-your-pipeline-with-asserts">Testing your pipeline with asserts</a></li>
+    </ul>
+  </li>
+  <li><a href="#windowedwordcount-example" id="markdown-toc-windowedwordcount-example">WindowedWordCount example</a>    <ul>
+      <li><a href="#unbounded-and-bounded-datasets" id="markdown-toc-unbounded-and-bounded-datasets">Unbounded and bounded datasets</a></li>
+      <li><a href="#adding-timestamps-to-data" id="markdown-toc-adding-timestamps-to-data">Adding timestamps to data</a></li>
+      <li><a href="#windowing" id="markdown-toc-windowing">Windowing</a></li>
+      <li><a href="#reusing-ptransforms-over-windowed-pcollections" id="markdown-toc-reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</a></li>
+    </ul>
+  </li>
+  <li><a href="#streamingwordcount-example" id="markdown-toc-streamingwordcount-example">StreamingWordCount example</a>    <ul>
+      <li><a href="#reading-an-unbounded-dataset" id="markdown-toc-reading-an-unbounded-dataset">Reading an unbounded dataset</a></li>
+      <li><a href="#writing-unbounded-results" id="markdown-toc-writing-unbounded-results">Writing unbounded results</a></li>
+    </ul>
+  </li>
+</ul>
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+    <li data-type="language-go">Go SDK</li>
+  </ul>
+</nav>
+
+<p>The WordCount examples demonstrate how to set up a processing pipeline that can
+read text, tokenize the text lines into individual words, and perform a
+frequency count on each of those words. The Beam SDKs contain a series of these
+four successively more detailed WordCount examples that build on each other. The
+input text for all the examples is a set of Shakespeare’s texts.</p>
+
+<p>Each WordCount example introduces different concepts in the Beam programming
+model. Begin by understanding MinimalWordCount, the simplest of the examples.
+Once you feel comfortable with the basic principles in building a pipeline,
+continue on to learn more concepts in the other examples.</p>
+
+<ul>
+  <li><strong>MinimalWordCount</strong> demonstrates the basic principles involved in building a
+pipeline.</li>
+  <li><strong>WordCount</strong> introduces some of the more common best practices in creating
+re-usable and maintainable pipelines.</li>
+  <li><strong>DebuggingWordCount</strong> introduces logging and debugging practices.</li>
+  <li><strong>WindowedWordCount</strong> demonstrates how you can use Beam’s programming model
+to handle both bounded and unbounded datasets.</li>
+</ul>
+
+<h2 id="minimalwordcount-example">MinimalWordCount example</h2>
+
+<p>MinimalWordCount demonstrates a simple pipeline that uses the Direct Runner to
+read from a text file, apply transforms to tokenize and count the words, and
+write the data to an output text file.</p>
+
+<p class="language-java language-go">This example hard-codes the locations for its input and output files and doesn’t
+perform any error checking; it is intended to only show you the “bare bones” of
+creating a Beam pipeline. This lack of parameterization makes this particular
+pipeline less portable across different runners than standard Beam pipelines. In
+later examples, we will parameterize the pipeline’s input and output sources and
+show other best practices.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="err">$</span> <span class="n">mvn</span> <span class="n">compile</span> <span class="nl">exec:</span><span class="n">java</span> <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">mainClass</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">MinimalWordCount</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">apache_beam</span><span class="o">.</span><span class="n">examples</span><span class="o">.</span><span class="n">wordcount_minimal</span> <span class="o">--</span><span class="nb">input</span> <span class="n">YOUR_INPUT_FILE</span> <span class="o">--</span><span class="n">output</span> <span class="n">counts</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="err">$</span><span class="x"> </span><span class="k">go</span><span class="x"> </span><span class="n">install</span><span class="x"> </span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">apache</span><span class="o">/</span><span class="n">beam</span><span class="o">/</span><span class="n">sdks</span><span class="o">/</span><span class="k">go</span><span class="o">/</span><span class="n">examples</span><span class="o">/</span><span class="n">minimal_wordcount</span><span class="x">
+</span><span class="err">$</span><span class="x"> </span><span class="n">minimal_wordcount</span><span class="x">
+</span></code></pre>
+</div>
+
+<p class="language-java">To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">MinimalWordCount</a>.</strong></p>
+
+<p class="language-py">To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py">wordcount_minimal.py</a>.</strong></p>
+
+<p class="language-go">To view the full code in Go, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go">wordcount_minimal.go</a>.</strong></p>
+
+<p><strong>Key Concepts:</strong></p>
+
+<ul>
+  <li>Creating the Pipeline</li>
+  <li>Applying transforms to the Pipeline</li>
+  <li>Reading input (in this example: reading text files)</li>
+  <li>Applying ParDo transforms</li>
+  <li>Applying SDK-provided transforms (in this example: Count)</li>
+  <li>Writing output (in this example: writing to a text file)</li>
+  <li>Running the Pipeline</li>
+</ul>
+
+<p>The following sections explain these concepts in detail, using the relevant code
+excerpts from the MinimalWordCount pipeline.</p>
+
+<h3 id="creating-the-pipeline">Creating the pipeline</h3>
+
+<p class="language-java language-py">In this example, the code first creates a <code class="highlighter-rouge">PipelineOptions</code> object. This object
+lets us set various options for our pipeline, such as the pipeline runner that
+will execute our pipeline and any runner-specific configuration required by the
+chosen runner. In this example we set these options programmatically, but more
+often, command-line arguments are used to set <code class="highlighter-rouge">PipelineOptions</code>.</p>
+
+<p class="language-java language-py">You can specify a runner for executing your pipeline, such as the
+<code class="highlighter-rouge">DataflowRunner</code> or <code class="highlighter-rouge">SparkRunner</code>. If you omit specifying a runner, as in this
+example, your pipeline executes locally using the <code class="highlighter-rouge">DirectRunner</code>. In the next
+sections, we will specify the pipeline’s runner.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="c1">// Create a PipelineOptions object. This object lets us set various execution</span>
+ <span class="c1">// options for our pipeline, such as the runner you wish to use. This example</span>
+ <span class="c1">// will run with the DirectRunner by default, based on the class path configured</span>
+ <span class="c1">// in its dependencies.</span>
+ <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+<span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="s">'my-project-id'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="s">'myjob'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="s">'gs://your-bucket-name-here/staging'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="s">'gs://your-bucket-name-here/temp'</span>
+<span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="s">'DataflowRunner'</span>
+</code></pre>
+</div>
+
+<p class="language-java language-py">The next step is to create a <code class="highlighter-rouge">Pipeline</code> object with the options we’ve just
+constructed. The Pipeline object builds up the graph of transformations to be
+executed, associated with that particular pipeline.</p>
+
+<p class="language-go">The first step is to create a <code class="highlighter-rouge">Pipeline</code> object. It builds up the graph of
+transformations to be executed, associated with that particular pipeline.
+The scope allows grouping into composite transforms.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">NewPipeline</span><span class="x">
+</span><span class="n">s</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">p</span><span class="o">.</span><span class="n">Root</span><span class="p">()</span><span class="x">
+</span></code></pre>
+</div>
+
+<h3 id="applying-pipeline-transforms">Applying pipeline transforms</h3>
+
+<p>The MinimalWordCount pipeline contains several transforms to read data into the
+pipeline, manipulate or otherwise transform the data, and write out the results.
+Transforms can consist of an individual operation, or can contain multiple
+nested transforms (which is a <a href="/documentation/programming-guide#composite-transforms">composite transform</a>).</p>
+
+<p>Each transform takes some kind of input data and produces some output data. The
+input and output data is often represented by the SDK class <code class="highlighter-rouge">PCollection</code>.
+<code class="highlighter-rouge">PCollection</code> is a special class, provided by the Beam SDK, that you can use to
+represent a dataset of virtually any size, including unbounded datasets.</p>
+
+<p><img src="/images/wordcount-pipeline.png" alt="The MinimalWordCount pipeline data flow." width="800px" /></p>
+
+<p><em>Figure 1: The MinimalWordCount pipeline data flow.</em></p>
+
+<p>The MinimalWordCount pipeline contains five transforms:</p>
+
+<ol>
+  <li>
+    <p>A text file <code class="highlighter-rouge">Read</code> transform is applied to the <code class="highlighter-rouge">Pipeline</code> object itself, and
+produces a <code class="highlighter-rouge">PCollection</code> as output. Each element in the output <code class="highlighter-rouge">PCollection</code>
+represents one line of text from the input file. This example uses input
+data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+<span class="s">'gs://dataflow-samples/shakespeare/kinglear.txt'</span><span class="p">)</span>
+</code></pre>
+    </div>
+
+    <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="p">)</span><span class="x">
+</span></code></pre>
+    </div>
+  </li>
+  <li>
+    <p>This transform splits the lines in <code class="highlighter-rouge">PCollection&lt;String&gt;</code>, where each element
+is an individual word in Shakespeare’s collected texts.
+As an alternative, it would have been possible to use a
+<a href="/documentation/programming-guide/#pardo">ParDo</a>
+transform that invokes a <code class="highlighter-rouge">DoFn</code> (defined in-line as an anonymous class) on
+each element that tokenizes the text lines into individual words. The input
+for this transform is the <code class="highlighter-rouge">PCollection</code> of text lines generated by the
+previous <code class="highlighter-rouge">TextIO.Read</code> transform. The <code class="highlighter-rouge">ParDo</code> transform outputs a new
+<code class="highlighter-rouge">PCollection</code>, where each element represents an individual word in the text.</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractWords"</span><span class="o">,</span> <span class="n">FlatMapElements</span>
+        <span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">split</span><span class="o">(</span><span class="s">"[^\\p{L}]+"</span><span class="o">))))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Flatmap transform is a simplified version of ParDo.</span>
+<span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+</code></pre>
+    </div>
+
+    <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">words</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="n">line</span><span class="x"> </span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="n">emit</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="kt">string</span><span class="p">))</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">for</span><span class="x"> </span><span class="n">_</span><span class="p">,</span><span class="x"> </span><span class="n">word</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="k">range</span><span class="x"> </span><span class="n">wordRE</span><span class="o">.</span><span class="n">FindAllString</span><span class="p">(</span><span class="n">line</span><span class="p">,</span><span class="x"> </span><span class="o">-</span><span class="m">1</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">emit</span><span class="p">(</span><span class="n">word</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span><span class="p">},</span><span class="x"> </span><span class="n">lines</span><span class="p">)</span><span class="x">
+</span></code></pre>
+    </div>
+  </li>
+  <li>
+    <p>The SDK-provided <code class="highlighter-rouge">Count</code> transform is a generic transform that takes a
+<code class="highlighter-rouge">PCollection</code> of any type, and returns a <code class="highlighter-rouge">PCollection</code> of key/value pairs.
+Each key represents a unique element from the input collection, and each
+value represents the number of times that key appeared in the input
+collection.</p>
+
+    <p>In this pipeline, the input for <code class="highlighter-rouge">Count</code> is the <code class="highlighter-rouge">PCollection</code> of individual
+words generated by the previous <code class="highlighter-rouge">ParDo</code>, and the output is a <code class="highlighter-rouge">PCollection</code>
+of key/value pairs where each key represents a unique word in the text and
+the associated value is the occurrence count for each.</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">())</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+</code></pre>
+    </div>
+
+    <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">counted</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">stats</span><span class="o">.</span><span class="n">Count</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">words</span><span class="p">)</span><span class="x">
+</span></code></pre>
+    </div>
+  </li>
+  <li>
+    <p>The next transform formats each of the key/value pairs of unique words and
+occurrence counts into a printable string suitable for writing to an output
+file.</p>
+
+    <p>The map transform is a higher-level composite transform that encapsulates a
+simple <code class="highlighter-rouge">ParDo</code>. For each element in the input <code class="highlighter-rouge">PCollection</code>, the map
+transform applies a function that produces exactly one output element.</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"FormatResults"</span><span class="o">,</span> <span class="n">MapElements</span>
+    <span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">wordCount</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">wordCount</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">wordCount</span><span class="o">.</span><span class="na">getValue</span><span class="o">()))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word_count</span><span class="p">:</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word_count</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">word_count</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+</code></pre>
+    </div>
+
+    <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">formatted</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="n">w</span><span class="x"> </span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="n">c</span><span class="x"> </span><span class="kt">int</span><span class="p">)</span><span class="x"> </span><span class="kt">string</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="n">fmt</span><span class="o">.</span><span class="n">Sprintf</span><span class="p">(</span><span class="s">"%s: %v"</span><span class="p">,</span><span class="x"> </span><span class="n">w</span><span class="p">,</span><span class="x"> </span><span class="n">c</span><span class="p">)</span><span class="x">
+</span><span class="p">},</span><span class="x"> </span><span class="n">counted</span><span class="p">)</span><span class="x">
+</span></code></pre>
+    </div>
+  </li>
+  <li>
+    <p>A text file write transform. This transform takes the final <code class="highlighter-rouge">PCollection</code> of
+formatted Strings as input and writes each element to an output text file.
+Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the
+resulting output file.</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s">'gs://my-bucket/counts.txt'</span><span class="p">)</span>
+</code></pre>
+    </div>
+
+    <div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">textio</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"wordcounts.txt"</span><span class="p">,</span><span class="x"> </span><span class="n">formatted</span><span class="p">)</span><span class="x">
+</span></code></pre>
+    </div>
+  </li>
+</ol>
+
+<p class="language-java language-py">Note that the <code class="highlighter-rouge">Write</code> transform produces a trivial result value of type <code class="highlighter-rouge">PDone</code>,
+which in this case is ignored.</p>
+
+<p class="language-go">Note that the <code class="highlighter-rouge">Write</code> transform returns no PCollections.</p>
+
+<h3 id="running-the-pipeline">Running the pipeline</h3>
+
+<p class="language-java language-py">Run the pipeline by calling the <code class="highlighter-rouge">run</code> method, which sends your pipeline to be
+executed by the pipeline runner that you specified in your <code class="highlighter-rouge">PipelineOptions</code>.</p>
+
+<p class="language-go">Run the pipeline by passing it to a runner.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">direct</span><span class="o">.</span><span class="n">Execute</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">Background</span><span class="p">(),</span><span class="x"> </span><span class="n">p</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
+
+<p class="language-java language-py">Note that the <code class="highlighter-rouge">run</code> method is asynchronous. For a blocking execution, call the
+<span class="language-java"><code class="highlighter-rouge">waitUntilFinish</code></span>
+<span class="language-py"><code class="highlighter-rouge">wait_until_finish</code></span> method on the result object
+returned by the call to <code class="highlighter-rouge">run</code>.</p>
+
+<h2 id="wordcount-example">WordCount example</h2>
+
+<p>This WordCount example introduces a few recommended programming practices that
+can make your pipeline easier to read, write, and maintain. While not explicitly
+required, they can make your pipeline’s execution more flexible, aid in testing
+your pipeline, and help make your pipeline’s code reusable.</p>
+
+<p>This section assumes that you have a good understanding of the basic concepts in
+building a pipeline. If you feel that you aren’t at that point yet, read the
+above section, <a href="#minimalwordcount-example">MinimalWordCount</a>.</p>
+
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://YOUR_GCS_BUCKET/counts \
+                                         --runner DataflowRunner \
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py</a>.</strong></p>
+
+<p><strong>To run this example in Go:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://&lt;your-gcs-bucket&gt;/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Go, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/go/examples/wordcount/wordcount.go">wordcount.go</a>.</strong></p>
+
+<p><strong>New Concepts:</strong></p>
+
+<ul>
+  <li>Applying <code class="highlighter-rouge">ParDo</code> with an explicit <code class="highlighter-rouge">DoFn</code></li>
+  <li>Creating Composite Transforms</li>
+  <li>Using Parameterizable <code class="highlighter-rouge">PipelineOptions</code></li>
+</ul>
+
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
+
+<h3 id="specifying-explicit-dofns">Specifying explicit DoFns</h3>
+
+<p class="language-java language-py">When using <code class="highlighter-rouge">ParDo</code> transforms, you need to specify the processing operation that
+gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing
+operation is a subclass of the SDK class <code class="highlighter-rouge">DoFn</code>. You can create the <code class="highlighter-rouge">DoFn</code>
+subclasses for each <code class="highlighter-rouge">ParDo</code> inline, as an anonymous inner class instance, as is
+done in the previous example (MinimalWordCount). However, it’s often a good
+idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit
+test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
+
+<p class="language-go">When using <code class="highlighter-rouge">ParDo</code> transforms, you need to specify the processing operation that
+gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing
+operation is either a named function or a struct with specially-named methods. You
+can use anomynous functions (but not closures). However, it’s often a good
+idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit
+test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// In this example, ExtractWordsFn is a DoFn that is defined as a static class:</span>
+
+<span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractWordsFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="o">...</span>
+
+    <span class="nd">@ProcessElement</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+        <span class="o">...</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># In this example, the DoFns are defined as classes:</span>
+
+<span class="k">class</span> <span class="nc">FormatAsTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="k">yield</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+
+<span class="n">formatted</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatAsTextFn</span><span class="p">())</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// In this example, extractFn is a DoFn that is defined as a function:</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">extractFn</span><span class="p">(</span><span class="n">ctx</span><span class="x"> </span><span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span><span class="x"> </span><span class="n">line</span><span class="x"> </span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="n">emit</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="kt">string</span><span class="p">))</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="o">...</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<h3 id="creating-composite-transforms">Creating composite transforms</h3>
+
+<p class="language-java language-py">If you have a processing operation that consists of multiple transforms or
+<code class="highlighter-rouge">ParDo</code> steps, you can create it as a subclass of <code class="highlighter-rouge">PTransform</code>. Creating a
+<code class="highlighter-rouge">PTransform</code> subclass allows you to encapsulate complex transforms, can make
+your pipeline’s structure more clear and modular, and makes unit testing easier.</p>
+
+<p class="language-go">If you have a processing operation that consists of multiple transforms or
+<code class="highlighter-rouge">ParDo</code> steps, you can use a normal Go function to encapsulate them. You can
+furthermore use a named subscope to group them as a composite transform visible
+for monitoring.</p>
+
+<p class="language-java language-py">In this example, two transforms are encapsulated as the <code class="highlighter-rouge">PTransform</code> subclass
+<code class="highlighter-rouge">CountWords</code>. <code class="highlighter-rouge">CountWords</code> contains the <code class="highlighter-rouge">ParDo</code> that runs <code class="highlighter-rouge">ExtractWordsFn</code> and
+the SDK-provided <code class="highlighter-rouge">Count</code> transform.</p>
+
+<p class="language-go">In this example, two transforms are encapsulated as a <code class="highlighter-rouge">CountWords</code> function.</p>
+
+<p>When <code class="highlighter-rouge">CountWords</code> is defined, we specify its ultimate input and output; the
+input is the <code class="highlighter-rouge">PCollection&lt;String&gt;</code> for the extraction operation, and the output
+is the <code class="highlighter-rouge">PCollection&lt;KV&lt;String, Long&gt;&gt;</code> produced by the count operation.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CountWords</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// Convert lines of text into individual words.</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ExtractWordsFn</span><span class="o">()));</span>
+
+    <span class="c1">// Count the number of times each word occurs.</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">wordCounts</span> <span class="o">=</span>
+        <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">());</span>
+
+    <span class="k">return</span> <span class="n">wordCounts</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="o">...</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(...)</span>
+   <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CountWords</span><span class="o">())</span>
+   <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="c"># Convert lines of text into individual words.</span>
+            <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+
+            <span class="c"># Count the number of times each word occurs.</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+<span class="n">counts</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">func</span><span class="x"> </span><span class="n">CountWords</span><span class="p">(</span><span class="n">s</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">Scope</span><span class="p">,</span><span class="x"> </span><span class="n">lines</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="p">{</span><span class="x">
+	</span><span class="n">s</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">s</span><span class="o">.</span><span class="n">Scope</span><span class="p">(</span><span class="s">"CountWords"</span><span class="p">)</span><span class="x">
+
+	</span><span class="c">// Convert lines of text into individual words.</span><span class="x">
+	</span><span class="n">col</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">extractFn</span><span class="p">,</span><span class="x"> </span><span class="n">lines</span><span class="p">)</span><span class="x">
+
+	</span><span class="c">// Count the number of times each word occurs.</span><span class="x">
+	</span><span class="k">return</span><span class="x"> </span><span class="n">stats</span><span class="o">.</span><span class="n">Count</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">col</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<h3 id="using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</h3>
+
+<p>You can hard-code various execution options when you run your pipeline. However,
+the more common way is to define your own configuration options via command-line
+argument parsing. Defining your configuration options via the command-line makes
+the code more easily portable across different runners.</p>
+
+<p class="language-java language-py">Add arguments to be processed by the command-line parser, and specify default
+values for them. You can then access the options values in your pipeline code.</p>
+
+<p class="language-go">You can use the standard <code class="highlighter-rouge">flag</code> package for this purpose.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">interface</span> <span class="nc">WordCountOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+  <span class="nd">@Description</span><span class="o">(</span><span class="s">"Path of the file to read from"</span><span class="o">)</span>
+  <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"gs://dataflow-samples/shakespeare/kinglear.txt"</span><span class="o">)</span>
+  <span class="n">String</span> <span class="nf">getInputFile</span><span class="o">();</span>
+  <span class="kt">void</span> <span class="nf">setInputFile</span><span class="o">(</span><span class="n">String</span> <span class="n">value</span><span class="o">);</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">WordCountOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">()</span>
+      <span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">WordCountOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WordCountOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
+
+<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://apache-beam-samples/shakespeare/kinglear.txt"</span><span class="p">,</span><span class="x"> </span><span class="s">"File(s) to read."</span><span class="p">)</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">main</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="o">...</span><span class="x">
+    </span><span class="n">p</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">NewPipeline</span><span class="p">()</span><span class="x">
+    </span><span class="n">s</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">p</span><span class="o">.</span><span class="n">Root</span><span class="p">()</span><span class="x">
+
+    </span><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="o">*</span><span class="n">input</span><span class="p">)</span><span class="x">
+    </span><span class="o">...</span><span class="x">
+</span></code></pre>
+</div>
+
+<h2 id="debuggingwordcount-example">DebuggingWordCount example</h2>
+
+<p>The DebuggingWordCount example demonstrates some best practices for
+instrumenting your pipeline code.</p>
+
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see
+<a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://YOUR_GCS_BUCKET/counts \
+                                         --runner DataflowRunner \
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">wordcount_debugging.py</a>.</strong></p>
+
+<p><strong>To run this example in Go:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ debugging_wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+$ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                      --output gs://&lt;your-gcs-bucket&gt;/counts \
+                      --runner dataflow \
+                      --project your-gcp-project \
+                      --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+                      --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Go, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/go/examples/debugging_wordcount/debugging_wordcount.go">debugging_wordcount.go</a>.</strong></p>
+
+<p><strong>New Concepts:</strong></p>
+
+<ul>
+  <li>Logging</li>
+  <li>Testing your Pipeline via <code class="highlighter-rouge">PAssert</code></li>
+</ul>
+
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
+
+<h3 id="logging">Logging</h3>
+
+<p>Each runner may choose to handle logs in its own way.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// This example uses .trace and .debug:</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">DebuggingWordCount</span> <span class="o">{</span>
+
+  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FilterTextFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+    <span class="o">...</span>
+
+    <span class="nd">@ProcessElement</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+      <span class="k">if</span> <span class="o">(...)</span> <span class="o">{</span>
+        <span class="o">...</span>
+        <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span><span class="s">"Matched: "</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
+      <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+        <span class="o">...</span>
+        <span class="n">LOG</span><span class="o">.</span><span class="na">trace</span><span class="o">(</span><span class="s">"Did not match: "</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># [START example_wordcount_debugging_aggregators]</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="s">"""A DoFn that filters for a specific key based on a regular expression."""</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
+    <span class="c"># A custom metric can track values in your pipeline as it runs. Create</span>
+    <span class="c"># custom metrics matched_word and unmatched_words.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'matched_words'</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'umatched_words'</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern</span><span class="p">,</span> <span class="n">word</span><span class="p">):</span>
+      <span class="c"># Log at INFO level each element we match. When executing this pipeline</span>
+      <span class="c"># using the Dataflow service, these log lines will appear in the Cloud</span>
+      <span class="c"># Logging UI.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'Matched </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+      <span class="c"># Add 1 to the custom metric counter matched_words</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+      <span class="k">yield</span> <span class="n">element</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c"># Log at the "DEBUG" level each element that is not matched. Different</span>
+      <span class="c"># log levels can be used to control the verbosity of logging providing</span>
+      <span class="c"># an effective mechanism to filter less important information. Note</span>
+      <span class="c"># currently only "INFO" and higher level logs are emitted to the Cloud</span>
+      <span class="c"># Logger. This log message will not be visible in the Cloud Logger.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">'Did not match </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+      <span class="c"># Add 1 to the custom metric counter umatched_words</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">type</span><span class="x"> </span><span class="n">filterFn</span><span class="x"> </span><span class="k">struct</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="o">...</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">f</span><span class="x"> </span><span class="o">*</span><span class="n">filterFn</span><span class="p">)</span><span class="x"> </span><span class="n">ProcessElement</span><span class="p">(</span><span class="n">ctx</span><span class="x"> </span><span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span><span class="x"> </span><span class="n">word</span><span class="x"> </span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="n">count</span><span class="x"> </span><span class="kt">int</span><span class="p">,</span><span class="x"> </span><span class="n">emit</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="kt">int</span><span class="p">))</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">if</span><span class="x"> </span><span class="n">f</span><span class="o">.</span><span class="n">re</span><span class="o">.</span><span class="n">MatchString</span><span class="p">(</span><span class="n">word</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+         </span><span class="c">// Log at the "INFO" level each element that we match.</span><span class="x">
+         </span><span class="n">log</span><span class="o">.</span><span class="n">Infof</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="x"> </span><span class="s">"Matched: %v"</span><span class="p">,</span><span class="x"> </span><span class="n">word</span><span class="p">)</span><span class="x">
+         </span><span class="n">emit</span><span class="p">(</span><span class="n">word</span><span class="p">,</span><span class="x"> </span><span class="n">count</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x"> </span><span class="k">else</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="c">// Log at the "DEBUG" level each element that is not matched.</span><span class="x">
+        </span><span class="n">log</span><span class="o">.</span><span class="n">Debugf</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="x"> </span><span class="s">"Did not match: %v"</span><span class="p">,</span><span class="x"> </span><span class="n">word</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<h4 id="direct-runner">Direct Runner</h4>
+
+<p>When executing your pipeline with the <code class="highlighter-rouge">DirectRunner</code>, you can print log
+messages directly to your local console. <span class="language-java">If you use
+the Beam SDK for Java, you must add <code class="highlighter-rouge">Slf4j</code> to your class path.</span></p>
+
+<h4 id="cloud-dataflow-runner">Cloud Dataflow Runner</h4>
+
+<p>When executing your pipeline with the <code class="highlighter-rouge">DataflowRunner</code>, you can use Stackdriver
+Logging. Stackdriver Logging aggregates the logs from all of your Cloud Dataflow
+job’s workers to a single location in the Google Cloud Platform Console. You can
+use Stackdriver Logging to search and access the logs from all of the workers
+that Cloud Dataflow has spun up to complete your job. Logging statements in your
+pipeline’s <code class="highlighter-rouge">DoFn</code> instances will appear in Stackdriver Logging as your pipeline
+runs.</p>
+
+<p class="language-java language-py">You can also control the worker log levels. Cloud Dataflow workers that execute
+user code are configured to log to Stackdriver Logging by default at “INFO” log
+level and higher. You can override log levels for specific logging namespaces by
+specifying: <code class="highlighter-rouge">--workerLogLevelOverrides={"Name1":"Level1","Name2":"Level2",...}</code>.
+For example, by specifying <code class="highlighter-rouge">--workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}</code>
+when executing a pipeline using the Cloud Dataflow service, Stackdriver Logging
+will contain only “DEBUG” or higher level logs for the package in addition to
+the default “INFO” or higher level logs.</p>
+
+<p class="language-java language-py">The default Cloud Dataflow worker logging configuration can be overridden by
+specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=&lt;one of TRACE, DEBUG, INFO, WARN, ERROR&gt;</code>.
+For example, by specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=DEBUG</code> when executing a
+pipeline with the Cloud Dataflow service, Cloud Logging will contain all “DEBUG”
+or higher level logs. Note that changing the default worker log level to TRACE
+or DEBUG significantly increases the amount of logs output.</p>
+
+<h4 id="apache-spark-runner">Apache Spark Runner</h4>
+
+<blockquote>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-792">BEAM-792</a>).</p>
+</blockquote>
+
+<h4 id="apache-flink-runner">Apache Flink Runner</h4>
+
+<blockquote>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-791">BEAM-791</a>).</p>
+</blockquote>
+
+<h4 id="apache-apex-runner">Apache Apex Runner</h4>
+
+<blockquote>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-2285">BEAM-2285</a>).</p>
+</blockquote>
+
+<h3 id="testing-your-pipeline-with-asserts">Testing your pipeline with asserts</h3>
+
+<p class="language-java language-py"><span class="language-java"><code class="highlighter-rouge">PAssert</code></span><span class="language-py"><code class="highlighter-rouge">assert_that</code></span>
+is a set of convenient PTransforms in the style of Hamcrest’s collection
+matchers that can be used when writing pipeline level tests to validate the
+contents of PCollections. Asserts are best used in unit tests with small datasets.</p>
+
+<p class="language-go">The <code class="highlighter-rouge">passert</code> package contains convenient PTransforms that can be used when
+writing pipeline level tests to validate the contents of PCollections. Asserts
+are best used in unit tests with small datasets.</p>
+
+<p class="language-java">The following example verifies that the set of filtered words matches our
+expected counts. The assert does not produce any output, and the pipeline only
+succeeds if all of the expectations are met.</p>
+
+<p class="language-py language-go">The following example verifies that two collections contain the same values. The
+assert does not produce any output, and the pipeline only succeeds if all of the
+expectations are met.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+  <span class="o">...</span>
+  <span class="n">List</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">expectedResults</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
+        <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"Flourish"</span><span class="o">,</span> <span class="mi">3L</span><span class="o">),</span>
+        <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"stomach"</span><span class="o">,</span> <span class="mi">1L</span><span class="o">));</span>
+  <span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">filteredWords</span><span class="o">).</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">expectedResults</span><span class="o">);</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.testing.util</span> <span class="kn">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.testing.util</span> <span class="kn">import</span> <span class="n">equal_to</span>
+
+<span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+  <span class="n">assert_that</span><span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="o">...</span><span class="x">
+</span><span class="n">passert</span><span class="o">.</span><span class="n">Equals</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">formatted</span><span class="p">,</span><span class="x"> </span><span class="s">"Flourish: 3"</span><span class="p">,</span><span class="x"> </span><span class="s">"stomach: 1"</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
+
+<p class="language-java">See <a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java">DebuggingWordCountTest</a>
+for an example unit test.</p>
+
+<h2 id="windowedwordcount-example">WindowedWordCount example</h2>
+
+<p>The WindowedWordCount example counts words in text just as the previous
+examples did, but introduces several advanced concepts.</p>
+
+<p><strong>New Concepts:</strong></p>
+
+<ul>
+  <li>Unbounded and bounded datasets</li>
+  <li>Adding timestamps to data</li>
+  <li>Windowing</li>
+  <li>Reusing PTransforms over windowed PCollections</li>
+</ul>
+
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
+
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">WindowedWordCount</a>.</strong></p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<p>This pipeline writes its results to a BigQuery table <code class="highlighter-rouge">--output_table</code>
+parameter. using the format <code class="highlighter-rouge">PROJECT:DATASET.TABLE</code> or
+<code class="highlighter-rouge">DATASET.TABLE</code>.</p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
+                                         --output_table PROJECT:DATASET.TABLE \
+                                         --runner DataflowRunner \
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py">windowed_wordcount.py</a>.</strong></p>
+
+<p><strong>To run this example in Go:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ windowed_wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+$ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://&lt;your-gcs-bucket&gt;/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Go, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/go/examples/windowed_wordcount/windowed_wordcount.go">windowed_wordcount.go</a>.</strong></p>
+
+<h3 id="unbounded-and-bounded-datasets">Unbounded and bounded datasets</h3>
+
+<p>Beam allows you to create a single pipeline that can handle both bounded and
+unbounded datasets. If your dataset has a fixed number of elements, it is a bounded
+dataset and all of the data can be processed together. For bounded datasets,
+the question to ask is “Do I have all of the data?” If data continuously
+arrives (such as an endless stream of game scores in the
+<a href="https://beam.apache.org/get-started/mobile-gaming-example/">Mobile gaming example</a>,
+it is an unbounded dataset. An unbounded dataset is never available for
+processing at any one time, so the data must be processed using a streaming
+pipeline that runs continuously. The dataset will only be complete up to a
+certain point, so the question to ask is “Up until what point do I have all of
+the data?” Beam uses <a href="/documentation/programming-guide/#windowing">windowing</a>
+to divide a continuously updating dataset into logical windows of finite size.
+If your input is unbounded, you must use a runner that supports streaming.</p>
+
+<p>If your pipeline’s input is bounded, then all downstream PCollections will also be
+bounded. Similarly, if the input is unbounded, then all downstream PCollections
+of the pipeline will be unbounded, though separate branches may be independently
+bounded.</p>
+
+<p>Recall that the input for this example is a set of Shakespeare’s texts, which is
+a finite set of data. Therefore, this example reads bounded data from a text
+file:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+    <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="o">...</span>
+    <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="n">pipeline</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInputFile</span><span class="o">()))</span>
+
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">func</span><span class="x"> </span><span class="n">main</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="o">...</span><span class="x">
+   </span><span class="n">p</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">NewPipeline</span><span class="p">()</span><span class="x">
+   </span><span class="n">s</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">p</span><span class="o">.</span><span class="n">Root</span><span class="p">()</span><span class="x">
+
+   </span><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="o">*</span><span class="n">input</span><span class="p">)</span><span class="x">
+   </span><span class="o">...</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<h3 id="adding-timestamps-to-data">Adding timestamps to data</h3>
+
+<p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated <a href="/documentation/programming-guide#element-timestamps">timestamp</a>.
+The timestamp for each element is initially assigned by the source that creates
+the <code class="highlighter-rouge">PCollection</code>. Some sources that create unbounded PCollections can assign
+each new element a timestamp that corresponds to when the element was read or
+added. You can manually assign or adjust timestamps with a <code class="highlighter-rouge">DoFn</code>; however, you
+can only move timestamps forward in time.</p>
+
+<p>In this example the input is bounded. For the purpose of the example, the <code class="highlighter-rouge">DoFn</code>
+method named <code class="highlighter-rouge">AddTimestampsFn</code> (invoked by <code class="highlighter-rouge">ParDo</code>) will set a timestamp for
+each element in the <code class="highlighter-rouge">PCollection</code>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">(</span><span class="n">minTimestamp</span><span class="o">,</span> <span class="n">maxTimestamp</span><span class="o">)));</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">timestampedLines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="o">&amp;</span><span class="n">addTimestampFn</span><span class="p">{</span><span class="n">Min</span><span class="o">:</span><span class="x"> </span><span class="n">mtime</span><span class="o">.</span><span class="n">Now</span><span class="p">()},</span><span class="x"> </span><span class="n">lines</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
+
+<p>Below is the code for <code class="highlighter-rouge">AddTimestampFn</code>, a <code class="highlighter-rouge">DoFn</code> invoked by <code class="highlighter-rouge">ParDo</code>, that sets
+the data element of the timestamp given the element itself. For example, if the
+elements were log lines, this <code class="highlighter-rouge">ParDo</code> could parse the time out of the log string
+and set it as the element’s timestamp. There are no timestamps inherent in the
+works of Shakespeare, so in this case we’ve made up random timestamps just to
+illustrate the concept. Each line of the input text will get a random associated
+timestamp sometime in a 2-hour period.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">AddTimestampFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Instant</span> <span class="n">minTimestamp</span><span class="o">;</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Instant</span> <span class="n">maxTimestamp</span><span class="o">;</span>
+
+  <span class="n">AddTimestampFn</span><span class="o">(</span><span class="n">Instant</span> <span class="n">minTimestamp</span><span class="o">,</span> <span class="n">Instant</span> <span class="n">maxTimestamp</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">minTimestamp</span> <span class="o">=</span> <span class="n">minTimestamp</span><span class="o">;</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">maxTimestamp</span> <span class="o">=</span> <span class="n">maxTimestamp</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">Instant</span> <span class="n">randomTimestamp</span> <span class="o">=</span>
+      <span class="k">new</span> <span class="nf">Instant</span><span class="o">(</span>
+          <span class="n">ThreadLocalRandom</span><span class="o">.</span><span class="na">current</span><span class="o">()</span>
+          <span class="o">.</span><span class="na">nextLong</span><span class="o">(</span><span class="n">minTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">(),</span> <span class="n">maxTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()));</span>
+
+    <span class="cm">/**
+     * Concept #2: Set the data element with that timestamp.
+     */</span>
+    <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">randomTimestamp</span><span class="o">));</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">type</span><span class="x"> </span><span class="n">addTimestampFn</span><span class="x"> </span><span class="k">struct</span><span class="x"> </span><span class="p">{</span><span class="x">
+	</span><span class="n">Min</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">EventTime</span><span class="x"> </span><span class="s">`json:"min"`</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">f</span><span class="x"> </span><span class="o">*</span><span class="n">addTimestampFn</span><span class="p">)</span><span class="x"> </span><span class="n">ProcessElement</span><span class="p">(</span><span class="n">x</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">X</span><span class="p">)</span><span class="x"> </span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">EventTime</span><span class="p">,</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">X</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+	</span><span class="n">timestamp</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">f</span><span class="o">.</span><span class="n">Min</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">Duration</span><span class="p">(</span><span class="n">rand</span><span class="o">.</span><span class="n">Int63n</span><span class="p">(</span><span class="m">2</span><span class="x"> </span><span class="o">*</span><span class="x"> </span><span class="n">time</span><span class="o">.</span><span class="n">Hour</span><span class="o">.</span><span class="n">Nanoseconds</span><span class="p">())))</span><span class="x">
+	</span><span class="k">return</span><span class="x"> </span><span class="n">timestamp</span><span class="p">,</span><span class="x"> </span><span class="n">x</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<p class="language-go">Note that the use of the <code class="highlighter-rouge">beam.X</code> “type variable” allows the transform to be
+used for any type.</p>
+
+<h3 id="windowing">Windowing</h3>
+
+<p>Beam uses a concept called <strong>Windowing</strong> to subdivide a <code class="highlighter-rouge">PCollection</code> into
+bounded sets of elements. PTransforms that aggregate multiple elements process
+each <code class="highlighter-rouge">PCollection</code> as a succession of multiple, finite windows, even though the
+entire collection itself may be of infinite size (unbounded).</p>
+
+<p>The WindowedWordCount example applies fixed-time windowing, wherein each
+window represents a fixed time interval. The fixed window size for this example
+defaults to 1 minute (you can change this with a command-line option).</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">windowedWords</span> <span class="o">=</span> <span class="n">input</span>
+  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
+    <span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getWindowSize</span><span class="o">()))));</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">windowedLines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">window</span><span class="o">.</span><span class="n">NewFixedWindows</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">Minute</span><span class="p">),</span><span class="x"> </span><span class="n">timestampedLines</span><span class="p">)</span><span class="x">
+
+</span></code></pre>
+</div>
+
+<h3 id="reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</h3>
+
+<p>You can reuse existing PTransforms that were created for manipulating simple
+PCollections over windowed PCollections as well.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">wordCounts</span> <span class="o">=</span> <span class="n">windowedWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">WordCount</span><span class="o">.</span><span class="na">CountWords</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">counted</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">wordcount</span><span class="o">.</span><span class="n">CountWords</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">windowedLines</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
+
+<h2 id="streamingwordcount-example">StreamingWordCount example</h2>
+
+<p>The StreamingWordCount example is a streaming pipeline that reads Pub/Sub
+messages from a Pub/Sub subscription or topic, and performs a frequency count on
+the words in each message. Similar to WindowedWordCount, this example applies
+fixed-time windowing, wherein each window represents a fixed time interval. The
+fixed window size for this example is 15 seconds. The pipeline outputs the
+frequency count of the words seen in each 15 second window.</p>
+
+<p><strong>New Concepts:</strong></p>
+
+<ul>
+  <li>Reading an unbounded dataset</li>
+  <li>Writing unbounded results</li>
+</ul>
+
+<p><strong>To run this example in Java:</strong></p>
+
+<blockquote>
+  <p><strong>Note:</strong> StreamingWordCount is not yet available for the Java SDK.</p>
+</blockquote>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.streaming_wordcount \
+  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+  --streaming
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.streaming_wordcount \
+  --runner DataflowRunner \
+  --project YOUR_GCP_PROJECT \
+  --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
+  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+  --streaming
+</code></pre>
+</div>
+
+<div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py">streaming_wordcount.py</a>.</strong></p>
+
+<p><strong>To run this example in Go:</strong></p>
+
+<blockquote>
+  <p><strong>Note:</strong> StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-4292">BEAM-4292</a>).</p>
+</blockquote>
+
+<h3 id="reading-an-unbounded-dataset">Reading an unbounded dataset</h3>
+
+<p>This example uses an unbounded dataset as input. The code reads Pub/Sub
+messages from a Pub/Sub subscription or topic using
+<a href="/documentation/sdks/pydoc/2.6.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub"><code class="highlighter-rouge">beam.io.ReadStringsFromPubSub</code></a>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// This example is not currently available for the Beam SDK for Java.</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># Read from Pub/Sub into a PCollection.</span>
+  <span class="k">if</span> <span class="n">known_args</span><span class="o">.</span><span class="n">input_subscription</span><span class="p">:</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadStringsFromPubSub</span><span class="p">(</span>
+        <span class="n">subscription</span><span class="o">=</span><span class="n">known_args</span><span class="o">.</span><span class="n">input_subscription</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadStringsFromPubSub</span><span class="p">(</span><span class="n">topic</span><span class="o">=</span><span class="n">known_args</span><span class="o">.</span><span class="n">input_topic</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="x">  </span><span class="c">// This example is not currently available for the Beam SDK for Go.</span><span class="x">
+</span></code></pre>
+</div>
+<h3 id="writing-unbounded-results">Writing unbounded results</h3>
+
+<p>When the input is unbounded, the same is true of the output <code class="highlighter-rouge">PCollection</code>. As
+such, you must make sure to choose an appropriate I/O for the results. Some I/Os
+support only bounded output, while others support both bounded and unbounded
+outputs.</p>
+
+<p>This example uses an unbounded <code class="highlighter-rouge">PCollection</code> and streams the results to
+Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
+using <a href="/documentation/sdks/pydoc/2.6.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub"><code class="highlighter-rouge">beam.io.WriteStringsToPubSub</code></a>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// This example is not currently available for the Beam SDK for Java.</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># Write to Pub/Sub</span>
+  <span class="n">output</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteStringsToPubSub</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output_topic</span><span class="p">)</span>
+</code></pre>
+</div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="x">  </span><span class="c">// This example is not currently available for the Beam SDK for Go.</span><span class="x">
+</span></code></pre>
+</div>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

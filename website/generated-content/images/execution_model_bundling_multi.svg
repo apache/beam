@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   id="svg2"
+   height="396.51"
+   width="405.69"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="execution_model_bundling_multi.svg">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1146"
+     id="namedview36"
+     showgrid="false"
+     inkscape:zoom="1.6834602"
+     inkscape:cx="102.45652"
+     inkscape:cy="198.255"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs7289">
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker4605"
+       style="overflow:visible;">
+      <path
+         id="path4370"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) rotate(180) translate(1,0)" />
+    </marker>
+    <marker
+       id="Arrow2Lend"
+       refY="0"
+       refX="0"
+       orient="auto">
+      <path
+         id="path3823"
+         stroke-linejoin="round"
+         d="M8.7186,4.0337-2.2073,0.016013,8.7186-4.0017c-1.7455,2.3721-1.7354,5.6175-6E-7,8.0354z"
+         fill-rule="evenodd"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
+         stroke-width="0.625" />
+    </marker>
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <rect
+     id="rect3025-5"
+     height="36.429"
+     width="136.1"
+     stroke="#000"
+     stroke-dasharray="none"
+     stroke-miterlimit="4"
+     y="70.871"
+     x="229.33"
+     stroke-width="0.5"
+     fill="#d8bfd8" />
+  <rect
+     id="rect3025-9"
+     height="36.429"
+     width="96.969"
+     stroke="#000"
+     stroke-dasharray="none"
+     stroke-miterlimit="4"
+     y="71.523"
+     x="128.32"
+     stroke-width="0.5"
+     fill="#add8e6" />
+  <rect
+     id="rect3161-3"
+     height="51.429"
+     width="5"
+     y="64.023"
+     x="224.46"
+     fill="#1c2422" />
+  <text
+     id="text3163-19"
+     style="letter-spacing:0px;word-spacing:0px;"
+     font-family="Sans"
+     xml:space="preserve"
+     font-size="20px"
+     line-height="125%"
+     font-style="normal"
+     y="94.810165"
+     x="146.11887"
+     font-weight="normal"
+     fill="#000000"><tspan
+       id="tspan3165-4"
+       y="94.810165"
+       x="146.11887"
+       font-size="14px">Bundle A</tspan></text>
+  <text
+     id="text3163-1-7"
+     style="letter-spacing:0px;word-spacing:0px;"
+     font-family="Sans"
+     xml:space="preserve"
+     font-size="20px"
+     line-height="125%"
+     font-style="normal"
+     y="94.810158"
+     x="261.11557"
+     font-weight="normal"
+     fill="#000000"><tspan
+       id="tspan3165-8-8"
+       y="94.810158"
+       x="261.11557"
+       font-size="14px">Bundle B</tspan></text>
+  <rect
+     id="rect3025-5-4"
+     stroke-dasharray="none"
+     transform="scale(-1,1)"
+     height="36.429"
+     width="136.1"
+     stroke="#000"
+     stroke-miterlimit="4"
+     y="221.22"
+     x="-264.42"
+     stroke-width="0.5"
+     fill="#1e90ff" />
+  <rect
+     id="rect3025-9-5"
+     transform="scale(-1,1)"
+     height="36.429"
+     width="96.969"
+     stroke="#000"
+     stroke-dasharray="none"
+     stroke-miterlimit="4"
+     y="221.87"
+     x="-365.44"
+     stroke-width="0.5"
+     fill="#9370db" />
+  <rect
+     id="rect3161-3-0"
+     transform="scale(-1,1)"
+     height="51.429"
+     width="5"
+     y="214.37"
+     x="-269.3"
+     fill="#1c2422" />
+  <g
+     id="g3135-2"
+     transform="matrix(0.88811359,0,0,1,-3.8561905,-743.90322)"
+     stroke="#000"
+     stroke-miterlimit="4"
+     stroke-dasharray="none"
+     stroke-width="0.53056151"
+     fill="#f4a460">
+    <rect
+       id="rect2987-2"
+       ry="11.782"
+       height="34.286"
+       width="147.47"
+       stroke="#000"
+       stroke-dasharray="none"
+       stroke-miterlimit="4"
+       y="876.55"
+       x="49.663"
+       stroke-width="0.53056"
+       fill="#f4a460" />
+  </g>
+  <g
+     id="g3135-7"
+     transform="matrix(0.88811359,0,0,1,-3.0891015,-592.0192)">
+    <rect
+       id="rect2987-36"
+       ry="11.782"
+       height="34.286"
+       width="147.47"
+       stroke="#000"
+       stroke-dasharray="none"
+       stroke-miterlimit="4"
+       y="876.55"
+       x="49.663"
+       stroke-width="0.53056"
+       fill="#f4a460" />
+    <text
+       id="text9065"
+       style="letter-spacing:0px;word-spacing:0px;"
+       font-weight="normal"
+       xml:space="preserve"
+       transform="scale(1.061123,0.94239781)"
+       font-size="42.44491959px"
+       font-style="normal"
+       y="792.91864"
+       x="85.25296"
+       font-family="Sans"
+       line-height="125%"
+       fill="#000000"><tspan
+         id="tspan9067"
+         font-size="16.97796822px"
+         y="792.91864"
+         x="85.25296">ParDo1</tspan></text>
+    <text
+       id="text9069"
+       style="letter-spacing:0px;word-spacing:0px;"
+       font-weight="normal"
+       xml:space="preserve"
+       transform="scale(1.061123,0.94239781)"
+       font-size="42.44491959px"
+       font-style="normal"
+       y="953.38422"
+       x="85.319267"
+       font-family="Sans"
+       line-height="125%"
+       fill="#000000"><tspan
+         id="tspan9071"
+         font-size="16.97796822px"
+         y="953.38422"
+         x="85.319267">ParDo2</tspan></text>
+    <text
+       id="text3153"
+       font-size="21.22245979px"
+       font-family="Sans"
+       transform="scale(1.061123,0.94239781)"
+       style="letter-spacing:0px;word-spacing:0px;"
+       line-height="125%"
+       xml:space="preserve"
+       y="686.90991"
+       x="151.91734"
+       font-weight="normal"
+       font-style="normal"
+       fill="#000000"><tspan
+         id="tspan3155"
+         y="686.90991"
+         x="151.91734"
+         font-size="16.97796822px">Input collection to ParDo1:</tspan></text>
+    <text
+       id="text3153-3"
+       font-size="21.22245979px"
+       font-family="Sans"
+       transform="scale(1.061123,0.94239781)"
+       style="letter-spacing:0px;word-spacing:0px;"
+       line-height="125%"
+       xml:space="preserve"
+       y="848.19299"
+       x="150.28938"
+       font-weight="normal"
+       font-style="normal"
+       fill="#000000"><tspan
+         id="tspan3155-1"
+         y="848.19299"
+         x="150.28938"
+         font-size="16.97796822px">Input collection to ParDo2:</tspan></text>
+  </g>
+  <text
+     id="text3163-19-6"
+     style="letter-spacing:0px;word-spacing:0px;"
+     font-family="Sans"
+     xml:space="preserve"
+     font-size="20px"
+     line-height="125%"
+     font-style="normal"
+     y="243.86116"
+     x="168.85825"
+     font-weight="normal"
+     fill="#000000"><tspan
+       id="tspan3165-4-3"
+       y="243.86116"
+       x="168.85825"
+       font-size="14px">Bundle C</tspan></text>
+  <text
+     id="text3163-19-2"
+     style="letter-spacing:0px;word-spacing:0px;"
+     font-family="Sans"
+     xml:space="preserve"
+     font-size="20px"
+     line-height="125%"
+     font-style="normal"
+     y="244.16243"
+     x="286.22314"
+     font-weight="normal"
+     fill="#000000"><tspan
+       id="tspan3165-4-0"
+       y="244.16243"
+       x="286.22314"
+       font-size="14px">Bundle D</tspan></text>
+  <path
+     id="path8330"
+     stroke-linejoin="miter"
+     style="marker-end:url(#marker4605)"
+     d="m106.48,15.5,0,117.4"
+     stroke="#000"
+     stroke-linecap="butt"
+     stroke-width="1px"
+     fill="none" />
+  <path
+     id="path8330-5"
+     stroke-linejoin="miter"
+     style="marker-end:url(#marker4605)"
+     d="m105.72,167.38,0,117.4"
+     stroke="#000"
+     stroke-linecap="butt"
+     stroke-width="1px"
+     fill="none" />
+  <path
+     id="path8522"
+     stroke-linejoin="miter"
+     style="marker-end:url(#marker4605)"
+     d="m105.54,318.99-0.71152,61.191"
+     stroke="#000"
+     stroke-linecap="butt"
+     stroke-width="1px"
+     fill="none" />
+</svg>
