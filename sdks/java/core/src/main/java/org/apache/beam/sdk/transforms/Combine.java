@@ -254,7 +254,7 @@ public class Combine {
    *
    * <pre>{@code
    * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
-   *   public static class Accum implements java.io.Serializable {
+   *   public static class Accum implements Serializable {
    *     int sum = 0;
    *     int count = 0;
    *
@@ -309,13 +309,17 @@ public class Combine {
    *
    * <p>Some form of data encoding is required when using custom types in a CombineFn which do not
    * have well-known coders. The sample code above uses a custom Accumulator which gets coder by
-   * implementing {@code java.io.Serializable}. However in cases where {@code java.io.Serializable}
-   * is not efficient or applicable, there are two alternatives for encoding:
+   * implementing {@link java.io.Serializable}. By doing this, we are relying on the generic {@link
+   * org.apache.beam.sdk.coders.CoderProvider}, which is able to provide a coder for any {@link
+   * java.io.Serializable} if applicable. In cases where {@link java.io.Serializable} is not
+   * efficient, or inapplicable, in general there are two alternatives for encoding:
    *
    * <ul>
-   *   <li>Generic coder class: Implement a coder class explicitly and use the {@code @DefaultCoder}
-   *       tag.
-   *   <li>CombineFn specific way: While extending CombineFn, overwrite both {@link
+   *   <li>Default {@link org.apache.beam.sdk.coders.CoderRegistry}. For example, implement a coder
+   *       class explicitly and use the {@code @DefaultCoder} tag. See the {@link
+   *       org.apache.beam.sdk.coders.CoderRegistry} for the numerous ways in which to bind a type
+   *       to a coder.
+   *   <li>CombineFn specific way. While extending CombineFn, overwrite both {@link
    *       #getAccumulatorCoder} and {@link #getDefaultOutputCoder}.
    * </ul>
    *
