@@ -29,6 +29,7 @@ configurations {
 }
 
 dependencies {
+  compile library.java.guava
   compile library.java.hamcrest_library
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
