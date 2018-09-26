@@ -63,14 +63,14 @@ class CommonJobProperties {
                                            String branch = 'master',
                                            int timeout = 100,
                                            boolean allowRemotePoll = true,
-                                           boolean localPerfTest = false) {
+                                           String jenkinsExecutorLabel =  'beam') {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
             timeout,
             allowRemotePoll,
-            localPerfTest)
+            jenkinsExecutorLabel)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -80,12 +80,7 @@ class CommonJobProperties {
                                                String defaultBranch,
                                                int defaultTimeout,
                                                boolean allowRemotePoll = true,
-                                               boolean localPerfTest = false) {
-    def jenkinsExecutorLabel = 'beam'
-    if (localPerfTest) {
-      jenkinsExecutorLabel = 'beam-perf'
-    }
-
+                                               String jenkinsExecutorLabel = 'beam') {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
