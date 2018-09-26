@@ -764,6 +764,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           dstFiles,
           StandardMoveOptions.IGNORE_MISSING_FILES,
           StandardMoveOptions.REPLACE_EXISTING);
+      removeTemporaryFiles(srcFiles); // removes temp folder if applicable
     }
 
     /**
