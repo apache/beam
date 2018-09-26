@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam Docker Images</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/contribute/docker-images/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Contribute</span></li>
+<li><a href="/contribute/">Get started contributing</a></li>
+<li>
+  <span class="section-nav-list-title">IDE tips</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/intellij/">IntelliJ Tips</a></li>
+    <li><a href="/contribute/eclipse/">Eclipse Tips</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Technical Docs</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/testing/">Testing guide</a></li>
+    <ul>
+      <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage Guide</a></li>
+    </ul>
+    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
+    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
+    <li><a href="/contribute/portability/">Portability Framework</a></li>
+    <li><a href="/contribute/docker-images/">Docker images</a></li>
+    <li><a href="/contribute/design-documents/">Design documents</a></li>
+    <li><a href="/contribute/dependencies/">Dependencies guide</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Policies</span>
+  <ul class="section-nav-list">
+    <li><a href="/contribute/precommit-policies/">Pre-commit test policies</a></li>
+    <li><a href="/contribute/postcommits-policies/">Post-commit test policies</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Committers</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
+    <li><a href="/contribute/committer-guide/">Committer guide</a></li>
+    <li><a href="/contribute/release-guide/">Release guide</a></li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#file-based-image">File based image</a>
+    <ul>
+      <li><a href="#configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</a></li>
+      <li><a href="#testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</a></li>
+      <li><a href="#performance-improvements">Performance improvements</a></li>
+    </ul>
+  </li>
+  <li><a href="#git-based-image">Git based image</a></li>
+  <li><a href="#release-image">Release image</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="docker-images">Docker Images</h1>
+
+<blockquote>
+  <p>Note: There is an open issue to update this page for Gradle:
+<a href="https://issues.apache.org/jira/browse/BEAM-4117">BEAM-4117</a>.</p>
+</blockquote>
+
+<p>Docker images allow to create a reproducible environment to build and test
+Beam. You can use the docker images by using the provided <a href="https://github.com/apache/beam/tree/master/sdks/java/build-tools/src/main/resources/docker">Docker scripts</a>.</p>
+
+<p>In this directory you will find scripts to build and run docker images for
+different purposes:</p>
+
+<ul>
+  <li>
+    <p><a href="#file-based-image">file</a>: Create a Docker container from a Beam source code .zip file
+in a given environment. It is useful to test a specific version of Beam,
+for example to validate a release vote.</p>
+  </li>
+  <li>
+    <p><a href="#git-based-image">git</a>: Same as file but the Beam source code comes from the git repository,
+you can choose a given branch/tag/pull-request. Useful to test in a specific
+environment.</p>
+  </li>
+  <li>
+    <p><a href="#release-image">release</a>: It builds an end-user distribution of the latest version of Beam
+and its dependencies. Useful for end-users who want to have a ready to use
+container with Beam (Python only for the moment).</p>
+  </li>
+</ul>
+
+<h2 id="file-based-image">File based image</h2>
+
+<p>If you want to build a container with a ready JDK 8 environment to test Beam:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk8
+docker build -t beam:openjdk8 .
+</code></pre>
+</div>
+
+<p>When you run the image it downloads the specific version of Beam given the
+environment variables. By default it downloads the source code of the latest
+master. If you want to download the latest master and execute the tests:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 mvn clean verify -Prelease
+</code></pre>
+</div>
+
+<p>If you want to have an interactive session you can run a bash prompt:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<p>Inside the container you can test a specific module by running Maven. You
+have to change MODULE_PATH for the given module path. For example to test
+HBaseIO you should write its path <code class="highlighter-rouge">sdks/java/io/hbase</code> in the place of
+MODULE_PATH:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn --projects MODULE_PATH clean verify -Prelease
+</code></pre>
+</div>
+
+<h3 id="configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</h3>
+
+<p>You can run different versions of Beam by passing the specific environment
+variables:</p>
+
+<p><code class="highlighter-rouge">URL</code>: The URL with the file containing the specific source code.<br />
+<code class="highlighter-rouge">SRC_FILE</code>: The downloaded file name.<br />
+<code class="highlighter-rouge">SRC_DIR</code>: The name of the directory inside of the zip file.</p>
+
+<p>For example to run a Docker container with the exact code of the release 2.0.0:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
+  -e URL="https://www.apache.org/dyn/closer.cgi?filename=beam/2.0.0/apache-beam-2.0.0-source-release.zip&amp;action=download" \
+  -e SRC_FILE="apache-beam-2.0.0-source-release.zip" \
+  -e SRC_DIR="apache-beam-2.0.0" \
+  -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<p>If you want to run a container with a specific version e.g. 2.1.0-RC1:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
+  -e URL="https://github.com/apache/beam/archive/v2.1.0-RC1.zip" \
+  -e SRC_FILE="v2.1.0-RC1.zip" \
+  -e SRC_DIR="beam-2.1.0-RC1" \
+  -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<p><em>Notice that SRC_FILE is different from SRC_DIR because github replaces the ‘v’
+character in the internal name of the zip</em>.</p>
+
+<p>To run a container with the source code during a vote:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
+  -e URL="https://dist.apache.org/repos/dist/dev/beam/2.1.0/apache-beam-2.1.0-source-release.zip" \
+  -e SRC_FILE="apache-beam-2.1.0-source-release.zip" \
+  -e SRC_DIR="apache-beam-2.1.0" \
+  -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<h3 id="testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</h3>
+
+<p>You can also overwrite the volume containing the source code of Beam from a
+directory in your host machine. This is useful to test your code with different
+versions of Java.</p>
+
+<p>If you have the code in the ~/workspace/beam directory and you want to quickly
+test it with Beam you can do:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<h3 id="performance-improvements">Performance improvements</h3>
+
+<p>The docker image does <strong>not</strong> contain the Java dependencies and this could make
+the execution of the commands in the image take more time than expected. One way
+to speed this up is by mounting a directory with the dependencies as a Docker
+volume. The following command shows how to mount the host machine directory
+for Maven dependencies <code class="highlighter-rouge">~/.m2</code> in the container:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/.m2:/home/user/.m2 -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<p>You can also use an empty directory instead of <code class="highlighter-rouge">~/.m2</code> if you want to create a
+different environment from the local one to share it between runs.</p>
+
+<p><strong>Maven Improvements:</strong></p>
+
+<p>You can also speed the execution by adding environment variables to Maven, for
+example the MAVEN_OPTS environment variable may speed up compilation:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
+  -e MAVEN_OPTS='-client -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xverify:none' \
+  -it beam:openjdk8 /bin/bash
+</code></pre>
+</div>
+
+<p>Maven does not execute on multiple cores by default; to do this you have to
+enable the threading execution:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn --threads 1C ...
+</code></pre>
+</div>
+
+<h2 id="git-based-image">Git based image</h2>
+
+<p>It creates a docker container with a cloned version of the git repository, its
+branches and all the pull-requests. When it is run, it updates and checks out
+the specified branch/tag/pull-request.</p>
+
+<p>You can choose the branch to execute via the environment variable:</p>
+
+<p><code class="highlighter-rouge">BRANCH</code>: The name of the specific branch, tag or pr to check out.</p>
+
+<p>By default it checks out master from the github repo, but if you want to check
+a specific pull request <code class="highlighter-rouge">ID</code> you can build the image like this (you must change
+<code class="highlighter-rouge">ID</code> for the number):</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd git/openjdk8
+docker build -t beam:git .
+docker run -e BRANCH=pr/ID -it beam:git /bin/bash
+</code></pre>
+</div>
+
+<h2 id="release-image">Release image</h2>
+
+<p>The release image is a container with the needed requirements to run Beam out of
+the box in a container, or to submit a pipeline to execute on Google Cloud
+Dataflow. To build it run:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd release/python2
+docker build -t beam:python2 .
+</code></pre>
+</div>
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

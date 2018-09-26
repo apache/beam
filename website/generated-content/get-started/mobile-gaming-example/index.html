@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam Mobile Gaming Example</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/get-started/mobile-gaming-example/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Get started</span></li>
+<li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+<li>
+  <span class="section-nav-list-title">Quickstarts</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+    <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+    <li><a href="/get-started/quickstart-go/">Quickstart - Go</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Example Walkthroughs</span>
+  <ul class="section-nav-list">
+     <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+     <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+   </ul>
+</li>
+<li><a href="/get-started/downloads">Downloads</a></li>
+
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#userscore-basic-score-processing-in-batch">UserScore: Basic Score Processing in Batch</a>
+    <ul>
+      <li><a href="#what-does-userscore-do">What Does UserScore Do?</a></li>
+      <li><a href="#limitations">Limitations</a></li>
+    </ul>
+  </li>
+  <li><a href="#hourlyteamscore-advanced-processing-in-batch-with-windowing">HourlyTeamScore: Advanced Processing in Batch with Windowing</a>
+    <ul>
+      <li><a href="#what-does-hourlyteamscore-do">What Does HourlyTeamScore Do?</a></li>
+      <li><a href="#limitations-1">Limitations</a></li>
+    </ul>
+  </li>
+  <li><a href="#leaderboard-streaming-processing-with-real-time-game-data">LeaderBoard: Streaming Processing with Real-Time Game Data</a>
+    <ul>
+      <li><a href="#what-does-leaderboard-do">What Does LeaderBoard Do?</a></li>
+    </ul>
+  </li>
+  <li><a href="#gamestats-abuse-detection-and-usage-analysis">GameStats: Abuse Detection and Usage Analysis</a>
+    <ul>
+      <li><a href="#what-does-gamestats-do">What Does GameStats Do?</a></li>
+    </ul>
+  </li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="apache-beam-mobile-gaming-pipeline-examples">Apache Beam Mobile Gaming Pipeline Examples</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#userscore-basic-score-processing-in-batch" id="markdown-toc-userscore-basic-score-processing-in-batch">UserScore: Basic Score Processing in Batch</a>    <ul>
+      <li><a href="#what-does-userscore-do" id="markdown-toc-what-does-userscore-do">What Does UserScore Do?</a></li>
+      <li><a href="#limitations" id="markdown-toc-limitations">Limitations</a></li>
+    </ul>
+  </li>
+  <li><a href="#hourlyteamscore-advanced-processing-in-batch-with-windowing" id="markdown-toc-hourlyteamscore-advanced-processing-in-batch-with-windowing">HourlyTeamScore: Advanced Processing in Batch with Windowing</a>    <ul>
+      <li><a href="#what-does-hourlyteamscore-do" id="markdown-toc-what-does-hourlyteamscore-do">What Does HourlyTeamScore Do?</a>        <ul>
+          <li><a href="#fixed-time-windowing" id="markdown-toc-fixed-time-windowing">Fixed-Time Windowing</a></li>
+          <li><a href="#filtering-based-on-event-time" id="markdown-toc-filtering-based-on-event-time">Filtering Based On Event Time</a></li>
+          <li><a href="#calculating-score-per-team-per-window" id="markdown-toc-calculating-score-per-team-per-window">Calculating Score Per Team, Per Window</a></li>
+        </ul>
+      </li>
+      <li><a href="#limitations-1" id="markdown-toc-limitations-1">Limitations</a></li>
+    </ul>
+  </li>
+  <li><a href="#leaderboard-streaming-processing-with-real-time-game-data" id="markdown-toc-leaderboard-streaming-processing-with-real-time-game-data">LeaderBoard: Streaming Processing with Real-Time Game Data</a>    <ul>
+      <li><a href="#what-does-leaderboard-do" id="markdown-toc-what-does-leaderboard-do">What Does LeaderBoard Do?</a>        <ul>
+          <li><a href="#calculating-user-score-based-on-processing-time" id="markdown-toc-calculating-user-score-based-on-processing-time">Calculating User Score based on Processing Time</a></li>
+          <li><a href="#calculating-team-score-based-on-event-time" id="markdown-toc-calculating-team-score-based-on-event-time">Calculating Team Score based on Event Time</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><a href="#gamestats-abuse-detection-and-usage-analysis" id="markdown-toc-gamestats-abuse-detection-and-usage-analysis">GameStats: Abuse Detection and Usage Analysis</a>    <ul>
+      <li><a href="#what-does-gamestats-do" id="markdown-toc-what-does-gamestats-do">What Does GameStats Do?</a>        <ul>
+          <li><a href="#abuse-detection" id="markdown-toc-abuse-detection">Abuse Detection</a></li>
+          <li><a href="#analyzing-usage-patterns" id="markdown-toc-analyzing-usage-patterns">Analyzing Usage Patterns</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
+<p>This section provides a walkthrough of a series of example Apache Beam pipelines that demonstrate more complex functionality than the basic <a href="/get-started/wordcount-example">WordCount</a> examples. The pipelines in this section process data from a hypothetical game that users play on their mobile phones. The pipelines demonstrate processing at increasing levels of complexity; the first pipeline, for example, shows how to run a batch analysis job to obtain relatively simple score data, while the later pipelines use Beam’s windowing and triggers features to provide low-latency data analysis and more complex intelligence about user’s play patterns.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note</strong>: These examples assume some familiarity with the Beam programming model. If you haven’t already, we recommend familiarizing yourself with the programming model documentation and running a basic example pipeline before continuing. Note also that these examples use the Java 8 lambda syntax, and thus require Java 8. However, you can create pipelines with equivalent functionality using Java 7.</p>
+</blockquote>
+
+<blockquote class="language-py">
+  <p><strong>Note</strong>: These examples assume some familiarity with the Beam programming model. If you haven’t already, we recommend familiarizing yourself with the programming model documentation and running a basic example pipeline before continuing.</p>
+</blockquote>
+
+<blockquote>
+  <p><strong>Note</strong>: MobileGaming is not yet available for the Go SDK. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-4293">BEAM-4293</a>).</p>
+</blockquote>
+
+<p>Every time a user plays an instance of our hypothetical mobile game, they generate a data event. Each data event consists of the following information:</p>
+
+<ul>
+  <li>The unique ID of the user playing the game.</li>
+  <li>The team ID for the team to which the user belongs.</li>
+  <li>A score value for that particular instance of play.</li>
+  <li>A timestamp that records when the particular instance of play happened–this is the event time for each game data event.</li>
+</ul>
+
+<p>When the user completes an instance of the game, their phone sends the data event to a game server, where the data is logged and stored in a file. Generally the data is sent to the game server immediately upon completion. However, sometimes delays can happen in the network at various points. Another possible scenario involves users who play the game “offline”, when their phones are out of contact with the server (such as on an airplane, or outside network coverage area). When the user’s phone comes back into contact with the game server, the phone will send all accumulated game data. In these cases, some data events may arrive delayed and out of order.</p>
+
+<p>The following diagram shows the ideal situation (events are processed as they occur) vs. reality (there is often a time delay before processing).</p>
+
+<p><img src="/images/gaming-example-basic.png" alt="There is often a time delay before processing events." /></p>
+
+<p><em>Figure 1: The X-axis represents event time: the actual time a game event
+occurred. The Y-axis represents processing time: the time at which a game event
+was processed. Ideally, events should be processed as they occur, depicted by
+the dotted line in the diagram. However, in reality that is not the case and it
+looks more like what is depicted by the red squiggly line above the ideal line.</em></p>
+
+<p>The data events might be received by the game server significantly later than users generate them. This time difference (called <strong>skew</strong>) can have processing implications for pipelines that make calculations that consider when each score was generated. Such pipelines might track scores generated during each hour of a day, for example, or they calculate the length of time that users are continuously playing the game—both of which depend on each data record’s event time.</p>
+
+<p>Because some of our example pipelines use data files (like logs from the game server) as input, the event timestamp for each game might be embedded in the data–that is, it’s a field in each data record. Those pipelines need to parse the event timestamp from each data record after reading it from the input file.</p>
+
+<p>For pipelines that read unbounded game data from an unbounded source, the data source sets the intrinsic <a href="/documentation/programming-guide/#element-timestamps">timestamp</a> for each PCollection element to the appropriate event time.</p>
+
+<p>The Mobile Gaming example pipelines vary in complexity, from simple batch analysis to more complex pipelines that can perform real-time analysis and abuse detection. This section walks you through each example and demonstrates how to use Beam features like windowing and triggers to expand your pipeline’s capabilites.</p>
+
+<h2 id="userscore-basic-score-processing-in-batch">UserScore: Basic Score Processing in Batch</h2>
+
+<p>The <code class="highlighter-rouge">UserScore</code> pipeline is the simplest example for processing mobile game data. <code class="highlighter-rouge">UserScore</code> determines the total score per user over a finite data set (for example, one day’s worth of scores stored on the game server). Pipelines like <code class="highlighter-rouge">UserScore</code> are best run periodically after all relevant data has been gathered. For example, <code class="highlighter-rouge">UserScore</code> could run as a nightly job over data gathered during that day.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/UserScore.java">UserScore on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<blockquote class="language-py">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/user_score.py">UserScore on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<h3 id="what-does-userscore-do">What Does UserScore Do?</h3>
+
+<p>In a day’s worth of scoring data, each user ID may have multiple records (if the user plays more than one instance of the game during the analysis window), each with their own score value and timestamp. If we want to determine the total score over all the instances a user plays during the day, our pipeline will need to group all the records together per individual user.</p>
+
+<p>As the pipeline processes each event, the event score gets added to the sum total for that particular user.</p>
+
+<p><code class="highlighter-rouge">UserScore</code> parses out only the data that it needs from each record, specifically the user ID and the score value. The pipeline doesn’t consider the event time for any record; it simply processes all data present in the input files that you specify when you run the pipeline.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> To use the <code class="highlighter-rouge">UserScore</code> pipeline effectively, you’d need to ensure that you supply input data that has already been grouped by the desired event time period — that is, that you specify an input file that only contains data from the day you care about.</p>
+</blockquote>
+
+<p><code class="highlighter-rouge">UserScore</code>’s basic pipeline flow does the following:</p>
+
+<ol>
+  <li>Read the day’s score data from a text file.</li>
+  <li>Sum the score values for each unique user by grouping each game event by user ID and combining the score values to get the total score for that particular user.</li>
+  <li>Write the result data to a text file.</li>
+</ol>
+
+<p>The following diagram shows score data for several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair.</p>
+
+<p><img src="/images/gaming-example.gif" alt="A pipeline processes score data for three users." width="850px" /></p>
+
+<p><em>Figure 2: Score data for three users.</em></p>
+
+<p>This example uses batch processing, and the diagram’s Y axis represents processing time: the pipeline processes events lower on the Y-axis first, and events higher up the axis later. The diagram’s X axis represents the event time for each game event, as denoted by that event’s timestamp. Note that the individual events in the diagram are not processed by the pipeline in the same order as they occurred (according to their timestamps).</p>
+
+<p>After reading the score events from the input file, the pipeline groups all of those user/score pairs together and sums the score values into one total value per unique user. <code class="highlighter-rouge">UserScore</code> encapsulates the core logic for that step as the <a href="/documentation/programming-guide/#composite-transforms">user-defined composite transform</a> <code class="highlighter-rouge">ExtractAndSumScore</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractAndSumScore</span>
+    <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">field</span><span class="o">;</span>
+
+  <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="n">String</span> <span class="n">field</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">field</span> <span class="o">=</span> <span class="n">field</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">gameInfo</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="k">return</span> <span class="n">gameInfo</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span>
+                    <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">kvs</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">(),</span> <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">()))</span>
+                <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">gInfo</span><span class="o">.</span><span class="na">getKey</span><span class="o">(</span><span class="n">field</span><span class="o">),</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getScore</span><span class="o">())))</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">());</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ExtractAndSumScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="s">"""A transform to extract key/score information and sum the scores.
+  The constructor argument `field` determines whether 'team' or 'user' info is
+  extracted.
+  """</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ExtractAndSumScore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">field</span> <span class="o">=</span> <span class="n">field</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="p">],</span> <span class="n">elem</span><span class="p">[</span><span class="s">'score'</span><span class="p">]))</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">ExtractAndSumScore</code> is written to be more general, in that you can pass in the field by which you want to group the data (in the case of our game, by unique user or unique team). This means we can re-use <code class="highlighter-rouge">ExtractAndSumScore</code> in other pipelines that group score data by team, for example.</p>
+
+<p>Here’s the main method of <code class="highlighter-rouge">UserScore</code>, showing how we apply all three steps of the pipeline:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+  <span class="c1">// Begin constructing a pipeline configured by commandline flags.</span>
+  <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">Options</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+  <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+
+  <span class="c1">// Read events from a text file and parse them.</span>
+  <span class="n">pipeline</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ParseGameEvent"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ParseEventFn</span><span class="o">()))</span>
+      <span class="c1">// Extract and sum username/score pairs from the event data.</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractUserScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"user"</span><span class="o">))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"WriteUserScoreSums"</span><span class="o">,</span> <span class="k">new</span> <span class="n">WriteToText</span><span class="o">&lt;&gt;(</span><span class="n">options</span><span class="o">.</span><span class="na">getOutput</span><span class="o">(),</span> <span class="n">configureOutput</span><span class="o">(),</span> <span class="kc">false</span><span class="o">));</span>
+
+  <span class="c1">// Run the batch pipeline.</span>
+  <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+  <span class="s">"""Main entry point; defines and runs the user_score pipeline."""</span>
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+
+  <span class="c"># The default maps to two large Google Cloud Storage files (each ~12GB)</span>
+  <span class="c"># holding two subsequent day's worth (roughly) of data.</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the output file(s).'</span><span class="p">)</span>
+
+  <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="c"># We use the save_main_session option because one or more DoFn's in this</span>
+  <span class="c"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="bp">True</span>
+
+  <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">format_user_score_sums</span><span class="p">(</span><span class="n">user_score</span><span class="p">):</span>
+      <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="o">=</span> <span class="n">user_score</span>
+      <span class="k">return</span> <span class="s">'user: </span><span class="si">%</span><span class="s">s, total_score: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+
+    <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+     <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
+     <span class="o">|</span> <span class="s">'UserScore'</span> <span class="o">&gt;&gt;</span> <span class="n">UserScore</span><span class="p">()</span>
+     <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_user_score_sums</span><span class="p">)</span>
+     <span class="o">|</span> <span class="s">'WriteUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<h3 id="limitations">Limitations</h3>
+
+<p>As written in the example, the <code class="highlighter-rouge">UserScore</code> pipeline has a few limitations:</p>
+
+<ul>
+  <li>
+    <p>Because some score data may be generated by offline players and sent after the daily cutoff, for game data, the result data generated by the <code class="highlighter-rouge">UserScore</code> pipeline <strong>may be incomplete</strong>. <code class="highlighter-rouge">UserScore</code> only processes the fixed input set present in the input file(s) when the pipeline runs.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">UserScore</code> processes all data events present in the input file at processing time, and <strong>does not examine or otherwise error-check events based on event time</strong>. Therefore, the results may include some values whose event times fall outside the relevant analysis period, such as late records from the previous day.</p>
+  </li>
+  <li>
+    <p>Because <code class="highlighter-rouge">UserScore</code> runs only after all the data has been collected, it has <strong>high latency</strong> between when users generate data events (the event time) and when results are computed (the processing time).</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">UserScore</code> also only reports the total results for the entire day, and doesn’t provide any finer-grained information about how the data accumulated during the day.</p>
+  </li>
+</ul>
+
+<p>Starting with the next pipeline example, we’ll discuss how you can use Beam’s features to address these limitations.</p>
+
+<h2 id="hourlyteamscore-advanced-processing-in-batch-with-windowing">HourlyTeamScore: Advanced Processing in Batch with Windowing</h2>
+
+<p>The <code class="highlighter-rouge">HourlyTeamScore</code> pipeline expands on the basic batch analysis principles used in the <code class="highlighter-rouge">UserScore</code> pipeline and improves upon some of its limitations. <code class="highlighter-rouge">HourlyTeamScore</code> performs finer-grained analysis, both by using additional features in the Beam SDKs, and taking into account more aspects of the game data. For example, <code class="highlighter-rouge">HourlyTeamScore</code> can filter out data that isn’t part of the relevant analysis period.</p>
+
+<p>Like <code class="highlighter-rouge">UserScore</code>, <code class="highlighter-rouge">HourlyTeamScore</code> is best thought of as a job to be run periodically after all the relevant data has been gathered (such as once per day). The pipeline reads a fixed data set from a file, and writes the results to a Google Cloud BigQuery table.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java">HourlyTeamScore on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<blockquote class="language-py">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py">HourlyTeamScore on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<h3 id="what-does-hourlyteamscore-do">What Does HourlyTeamScore Do?</h3>
+
+<p><code class="highlighter-rouge">HourlyTeamScore</code> calculates the total score per team, per hour, in a fixed data set (such as one day’s worth of data).</p>
+
+<ul>
+  <li>
+    <p>Rather than operating on the entire data set at once, <code class="highlighter-rouge">HourlyTeamScore</code> divides the input data into logical windows and performs calculations on those windows. This allows <code class="highlighter-rouge">HourlyUserScore</code> to provide information on scoring data per window, where each window represents the game score progress at fixed intervals in time (like once every hour).</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">HourlyTeamScore</code> filters data events based on whether their event time (as indicated by the embedded timestamp) falls within the relevant analysis period. Basically, the pipeline checks each game event’s timestamp and ensures that it falls within the range we want to analyze (in this case the day in question). Data events from previous days are discarded and not included in the score totals. This makes <code class="highlighter-rouge">HourlyTeamScore</code> more robust and less prone to erroneous result data than <code class="highlighter-rouge">UserScore</code>. It also allows the pipeline to account for late-arriving data that has a timestamp within the relevant analysis period.</p>
+  </li>
+</ul>
+
+<p>Below, we’ll look at each of these enhancements in <code class="highlighter-rouge">HourlyTeamScore</code> in detail:</p>
+
+<h4 id="fixed-time-windowing">Fixed-Time Windowing</h4>
+
+<p>Using fixed-time windowing lets the pipeline provide better information on how events accumulated in the data set over the course of the analysis period. In our case, it tells us when in the day each team was active and how much the team scored at those times.</p>
+
+<p>The following diagram shows how the pipeline processes a day’s worth of a single team’s scoring data after applying fixed-time windowing:</p>
+
+<p><img src="/images/gaming-example-team-scores-narrow.gif" alt="A pipeline processes score data for two teams." width="800px" /></p>
+
+<p><em>Figure 3: Score data for two teams. Each team’s scores are divided into
+logical windows based on when those scores occurred in event time.</em></p>
+
+<p>Notice that as processing time advances, the sums are now <em>per window</em>; each window represents an hour of <em>event time</em> during the day in which the scores occurred.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> As is shown in the diagram above, using windowing produces an <em>independent total for every interval</em> (in this case, each hour). <code class="highlighter-rouge">HourlyTeamScore</code> doesn’t provide a running total for the entire data set at each hour–it provides the total score for all the events that occurred <em>only within that hour</em>.</p>
+</blockquote>
+
+<p>Beam’s windowing feature uses the <a href="/documentation/programming-guide/#element-timestamps">intrinsic timestamp information</a> attached to each element of a <code class="highlighter-rouge">PCollection</code>. Because we want our pipeline to window based on <em>event time</em>, we <strong>must first extract the timestamp</strong> that’s embedded in each data record apply it to the corresponding element in the <code class="highlighter-rouge">PCollection</code> of score data. Then, the pipeline can <strong>apply the windowing function</strong> to divide the <code class="highlighter-rouge">PCollection</code> into logical windows.</p>
+
+<p class="language-java"><code class="highlighter-rouge">HourlyTeamScore</code> uses the <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/WithTimestamps.java">WithTimestamps</a> and <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/windowing/Window.java">Window</a> transforms to perform these operations.</p>
+
+<p class="language-py"><code class="highlighter-rouge">HourlyTeamScore</code> uses the <code class="highlighter-rouge">FixedWindows</code> transform, found in <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/window.py">window.py</a>, to perform these operations.</p>
+
+<p>The following code shows this:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Add an element timestamp based on the event log, and apply fixed windowing.</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"AddEventTimestamps"</span><span class="o">,</span>
+    <span class="n">WithTimestamps</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">i</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">i</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">())))</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"FixedWindowsTeam"</span><span class="o">,</span>
+    <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getWindowDuration</span><span class="o">()))))</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Add an element timestamp based on the event log, and apply fixed</span>
+<span class="c"># windowing.</span>
+<span class="o">|</span> <span class="s">'AddEventTimestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]))</span>
+<span class="o">|</span> <span class="s">'FixedWindowsTeam'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_duration_in_seconds</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p>Notice that the transforms the pipeline uses to specify the windowing are distinct from the actual data processing transforms (such as <code class="highlighter-rouge">ExtractAndSumScores</code>). This functionality provides you some flexibility in designing your Beam pipeline, in that you can run existing transforms over datasets with different windowing characteristics.</p>
+
+<h4 id="filtering-based-on-event-time">Filtering Based On Event Time</h4>
+
+<p><code class="highlighter-rouge">HourlyTeamScore</code> uses <strong>filtering</strong> to remove any events from our dataset whose timestamps don’t fall within the relevant analysis period (i.e. they weren’t generated during the day that we’re interested in). This keeps the pipeline from erroneously including any data that was, for example, generated offline during the previous day but sent to the game server during the current day.</p>
+
+<p>It also lets the pipeline include relevant <strong>late data</strong>—data events with valid timestamps, but that arrived after our analysis period ended. If our pipeline cutoff time is 12:00 am, for example, we might run the pipeline at 2:00 am, but filter out any events whose timestamps indicate that they occurred after the 12:00 am cutoff. Data events that were delayed and arrived between 12:01 am and 2:00 am, but whose timestamps indicate that they occurred before the 12:00 am cutoff, would be included in the pipeline processing.</p>
+
+<p><code class="highlighter-rouge">HourlyTeamScore</code> uses the <code class="highlighter-rouge">Filter</code> transform to perform this operation. When you apply <code class="highlighter-rouge">Filter</code>, you specify a predicate to which each data record is compared. Data records that pass the comparison are included, while events that fail the comparison are excluded. In our case, the predicate is the cut-off time we specify, and we compare just one part of the data—the timestamp field.</p>
+
+<p>The following code shows how <code class="highlighter-rouge">HourlyTeamScore</code> uses the <code class="highlighter-rouge">Filter</code> transform to filter events that occur either before or after the relevant analysis period:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"FilterStartTime"</span><span class="o">,</span>
+    <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
+        <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&gt;</span> <span class="n">startMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"FilterEndTime"</span><span class="o">,</span>
+    <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
+        <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&lt;</span> <span class="n">stopMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
+<span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h4 id="calculating-score-per-team-per-window">Calculating Score Per Team, Per Window</h4>
+
+<p><code class="highlighter-rouge">HourlyTeamScore</code> uses the same <code class="highlighter-rouge">ExtractAndSumScores</code> transform as the <code class="highlighter-rouge">UserScore</code> pipeline, but passes a different key (team, as opposed to user). Also, because the pipeline applies <code class="highlighter-rouge">ExtractAndSumScores</code> <em>after</em> applying fixed-time 1-hour windowing to the input data, the data gets grouped by both team <em>and</em> window. You can see the full sequence of transforms in <code class="highlighter-rouge">HourlyTeamScore</code>’s main method:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+  <span class="c1">// Begin constructing a pipeline configured by commandline flags.</span>
+  <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">Options</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+  <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+
+  <span class="kd">final</span> <span class="n">Instant</span> <span class="n">stopMinTimestamp</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">minFmt</span><span class="o">.</span><span class="na">parseMillis</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getStopMin</span><span class="o">()));</span>
+  <span class="kd">final</span> <span class="n">Instant</span> <span class="n">startMinTimestamp</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">minFmt</span><span class="o">.</span><span class="na">parseMillis</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getStartMin</span><span class="o">()));</span>
+
+  <span class="c1">// Read 'gaming' events from a text file.</span>
+  <span class="n">pipeline</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
+      <span class="c1">// Parse the incoming data.</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ParseGameEvent"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ParseEventFn</span><span class="o">()))</span>
+
+      <span class="c1">// Filter out data before and after the given times so that it is not included</span>
+      <span class="c1">// in the calculations. As we collect data in batches (say, by day), the batch for the day</span>
+      <span class="c1">// that we want to analyze could potentially include some late-arriving data from the</span>
+      <span class="c1">// previous day.</span>
+      <span class="c1">// If so, we want to weed it out. Similarly, if we include data from the following day</span>
+      <span class="c1">// (to scoop up late-arriving events from the day we're analyzing), we need to weed out</span>
+      <span class="c1">// events that fall after the time period we want to analyze.</span>
+      <span class="c1">// [START DocInclude_HTSFilters]</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"FilterStartTime"</span><span class="o">,</span>
+          <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
+              <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&gt;</span> <span class="n">startMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"FilterEndTime"</span><span class="o">,</span>
+          <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
+              <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&lt;</span> <span class="n">stopMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
+      <span class="c1">// [END DocInclude_HTSFilters]</span>
+
+      <span class="c1">// [START DocInclude_HTSAddTsAndWindow]</span>
+      <span class="c1">// Add an element timestamp based on the event log, and apply fixed windowing.</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"AddEventTimestamps"</span><span class="o">,</span>
+          <span class="n">WithTimestamps</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">i</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">i</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">())))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"FixedWindowsTeam"</span><span class="o">,</span>
+          <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getWindowDuration</span><span class="o">()))))</span>
+      <span class="c1">// [END DocInclude_HTSAddTsAndWindow]</span>
+
+      <span class="c1">// Extract and sum teamname/score pairs from the event data.</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="s">"WriteTeamScoreSums"</span><span class="o">,</span> <span class="k">new</span> <span class="n">WriteToText</span><span class="o">&lt;&gt;(</span><span class="n">options</span><span class="o">.</span><span class="na">getOutput</span><span class="o">(),</span> <span class="n">configureOutput</span><span class="o">(),</span> <span class="kc">true</span><span class="o">));</span>
+
+  <span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">HourlyTeamScore</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_min</span><span class="p">,</span> <span class="n">stop_min</span><span class="p">,</span> <span class="n">window_duration</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">HourlyTeamScore</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span> <span class="o">=</span> <span class="n">str2timestamp</span><span class="p">(</span><span class="n">start_min</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span> <span class="o">=</span> <span class="n">str2timestamp</span><span class="p">(</span><span class="n">stop_min</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">window_duration_in_seconds</span> <span class="o">=</span> <span class="n">window_duration</span> <span class="o">*</span> <span class="mi">60</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="o">|</span> <span class="s">'ParseGameEventFn'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ParseGameEventFn</span><span class="p">())</span>
+
+        <span class="c"># Filter out data before and after the given times so that it is not</span>
+        <span class="c"># included in the calculations. As we collect data in batches (say, by</span>
+        <span class="c"># day), the batch for the day that we want to analyze could potentially</span>
+        <span class="c"># include some late-arriving data from the previous day. If so, we want</span>
+        <span class="c"># to weed it out. Similarly, if we include data from the following day</span>
+        <span class="c"># (to scoop up late-arriving events from the day we're analyzing), we</span>
+        <span class="c"># need to weed out events that fall after the time period we want to</span>
+        <span class="c"># analyze.</span>
+        <span class="c"># [START filter_by_time_range]</span>
+        <span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
+        <span class="c"># [END filter_by_time_range]</span>
+
+        <span class="c"># [START add_timestamp_and_window]</span>
+        <span class="c"># Add an element timestamp based on the event log, and apply fixed</span>
+        <span class="c"># windowing.</span>
+        <span class="o">|</span> <span class="s">'AddEventTimestamps'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]))</span>
+        <span class="o">|</span> <span class="s">'FixedWindowsTeam'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_duration_in_seconds</span><span class="p">))</span>
+        <span class="c"># [END add_timestamp_and_window]</span>
+
+        <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
+        <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+  <span class="s">"""Main entry point; defines and runs the hourly_team_score pipeline."""</span>
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+
+  <span class="c"># The default maps to two large Google Cloud Storage files (each ~12GB)</span>
+  <span class="c"># holding two subsequent day's worth (roughly) of data.</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--dataset'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'BigQuery Dataset to write tables to. '</span>
+                      <span class="s">'Must already exist.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--table_name'</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'leader_board'</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'The BigQuery table name. Should not already exist.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--window_duration'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'Numeric value of fixed window duration, in minutes'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--start_min'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'1970-01-01-00-00'</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute after '</span>
+                           <span class="s">'which to generate results in the format: '</span>
+                           <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
+                           <span class="s">'prior to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
+                           <span class="s">'sums.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--stop_min'</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s">'2100-01-01-00-00'</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute for '</span>
+                           <span class="s">'which to generate results in the format: '</span>
+                           <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
+                           <span class="s">'after to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
+                           <span class="s">'sums.'</span><span class="p">)</span>
+
+  <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="c"># We also require the --project option to access --dataset</span>
+  <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">print_usage</span><span class="p">()</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s">': error: argument --project is required'</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="nb">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+  <span class="c"># We use the save_main_session option because one or more DoFn's in this</span>
+  <span class="c"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="bp">True</span>
+
+  <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+     <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
+     <span class="o">|</span> <span class="s">'HourlyTeamScore'</span> <span class="o">&gt;&gt;</span> <span class="n">HourlyTeamScore</span><span class="p">(</span>
+         <span class="n">args</span><span class="o">.</span><span class="n">start_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">stop_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">window_duration</span><span class="p">)</span>
+     <span class="o">|</span> <span class="s">'TeamScoresDict'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">TeamScoresDict</span><span class="p">())</span>
+     <span class="o">|</span> <span class="s">'WriteTeamScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
+         <span class="n">args</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
+             <span class="s">'team'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
+             <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
+             <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
+         <span class="p">}))</span>
+</code></pre>
+</div>
+
+<h3 id="limitations-1">Limitations</h3>
+
+<p>As written, <code class="highlighter-rouge">HourlyTeamScore</code> still has a limitation:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">HourlyTeamScore</code> still has <strong>high latency</strong> between when data events occur (the event time) and when results are generated (the processing time), because, as a batch pipeline, it needs to wait to begin processing until all data events are present.</li>
+</ul>
+
+<h2 id="leaderboard-streaming-processing-with-real-time-game-data">LeaderBoard: Streaming Processing with Real-Time Game Data</h2>
+
+<p>One way we can help address the latency issue present in the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines is by reading the score data from an unbounded source. The <code class="highlighter-rouge">LeaderBoard</code> pipeline introduces streaming processing by reading the game score data from an unbounded source that produces an infinite amount of data, rather than from a file on the game server.</p>
+
+<p>The <code class="highlighter-rouge">LeaderBoard</code> pipeline also demonstrates how to process game score data with respect to both <em>processing time</em> and <em>event time</em>. <code class="highlighter-rouge">LeaderBoard</code> outputs data about both individual user scores and about team scores, each with respect to a different time frame.</p>
+
+<p>Because the <code class="highlighter-rouge">LeaderBoard</code> pipeline reads the game data from an unbounded source as that data is generated, you can think of the pipeline as an ongoing job running concurrently with the game process. <code class="highlighter-rouge">LeaderBoard</code> can thus provide low-latency insights into how users are playing the game at any given moment — useful if, for example, we want to provide a live web-based scoreboard so that users can track their progress against other users as they play.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java">LeaderBoard on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<blockquote class="language-py">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/leader_board.py">LeaderBoard on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<h3 id="what-does-leaderboard-do">What Does LeaderBoard Do?</h3>
+
+<p>The <code class="highlighter-rouge">LeaderBoard</code> pipeline reads game data published to an unbounded source that produces an infinite amount of data in near real-time, and uses that data to perform two separate processing tasks:</p>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">LeaderBoard</code> calculates the total score for every unique user and publishes speculative results for every ten minutes of <em>processing time</em>. That is, ten minutes after data is received, the pipeline outputs the total score per user that the pipeline has processed to date. This calculation provides a running “leader board” in close to real time, regardless of when the actual game events were generated.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">LeaderBoard</code> calculates the team scores for each hour that the pipeline runs. This is useful if we want to, for example, reward the top-scoring team for each hour of play. The team score calculation uses fixed-time windowing to divide the input data into hour-long finite windows based on the <em>event time</em> (indicated by the timestamp) as data arrives in the pipeline.</p>
+
+    <p>In addition, the team score calculation uses Beam’s trigger mechanisms to provide speculative results for each hour (which update every five minutes until the hour is up), and to also capture any late data and add it to the specific hour-long window to which it belongs.</p>
+  </li>
+</ul>
+
+<p>Below, we’ll look at both of these tasks in detail.</p>
+
+<h4 id="calculating-user-score-based-on-processing-time">Calculating User Score based on Processing Time</h4>
+
+<p>We want our pipeline to output a running total score for each user for every ten minutes of processing time. This calculation doesn’t consider <em>when</em> the actual score was generated by the user’s play instance; it simply outputs the sum of all the scores for that user that have arrived in the pipeline to date. Late data gets included in the calculation whenever it happens to arrive in the pipeline as it’s running.</p>
+
+<p>Because we want all the data that has arrived in the pipeline every time we update our calculation, we have the pipeline consider all of the user score data in a <strong>single global window</strong>. The single global window is unbounded, but we can specify a kind of temporary cut-off point for each ten-minute calculation by using a processing time <a href="/documentation/programming-guide/#triggers">trigger</a>.</p>
+
+<p>When we specify a ten-minute processing time trigger for the single global window, the pipeline effectively takes a “snapshot” of the contents of the window every time the trigger fires. This snapshot happens after ten minutes have passed since data was received. If no data has arrived, the pipeline takes its next “snapshot” 10 minutes after an element arrives. Since we’re using a single global window, each snapshot contains all the data collected <em>to that point in time</em>. The following diagram shows the effects of using a processing time trigger on the single global window:</p>
+
+<p><img src="/images/gaming-example-proc-time-narrow.gif" alt="A pipeline processes score data for three users." width="850px" /></p>
+
+<p><em>Figure 4: Score data for three users. Each user’s scores are grouped together
+in a single global window, with a trigger that generates a snapshot for output
+ten minutes after data is received.</em></p>
+
+<p>As processing time advances and more scores are processed, the trigger outputs the updated sum for each user.</p>
+
+<p>The following code example shows how <code class="highlighter-rouge">LeaderBoard</code> sets the processing time trigger to output the data for user scores:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
+ * Extract user/score pairs from the event stream using processing time, via global windowing. Get
+ * periodic updates on all users' running scores.
+ */</span>
+<span class="nd">@VisibleForTesting</span>
+<span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateUserScores</span>
+    <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">allowedLateness</span><span class="o">;</span>
+
+  <span class="n">CalculateUserScores</span><span class="o">(</span><span class="n">Duration</span> <span class="n">allowedLateness</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">allowedLateness</span> <span class="o">=</span> <span class="n">allowedLateness</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">input</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="s">"LeaderboardUserGlobalWindow"</span><span class="o">,</span>
+            <span class="n">Window</span><span class="o">.&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
+                <span class="c1">// Get periodic results every ten minutes.</span>
+                <span class="o">.</span><span class="na">triggering</span><span class="o">(</span>
+                    <span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span>
+                        <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">().</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">TEN_MINUTES</span><span class="o">)))</span>
+                <span class="o">.</span><span class="na">accumulatingFiredPanes</span><span class="o">()</span>
+                <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">allowedLateness</span><span class="o">))</span>
+        <span class="c1">// Extract and sum username/score pairs from the event data.</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractUserScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"user"</span><span class="o">));</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateUserScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="s">"""Extract user/score pairs from the event stream using processing time, via
+  global windowing. Get periodic updates on all users' running scores.
+  """</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">allowed_lateness</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">CalculateUserScores</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">allowed_lateness_seconds</span> <span class="o">=</span> <span class="n">allowed_lateness</span> <span class="o">*</span> <span class="mi">60</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c"># NOTE: the behavior does not exactly match the Java example</span>
+    <span class="c"># TODO: allowed_lateness not implemented yet in FixedWindows</span>
+    <span class="c"># TODO: AfterProcessingTime not implemented yet, replace AfterCount</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="c"># Get periodic results every ten events.</span>
+        <span class="o">|</span> <span class="s">'LeaderboardUserGlobalWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">(),</span>
+            <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">Repeatedly</span><span class="p">(</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">10</span><span class="p">)),</span>
+            <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
+        <span class="c"># Extract and sum username/score pairs from the event data.</span>
+        <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'user'</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">LeaderBoard</code> sets the <a href="/documentation/programming-guide/#window-accumulation-modes">window accumulation mode</a> to accumulate window panes as the trigger fires. This accumulation mode is set by <span class="language-java">invoking <code class="highlighter-rouge">.accumulatingFiredPanes</code></span> <span class="language-py">using <code class="highlighter-rouge">accumulation_mode=trigger.AccumulationMode.ACCUMULATING</code></span> when setting the trigger, and causes the pipeline to accumulate the previously emitted data together with any new data that’s arrived since the last trigger fire. This ensures that <code class="highlighter-rouge">LeaderBoard</code> is a running sum for the user scores, rather than a collection of individual sums.</p>
+
+<h4 id="calculating-team-score-based-on-event-time">Calculating Team Score based on Event Time</h4>
+
+<p>We want our pipeline to also output the total score for each team during each hour of play. Unlike the user score calculation, for team scores, we care about when in <em>event</em> time each score actually occurred, because we want to consider each hour of play individually. We also want to provide speculative updates as each individual hour progresses, and to allow any instances of late data — data that arrives after a given hour’s data is considered complete — to be included in our calculation.</p>
+
+<p>Because we consider each hour individually, we can apply fixed-time windowing to our input data, just like in <code class="highlighter-rouge">HourlyTeamScore</code>. To provide the speculative updates and updates on late data, we’ll specify additional trigger parameters. The trigger will cause each window to calculate and emit results at an interval we specify (in this case, every five minutes), and also to keep triggering after the window is considered “complete” to account for late data. Just like the user score calculation, we’ll set the trigger to accumulating mode to ensure that we get a running sum for each hour-long window.</p>
+
+<p>The triggers for speculative updates and late data help with the problem of <a href="/documentation/programming-guide/#windowing">time skew</a>. Events in the pipeline aren’t necessarily processed in the order in which they actually occurred according to their timestamps; they may arrive in the pipeline out of order, or late (in our case, because they were generated while the user’s phone was out of contact with a network). Beam needs a way to determine when it can reasonably assume that it has “all” of the data in a given window: this is called the <em>watermark</em>.</p>
+
+<p>In an ideal world, all data would be processed immediately when it occurs, so the processing time would be equal to (or at least have a linear relationship to) the event time. However, because distributed systems contain some inherent inaccuracy (like our late-reporting phones), Beam often uses a heuristic watermark.</p>
+
+<p>The following diagram shows the relationship between ongoing processing time and each score’s event time for two teams:</p>
+
+<p><img src="/images/gaming-example-event-time-narrow.gif" alt="A pipeline processes score data by team, windowed by event time." width="800px" /></p>
+
+<p><em>Figure 5: Score data by team, windowed by event time. A trigger based on
+processing time causes the window to emit speculative early results and include
+late results.</em></p>
+
+<p>The dotted line in the diagram is the “ideal” <strong>watermark</strong>: Beam’s notion of when all data in a given window can reasonably be considered to have arrived. The irregular solid line represents the actual watermark, as determined by the data source.</p>
+
+<p>Data arriving above the solid watermark line is <em>late data</em> — this is a score event that was delayed (perhaps generated offline) and arrived after the window to which it belongs had closed. Our pipeline’s late-firing trigger ensures that this late data is still included in the sum.</p>
+
+<p>The following code example shows how <code class="highlighter-rouge">LeaderBoard</code> applies fixed-time windowing with the appropriate triggers to have our pipeline perform the calculations we want:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Extract team/score pairs from the event stream, using hour-long windows by default.</span>
+<span class="nd">@VisibleForTesting</span>
+<span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateTeamScores</span>
+    <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">teamWindowDuration</span><span class="o">;</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">allowedLateness</span><span class="o">;</span>
+
+  <span class="n">CalculateTeamScores</span><span class="o">(</span><span class="n">Duration</span> <span class="n">teamWindowDuration</span><span class="o">,</span> <span class="n">Duration</span> <span class="n">allowedLateness</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">teamWindowDuration</span> <span class="o">=</span> <span class="n">teamWindowDuration</span><span class="o">;</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">allowedLateness</span> <span class="o">=</span> <span class="n">allowedLateness</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">infos</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="s">"LeaderboardTeamFixedWindows"</span><span class="o">,</span>
+            <span class="n">Window</span><span class="o">.&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">teamWindowDuration</span><span class="o">))</span>
+                <span class="c1">// We will get early (speculative) results as well as cumulative</span>
+                <span class="c1">// processing of late data.</span>
+                <span class="o">.</span><span class="na">triggering</span><span class="o">(</span>
+                    <span class="n">AfterWatermark</span><span class="o">.</span><span class="na">pastEndOfWindow</span><span class="o">()</span>
+                        <span class="o">.</span><span class="na">withEarlyFirings</span><span class="o">(</span>
+                            <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">FIVE_MINUTES</span><span class="o">))</span>
+                        <span class="o">.</span><span class="na">withLateFirings</span><span class="o">(</span>
+                            <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">TEN_MINUTES</span><span class="o">)))</span>
+                <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">allowedLateness</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">accumulatingFiredPanes</span><span class="o">())</span>
+        <span class="c1">// Extract and sum teamname/score pairs from the event data.</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">));</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateTeamScores</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="s">"""Calculates scores for each team within the configured window duration.
+
+  Extract team/score pairs from the event stream, using hour-long windows by
+  default.
+  """</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">team_window_duration</span><span class="p">,</span> <span class="n">allowed_lateness</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">CalculateTeamScores</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">team_window_duration</span> <span class="o">=</span> <span class="n">team_window_duration</span> <span class="o">*</span> <span class="mi">60</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">allowed_lateness_seconds</span> <span class="o">=</span> <span class="n">allowed_lateness</span> <span class="o">*</span> <span class="mi">60</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c"># NOTE: the behavior does not exactly match the Java example</span>
+    <span class="c"># TODO: allowed_lateness not implemented yet in FixedWindows</span>
+    <span class="c"># TODO: AfterProcessingTime not implemented yet, replace AfterCount</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="c"># We will get early (speculative) results as well as cumulative</span>
+        <span class="c"># processing of late data.</span>
+        <span class="o">|</span> <span class="s">'LeaderboardTeamFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">team_window_duration</span><span class="p">),</span>
+            <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterWatermark</span><span class="p">(</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+                                           <span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">20</span><span class="p">)),</span>
+            <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
+        <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
+        <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p>Taken together, these processing strategies let us address the latency and completeness issues present in the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines, while still using the same basic transforms to process the data—as a matter of fact, both calculations still use the same <code class="highlighter-rouge">ExtractAndSumScore</code> transform that we used in both the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines.</p>
+
+<h2 id="gamestats-abuse-detection-and-usage-analysis">GameStats: Abuse Detection and Usage Analysis</h2>
+
+<p>While <code class="highlighter-rouge">LeaderBoard</code> demonstrates how to use basic windowing and triggers to perform low-latency and flexible data analysis, we can use more advanced windowing techniques to perform more comprehensive analysis. This might include some calculations designed to detect system abuse (like spam) or to gain insight into user behavior. The <code class="highlighter-rouge">GameStats</code> pipeline builds on the low-latency functionality in <code class="highlighter-rouge">LeaderBoard</code> to demonstrate how you can use Beam to perform this kind of advanced analysis.</p>
+
+<p>Like <code class="highlighter-rouge">LeaderBoard</code>, <code class="highlighter-rouge">GameStats</code> reads data from an unbounded source. It is best thought of as an ongoing job that provides insight into the game as users play.</p>
+
+<blockquote class="language-java">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java">GameStats on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<blockquote class="language-py">
+  <p><strong>Note:</strong> See <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/game_stats.py">GameStats on GitHub</a> for the complete example pipeline program.</p>
+</blockquote>
+
+<h3 id="what-does-gamestats-do">What Does GameStats Do?</h3>
+
+<p>Like <code class="highlighter-rouge">LeaderBoard</code>, <code class="highlighter-rouge">GameStats</code> calculates the total score per team, per hour. However, the pipeline also performs two kinds of more complex analysis:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">GameStats</code> does <strong>abuse detection</strong> system that performs some simple statistical analysis on the score data to determine which users, if any, might be spammers or bots. It then uses the list of suspected spam/bot users to filter the bots out of the hourly team score calculation.</li>
+  <li><code class="highlighter-rouge">GameStats</code> <strong>analyzes usage patterns</strong> by grouping together game data that share similar event times using session windowing. This lets us gain some intelligence on how long users tend to play, and how game length changes over time.</li>
+</ul>
+
+<p>Below, we’ll look at these features in more detail.</p>
+
+<h4 id="abuse-detection">Abuse Detection</h4>
+
+<p>Let’s suppose scoring in our game depends on the speed at which a user can “click” on their phone. <code class="highlighter-rouge">GameStats</code>’s abuse detection analyzes each user’s score data to detect if a user has an abnormally high “click rate” and thus an abnormally high score. This might indicate that the game is being played by a bot that operates significantly faster than a human could play.</p>
+
+<p>To determine whether or not a score is “abnormally” high, <code class="highlighter-rouge">GameStats</code> calculates the average of every score in that fixed-time window, and then checks each individual score against the average score multiplied by an arbitrary weight factor (in our case, 2.5). Thus, any score more than 2.5 times the average is deemed to be the product of spam. The <code class="highlighter-rouge">GameStats</code> pipeline tracks a list of “spam” users and filters those users out of the team score calculations for the team leader board.</p>
+
+<p>Since the average depends on the pipeline data, we need to calculate it, and then use that calculated data in a subsequent <code class="highlighter-rouge">ParDo</code> transform that filters scores that exceed the weighted value. To do this, we can pass the calculated average to as a <a href="/documentation/programming-guide/#side-inputs">side input</a> to the filtering <code class="highlighter-rouge">ParDo</code>.</p>
+
+<p>The following code example shows the composite transform that handles abuse detection. The transform uses the <code class="highlighter-rouge">Sum.integersPerKey</code> transform to sum all scores per user, and then the <code class="highlighter-rouge">Mean.globally</code> transform to determine the average score for all users. Once that’s been calculated (as a <code class="highlighter-rouge">PCollectionView</code> singleton), we can pass it to the filtering <code class="highlighter-rouge">ParDo</code> using <code class="highlighter-rouge">.withSideInputs</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CalculateSpammyUsers</span>
+    <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Logger</span> <span class="n">LOG</span> <span class="o">=</span> <span class="n">LoggerFactory</span><span class="o">.</span><span class="na">getLogger</span><span class="o">(</span><span class="n">CalculateSpammyUsers</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">double</span> <span class="n">SCORE_WEIGHT</span> <span class="o">=</span> <span class="mf">2.5</span><span class="o">;</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">userScores</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// Get the sum of scores for each user.</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">sumScores</span> <span class="o">=</span>
+        <span class="n">userScores</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"UserSum"</span><span class="o">,</span> <span class="n">Sum</span><span class="o">.</span><span class="na">integersPerKey</span><span class="o">());</span>
+
+    <span class="c1">// Extract the score from each element, and use it to find the global mean.</span>
+    <span class="kd">final</span> <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">globalMeanScore</span> <span class="o">=</span>
+        <span class="n">sumScores</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Values</span><span class="o">.</span><span class="na">create</span><span class="o">()).</span><span class="na">apply</span><span class="o">(</span><span class="n">Mean</span><span class="o">.&lt;</span><span class="n">Integer</span><span class="o">&gt;</span><span class="n">globally</span><span class="o">().</span><span class="na">asSingletonView</span><span class="o">());</span>
+
+    <span class="c1">// Filter the user sums using the global mean.</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">filtered</span> <span class="o">=</span>
+        <span class="n">sumScores</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="s">"ProcessAndFilter"</span><span class="o">,</span>
+            <span class="n">ParDo</span>
+                <span class="c1">// use the derived mean total score as a side input</span>
+                <span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                    <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
+                      <span class="kd">private</span> <span class="kd">final</span> <span class="n">Counter</span> <span class="n">numSpammerUsers</span> <span class="o">=</span>
+                          <span class="n">Metrics</span><span class="o">.</span><span class="na">counter</span><span class="o">(</span><span class="s">"main"</span><span class="o">,</span> <span class="s">"SpammerUsers"</span><span class="o">);</span>
+
+                      <span class="nd">@ProcessElement</span>
+                      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+                        <span class="n">Integer</span> <span class="n">score</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getValue</span><span class="o">();</span>
+                        <span class="n">Double</span> <span class="n">gmc</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">globalMeanScore</span><span class="o">);</span>
+                        <span class="k">if</span> <span class="o">(</span><span class="n">score</span> <span class="o">&gt;</span> <span class="o">(</span><span class="n">gmc</span> <span class="o">*</span> <span class="n">SCORE_WEIGHT</span><span class="o">))</span> <span class="o">{</span>
+                          <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span>
+                              <span class="s">"user "</span>
+                                  <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">()</span>
+                                  <span class="o">+</span> <span class="s">" spammer score "</span>
+                                  <span class="o">+</span> <span class="n">score</span>
+                                  <span class="o">+</span> <span class="s">" with mean "</span>
+                                  <span class="o">+</span> <span class="n">gmc</span><span class="o">);</span>
+                          <span class="n">numSpammerUsers</span><span class="o">.</span><span class="na">inc</span><span class="o">();</span>
+                          <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+                        <span class="o">}</span>
+                      <span class="o">}</span>
+                    <span class="o">})</span>
+                <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">globalMeanScore</span><span class="o">));</span>
+    <span class="k">return</span> <span class="n">filtered</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CalculateSpammyUsers</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="s">"""Filter out all but those users with a high clickrate, which we will
+  consider as 'spammy' uesrs.
+
+  We do this by finding the mean total score per user, then using that
+  information as a side input to filter out all but those user scores that are
+  larger than (mean * SCORE_WEIGHT).
+  """</span>
+  <span class="n">SCORE_WEIGHT</span> <span class="o">=</span> <span class="mf">2.5</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_scores</span><span class="p">):</span>
+    <span class="c"># Get the sum of scores for each user.</span>
+    <span class="n">sum_scores</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">user_scores</span>
+        <span class="o">|</span> <span class="s">'SumUsersScores'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+
+    <span class="c"># Extract the score from each element, and use it to find the global mean.</span>
+    <span class="n">global_mean_score</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sum_scores</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Values</span><span class="p">()</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">())</span>\
+            <span class="o">.</span><span class="n">as_singleton_view</span><span class="p">())</span>
+
+    <span class="c"># Filter the user sums using the global mean.</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sum_scores</span>
+        <span class="c"># Use the derived mean total score (global_mean_score) as a side input.</span>
+        <span class="o">|</span> <span class="s">'ProcessAndFilter'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">key_score</span><span class="p">,</span> <span class="n">global_mean</span><span class="p">:</span>\
+                <span class="n">key_score</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">global_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCORE_WEIGHT</span><span class="p">,</span>
+            <span class="n">global_mean_score</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">filtered</span>
+</code></pre>
+</div>
+
+<p>The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Calculate the total score per team over fixed windows,</span>
+<span class="c1">// and emit cumulative updates for late data. Uses the side input derived above-- the set of</span>
+<span class="c1">// suspected robots-- to filter out scores from those users from the sum.</span>
+<span class="c1">// Write the results to BigQuery.</span>
+<span class="n">rawEvents</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"WindowIntoFixedWindows"</span><span class="o">,</span>
+        <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span>
+            <span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getFixedWindowDuration</span><span class="o">()))))</span>
+    <span class="c1">// Filter out the detected spammer users, using the side input derived above.</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"FilterOutSpammers"</span><span class="o">,</span>
+        <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">,</span> <span class="n">GameActionInfo</span><span class="o">&gt;()</span> <span class="o">{</span>
+                  <span class="nd">@ProcessElement</span>
+                  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="c1">// If the user is not in the spammers Map, output the data element.</span>
+                    <span class="k">if</span> <span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">spammersView</span><span class="o">).</span><span class="na">get</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getUser</span><span class="o">().</span><span class="na">trim</span><span class="o">())</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+                      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+                    <span class="o">}</span>
+                  <span class="o">}</span>
+                <span class="o">})</span>
+            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">spammersView</span><span class="o">))</span>
+    <span class="c1">// Extract and sum teamname/score pairs from the event data.</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">))</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Calculate the total score per team over fixed windows, and emit cumulative</span>
+<span class="c"># updates for late data. Uses the side input derived above --the set of</span>
+<span class="c"># suspected robots-- to filter out scores from those users from the sum.</span>
+<span class="c"># Write the results to BigQuery.</span>
+<span class="p">(</span><span class="n">raw_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+ <span class="o">|</span> <span class="s">'WindowIntoFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">fixed_window_duration</span><span class="p">))</span>
+
+ <span class="c"># Filter out the detected spammer users, using the side input derived above</span>
+ <span class="o">|</span> <span class="s">'FilterOutSpammers'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+     <span class="k">lambda</span> <span class="n">elem</span><span class="p">,</span> <span class="n">spammers</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'user'</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">spammers</span><span class="p">,</span>
+     <span class="n">spammers_view</span><span class="p">)</span>
+ <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
+ <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h4 id="analyzing-usage-patterns">Analyzing Usage Patterns</h4>
+
+<p>We can gain some insight on when users are playing our game, and for how long, by examining the event times for each game score and grouping scores with similar event times into <em>sessions</em>. <code class="highlighter-rouge">GameStats</code> uses Beam’s built-in <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/windowing/Sessions.java">session windowing</a> function to group user scores into sessions based on the time they occurred.</p>
+
+<p>When you set session windowing, you specify a <em>minimum gap duration</em> between events. All events whose arrival times are closer together than the minimum gap duration are grouped into the same window. Events where the difference in arrival time is greater than the gap are grouped into separate windows. Depending on how we set our minimum gap duration, we can safely assume that scores in the same session window are part of the same (relatively) uninterrupted stretch of play. Scores in a different window indicate that the user stopped playing the game for at least the minimum gap time before returning to it later.</p>
+
+<p>The following diagram shows how data might look when grouped into session windows. Unlike fixed windows, session windows are <em>different for each user</em> and is dependent on each individual user’s play pattern:</p>
+
+<p><img src="/images/gaming-example-session-windows.png" alt="User sessions with a minimum gap duration." /></p>
+
+<p><em>Figure 6: User sessions with a minimum gap duration. Each user has different
+sessions, according to how many instances they play and how long their breaks
+between instances are.</em></p>
+
+<p>We can use the session-windowed data to determine the average length of uninterrupted play time for all of our users, as well as the total score they achieve during each session. We can do this in the code by first applying session windows, summing the score per user and session, and then using a transform to calculate the length of each individual session:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Detect user sessions-- that is, a burst of activity separated by a gap from further</span>
+<span class="c1">// activity. Find and record the mean session lengths.</span>
+<span class="c1">// This information could help the game designers track the changing user engagement</span>
+<span class="c1">// as their set of games changes.</span>
+<span class="n">userEvents</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"WindowIntoSessions"</span><span class="o">,</span>
+        <span class="n">Window</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span><span class="n">into</span><span class="o">(</span>
+                <span class="n">Sessions</span><span class="o">.</span><span class="na">withGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getSessionGap</span><span class="o">())))</span>
+            <span class="o">.</span><span class="na">withTimestampCombiner</span><span class="o">(</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="na">END_OF_WINDOW</span><span class="o">))</span>
+    <span class="c1">// For this use, we care only about the existence of the session, not any particular</span>
+    <span class="c1">// information aggregated over it, so the following is an efficient way to do that.</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.</span><span class="na">perKey</span><span class="o">(</span><span class="n">x</span> <span class="o">-&gt;</span> <span class="mi">0</span><span class="o">))</span>
+    <span class="c1">// Get the duration per session.</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"UserSessionActivity"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">UserSessionInfoFn</span><span class="o">()))</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Detect user sessions-- that is, a burst of activity separated by a gap</span>
+<span class="c"># from further activity. Find and record the mean session lengths.</span>
+<span class="c"># This information could help the game designers track the changing user</span>
+<span class="c"># engagement as their set of game changes.</span>
+<span class="p">(</span><span class="n">user_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+ <span class="o">|</span> <span class="s">'WindowIntoSessions'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="n">session_gap</span><span class="p">),</span>
+     <span class="n">timestamp_combiner</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EOW</span><span class="p">)</span>
+
+ <span class="c"># For this use, we care only about the existence of the session, not any</span>
+ <span class="c"># particular information aggregated over it, so we can just group by key</span>
+ <span class="c"># and assign a "dummy value" of None.</span>
+ <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">None</span><span class="p">)</span>
+
+ <span class="c"># Get the duration of the session</span>
+ <span class="o">|</span> <span class="s">'UserSessionActivity'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">UserSessionActivity</span><span class="p">())</span>
+</code></pre>
+</div>
+
+<p>This gives us a set of user sessions, each with an attached duration. We can then calculate the <em>average</em> session length by re-windowing the data into fixed time windows, and then calculating the average for all sessions that end in each hour:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Re-window to process groups of session sums according to when the sessions complete.</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"WindowToExtractSessionMean"</span><span class="o">,</span>
+    <span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span>
+        <span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getUserActivityWindowDuration</span><span class="o">()))))</span>
+<span class="c1">// Find the mean session duration in each window.</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Mean</span><span class="o">.&lt;</span><span class="n">Integer</span><span class="o">&gt;</span><span class="n">globally</span><span class="o">().</span><span class="na">withoutDefaults</span><span class="o">())</span>
+<span class="c1">// Write this info to a BigQuery table.</span>
+<span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">"WriteAvgSessionLength"</span><span class="o">,</span>
+    <span class="k">new</span> <span class="n">WriteWindowedToBigQuery</span><span class="o">&lt;&gt;(</span>
+        <span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">GcpOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">getProject</span><span class="o">(),</span>
+        <span class="n">options</span><span class="o">.</span><span class="na">getDataset</span><span class="o">(),</span>
+        <span class="n">options</span><span class="o">.</span><span class="na">getGameStatsTablePrefix</span><span class="o">()</span> <span class="o">+</span> <span class="s">"_sessions"</span><span class="o">,</span>
+        <span class="n">configureSessionWindowWrite</span><span class="o">()));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Re-window to process groups of session sums according to when the</span>
+<span class="c"># sessions complete</span>
+<span class="o">|</span> <span class="s">'WindowToExtractSessionMean'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">user_activity_window_duration</span><span class="p">))</span>
+
+<span class="c"># Find the mean session duration in each window</span>
+<span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">())</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
+<span class="o">|</span> <span class="s">'FormatAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">{</span><span class="s">'mean_duration'</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">)})</span>
+<span class="o">|</span> <span class="s">'WriteAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
+        <span class="s">'mean_duration'</span><span class="p">:</span> <span class="s">'FLOAT'</span><span class="p">,</span>
+    <span class="p">}))</span>
+</code></pre>
+</div>
+
+<p>We can use the resulting information to find, for example, what times of day our users are playing the longest, or which stretches of the day are more likely to see shorter play sessions.</p>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

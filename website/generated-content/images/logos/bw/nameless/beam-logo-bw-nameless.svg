@@ -1,0 +1,19 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 103.75402 144.60986"><defs><style>.cls-1{fill:url(#linear-gradient);}.cls-2{fill:#bdbdbd;}.cls-3,.cls-4{fill:#fff;}.cls-3{opacity:0.6;}.cls-5{fill:#fee900;}.cls-6{fill:#757575;stroke:#757575;stroke-miterlimit:10;}</style><linearGradient id="linear-gradient" x1="0.57999" y1="60.17316" x2="75.04996" y2="60.17316" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff0" stop-opacity="0.7"/><stop offset="0.13194" stop-color="#fff600" stop-opacity="0.66022"/><stop offset="0.31385" stop-color="#feef00" stop-opacity="0.62592"/><stop offset="0.54652" stop-color="#feea00" stop-opacity="0.60587"/><stop offset="1" stop-color="#fee900" stop-opacity="0.6"/></linearGradient></defs><title>beam-logo_bw</title><polygon class="cls-1" points="36.388 72.305 75.05 48.041 36.388 72.305 36.388 72.305"/><polygon class="cls-2" points="75.05 28.983 0.25 5.579 0.25 49.774 0.25 93.834 0.25 93.834 0.25 138.584 75.05 115.628 75.05 96.632 35.607 72.306 75.05 47.979 75.05 28.983"/><polygon class="cls-3" points="0.25 101.965 0.25 110.075 75.05 116.735 75.05 95.305 0.25 101.965"/><path class="cls-4" d="M114.62478,369.74574a8.5081,8.5081,0,0,0,8.50819,8.50819V361.23756A8.50823,8.50823,0,0,0,114.62478,369.74574Z" transform="translate(-48.083 -263.72599)"/><polygon class="cls-5" points="0.58 5.752 75.05 29.095 75.05 29.095 0.58 5.752"/><polygon class="cls-3" points="0 34.763 0 42.873 74.703 49.533 74.703 28.103 0 34.763"/><path class="cls-4" d="M114.62478,302.54416a8.5081,8.5081,0,0,0,8.50819,8.50819V294.036A8.50823,8.50823,0,0,0,114.62478,302.54416Z" transform="translate(-48.083 -263.72599)"/><path class="cls-6" d="M149.85752,355.0673a31.95182,31.95182,0,0,0-4.48779-9.56738,30.16459,30.16459,0,0,0-7.59473-7.5459,34.29159,34.29159,0,0,0-10.80029-4.88232q10.25684-4.33887,15.584-12.23047a31.00862,31.00862,0,0,0,5.32617-17.75391,41.11393,41.11393,0,0,0-3.40283-17.40869,30.92584,30.92584,0,0,0-9.814-12.08252,44.12955,44.12955,0,0,0-15.68262-7.05225A86.44973,86.44973,0,0,0,98.07529,264.226H48.85752v5.54242l72.89409,22.71047a2,2,0,0,1,1.38136,1.90192v16.275a2,2,0,0,1-1.02211,1.74463L84.76393,336.03086l37.34693,23.63052A2,2,0,0,1,123.133,361.406v16.275a2,2,0,0,1-1.38136,1.90192L48.85752,402.29337v5.54248h52.66992a75.21864,75.21864,0,0,0,20.86084-2.66309,43.55411,43.55411,0,0,0,15.68262-7.94043,34.29293,34.29293,0,0,0,9.86328-13.11816,45.37613,45.37613,0,0,0,3.40283-18.19727A39.65034,39.65034,0,0,0,149.85752,355.0673Z" transform="translate(-48.083 -263.72599)"/></svg>

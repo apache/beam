@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache HCatalog InputFormat IO</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/built-in/hcatalog/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Documentation</span></li>
+<li><a href="/documentation">Using the Documentation</a></li>
+<li><a href="/documentation/execution-model">Beam Execution Model</a></li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">Pipeline development lifecycle</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+  </ul>
+</li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">Beam programming guide</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/programming-guide/">Overview</a></li>
+    <li><a href="/documentation/programming-guide/#creating-a-pipeline">Pipelines</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">PCollections</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pcollections">Creating a PCollection</a></li>
+        <li><a href="/documentation/programming-guide/#pcollection-characteristics">PCollection characteristics</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Transforms</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#applying-transforms">Applying transforms</a></li>
+        <li>
+          <span class="section-nav-list-title">Core Beam transforms</span>
+
+          <ul class="section-nav-list">
+            <li><a href="/documentation/programming-guide/#pardo">ParDo</a></li>
+            <li><a href="/documentation/programming-guide/#groupbykey">GroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#cogroupbykey">CoGroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#combine">Combine</a></li>
+            <li><a href="/documentation/programming-guide/#flatten">Flatten</a></li>
+            <li><a href="/documentation/programming-guide/#partition">Partition</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for user code</a></li>
+        <li><a href="/documentation/programming-guide/#side-inputs">Side inputs</a></li>
+        <li><a href="/documentation/programming-guide/#additional-outputs">Additional outputs</a></li>
+        <li><a href="/documentation/programming-guide/#composite-transforms">Composite transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Pipeline I/O</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
+        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Data encoding and type safety</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#data-encoding-and-type-safety">Data encoding basics</a></li>
+        <li><a href="/documentation/programming-guide/#specifying-coders">Specifying coders</a></li>
+        <li><a href="/documentation/programming-guide/#default-coders-and-the-coderregistry">Default coders and the CoderRegistry</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Windowing</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#windowing">Windowing basics</a></li>
+        <li><a href="/documentation/programming-guide/#provided-windowing-functions">Provided windowing functions</a></li>
+        <li><a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Setting your PCollection’s windowing function</a></li>
+        <li><a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data</a></li>
+        <li><a href="/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Triggers</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#triggers">Trigger basics</a></li>
+        <li><a href="/documentation/programming-guide/#event-time-triggers">Event time triggers and the default trigger</a></li>
+        <li><a href="/documentation/programming-guide/#processing-time-triggers">Processing time triggers</a></li>
+        <li><a href="/documentation/programming-guide/#data-driven-triggers">Data-driven triggers</a></li>
+        <li><a href="/documentation/programming-guide/#setting-a-trigger">Setting a trigger</a></li>
+        <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
+      </ul>
+    </li>
+    <li><a href="/documentation/resources/">Additional Resources</a></li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#reading-using-hcatalogio">Reading using HCatalogIO</a></li>
+  <li><a href="#writing-using-hcatalogio">Writing using HCatalogIO</a></li>
+  <li><a href="#using-older-versions-of-hcatalog-1x">Using older versions of HCatalog (1.x)</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p><a href="/documentation/io/io-toc/">Pipeline I/O Table of Contents</a></p>
+
+<h1 id="hcatalog-io">HCatalog IO</h1>
+
+<p>An <code class="highlighter-rouge">HCatalogIO</code> is a transform for reading and writing data to an HCatalog managed source.</p>
+
+<h3 id="reading-using-hcatalogio">Reading using HCatalogIO</h3>
+
+<p>To configure an HCatalog source, you must specify a metastore URI and a table name. Other optional parameters are database and filter.</p>
+
+<p>For example:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">configProperties</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;();</span>
+<span class="n">configProperties</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"hive.metastore.uris"</span><span class="o">,</span><span class="s">"thrift://metastore-host:port"</span><span class="o">);</span> 
+<span class="n">pipeline</span>
+  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HCatalogIO</span><span class="o">.</span><span class="na">read</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">withConfigProperties</span><span class="o">(</span><span class="n">configProperties</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">withDatabase</span><span class="o">(</span><span class="s">"default"</span><span class="o">)</span> <span class="c1">//optional, assumes default if none specified</span>
+  <span class="o">.</span><span class="na">withTable</span><span class="o">(</span><span class="s">"employee"</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">withFilter</span><span class="o">(</span><span class="n">filterString</span><span class="o">)</span> <span class="c1">//optional, may be specified if the table is partitioned</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support HCatalogIO.</span>
+</code></pre>
+</div>
+
+<h3 id="writing-using-hcatalogio">Writing using HCatalogIO</h3>
+
+<p>To configure an <code class="highlighter-rouge">HCatalog</code> sink, you must specify a metastore URI and a table name. Other
+optional parameters are database, partition and batchsize.
+The destination table should exist beforehand as the transform will not create a new table if missing.</p>
+
+<p>For example:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">configProperties</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;();</span>
+<span class="n">configProperties</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"hive.metastore.uris"</span><span class="o">,</span><span class="s">"thrift://metastore-host:port"</span><span class="o">);</span>
+
+<span class="n">pipeline</span>
+  <span class="o">.</span><span class="na">apply</span><span class="o">(...)</span>
+  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">HCatalogIO</span><span class="o">.</span><span class="na">write</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">withConfigProperties</span><span class="o">(</span><span class="n">configProperties</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">withDatabase</span><span class="o">(</span><span class="s">"default"</span><span class="o">)</span> <span class="c1">//optional, assumes default if none specified</span>
+    <span class="o">.</span><span class="na">withTable</span><span class="o">(</span><span class="s">"employee"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">withPartition</span><span class="o">(</span><span class="n">partitionValues</span><span class="o">)</span> <span class="c1">//optional, may be specified if the table is partitioned</span>
+    <span class="o">.</span><span class="na">withBatchSize</span><span class="o">(</span><span class="mi">1024L</span><span class="o">))</span> <span class="c1">//optional, assumes a default batch size of 1024 if none specified</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support HCatalogIO.</span>
+</code></pre>
+</div>
+
+<h3 id="using-older-versions-of-hcatalog-1x">Using older versions of HCatalog (1.x)</h3>
+
+<p><code class="highlighter-rouge">HCatalogIO</code> is build for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
+The following illustrates a workaround to work with Hive 1.1.</p>
+
+<p>Include the following Hive 1.2 jars in the über jar you build. 
+The 1.2 jars provide the necessary methods for Beam while remain compatible with Hive 1.1.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+    &lt;artifactId&gt;beam-sdks-java-io-hcatalog&lt;/artifactId&gt;
+    &lt;version&gt;${beam.version}&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.hive.hcatalog&lt;/groupId&gt;
+    &lt;artifactId&gt;hive-hcatalog-core&lt;/artifactId&gt;
+    &lt;version&gt;1.2&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.hive&lt;/groupId&gt;
+    &lt;artifactId&gt;hive-metastore&lt;/artifactId&gt;
+    &lt;version&gt;1.2&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.hive&lt;/groupId&gt;
+    &lt;artifactId&gt;hive-exec&lt;/artifactId&gt;
+    &lt;version&gt;1.2&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.hive&lt;/groupId&gt;
+    &lt;artifactId&gt;hive-common&lt;/artifactId&gt;
+    &lt;version&gt;1.2&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+</div>
+
+<p>Relocate <em>only</em> the following hive packages:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;plugin&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;
+    &lt;version&gt;${maven-shade-plugin.version}&lt;/version&gt;
+    &lt;configuration&gt;
+        &lt;createDependencyReducedPom&gt;false&lt;/createDependencyReducedPom&gt;
+        &lt;filters&gt;
+            &lt;filter&gt;
+                &lt;artifact&gt;*:*&lt;/artifact&gt;
+                &lt;excludes&gt;
+                    &lt;exclude&gt;META-INF/*.SF&lt;/exclude&gt;
+                    &lt;exclude&gt;META-INF/*.DSA&lt;/exclude&gt;
+                    &lt;exclude&gt;META-INF/*.RSA&lt;/exclude&gt;
+                &lt;/excludes&gt;
+            &lt;/filter&gt;
+        &lt;/filters&gt;
+    &lt;/configuration&gt;
+    &lt;executions&gt;
+        &lt;execution&gt;
+            &lt;phase&gt;package&lt;/phase&gt;
+            &lt;goals&gt;
+                &lt;goal&gt;shade&lt;/goal&gt;
+            &lt;/goals&gt;
+            &lt;configuration&gt;
+                &lt;shadedArtifactAttached&gt;true&lt;/shadedArtifactAttached&gt;
+                &lt;shadedClassifierName&gt;shaded&lt;/shadedClassifierName&gt;
+                &lt;transformers&gt;
+                    &lt;transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/&gt;
+                &lt;/transformers&gt;
+                &lt;relocations&gt;
+                    &lt;!-- Important: Do not relocate org.apache.hadoop.hive --&gt;
+                    &lt;relocation&gt;
+                        &lt;pattern&gt;org.apache.hadoop.hive.conf&lt;/pattern&gt;
+                        &lt;shadedPattern&gt;h12.org.apache.hadoop.hive.conf&lt;/shadedPattern&gt;
+                    &lt;/relocation&gt;
+                    &lt;relocation&gt;
+                        &lt;pattern&gt;org.apache.hadoop.hive.ql&lt;/pattern&gt;
+                        &lt;shadedPattern&gt;h12.org.apache.hadoop.hive.ql&lt;/shadedPattern&gt;
+                    &lt;/relocation&gt;
+                    &lt;relocation&gt;
+                        &lt;pattern&gt;org.apache.hadoop.hive.metastore&lt;/pattern&gt;
+                        &lt;shadedPattern&gt;h12.org.apache.hadoop.hive.metastore&lt;/shadedPattern&gt;
+                    &lt;/relocation&gt;
+                &lt;/relocations&gt;
+            &lt;/configuration&gt;
+        &lt;/execution&gt;
+    &lt;/executions&gt;
+&lt;/plugin&gt;
+</code></pre>
+</div>
+
+<p>This has been testing to read SequenceFile and ORCFile file backed tables running with 
+Beam 2.4.0 on Spark 2.3 / YARN in a Cloudera CDH 5.12.2 managed environment.</p>
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

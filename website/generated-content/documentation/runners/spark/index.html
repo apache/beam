@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Spark Runner</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runners/spark/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Runners</span></li>
+<li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+<li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+<li><a href="/documentation/runners/apex/">Apache Apex</a></li>
+<li><a href="/documentation/runners/flink/">Apache Flink</a></li>
+<li><a href="/documentation/runners/gearpump/">Apache Gearpump</a></li>
+<li><a href="/documentation/runners/samza/">Apache Samza</a></li>
+<li><a href="/documentation/runners/spark/">Apache Spark</a></li>
+<li><a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#spark-runner-prerequisites-and-setup">Spark Runner prerequisites and setup</a>
+    <ul>
+      <li><a href="#deploying-spark-with-your-application">Deploying Spark with your application</a></li>
+      <li><a href="#running-on-a-pre-deployed-spark-cluster">Running on a pre-deployed Spark cluster</a></li>
+    </ul>
+  </li>
+  <li><a href="#pipeline-options-for-the-spark-runner">Pipeline options for the Spark Runner</a></li>
+  <li><a href="#additional-notes">Additional notes</a>
+    <ul>
+      <li><a href="#using-spark-submit">Using spark-submit</a></li>
+      <li><a href="#monitoring-your-job">Monitoring your job</a></li>
+      <li><a href="#streaming-execution">Streaming Execution</a></li>
+      <li><a href="#using-a-provided-sparkcontext-and-streaminglisteners">Using a provided SparkContext and StreamingListeners</a></li>
+    </ul>
+  </li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<h1 id="using-the-apache-spark-runner">Using the Apache Spark Runner</h1>
+
+<p>The Apache Spark Runner can be used to execute Beam pipelines using <a href="http://spark.apache.org/">Apache Spark</a>.
+The Spark Runner can execute Spark pipelines just like a native Spark application; deploying a self-contained application for local mode, running on Spark’s Standalone RM, or using YARN or Mesos.</p>
+
+<p>The Spark Runner executes Beam pipelines on top of Apache Spark, providing:</p>
+
+<ul>
+  <li>Batch and streaming (and combined) pipelines.</li>
+  <li>The same fault-tolerance <a href="http://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#fault-tolerance-semantics">guarantees</a> as provided by RDDs and DStreams.</li>
+  <li>The same <a href="http://spark.apache.org/docs/1.6.3/security.html">security</a> features Spark provides.</li>
+  <li>Built-in metrics reporting using Spark’s metrics system, which reports Beam Aggregators as well.</li>
+  <li>Native support for Beam side-inputs via spark’s Broadcast variables.</li>
+</ul>
+
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the currently supported capabilities of the Spark Runner.</p>
+
+<p><em><strong>Note:</strong></em> <em>support for the Beam Model in streaming is currently experimental, follow-up in the <a href="/get-started/support/">mailing list</a> for status updates.</em></p>
+
+<h2 id="spark-runner-prerequisites-and-setup">Spark Runner prerequisites and setup</h2>
+
+<p>The Spark runner currently supports Spark’s 1.6 branch, and more specifically any version greater than 1.6.0.</p>
+
+<p>You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">spark</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.6</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<h3 id="deploying-spark-with-your-application">Deploying Spark with your application</h3>
+
+<p>In some cases, such as running in local mode/Standalone, your (self-contained) application would be required to pack Spark by explicitly adding the following dependencies in your pom.xml:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">spark</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">core_2</span><span class="o">.</span><span class="mi">10</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">spark</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">spark</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">spark</span><span class="o">-</span><span class="n">streaming_2</span><span class="o">.</span><span class="mi">10</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">spark</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p>And shading the application jar using the maven shade plugin:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">plugin</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">maven</span><span class="o">.</span><span class="na">plugins</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">maven</span><span class="o">-</span><span class="n">shade</span><span class="o">-</span><span class="n">plugin</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">configuration</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">createDependencyReducedPom</span><span class="o">&gt;</span><span class="kc">false</span><span class="o">&lt;/</span><span class="n">createDependencyReducedPom</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">filters</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">filter</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">artifact</span><span class="o">&gt;*:*&lt;/</span><span class="n">artifact</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">excludes</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">SF</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">DSA</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">exclude</span><span class="o">&gt;</span><span class="n">META</span><span class="o">-</span><span class="n">INF</span><span class="o">/*.</span><span class="na">RSA</span><span class="o">&lt;/</span><span class="n">exclude</span><span class="o">&gt;</span>
+        <span class="o">&lt;/</span><span class="n">excludes</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">filter</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">filters</span><span class="o">&gt;</span>
+  <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">executions</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">execution</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">phase</span><span class="o">&gt;</span><span class="kn">package</span><span class="o">&lt;/</span><span class="n">phase</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">goals</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">goal</span><span class="o">&gt;</span><span class="n">shade</span><span class="o">&lt;/</span><span class="n">goal</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">goals</span><span class="o">&gt;</span>
+      <span class="o">&lt;</span><span class="n">configuration</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span><span class="kc">true</span><span class="o">&lt;/</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">&lt;/</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">transformers</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">transformer</span>
+            <span class="n">implementation</span><span class="o">=</span><span class="s">"org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"</span><span class="o">/&gt;</span>
+        <span class="o">&lt;/</span><span class="n">transformers</span><span class="o">&gt;</span>
+      <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
+    <span class="o">&lt;/</span><span class="n">execution</span><span class="o">&gt;</span>
+  <span class="o">&lt;/</span><span class="n">executions</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">plugin</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p>After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is <code class="highlighter-rouge">beam-examples</code> and the version is <code class="highlighter-rouge">1.0.0</code>):</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>beam-examples-1.0.0-shaded.jar
+</code></pre>
+</div>
+
+<p>To run against a Standalone cluster simply run:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkRunner
+</code></pre>
+</div>
+
+<h3 id="running-on-a-pre-deployed-spark-cluster">Running on a pre-deployed Spark cluster</h3>
+
+<p>Deploying your Beam pipeline on a cluster that already has a Spark deployment (Spark classes are available in container classpath) does not require any additional dependencies.
+For more details on the different deployment modes see: <a href="http://spark.apache.org/docs/latest/spark-standalone.html">Standalone</a>, <a href="http://spark.apache.org/docs/latest/running-on-yarn.html">YARN</a>, or <a href="http://spark.apache.org/docs/latest/running-on-mesos.html">Mesos</a>.</p>
+
+<h2 id="pipeline-options-for-the-spark-runner">Pipeline options for the Spark Runner</h2>
+
+<p>When executing your pipeline with the Spark Runner, you should consider the following pipeline options.</p>
+
+<table class="table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>SparkRunner</code> to run using Spark.</td>
+</tr>
+<tr>
+  <td><code>sparkMaster</code></td>
+  <td>The url of the Spark Master. This is the equivalent of setting <code>SparkConf#setMaster(String)</code> and can either be <code>local[x]</code> to run local with x cores, <code>spark://host:port</code> to connect to a Spark Standalone cluster, <code>mesos://host:port</code> to connect to a Mesos cluster, or <code>yarn</code> to connect to a yarn cluster.</td>
+  <td><code>local[4]</code></td>
+</tr>
+<tr>
+  <td><code>storageLevel</code></td>
+  <td>The <code>StorageLevel</code> to use when caching RDDs in batch pipelines. The Spark Runner automatically caches RDDs that are evaluated repeatedly. This is a batch-only property as streaming pipelines in Beam are stateful, which requires Spark DStream's <code>StorageLevel</code> to be <code>MEMORY_ONLY</code>.</td>
+  <td>MEMORY_ONLY</td>
+</tr>
+<tr>
+  <td><code>batchIntervalMillis</code></td>
+  <td>The <code>StreamingContext</code>'s <code>batchDuration</code> - setting Spark's batch interval.</td>
+  <td><code>1000</code></td>
+</tr>
+<tr>
+  <td><code>enableSparkMetricSinks</code></td>
+  <td>Enable reporting metrics to Spark's metrics Sinks.</td>
+  <td>true</td>
+</tr>
+</table>
+
+<h2 id="additional-notes">Additional notes</h2>
+
+<h3 id="using-spark-submit">Using spark-submit</h3>
+
+<p>When submitting a Spark application to cluster, it is common (and recommended) to use the <code>spark-submit</code> script that is provided with the spark installation.
+The <code>PipelineOptions</code> described above are not to replace <code>spark-submit</code>, but to complement it.
+Passing any of the above mentioned options could be done as one of the <code>application-arguments</code>, and setting <code>--master</code> takes precedence.
+For more on how to generally use <code>spark-submit</code> checkout Spark <a href="http://spark.apache.org/docs/1.6.3/submitting-applications.html#launching-applications-with-spark-submit">documentation</a>.</p>
+
+<h3 id="monitoring-your-job">Monitoring your job</h3>
+
+<p>You can monitor a running Spark job using the Spark <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#web-interfaces">Web Interfaces</a>. By default, this is available at port <code class="highlighter-rouge">4040</code> on the driver node. If you run Spark on your local machine that would be <code class="highlighter-rouge">http://localhost:4040</code>.
+Spark also has a history server to <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#viewing-after-the-fact">view after the fact</a>.
+Metrics are also available via <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#rest-api">REST API</a>.
+Spark provides a <a href="http://spark.apache.org/docs/1.6.3/monitoring.html#metrics">metrics system</a> that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.</p>
+
+<h3 id="streaming-execution">Streaming Execution</h3>
+
+<p>If your pipeline uses an <code>UnboundedSource</code> the Spark Runner will automatically set streaming mode. Forcing streaming mode is mostly used for testing and is not recommended.</p>
+
+<h3 id="using-a-provided-sparkcontext-and-streaminglisteners">Using a provided SparkContext and StreamingListeners</h3>
+
+<p>If you would like to execute your Spark job with a provided <code>SparkContext</code>, such as when using the <a href="https://github.com/spark-jobserver/spark-jobserver">spark-jobserver</a>, or use <code>StreamingListeners</code>, you can’t use <code>SparkPipelineOptions</code> (the context or a listener cannot be passed as a command-line argument anyway).
+Instead, you should use <code>SparkContextOptions</code> which can only be used programmatically and is not a common <code>PipelineOptions</code> implementation.</p>
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

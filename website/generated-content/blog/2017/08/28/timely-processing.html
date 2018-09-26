@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timely (and Stateful) Processing with Apache Beam</title>
+  <meta name="description" content="In a prior blogpost, Iintroduced the basics of stateful processing in Apache Beam, focusing on theaddition of state to per-element processing. So-called time...">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/blog/2017/08/28/timely-processing.html" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="body__contained">
+      <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Timely (and Stateful) Processing with Apache Beam</h1>
+    <p class="post-meta"><time datetime="2017-08-28T01:00:01-07:00" itemprop="datePublished">Aug 28, 2017</time> •
+       Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+      
+    </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>In a <a href="/blog/2017/02/13/stateful-processing.html">prior blog
+post</a>, I
+introduced the basics of stateful processing in Apache Beam, focusing on the
+addition of state to per-element processing. So-called <em>timely</em> processing
+complements stateful processing in Beam by letting you set timers to request a
+(stateful) callback at some point in the future.</p>
+
+<p>What can you do with timers in Beam? Here are some examples:</p>
+
+<ul>
+  <li>You can output data buffered in state after some amount of processing time.</li>
+  <li>You can take special action when the watermark estimates that you have
+received all data up to a specified point in event time.</li>
+  <li>You can author workflows with timeouts that alter state and emit output in
+response to the absence of additional input for some period of time.</li>
+</ul>
+
+<p>These are just a few possibilities. State and timers together form a powerful
+programming paradigm for fine-grained control to express a huge variety of
+workflows.  Stateful and timely processing in Beam is portable across data
+processing engines and integrated with Beam’s unified model of event time
+windowing in both streaming and batch processing.</p>
+
+<!--more-->
+
+<h2 id="what-is-stateful-and-timely-processing">What is stateful and timely processing?</h2>
+
+<p>In my prior post, I developed an understanding of stateful processing largely
+by contrast with associative, commutative combiners. In this post, I’ll
+emphasize a perspective that I had mentioned only briefly: that elementwise
+processing with access to per-key-and-window state and timers represents a
+fundamental pattern for “embarrassingly parallel” computation, distinct from
+the others in Beam.</p>
+
+<p>In fact, stateful and timely computation is the low-level computational pattern
+that underlies the others. Precisely because it is lower level, it allows you
+to really micromanage your computations to unlock new use cases and new
+efficiencies. This incurs the complexity of manually managing your state and
+timers - it isn’t magic! Let’s first look again at the two primary
+computational patterns in Beam.</p>
+
+<h3 id="element-wise-processing-pardo-map-etc">Element-wise processing (ParDo, Map, etc)</h3>
+
+<p>The most elementary embarrassingly parallel pattern is just using a bunch of
+computers to apply the same function to every input element of a massive
+collection. In Beam, per-element processing like this is expressed as a basic
+<code class="highlighter-rouge">ParDo</code> - analogous to “Map” from MapReduce - which is like an enhanced “map”,
+“flatMap”, etc, from functional programming.</p>
+
+<p>The following diagram illustrates per-element processing. Input elements are
+squares, output elements are triangles. The colors of the elements represent
+their key, which will matter later. Each input element maps to the
+corresponding output element(s) completely independently. Processing may be
+distributed across computers in any way, yielding essentially limitless
+parallelism.</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/ParDo.png" alt="ParDo offers limitless parallelism" width="600" /></p>
+
+<p>This pattern is obvious, exists in all data-parallel paradigms, and has
+a simple stateless implementation. Every input element can be processed
+independently or in arbitrary bundles. Balancing the work between computers is
+actually the hard part, and can be addressed by splitting, progress estimation,
+work-stealing, etc.</p>
+
+<h3 id="per-key-and-window-aggregation-combine-reduce-groupbykey-etc">Per-key (and window) aggregation (Combine, Reduce, GroupByKey, etc.)</h3>
+
+<p>The other embarassingly parallel design pattern at the heart of Beam is per-key
+(and window) aggregation. Elements sharing a key are colocated and then
+combined using some associative and commutative operator. In Beam this is
+expressed as a <code class="highlighter-rouge">GroupByKey</code> or <code class="highlighter-rouge">Combine.perKey</code>, and corresponds to the shuffle
+and “Reduce” from MapReduce.  It is sometimes helpful to think of per-key
+<code class="highlighter-rouge">Combine</code> as the fundamental operation, and raw <code class="highlighter-rouge">GroupByKey</code> as a combiner that
+just concatenates input elements. The communication pattern for the input
+elements is the same, modulo some optimizations possible for <code class="highlighter-rouge">Combine</code>.</p>
+
+<p>In the illustration here, recall that the color of each element represents the
+key. So all of the red squares are routed to the same location where they are
+aggregated and the red triangle is the output.  Likewise for the yellow and
+green squares, etc. In a real application, you may have millions of keys, so
+the parallelism is still massive.</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/CombinePerKey.png" alt="Gathering elements per key then combining them" width="600" /></p>
+
+<p>The underlying data processing engine will, at some level of abstraction, use
+state to perform this aggregation across all the elements arriving for a key.
+In particular, in a streaming execution, the aggregation process may need to
+wait for more data to arrive or for the watermark to estimate that all input
+for an event time window is complete. This requires some way to store the
+intermediate aggregation between input elements as well a way to a receive a
+callback when it is time to emit the result. As a result, the <em>execution</em> of
+per key aggregation by a stream processing engine fundamentally involves state
+and timers.</p>
+
+<p>However, <em>your</em> code is just a declarative expression of the aggregation
+operator.  The runner can choose a variety of ways to execute your operator. 
+I went over this in detail in <a href="/blog/2017/02/13/stateful-processing.html">my prior post focused on state alone</a>. Since you do not
+observe elements in any defined order, nor manipulate mutable state or timers
+directly, I call this neither stateful nor timely processing.</p>
+
+<h3 id="per-key-and-window-stateful-timely-processing">Per-key-and-window stateful, timely processing</h3>
+
+<p>Both <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">Combine.perKey</code> are standard patterns for parallelism that go
+back decades. When implementing these in a massive-scale distributed data
+processing engine, we can highlight a few characteristics that are particularly
+important.</p>
+
+<p>Let us consider these characteristics of <code class="highlighter-rouge">ParDo</code>:</p>
+
+<ul>
+  <li>You write single-threaded code to process one element.</li>
+  <li>Elements are processed in arbitrary order with no dependencies
+or interaction between processing of elements.</li>
+</ul>
+
+<p>And these characteristics for <code class="highlighter-rouge">Combine.perKey</code>:</p>
+
+<ul>
+  <li>Elements for a common key and window are gathered together.</li>
+  <li>A user-defined operator is applied to those elements.</li>
+</ul>
+
+<p>Combining some of the characteristics of unrestricted parallel mapping and
+per-key-and-window combination, we can discern a megaprimitive from which we
+build stateful and timely processing:</p>
+
+<ul>
+  <li>Elements for a common key and window are gathered together.</li>
+  <li>Elements are processed in arbitrary order.</li>
+  <li>You write single-threaded code to process one element or timer, possibly
+accessing state or setting timers.</li>
+</ul>
+
+<p>In the illustration below, the red squares are gathered and fed one by one to
+the stateful, timely, <code class="highlighter-rouge">DoFn</code>. As each element is processed, the <code class="highlighter-rouge">DoFn</code> has
+access to state (the color-partitioned cylinder on the right) and can set
+timers to receive callbacks (the colorful clocks on the left).</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/StateAndTimers.png" alt="Gathering elements per key then timely, stateful processing" width="600" /></p>
+
+<p>So that is the abstract notion of per-key-and-window stateful, timely
+processing in Apache Beam. Now let’s see what it looks like to write code that
+accesses state, sets timers, and receives callbacks.</p>
+
+<h2 id="example-batched-rpc">Example: Batched RPC</h2>
+
+<p>To demonstrate stateful and timely processing, let’s work through a concrete
+example, with code.</p>
+
+<p>Suppose you are writing a system to analyze events.  You have a ton of data
+coming in and you need to enrich each event by RPC to an external system. You
+can’t just issue an RPC per event.  Not only would this be terrible for
+performance, but it would also likely blow your quota with the external system.
+So you’d like to gather a number of events, make one RPC for them all, and then
+output all the enriched events.</p>
+
+<h3 id="state">State</h3>
+
+<p>Let’s set up the state we need to track batches of elements. As each element
+comes in, we will write the element to a buffer while tracking the number of
+elements we have buffered. Here are the state cells in code:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">bufferedEvents</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">countState</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+
+  <span class="err">…</span> <span class="n">TBD</span> <span class="err">…</span> 
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
+<span class="c"># Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.</span>
+</code></pre>
+</div>
+
+<p>Walking through the code, we have:</p>
+
+<ul>
+  <li>The state cell <code class="highlighter-rouge">"buffer"</code> is an unordered bag of buffered events.</li>
+  <li>The state cell <code class="highlighter-rouge">"count"</code> tracks how many events have been buffered.</li>
+</ul>
+
+<p>Next, as a recap of reading and writing state, let’s write our <code class="highlighter-rouge">@ProcessElement</code>
+method. We will choose a limit on the size of the buffer, <code class="highlighter-rouge">MAX_BUFFER_SIZE</code>. If
+our buffer reaches this size, we will perform a single RPC to enrich all the
+events, and output.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">MAX_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">500</span><span class="o">;</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">bufferedEvents</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">countState</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="n">ProcessContext</span> <span class="n">context</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">bufferState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">countState</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="n">firstNonNull</span><span class="o">(</span><span class="n">countState</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="mi">0</span><span class="o">);</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+    <span class="n">countState</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">count</span><span class="o">);</span>
+    <span class="n">bufferState</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">context</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+
+    <span class="k">if</span> <span class="o">(</span><span class="n">count</span> <span class="o">&gt;</span> <span class="n">MAX_BUFFER_SIZE</span><span class="o">)</span> <span class="o">{</span>
+      <span class="k">for</span> <span class="o">(</span><span class="n">EnrichedEvent</span> <span class="n">enrichedEvent</span> <span class="o">:</span> <span class="n">enrichEvents</span><span class="o">(</span><span class="n">bufferState</span><span class="o">.</span><span class="na">read</span><span class="o">()))</span> <span class="o">{</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">enrichedEvent</span><span class="o">);</span>
+      <span class="o">}</span>
+      <span class="n">bufferState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+      <span class="n">countState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="err">…</span> <span class="n">TBD</span> <span class="err">…</span> 
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
+<span class="c"># Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.</span>
+</code></pre>
+</div>
+
+<p>Here is an illustration to accompany the code:</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/BatchedRpcState.png" alt="Batching elements in state, then performing RPCs" width="600" /></p>
+
+<ul>
+  <li>The blue box is the <code class="highlighter-rouge">DoFn</code>.</li>
+  <li>The yellow box within it is the <code class="highlighter-rouge">@ProcessElement</code> method.</li>
+  <li>Each input event is a red square - this diagram just shows the activity for
+a single key, represented by the color red. Your <code class="highlighter-rouge">DoFn</code> will run the same
+workflow in parallel for all keys which are perhaps user IDs.</li>
+  <li>Each input event is written to the buffer as a red triangle, representing
+the fact that you might actually buffer more than just the raw input, even
+though this code doesn’t.</li>
+  <li>The external service is drawn as a cloud. When there are enough buffered
+events, the <code class="highlighter-rouge">@ProcessElement</code> method reads the events from state and issues
+a single RPC.</li>
+  <li>Each output enriched event is drawn as a red circle. To consumers of this
+output, it looks just like an element-wise operation.</li>
+</ul>
+
+<p>So far, we have only used state, but not timers. You may have noticed that
+there is a problem - there will usually be data left in the buffer. If no more
+input arrives, that data will never be processed. In Beam, every window has
+some point in event time when any further input for the window is considered
+too late and is discarded. At this point, we say that the window has “expired”.
+Since no further input can arrive to access the state for that window, the
+state is also discarded. For our example, we need to ensure that all leftover
+events are output when the window expires.</p>
+
+<h3 id="event-time-timers">Event Time Timers</h3>
+
+<p>An event time timer requests a call back when the watermark for an input
+<code class="highlighter-rouge">PCollection</code> reaches some threshold. In other words, you can use an event time
+timer to take action at a specific moment in event time - a particular point of
+completeness for a <code class="highlighter-rouge">PCollection</code> - such as when a window expires.</p>
+
+<p>For our example, let us add an event time timer so that when the window expires,
+any events remaining in the buffer are processed.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="err">…</span>
+
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"expiry"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">expirySpec</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="n">ProcessContext</span> <span class="n">context</span><span class="o">,</span>
+      <span class="n">BoundedWindow</span> <span class="n">window</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">bufferState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">countState</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"expiry"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">expiryTimer</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="n">expiryTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">window</span><span class="o">.</span><span class="na">maxTimestamp</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">allowedLateness</span><span class="o">));</span>
+
+    <span class="err">…</span> <span class="n">same</span> <span class="n">logic</span> <span class="n">as</span> <span class="n">above</span> <span class="err">…</span>
+  <span class="o">}</span>
+
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"expiry"</span><span class="o">)</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onExpiry</span><span class="o">(</span>
+      <span class="n">OnTimerContext</span> <span class="n">context</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">bufferState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">bufferState</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">().</span><span class="na">read</span><span class="o">())</span> <span class="o">{</span>
+      <span class="k">for</span> <span class="o">(</span><span class="n">EnrichedEvent</span> <span class="n">enrichedEvent</span> <span class="o">:</span> <span class="n">enrichEvents</span><span class="o">(</span><span class="n">bufferState</span><span class="o">.</span><span class="na">read</span><span class="o">()))</span> <span class="o">{</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">enrichedEvent</span><span class="o">);</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
+<span class="c"># Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.</span>
+</code></pre>
+</div>
+
+<p>Let’s unpack the pieces of this snippet:</p>
+
+<ul>
+  <li>
+    <p>We declare an event time timer with <code class="highlighter-rouge">@TimerId("expiry")</code>. We will use the
+identifier <code class="highlighter-rouge">"expiry"</code> to identify the timer for setting the callback time as
+well as receiving the callback.</p>
+  </li>
+  <li>
+    <p>The variable <code class="highlighter-rouge">expiryTimer</code>, annotated with <code class="highlighter-rouge">@TimerId</code>, is set to the value
+<code class="highlighter-rouge">TimerSpecs.timer(TimeDomain.EVENT_TIME)</code>, indicating that we want a
+callback according to the event time watermark of the input elements.</p>
+  </li>
+  <li>
+    <p>In the <code class="highlighter-rouge">@ProcessElement</code> element we annotate a parameter <code class="highlighter-rouge">@TimerId("expiry")
+Timer</code>. The Beam runner automatically provides this <code class="highlighter-rouge">Timer</code> parameter by which
+we can set (and reset) the timer. It is inexpensive to reset a timer
+repeatedly, so we simply set it on every element.</p>
+  </li>
+  <li>
+    <p>We define the <code class="highlighter-rouge">onExpiry</code> method, annotated with <code class="highlighter-rouge">@OnTimer("expiry")</code>, that
+performs a final event enrichment RPC and outputs the result. The Beam runner
+delivers the callback to this method by matching its identifier.</p>
+  </li>
+</ul>
+
+<p>Illustrating this logic, we have the diagram below:</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/BatchedRpcExpiry.png" alt="Batched RPCs with window expiration" width="600" /></p>
+
+<p>Both the <code class="highlighter-rouge">@ProcessElement</code> and <code class="highlighter-rouge">@OnTimer("expiry")</code> methods perform the same
+access to buffered state, perform the same batched RPC, and output enriched
+elements.</p>
+
+<p>Now, if we are executing this in a streaming real-time manner, we might still
+have unbounded latency for particular buffered data. If the watermark is advancing
+very slowly, or event time windows are chosen to be quite large, then a lot of
+time might pass before output is emitted based either on enough elements or
+window expiration. We can also use timers to limit the amount of wall-clock
+time, aka processing time, before we process buffered elements. We can choose
+some reasonable amount of time so that even though we are issuing RPCs that are
+not as large as they might be, it is still few enough RPCs to avoid blowing our
+quota with the external service.</p>
+
+<h3 id="processing-time-timers">Processing Time Timers</h3>
+
+<p>A timer in processing time (time as it passes while your pipeline is executing)
+is intuitively simple: you want to wait a certain amount of time and then
+receive a call back.</p>
+
+<p>To put the finishing touches on our example, we will set a processing time
+timer as soon as any data is buffered. We track whether or not the timer has
+been set so we don’t continually reset it. When an element arrives, if the
+timer has not been set, then we set it for the current moment plus
+<code class="highlighter-rouge">MAX_BUFFER_DURATION</code>. After the allotted processing time has passed, a
+callback will fire and enrich and emit any buffered elements.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">,</span> <span class="n">EnrichedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="err">…</span>
+
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">MAX_BUFFER_DURATION</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">);</span>
+
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"stale"</span><span class="o">)</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">staleSpec</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">PROCESSING_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="n">ProcessContext</span> <span class="n">context</span><span class="o">,</span>
+      <span class="n">BoundedWindow</span> <span class="n">window</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">countState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">bufferState</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"stale"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">staleTimer</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"expiry"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">expiryTimer</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="kt">boolean</span> <span class="n">staleTimerSet</span> <span class="o">=</span> <span class="n">firstNonNull</span><span class="o">(</span><span class="n">staleSetState</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="kc">false</span><span class="o">);</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">firstNonNull</span><span class="o">(</span><span class="n">countState</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="mi">0</span><span class="o">)</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">staleTimer</span><span class="o">.</span><span class="na">offset</span><span class="o">(</span><span class="n">MAX_BUFFER_DURATION</span><span class="o">).</span><span class="na">setRelative</span><span class="o">());</span>
+    <span class="o">}</span>
+
+    <span class="err">…</span> <span class="n">same</span> <span class="n">processing</span> <span class="n">logic</span> <span class="n">as</span> <span class="n">above</span> <span class="err">…</span>
+  <span class="o">}</span>
+
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"stale"</span><span class="o">)</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onStale</span><span class="o">(</span>
+      <span class="n">OnTimerContext</span> <span class="n">context</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"buffer"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">bufferState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"count"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">countState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">bufferState</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">().</span><span class="na">read</span><span class="o">())</span> <span class="o">{</span>
+      <span class="k">for</span> <span class="o">(</span><span class="n">EnrichedEvent</span> <span class="n">enrichedEvent</span> <span class="o">:</span> <span class="n">enrichEvents</span><span class="o">(</span><span class="n">bufferState</span><span class="o">.</span><span class="na">read</span><span class="o">()))</span> <span class="o">{</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">enrichedEvent</span><span class="o">);</span>
+      <span class="o">}</span>
+      <span class="n">bufferState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+      <span class="n">countState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="err">…</span> <span class="n">same</span> <span class="n">expiry</span> <span class="n">as</span> <span class="n">above</span> <span class="err">…</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># State and timers are not yet supported in Beam's Python SDK.</span>
+<span class="c"># Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.</span>
+</code></pre>
+</div>
+
+<p>Here is an illustration of the final code:</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/BatchedRpcStale.png" alt="Batching elements in state, then performing RPCs" width="600" /></p>
+
+<p>Recapping the entirety of the logic:</p>
+
+<ul>
+  <li>As events arrive at <code class="highlighter-rouge">@ProcessElement</code> they are buffered in state.</li>
+  <li>If the size of the buffer exceeds a maximum, the events are enriched and output.</li>
+  <li>If the buffer fills too slowly and the events get stale before the maximum is reached,
+a timer causes a callback which enriches the buffered events and outputs.</li>
+  <li>Finally, as any window is expiring, any events buffered in that window are
+processed and output prior to the state for that window being discarded.</li>
+</ul>
+
+<p>In the end, we have a full example that uses state and timers to explicitly
+manage the low-level details of a performance-sensitive transform in Beam. As
+we added more and more features, our <code class="highlighter-rouge">DoFn</code> actually became pretty large. That
+is a normal characteristic of stateful, timely processing. You are really
+digging in and managing a lot of details that are handled automatically when
+you express your logic using Beam’s higher-level APIs. What you gain from this
+extra effort is an ability to tackle use cases and achieve efficiencies that
+may not have been possible otherwise.</p>
+
+<h2 id="state-and-timers-in-beams-unified-model">State and Timers in Beam’s Unified Model</h2>
+
+<p>Beam’s unified model for event time across streaming and batch processing has
+novel implications for state and timers. Usually, you don’t need to do anything
+for your stateful and timely <code class="highlighter-rouge">DoFn</code> to work well in the Beam model. But it will
+help to be aware of the considerations below, especially if you have used
+similar features before outside of Beam.</p>
+
+<h3 id="event-time-windowing-just-works">Event Time Windowing “Just Works”</h3>
+
+<p>One of the raisons d’etre for Beam is correct processing of out-of-order event
+data, which is almost all event data. Beam’s solution to out-of-order data is
+event time windowing, where windows in event time yield correct results no
+matter what windowing a user chooses or what order the events come in.</p>
+
+<p>If you write a stateful, timely transform, it should work no matter how the
+surrounding pipeline chooses to window event time. If the pipeline chooses
+fixed windows of one hour (sometimes called tumbling windows) or windows of 30
+minutes sliding by 10 minutes, the stateful, timely transform should
+transparently work correctly.</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/WindowingChoices.png" alt="Two windowing strategies for the same stateful and timely transform" width="600" /></p>
+
+<p>This works in Beam automatically, because state and timers are partitioned per
+key and window. Within each key and window, the stateful, timely processing is
+essentially independent.  As an added benefit, the passing of event time (aka
+advancement of the watermark) allows automatic release of unreachable state
+when a window expires, so you often don’t have to worry about evicting old
+state.</p>
+
+<h3 id="unified-real-time-and-historical-processing">Unified real-time and historical processing</h3>
+
+<p>A second tenet of Beam’s semantic model is that processing must be unified
+between batch and streaming. One important use case for this unification
+is the ability to apply the same logic to a stream of events in real time and
+to archived storage of the same events.</p>
+
+<p>A common characteristic of archived data is that it may arrive radically out of
+order. The sharding of archived files often results in a totally different
+ordering for processing than events coming in near-real-time. The data will
+also all be all available and hence delivered instantaneously from the point of
+view of your pipeline. Whether running experiments on past data or reprocessing
+past results to fix a data processing bug, it is critically important that your
+processing logic be applicable to archived events just as easily as incoming
+near-real-time data.</p>
+
+<p><img class="center-block" src="/images/blog/timely-processing/UnifiedModel.png" alt="Unified stateful processing over streams and file archives" width="600" /></p>
+
+<p>It is (deliberately) possible to write a stateful and timely DoFn that delivers
+results that depend on ordering or delivery timing, so in this sense there is
+additional burden on you, the <code class="highlighter-rouge">DoFn</code> author, to ensure that this nondeterminism
+falls within documented allowances.</p>
+
+<h2 id="go-use-it">Go use it!</h2>
+
+<p>I’ll end this post in the same way I ended the last. I hope you will go try out
+Beam with stateful, timely processing. If it opens up new possibilities for
+you, then great! If not, we want to hear about it. Since this is a new feature,
+please check the <a href="/documentation/runners/capability-matrix/">capability matrix</a> to see the level of support for
+your preferred Beam backend(s).</p>
+
+<p>And please do join the Beam community at
+<a href="/get-started/support">user@beam.apache.org</a> and follow
+<a href="https://twitter.com/ApacheBeam">@ApacheBeam</a> on Twitter.</p>
+
+  </div>
+
+</article>
+
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

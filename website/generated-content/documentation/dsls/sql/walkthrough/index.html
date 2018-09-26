@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam SQL: Walkthrough</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/walkthrough/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">SDKS</span></li>
+
+<li>
+  <span class="section-nav-list-title">Java</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
+    <li><a href="/documentation/sdks/javadoc/2.6.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
+    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
+    <li><a href="/documentation/sdks/java/nexmark/">Nexmark benchmark suite</a></li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">Python</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
+    <li><a href="/documentation/sdks/pydoc/2.6.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
+    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
+    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
+    <li><a href="/documentation/sdks/python-custom-io/">Creating new sources and sinks</a></li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">Go SDK</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
+    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">SQL</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/dsls/sql/overview/">Overview</a></li>
+    <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
+    <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">SQL Reference</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
+        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
+        <li><a href="/documentation/dsls/sql/create-table/">CREATE TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
+        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
+        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
+        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
+        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
+        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#row">Row</a></li>
+  <li><a href="#sqltransform">SqlTransform</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="beam-sql-walkthrough">Beam SQL Walkthrough</h1>
+
+<p>This page illustrates the usage of Beam SQL with example code.</p>
+
+<h2 id="row">Row</h2>
+
+<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must
+be in <code class="highlighter-rouge">Row</code> format. A <code class="highlighter-rouge">Row</code> represents a single, immutable record in a Beam SQL
+<code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the row are defined
+by its associated <a href="/documentation/sdks/javadoc/2.6.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema</a>.
+You can use the <a href="/documentation/sdks/javadoc/2.6.0/index.html?org/apache/beam/sdk/schemas/Schema.html">Schema.builder()</a> to create
+<code class="highlighter-rouge">Schemas</code>. See <a href="/documentation/dsls/sql/data-types">Data
+Types</a> for more details on supported primitive data types.</p>
+
+<p>A <code class="highlighter-rouge">PCollection&lt;Row&gt;</code> can be obtained multiple ways, for example:</p>
+
+<ul>
+  <li>
+    <p><strong>From in-memory data</strong> (typically for unit testing).</p>
+
+    <p><strong>Note:</strong> you have to explicitly specify the <code class="highlighter-rouge">Row</code> coder. In this example we’re doing it by calling <code class="highlighter-rouge">Create.of(..)</code>:</p>
+
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Define the schema for the records.</span>
+<span class="n">Schema</span> <span class="n">appSchema</span> <span class="o">=</span> 
+    <span class="n">Schema</span>
+      <span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+      <span class="o">.</span><span class="na">addInt32Field</span><span class="o">(</span><span class="s">"appId"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">addStringField</span><span class="o">(</span><span class="s">"description"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">addDateTimeField</span><span class="o">(</span><span class="s">"rowtime"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+<span class="c1">// Create a concrete row with that type.</span>
+<span class="n">Row</span> <span class="n">row</span> <span class="o">=</span> 
+    <span class="n">Row</span>
+      <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">appSchema</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">addValues</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="s">"Some cool app"</span><span class="o">,</span> <span class="k">new</span> <span class="n">Date</span><span class="o">())</span>
+      <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+<span class="c1">// Create a source PCollection containing only that row</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">testApps</span> <span class="o">=</span> 
+    <span class="n">PBegin</span>
+      <span class="o">.</span><span class="na">in</span><span class="o">(</span><span class="n">p</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span>
+                <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">row</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">appSchema</span><span class="o">.</span><span class="na">getRowCoder</span><span class="o">()));</span>
+</code></pre>
+    </div>
+  </li>
+  <li><strong>From a <code class="highlighter-rouge">PCollection&lt;T&gt;</code> of records of some other type</strong>  (i.e.  <code class="highlighter-rouge">T</code> is not already a <code class="highlighter-rouge">Row</code>), by applying a <code class="highlighter-rouge">ParDo</code> that converts input records to <code class="highlighter-rouge">Row</code> format:
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// An example POJO class.</span>
+<span class="kd">class</span> <span class="nc">AppPojo</span> <span class="o">{</span>
+  <span class="n">Integer</span> <span class="n">appId</span><span class="o">;</span>
+  <span class="n">String</span> <span class="n">description</span><span class="o">;</span>
+  <span class="n">Date</span> <span class="n">timestamp</span><span class="o">;</span>
+<span class="o">}</span>
+
+<span class="c1">// Acquire a collection of POJOs somehow.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">AppPojo</span><span class="o">&gt;</span> <span class="n">pojos</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="c1">// Convert them to Rows with the same schema as defined above via a DoFn.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">apps</span> <span class="o">=</span> <span class="n">pojos</span>
+  <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+      <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">AppPojo</span><span class="o">,</span> <span class="n">Row</span><span class="o">&gt;()</span> <span class="o">{</span>
+        <span class="nd">@ProcessElement</span>
+        <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+          <span class="c1">// Get the current POJO instance</span>
+          <span class="n">AppPojo</span> <span class="n">pojo</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
+
+          <span class="c1">// Create a Row with the appSchema schema </span>
+          <span class="c1">// and values from the current POJO</span>
+          <span class="n">Row</span> <span class="n">appRow</span> <span class="o">=</span> 
+                <span class="n">Row</span>
+                  <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">appSchema</span><span class="o">)</span>
+                  <span class="o">.</span><span class="na">addValues</span><span class="o">(</span>
+                    <span class="n">pojo</span><span class="o">.</span><span class="na">appId</span><span class="o">,</span> 
+                    <span class="n">pojo</span><span class="o">.</span><span class="na">description</span><span class="o">,</span> 
+                    <span class="n">pojo</span><span class="o">.</span><span class="na">timestamp</span><span class="o">)</span>
+                  <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+          <span class="c1">// Output the Row representing the current POJO</span>
+          <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">appRow</span><span class="o">);</span>
+        <span class="o">}</span>
+      <span class="o">}));</span>
+</code></pre>
+    </div>
+  </li>
+  <li><strong>As an output of another <code class="highlighter-rouge">SqlTransform</code></strong>. Details in the next section.</li>
+</ul>
+
+<p>Once you have a <code class="highlighter-rouge">PCollection&lt;Row&gt;</code> in hand, you may use <code class="highlighter-rouge">SqlTransform</code> to apply SQL queries to it.</p>
+
+<h2 id="sqltransform">SqlTransform</h2>
+
+<p><a href="/documentation/sdks/javadoc/2.6.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html"><code class="highlighter-rouge">SqlTransform.query(queryString)</code></a> method is the only API to create a <code class="highlighter-rouge">PTransform</code>
+from a string representation of the SQL query. You can apply this <code class="highlighter-rouge">PTransform</code>
+to either a single <code class="highlighter-rouge">PCollection</code> or a <code class="highlighter-rouge">PCollectionTuple</code> which holds multiple
+<code class="highlighter-rouge">PCollections</code>:</p>
+
+<ul>
+  <li>when applying to a single <code class="highlighter-rouge">PCollection</code> it can be referenced via the table name <code class="highlighter-rouge">PCOLLECTION</code> in the query:
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">filteredNames</span> <span class="o">=</span> <span class="n">testApps</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">SqlTransform</span><span class="o">.</span><span class="na">query</span><span class="o">(</span>
+      <span class="s">"SELECT appId, description, rowtime "</span>
+        <span class="o">+</span> <span class="s">"FROM PCOLLECTION "</span>
+        <span class="o">+</span> <span class="s">"WHERE id=1"</span><span class="o">));</span>
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>when applying to a <code class="highlighter-rouge">PCollectionTuple</code>, the tuple tag for each <code class="highlighter-rouge">PCollection</code> in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific <code class="highlighter-rouge">PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.</p>
+
+    <p>For example, you can join two <code class="highlighter-rouge">PCollections</code>:</p>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Create the schema for reviews</span>
+<span class="n">Schema</span> <span class="n">reviewSchema</span> <span class="o">=</span> 
+    <span class="n">Schema</span><span class="o">.</span>
+      <span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+      <span class="o">.</span><span class="na">addInt32Field</span><span class="o">(</span><span class="s">"appId"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">addInt32Field</span><span class="o">(</span><span class="s">"reviewerId"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">withFloatField</span><span class="o">(</span><span class="s">"rating"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">addDateTimeField</span><span class="o">(</span><span class="s">"rowtime"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+    
+<span class="c1">// Obtain the reviews records with this schema</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">reviewsRows</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="c1">// Create a PCollectionTuple containing both PCollections.</span>
+<span class="c1">// TupleTags IDs will be used as table names in the SQL query</span>
+<span class="n">PCollectionTuple</span> <span class="n">namesAndFoods</span> <span class="o">=</span> <span class="n">PCollectionTuple</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+    <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;(</span><span class="s">"Apps"</span><span class="o">),</span> <span class="n">appsRows</span><span class="o">),</span> <span class="c1">// appsRows from the previous example</span>
+    <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;&gt;(</span><span class="s">"Reviews"</span><span class="o">),</span> <span class="n">reviewsRows</span><span class="o">));</span>
+
+<span class="c1">// Compute the total number of reviews </span>
+<span class="c1">// and average rating per app </span>
+<span class="c1">// by joining two PCollections</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span> <span class="n">namesAndFoods</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">SqlTransform</span><span class="o">.</span><span class="na">query</span><span class="o">(</span>
+        <span class="s">"SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"</span>
+            <span class="o">+</span> <span class="s">"FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"</span><span class="o">));</span>
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p><a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a>
+in the code repository shows basic usage of both APIs.</p>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Samza Runner</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runners/samza/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Runners</span></li>
+<li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+<li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+<li><a href="/documentation/runners/apex/">Apache Apex</a></li>
+<li><a href="/documentation/runners/flink/">Apache Flink</a></li>
+<li><a href="/documentation/runners/gearpump/">Apache Gearpump</a></li>
+<li><a href="/documentation/runners/samza/">Apache Samza</a></li>
+<li><a href="/documentation/runners/spark/">Apache Spark</a></li>
+<li><a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#samza-runner-prerequisites-and-setup">Samza Runner prerequisites and setup</a>
+    <ul>
+      <li><a href="#specify-your-dependency">Specify your dependency</a></li>
+    </ul>
+  </li>
+  <li><a href="#executing-a-pipeline-with-samza-runner">Executing a pipeline with Samza Runner</a></li>
+  <li><a href="#pipeline-options-for-the-samza-runner">Pipeline options for the Samza Runner</a></li>
+  <li><a href="#monitoring-your-job">Monitoring your job</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="using-the-apache-samza-runner">Using the Apache Samza Runner</h1>
+
+<p>The Apache Samza Runner can be used to execute Beam pipelines using <a href="http://samza.apache.org/">Apache Samza</a>. The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.</p>
+
+<p>The Samza Runner and Samza are suitable for large scale, stateful streaming jobs, and provide:</p>
+
+<ul>
+  <li>First class support for local state (with RocksDB store). This allows fast state access for high frequency streaming jobs.</li>
+  <li>Fault-tolerance with support for incremental checkpointing of state instead of full snapshots. This enables Samza to scale to applications with very large state.</li>
+  <li>A fully asynchronous processing engine that makes remote calls efficient.</li>
+  <li>Flexible deployment model for running the the applications in any hosting environment with Zookeeper.</li>
+  <li>Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.</li>
+</ul>
+
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the currently supported capabilities of the Samza Runner.</p>
+
+<h2 id="samza-runner-prerequisites-and-setup">Samza Runner prerequisites and setup</h2>
+
+<p>The Samza Runner is built on Samza version greater than 0.14.1, and uses Scala version 2.11.</p>
+
+<h3 id="specify-your-dependency">Specify your dependency</h3>
+
+<p><span class="language-java">You can specify your dependency on the Samza Runner by adding the following to your <code class="highlighter-rouge">pom.xml</code>:</span></p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">samza_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.6</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;!--</span> <span class="n">Samza</span> <span class="n">dependencies</span> <span class="o">--&gt;</span>
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">samza</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">samza</span><span class="o">-</span><span class="n">api</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">samza</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">samza</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">samza</span><span class="o">-</span><span class="n">core_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">samza</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">samza</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">samza</span><span class="o">-</span><span class="n">kafka_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">samza</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">samza</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">samza</span><span class="o">-</span><span class="n">kv_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">samza</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">samza</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">samza</span><span class="o">-</span><span class="n">kv</span><span class="o">-</span><span class="n">rocksdb_2</span><span class="o">.</span><span class="mi">11</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="err">$</span><span class="o">{</span><span class="n">samza</span><span class="o">.</span><span class="na">version</span><span class="o">}&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+    
+</code></pre>
+</div>
+
+<h2 id="executing-a-pipeline-with-samza-runner">Executing a pipeline with Samza Runner</h2>
+
+<p>If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Psamza-runner \
+    -Dexec.args="--runner=SamzaRunner \
+      --inputFile=/path/to/input \
+      --output=/path/to/counts"
+</code></pre>
+</div>
+
+<p>To deploy your pipeline to a YARN cluster, here is the <a href="https://samza.apache.org/startup/hello-samza/latest/">instructions</a> of deploying a sample Samza job. First you need to package your application jars and resource files into a <code class="highlighter-rouge">.tgz</code> archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>yarn.package.path=${your_job_tgz_URI}
+
+job.name=${your_job_name}
+job.factory.class=org.apache.samza.job.yarn.YarnJobFactory
+job.coordinator.system=${job_coordinator_system}
+job.default.system=${job_default_system}
+</code></pre>
+</div>
+
+<p>For more details on the configuration, see <a href="https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html">Samza Configuration Reference</a>.</p>
+
+<p>The config file will be passed in by setting the command line arg <code class="highlighter-rouge">--configFilePath=/path/to/config.properties</code>. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood.</p>
+
+<h2 id="pipeline-options-for-the-samza-runner">Pipeline options for the Samza Runner</h2>
+
+<p>When executing your pipeline with the Samza Runner, you can use the following pipeline options.</p>
+
+<table class="table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>SamzaRunner</code> to run using Samza.</td>
+</tr>
+<tr>
+  <td><code>configFilePath</code></td>
+  <td>The config for Samza using a properties file.</td>
+  <td><code>empty</code>, i.e. use local execution.</td>
+</tr>
+<tr>
+  <td><code>configOverride</code></td>
+  <td>The config override to set programmatically.</td>
+  <td><code>empty</code>, i.e. use config file or local execution.</td>
+</tr>
+<tr>
+  <td><code>watermarkInterval</code></td>
+  <td>The interval to check for watermarks in milliseconds.</td>
+  <td><code>1000</code></td>
+</tr>
+<tr>
+  <td><code>systemBufferSize</code></td>
+  <td>The maximum number of messages to buffer for a given system.</td>
+  <td><code>5000</code></td>
+</tr>
+<tr>
+  <td><code>maxSourceParallelism</code></td>
+  <td>The maximum parallelism allowed for any data source.</td>
+  <td><code>1</code></td>
+</tr>
+<tr>
+  <td><code>storeBatchGetSize</code></td>
+  <td>The batch get size limit for the state store.</td>
+  <td><code>10000</code></td>
+</tr>
+</table>
+
+<h2 id="monitoring-your-job">Monitoring your job</h2>
+
+<p>You can monitor your pipeline job using metrics emitted from both Beam and Samza, e.g. Beam source metrics such as <code class="highlighter-rouge">elements_read</code> and <code class="highlighter-rouge">backlog_elements</code>, and Samza job metrics such as <code class="highlighter-rouge">job-healthy</code> and <code class="highlighter-rouge">process-envelopes</code>. A complete list of Samza metrics is in <a href="https://samza.apache.org/learn/documentation/latest/container/metrics-table.html">Samza Metrics Reference</a>. You can view your job’s metrics via JMX in development, and send the metrics to graphing system such as <a href="http://graphiteapp.org/">Graphite</a>. For more details, please see <a href="https://samza.apache.org/learn/documentation/latest/container/metrics.html">Samza Metrics</a>.</p>
+
+<p>For a running Samza YARN job, you can use YARN web UI to monitor the job status and check logs.</p>
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

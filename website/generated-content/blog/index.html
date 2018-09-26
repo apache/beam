@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam Blog</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/blog/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="body__contained">
+      <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="apache-beam-blog">Apache Beam Blog</h1>
+
+<p>This is the blog for the Apache Beam project. This blog contains news and updates
+for the project.</p>
+
+<h3 id="beam-summit-europe-2018"><a class="post-link" href="/blog/2018/08/21/beam-summit-europe.html">Beam Summit Europe 2018</a></h3>
+<p><i>Aug 21, 2018 •
+ Matthias Baetens [<a href="https://twitter.com/matthiasbaetens">@matthiasbaetens</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>With a growing community of contributors and users, the Apache Beam project is organising the first European Beam Summit.</p>
+
+<p>We are happy to invite you to this event, which will take place in <strong>London</strong> on <strong>October 1st and 2nd of 2018</strong>.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/08/21/beam-summit-europe.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="a-review-of-input-streaming-connectors"><a class="post-link" href="/blog/2018/08/20/review-input-streaming-connectors.html">A review of input streaming connectors</a></h3>
+<p><i>Aug 20, 2018 •
+ Leonid Kuligin [<a href="https://twitter.com/lkulighin">@lkulighin</a>] &amp; Julien Phalip [<a href="https://twitter.com/julienphalip">@julienphalip</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>In this post, you’ll learn about the current state of support for input streaming connectors in <a href="/">Apache Beam</a>. For more context, you’ll also learn about the corresponding state of support in <a href="https://spark.apache.org/">Apache Spark</a>.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/08/20/review-input-streaming-connectors.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-260"><a class="post-link" href="/blog/2018/08/10/beam-2.6.0.html">Apache Beam 2.6.0</a></h3>
+<p><i>Aug 10, 2018 •
+ Pablo Estrada [<a href="https://twitter.com/polecitoem">@polecitoem</a>] &amp; Rafael Fernández 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>We are glad to present the new 2.6.0 release of Beam.
+This release includes multiple fixes and new functionality, such as new features in SQL and portability.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/08/10/beam-2.6.0.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-250"><a class="post-link" href="/blog/2018/06/26/beam-2.5.0.html">Apache Beam 2.5.0</a></h3>
+<p><i>Jun 26, 2018 •
+ Alexey Romanenko [<a href="https://twitter.com/alexromdev">@alexromdev</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>We are glad to present the new 2.5.0 release of Beam. This release includes
+multiple fixes and new functionalities.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/06/26/beam-2.5.0.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-230"><a class="post-link" href="/blog/2018/02/19/beam-2.3.0.html">Apache Beam 2.3.0</a></h3>
+<p><i>Feb 19, 2018 •
+ Ismaël Mejía [<a href="https://twitter.com/iemejia">@iemejia</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>We are glad to present the new 2.3.0 release of Beam. This release includes
+multiple fixes and new functionalities.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/02/19/beam-2.3.0.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-a-look-back-at-2017"><a class="post-link" href="/blog/2018/01/09/beam-a-look-back.html">Apache Beam: A Look Back at 2017</a></h3>
+<p><i>Jan 9, 2018 •
+ Anand Iyer  &amp; Jean-Baptiste Onofré [<a href="https://twitter.com/jbonofre">@jbonofre</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>On January 10, 2017, Apache Beam got <a href="/blog/2017/01/10/beam-graduates.html">promoted</a>
+as a Top-Level Apache Software Foundation project. It was an important milestone
+that validated the value of the project, legitimacy of its community, and
+heralded its growing adoption. In the past year, Apache Beam has been on a
+phenomenal growth trajectory, with significant growth in its community and
+feature set. Let us walk you through some of the notable achievements.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2018/01/09/beam-a-look-back.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="timely-and-stateful-processing-with-apache-beam"><a class="post-link" href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a></h3>
+<p><i>Aug 28, 2017 •
+ Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>In a <a href="/blog/2017/02/13/stateful-processing.html">prior blog
+post</a>, I
+introduced the basics of stateful processing in Apache Beam, focusing on the
+addition of state to per-element processing. So-called <em>timely</em> processing
+complements stateful processing in Beam by letting you set timers to request a
+(stateful) callback at some point in the future.</p>
+
+<p>What can you do with timers in Beam? Here are some examples:</p>
+
+<ul>
+  <li>You can output data buffered in state after some amount of processing time.</li>
+  <li>You can take special action when the watermark estimates that you have
+received all data up to a specified point in event time.</li>
+  <li>You can author workflows with timeouts that alter state and emit output in
+response to the absence of additional input for some period of time.</li>
+</ul>
+
+<p>These are just a few possibilities. State and timers together form a powerful
+programming paradigm for fine-grained control to express a huge variety of
+workflows.  Stateful and timely processing in Beam is portable across data
+processing engines and integrated with Beam’s unified model of event time
+windowing in both streaming and batch processing.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/08/28/timely-processing.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="powerful-and-modular-io-connectors-with-splittable-dofn-in-apache-beam"><a class="post-link" href="/blog/2017/08/16/splittable-do-fn.html">Powerful and modular IO connectors with Splittable DoFn in Apache Beam</a></h3>
+<p><i>Aug 16, 2017 •
+ Eugene Kirpichov 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>One of the most important parts of the Apache Beam ecosystem is its quickly
+growing set of connectors that allow Beam pipelines to read and write data to
+various data storage systems (“IOs”). Currently, Beam ships <a href="/documentation/io/built-in/">over 20 IO
+connectors</a> with many more in
+active development. As user demands for IO connectors grew, our work on
+improving the related Beam APIs (in particular, the Source API) produced an
+unexpected result: a generalization of Beam’s most basic primitive, <code class="highlighter-rouge">DoFn</code>.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/08/16/splittable-do-fn.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-publishes-the-first-stable-release"><a class="post-link" href="/blog/2017/05/17/beam-first-stable-release.html">Apache Beam publishes the first stable release</a></h3>
+<p><i>May 17, 2017 •
+ Davor Bonaci [<a href="https://twitter.com/BonaciDavor">@BonaciDavor</a>] &amp; Dan Halperin 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>The Apache Beam community is pleased to <a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12">announce the availability of version 2.0.0</a>. This is the first stable release of Apache Beam, signifying a statement from the community that it intends to maintain API stability with all releases for the foreseeable future, and making Beam suitable for enterprise deployment.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/05/17/beam-first-stable-release.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="python-sdk-released-in-apache-beam-060"><a class="post-link" href="/blog/2017/03/16/python-sdk-release.html">Python SDK released in Apache Beam 0.6.0</a></h3>
+<p><i>Mar 16, 2017 •
+ Ahmet Altay 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Apache Beam’s latest release, version <a href="/get-started/downloads/">0.6.0</a>, introduces a new SDK – this time, for the Python programming language. The Python SDK joins the Java SDK as the second implementation of the Beam programming model.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/03/16/python-sdk-release.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="stateful-processing-with-apache-beam"><a class="post-link" href="/blog/2017/02/13/stateful-processing.html">Stateful processing with Apache Beam</a></h3>
+<p><i>Feb 13, 2017 •
+ Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Beam lets you process unbounded, out-of-order, global-scale data with portable
+high-level pipelines. Stateful processing is a new feature of the Beam model
+that expands the capabilities of Beam, unlocking new use cases and new
+efficiencies. In this post, I will guide you through stateful processing in
+Beam: how it works, how it fits in with the other features of the Beam model,
+what you might use it for, and what it looks like in code.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/02/13/stateful-processing.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="media-recap-of-the-apache-beam-graduation"><a class="post-link" href="/blog/2017/02/01/graduation-media-recap.html">Media recap of the Apache Beam graduation</a></h3>
+<p><i>Feb 1, 2017 •
+ Davor Bonaci [<a href="https://twitter.com/BonaciDavor">@BonaciDavor</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>One year ago today Apache Beam was accepted into incubation at the Apache
+Software Foundation. The community’s work over the past year culminated, just
+over three weeks ago, with an <a href="/blog/2017/01/10/beam-graduates.html">announcement</a>
+that Apache Beam has successfully graduated as a new Top-Level Project at the
+foundation. Graduation sparked an additional interest in the project, from
+corporate endorsements, news articles, interviews, to the volume of traffic to
+our website and mailing lists.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/02/01/graduation-media-recap.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-established-as-a-new-top-level-project"><a class="post-link" href="/blog/2017/01/10/beam-graduates.html">Apache Beam established as a new top-level project</a></h3>
+<p><i>Jan 10, 2017 •
+ Davor Bonaci [<a href="https://twitter.com/BonaciDavor">@BonaciDavor</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Today, the Apache Software Foundation <a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces">announced</a>
+that Apache Beam has successfully graduated from incubation, becoming a new
+Top-Level Project at the foundation and signifying that its “community and
+products have been well-governed under the foundation’s meritocratic process
+and principles”.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/01/10/beam-graduates.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="release-040-adds-a-runner-for-apache-apex"><a class="post-link" href="/blog/2017/01/09/added-apex-runner.html">Release 0.4.0 adds a runner for Apache Apex</a></h3>
+<p><i>Jan 9, 2017 •
+ Thomas Weise [<a href="https://twitter.com/thweise">@thweise</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>The latest release 0.4.0 of <a href="/">Apache Beam</a> adds a new runner for <a href="http://apex.apache.org/">Apache Apex</a>. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/01/09/added-apex-runner.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="testing-unbounded-pipelines-in-apache-beam"><a class="post-link" href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a></h3>
+<p><i>Oct 20, 2016 •
+ Thomas Groh 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>The Beam Programming Model unifies writing pipelines for Batch and Streaming
+pipelines. We’ve recently introduced a new PTransform to write tests for
+pipelines that will be run over unbounded datasets and must handle out-of-order
+and delayed data.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2016/10/20/test-stream.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="stratahadoop-world-and-beam"><a class="post-link" href="/beam/update/2016/10/11/strata-hadoop-world-and-beam.html">Strata+Hadoop World and Beam</a></h3>
+<p><i>Oct 11, 2016 •
+ Jesse Anderson [<a href="https://twitter.com/jessetanderson">@jessetanderson</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Tyler Akidau and I gave a <a href="http://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129">three-hour tutorial</a> on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/update/2016/10/11/strata-hadoop-world-and-beam.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-six-months-in-incubation"><a class="post-link" href="/blog/2016/08/03/six-months.html">Apache Beam: Six Months in Incubation</a></h3>
+<p><i>Aug 3, 2016 •
+ Frances Perry [<a href="https://twitter.com/francesjperry">@francesjperry</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>It’s been just over six months since Apache Beam was formally accepted into incubation with the <a href="http://www.apache.org">Apache Software Foundation</a>. As a community, we’ve been hard at work getting Beam off the ground.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2016/08/03/six-months.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="the-first-release-of-apache-beam"><a class="post-link" href="/beam/release/2016/06/15/first-release.html">The first release of Apache Beam!</a></h3>
+<p><i>Jun 15, 2016 •
+ Davor Bonaci [<a href="https://twitter.com/BonaciDavor">@BonaciDavor</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>I’m happy to announce that Apache Beam has officially released its first
+version – 0.1.0-incubating. This is an exciting milestone for the project,
+which joined the Apache Software Foundation and the Apache Incubator earlier
+this year.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/release/2016/06/15/first-release.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="how-we-added-windowing-to-the-apache-flink-batch-runner"><a class="post-link" href="/blog/2016/06/13/flink-batch-runner-milestone.html">How We Added Windowing to the Apache Flink Batch Runner</a></h3>
+<p><i>Jun 13, 2016 •
+ Aljoscha Krettek [<a href="https://twitter.com/aljoscha">@aljoscha</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<p>We recently achieved a major milestone by adding support for windowing to the <a href="http://flink.apache.org">Apache Flink</a> Batch runner. In this post we would like to explain what this means for users of Apache Beam and highlight some of the implementation details.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2016/06/13/flink-batch-runner-milestone.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="wheres-my-pcollectionmap"><a class="post-link" href="/blog/2016/05/27/where-is-my-pcollection-dot-map.html">Where’s my PCollection.map()?</a></h3>
+<p><i>May 27, 2016 •
+ Robert Bradshaw 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<p>Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2016/05/27/where-is-my-pcollection-dot-map.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="dynamic-work-rebalancing-for-beam"><a class="post-link" href="/blog/2016/05/18/splitAtFraction-method.html">Dynamic work rebalancing for Beam</a></h3>
+<p><i>May 18, 2016 •
+ Dan Halperin 
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>This morning, Eugene and Malo from the Google Cloud Dataflow team posted <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow"><em>No shard left behind: dynamic work rebalancing in Google Cloud Dataflow</em></a>. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2016/05/18/splitAtFraction-method.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-presentation-materials"><a class="post-link" href="/beam/capability/2016/04/03/presentation-materials.html">Apache Beam Presentation Materials</a></h3>
+<p><i>Apr 3, 2016 •
+ Frances Perry [<a href="https://twitter.com/francesjperry">@francesjperry</a>] &amp; Tyler Akidau [<a href="https://twitter.com/takidau">@takidau</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of <a href="/contribute/presentation-materials/">Apache Beam presentation materials</a> which anyone can use to give a presentation about Apache Beam.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/capability/2016/04/03/presentation-materials.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="clarifying--formalizing-runner-capabilities"><a class="post-link" href="/beam/capability/2016/03/17/capability-matrix.html">Clarifying &amp; Formalizing Runner Capabilities</a></h3>
+<p><i>Mar 17, 2016 •
+ Frances Perry [<a href="https://twitter.com/francesjperry">@francesjperry</a>] &amp; Tyler Akidau [<a href="https://twitter.com/takidau">@takidau</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>With initial code drops complete (<a href="https://github.com/apache/beam/pull/1">Dataflow SDK and Runner</a>, <a href="https://github.com/apache/beam/pull/12">Flink Runner</a>, <a href="https://github.com/apache/beam/pull/42">Spark Runner</a>) and expressed interest in runner implementations for <a href="https://issues.apache.org/jira/browse/BEAM-9">Storm</a>, <a href="https://issues.apache.org/jira/browse/BEAM-19">Hadoop</a>, and <a href="https://issues.apache.org/jira/browse/BEAM-79">Gearpump</a> (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/capability/2016/03/17/capability-matrix.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="dataflow-python-sdk-is-now-public"><a class="post-link" href="/beam/python/sdk/2016/02/25/python-sdk-now-public.html">Dataflow Python SDK is now public!</a></h3>
+<p><i>Feb 25, 2016 •
+ James Malone [<a href="https://twitter.com/chimerasaurus">@chimerasaurus</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>When the Apache Beam project proposed entry into the <a href="http://wiki.apache.org/incubator/BeamProposal">Apache Incubator</a> the proposal
+included the <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK">Dataflow Java SDK</a>. In the long term, however, Apache Beam aims to support SDKs implemented in multiple languages, such as Python.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/python/sdk/2016/02/25/python-sdk-now-public.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+<h3 id="apache-beam-has-a-logo"><a class="post-link" href="/beam/update/website/2016/02/22/beam-has-a-logo.html">Apache Beam has a logo!</a></h3>
+<p><i>Feb 22, 2016 •
+ James Malone [<a href="https://twitter.com/chimerasaurus">@chimerasaurus</a>]
+</i></p>
+
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p>One of the major benefits of Apache Beam is the fact that it unifies both
+both batch and stream processing into one powerful model. In fact, this unification
+is so important, the name Beam itself comes from the union of <strong>B</strong>atch + str<strong>EAM</strong> = Beam</p>
+
+<p>When the project started, we wanted a logo which was both appealing and visually
+represented this unification.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/beam/update/website/2016/02/22/beam-has-a-logo.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
+
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
