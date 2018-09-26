@@ -569,9 +569,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     re_pattern = re.compile(self.translate_pattern(pattern))
     match = re_pattern.match
     for file_metadata in file_metas:
-      is_match = match(file_metadata.path)
-      logger.debug('%r %r', is_match, file_metadata)
-      if is_match:
+      if match(file_metadata.path):
         yield file_metadata
 
   @staticmethod
@@ -632,7 +630,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       else:
         res = res + re.escape(c)
 
-    logging.debug('%r -> %r', pattern, res)
+    logger.debug('translate_pattern: %r -> %r', pattern, res)
     return res + r'\Z(?ms)'
 
   def match(self, patterns, limits=None):
@@ -675,9 +673,13 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
           file_metadatas = [FileMetadata(pattern, self.size(pattern))]
       else:
         if self.has_dirs():
-          prefix_or_dir = self._url_dirname(prefix_or_dir)
+          prefix_dirname = self._url_dirname(prefix_or_dir)
+          if not prefix_dirname == prefix_or_dir:
+            logger.debug("Changed prefix_or_dir %r -> %r",
+                         prefix_or_dir, prefix_dirname)
+            prefix_or_dir = prefix_dirname
 
-        logging.debug("pattern=%r, prefix_or_dir=%r", pattern, prefix_or_dir)
+        logger.debug("Listing files in %r", prefix_or_dir)
         file_metadatas = self._list(prefix_or_dir)
 
       metadata_list = []
