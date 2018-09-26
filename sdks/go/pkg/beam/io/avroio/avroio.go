@@ -1,3 +1,19 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package avroio contains transforms for reading and writing avro files.
 package avroio
 
 import (
@@ -12,21 +28,17 @@ import (
 	"github.com/linkedin/goavro"
 )
 
-// Avroio package based directly on textio with some
-// elements borrowed from the bigquery implementation.
-// Supports reading/writing and unmarshalling Avro files.
-// --
-
 func init() {
-	// beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
-	// beam.RegisterFunction(readFn)
 	beam.RegisterFunction(expandFn)
 	beam.RegisterType(reflect.TypeOf((*avroReadFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*writeAvroFn)(nil)).Elem())
 }
 
-// Read reads a set of files and returns the lines as a PCollection<elem>
-// based on avro schema. Support a type via < reflect.TypeOf(YourType{}) >  with
-// JSON tags defined or if you wish to return the raw JSON string, use < reflect.TypeOf("") >
+// Read reads a set of files and returns lines as a PCollection<elem>
+// based on the internal avro schema of the file.
+// A type - reflect.TypeOf( YourType{} ) -  with
+// JSON tags can be defined or if you wish to return the raw JSON string,
+// use - reflect.TypeOf("") -
 func Read(s beam.Scope, glob string, t reflect.Type) beam.PCollection {
 	s = s.Scope("avroio.Read")
 	filesystem.ValidateScheme(glob)
@@ -126,7 +138,7 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 // the process will fail if the schema does not match the JSON
 // provided
 func Write(s beam.Scope, filename, schema string, col beam.PCollection) {
-	s = s.Scope("textio.Write")
+	s = s.Scope("avroio.Write")
 	filesystem.ValidateScheme(filename)
 	pre := beam.AddFixedKey(s, col)
 	post := beam.GroupByKey(s, pre)
