@@ -156,7 +156,7 @@ class FileSystems(object):
 
     .. note::
       - Depending on the :class:`.FileSystem` implementation, file listings
-        (the :meth:`.FileSystem._list` method) may not be recursive.
+        (the ``.FileSystem._list`` method) may not be recursive.
       - If the file listing is not recursive, a pattern like
         ``scheme://path/*/foo`` will not be able to mach any files.
 
