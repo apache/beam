@@ -468,6 +468,8 @@ class BigQuerySink(dataflow_io.NativeSink):
 
   This BigQuery sink triggers a Dataflow native sink for BigQuery
   that only supports batch pipelines.
+  Instead of using this sink directly, please use WriteToBigQuery 
+  transform that works for both batch and streaming pipelines.
   """
 
   def __init__(self, table, dataset=None, project=None, schema=None,
