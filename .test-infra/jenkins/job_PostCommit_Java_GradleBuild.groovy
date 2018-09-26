@@ -19,10 +19,48 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+final jiraTestResultReporterConfigTemplate = '''
+  {
+    "projectKey": "BEAM",
+    "issueType": 1,
+    "configs": [
+      {
+        "clazz": "StringFields",
+        "properties": {
+          "fieldKey": "summary",
+          "value": "${DEFAULT_SUMMARY}"
+        }
+      },
+      {
+        "clazz": "StringFields",
+        "properties": {
+          "fieldKey": "description",
+          "value": "${DEFAULT_DESCRIPTION}"
+        }
+      },
+      {
+        "clazz": "SelectableArrayFields",
+        "properties": {
+          "fieldKey": "components",
+          "values": [
+            {
+              "value": "12334203"
+            }
+          ]
+        }
+      }
+    ],
+    "autoRaiseIssue": true,
+    "autoResolveIssue": false,
+    "autoUnlinkIssue": false
+  }
+  '''
+
+final jobName = 'beam_PostCommit_Java_GradleBuild'
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java PostCommit',
+PostcommitJobBuilder.postCommitJob(jobName, 'Run Java PostCommit',
   'Java SDK Post Commit Tests', this) {
 
   description('Runs PostCommit tests on the Java SDK.')
@@ -30,9 +68,20 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
+  // def jenkinsHome = scope.JENKINS_HOME
+  def fname = "${JENKINS_HOME}/jobs/${jobName}/JiraIssueJobConfigs.json"
+  def file = new File(fname)
+  new File(file.getParent()).mkdirs()
+
+  file.write jiraTestResultReporterConfigTemplate
+
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  configure { 
+    it / 'publishers' / 'hudson.tasks.junit.JUnitResultArchiver' / 'testDataPublishers' / 'org.jenkinsci.plugins.JiraTestResultReporter.JiraTestDataPublisher' {}
   }
 
   // Gradle goals for this job.
