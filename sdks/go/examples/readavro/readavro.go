@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// multiout is a wordcount variation that uses a multi-outout DoFn
-// and writes 2 output files.
-
+// readavro is a simple Avro read/write Example
+// This example uses a 500 Byte sample avro file [twitter.avro]
+// download here: https://s3-eu-west-1.amazonaws.com/daidokoro-dev/apache/twitter.avro
 package main
 
 import (
@@ -30,10 +30,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
-
-// Simple Avro Read/Write Example
-// This example uses a 500 Byte sample avro file [twitter.avro]
-// download here: https://s3-eu-west-1.amazonaws.com/daidokoro-dev/apache/twitter.avro
 
 var (
 	input  = flag.String("input", "./twitter.avro", "input avro file")
