@@ -1,0 +1,710 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.interactive.interactive_runner &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.runners.interactive.interactive_runner</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.runners.interactive.interactive_runner</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A runner that allows running of Beam pipelines interactively.</span>
+
+<span class="sd">This module is experimental. No backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">runners</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filesystems</span>
+<span class="kn">from</span> <span class="nn">apache_beam.portability.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.direct</span> <span class="k">import</span> <span class="n">direct_runner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.interactive</span> <span class="k">import</span> <span class="n">display_manager</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">combiners</span>
+
+<span class="c1"># size of PCollection samples cached.</span>
+<span class="n">SAMPLE_SIZE</span> <span class="o">=</span> <span class="mi">8</span>
+
+
+<div class="viewcode-block" id="InteractiveRunner"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.InteractiveRunner">[docs]</a><span class="k">class</span> <span class="nc">InteractiveRunner</span><span class="p">(</span><span class="n">runners</span><span class="o">.</span><span class="n">PipelineRunner</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An interactive runner for Beam Python pipelines.</span>
+
+<span class="sd">  Allows interactively building and running Beam Python pipelines.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">underlying_runner</span><span class="o">=</span><span class="n">direct_runner</span><span class="o">.</span><span class="n">BundleBasedDirectRunner</span><span class="p">()):</span>
+    <span class="c1"># TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner</span>
+    <span class="c1"># once interactive_runner works with FnAPI mode</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_runner</span> <span class="o">=</span> <span class="n">underlying_runner</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span> <span class="o">=</span> <span class="n">CacheManager</span><span class="p">()</span>
+
+<div class="viewcode-block" id="InteractiveRunner.cleanup"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.cleanup">[docs]</a>  <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="InteractiveRunner.apply"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.apply">[docs]</a>  <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+    <span class="c1"># TODO(qinyeli, BEAM-646): Remove runner interception of apply.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_runner</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="InteractiveRunner.run_pipeline"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.InteractiveRunner.run_pipeline">[docs]</a>  <span class="k">def</span> <span class="nf">run_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_desired_cache_labels&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_desired_cache_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Running...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Snapshot the pipeline in a portable proto before mutating it.</span>
+    <span class="n">pipeline_proto</span><span class="p">,</span> <span class="n">original_context</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">(</span>
+        <span class="n">return_context</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">pcolls_to_pcoll_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls_to_pcoll_id</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">original_context</span><span class="p">)</span>
+
+    <span class="c1"># Make a copy of the original pipeline to avoid accidental manipulation</span>
+    <span class="n">pipeline</span><span class="p">,</span> <span class="n">context</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">Pipeline</span><span class="o">.</span><span class="n">from_runner_api</span><span class="p">(</span>
+        <span class="n">pipeline_proto</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_runner</span><span class="p">,</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="p">,</span>  <span class="c1"># pylint: disable=protected-access</span>
+        <span class="n">return_context</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pipeline_info</span> <span class="o">=</span> <span class="n">PipelineInfo</span><span class="p">(</span><span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="p">)</span>
+
+    <span class="n">caches_used</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_producing_transforms</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">,</span> <span class="n">leaf</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Returns PTransforms (and their names) that produces the given PColl.&quot;&quot;&quot;</span>
+      <span class="n">derivation</span> <span class="o">=</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">derivation</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()):</span>
+        <span class="c1"># If the PCollection is cached, yield ReadCache PTransform that reads</span>
+        <span class="c1"># the PCollection and all its sub PTransforms.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">leaf</span><span class="p">:</span>
+          <span class="n">caches_used</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+
+          <span class="n">cache_label</span> <span class="o">=</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()</span>
+          <span class="n">dummy_pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">ReadCache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">)</span>
+
+          <span class="c1"># Find the top level ReadCache composite PTransform.</span>
+          <span class="n">read_cache</span> <span class="o">=</span> <span class="n">dummy_pcoll</span><span class="o">.</span><span class="n">producer</span>
+          <span class="k">while</span> <span class="n">read_cache</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span><span class="p">:</span>
+            <span class="n">read_cache</span> <span class="o">=</span> <span class="n">read_cache</span><span class="o">.</span><span class="n">parent</span>
+
+          <span class="k">def</span> <span class="nf">_include_subtransforms</span><span class="p">(</span><span class="n">transform</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Depth-first yield the PTransform itself and its sub PTransforms.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">yield</span> <span class="n">transform</span>
+            <span class="k">for</span> <span class="n">subtransform</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+              <span class="k">for</span> <span class="n">yielded</span> <span class="ow">in</span> <span class="n">_include_subtransforms</span><span class="p">(</span><span class="n">subtransform</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">yielded</span>
+
+          <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">_include_subtransforms</span><span class="p">(</span><span class="n">read_cache</span><span class="p">):</span>
+            <span class="n">transform_proto</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dummy_pcoll</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+              <span class="n">transform_proto</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;None&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pcoll_id</span>
+            <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span><span class="n">transform</span><span class="p">),</span> <span class="n">transform_proto</span>
+
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">transform_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">producer</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+        <span class="n">transform_proto</span> <span class="o">=</span> <span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span><span class="p">[</span><span class="n">transform_id</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">input_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+          <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">_producing_transforms</span><span class="p">(</span><span class="n">input_id</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">transform</span>
+        <span class="k">yield</span> <span class="n">transform_id</span><span class="p">,</span> <span class="n">transform_proto</span>
+
+    <span class="n">desired_pcollections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_desired_pcollections</span><span class="p">(</span><span class="n">pipeline_info</span><span class="p">)</span>
+
+    <span class="c1"># TODO(qinyeli): Preserve composite structure.</span>
+    <span class="n">required_transforms</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">desired_pcollections</span><span class="p">:</span>
+      <span class="c1"># TODO(qinyeli): Collections consumed by no-output transforms.</span>
+      <span class="n">required_transforms</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_producing_transforms</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+
+    <span class="n">referenced_pcollections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span><span class="p">(</span>
+        <span class="n">pipeline_proto</span><span class="p">,</span> <span class="n">required_transforms</span><span class="p">)</span>
+
+    <span class="n">required_transforms</span><span class="p">[</span><span class="s1">&#39;_root&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">PTransform</span><span class="p">(</span>
+        <span class="n">subtransforms</span><span class="o">=</span><span class="n">required_transforms</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="n">pipeline_to_execute</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">pipeline_proto</span><span class="p">)</span>
+    <span class="n">pipeline_to_execute</span><span class="o">.</span><span class="n">root_transform_ids</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_root&#39;</span><span class="p">]</span>
+    <span class="n">set_proto_map</span><span class="p">(</span><span class="n">pipeline_to_execute</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span><span class="p">,</span>
+                  <span class="n">required_transforms</span><span class="p">)</span>
+    <span class="n">set_proto_map</span><span class="p">(</span><span class="n">pipeline_to_execute</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">pcollections</span><span class="p">,</span>
+                  <span class="n">referenced_pcollections</span><span class="p">)</span>
+    <span class="n">set_proto_map</span><span class="p">(</span><span class="n">pipeline_to_execute</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">coders</span><span class="p">,</span>
+                  <span class="n">context</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">()</span><span class="o">.</span><span class="n">coders</span><span class="p">)</span>
+
+    <span class="n">pipeline_slice</span><span class="p">,</span> <span class="n">context</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">Pipeline</span><span class="o">.</span><span class="n">from_runner_api</span><span class="p">(</span>
+        <span class="n">pipeline_to_execute</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_runner</span><span class="p">,</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="p">,</span>  <span class="c1"># pylint: disable=protected-access</span>
+        <span class="n">return_context</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pcolls_to_write</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">pcolls_to_sample</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">all_pcollections</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">referenced_pcollections</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">cache_label</span> <span class="o">=</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">desired_pcollections</span><span class="p">:</span>
+        <span class="n">pcolls_to_write</span><span class="p">[</span><span class="n">cache_label</span><span class="p">]</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">referenced_pcollections</span><span class="p">:</span>
+        <span class="n">pcolls_to_sample</span><span class="p">[</span><span class="n">cache_label</span><span class="p">]</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="k">if</span> <span class="n">pcolls_to_write</span><span class="p">:</span>
+      <span class="n">pcolls_to_write</span> <span class="o">|</span> <span class="n">WriteCache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pcolls_to_sample</span><span class="p">:</span>
+      <span class="n">pcolls_to_sample</span> <span class="o">|</span> <span class="s1">&#39;WriteSample&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteCache</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="p">,</span> <span class="n">sample</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">display</span> <span class="o">=</span> <span class="n">display_manager</span><span class="o">.</span><span class="n">DisplayManager</span><span class="p">(</span>
+        <span class="n">pipeline_info</span><span class="o">=</span><span class="n">pipeline_info</span><span class="p">,</span>
+        <span class="n">pipeline_proto</span><span class="o">=</span><span class="n">pipeline_proto</span><span class="p">,</span>
+        <span class="n">caches_used</span><span class="o">=</span><span class="n">caches_used</span><span class="p">,</span>
+        <span class="n">cache_manager</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="p">,</span>
+        <span class="n">referenced_pcollections</span><span class="o">=</span><span class="n">referenced_pcollections</span><span class="p">,</span>
+        <span class="n">required_transforms</span><span class="o">=</span><span class="n">required_transforms</span><span class="p">)</span>
+    <span class="n">display</span><span class="o">.</span><span class="n">start_periodic_update</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pipeline_slice</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+    <span class="n">display</span><span class="o">.</span><span class="n">stop_periodic_update</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">PipelineResult</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_info</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="p">,</span>
+                          <span class="n">pcolls_to_pcoll_id</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_pcolls_to_pcoll_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">original_context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a dict mapping PCollections string to PCollection IDs.</span>
+
+<span class="sd">    Using a PipelineVisitor to iterate over every node in the pipeline,</span>
+<span class="sd">    records the mapping from PCollections to PCollections IDs. This mapping</span>
+<span class="sd">    will be used to query cached PCollections.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline: (pipeline.Pipeline)</span>
+<span class="sd">      original_context: (pipeline_context.PipelineContext)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      (dict from str to str) a dict mapping str(pcoll) to pcoll_id.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pcolls_to_pcoll_id</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>  <span class="c1"># pylint: disable=import-error</span>
+
+    <span class="k">class</span> <span class="nc">PCollVisitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>  <span class="c1"># pylint: disable=used-before-assignment</span>
+      <span class="sd">&quot;&quot;&quot;&quot;A visitor that records input and output values to be replaced.</span>
+
+<span class="sd">      Input and output values that should be updated are recorded in maps</span>
+<span class="sd">      input_replacements and output_replacements respectively.</span>
+
+<span class="sd">      We cannot update input and output values while visiting since that</span>
+<span class="sd">      results in validation errors.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+
+      <span class="k">def</span> <span class="nf">enter_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visit_transform</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">pcoll</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+          <span class="n">pcolls_to_pcoll_id</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)]</span> <span class="o">=</span> <span class="n">original_context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span>
+              <span class="n">pcoll</span><span class="p">)</span>
+
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">PCollVisitor</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">pcolls_to_pcoll_id</span>
+
+  <span class="k">def</span> <span class="nf">_desired_pcollections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_info</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns IDs of desired PCollections.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline_info: (PipelineInfo)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A set of PCollections IDs of either leaf PCollections or PCollections</span>
+<span class="sd">      referenced by the user. These PCollections should be cached at the end</span>
+<span class="sd">      of pipeline execution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desired_pcollections</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">pipeline_info</span><span class="o">.</span><span class="n">leaf_pcollections</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">all_pcollections</span><span class="p">():</span>
+      <span class="n">cache_label</span> <span class="o">=</span> <span class="n">pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()</span>
+
+      <span class="k">if</span> <span class="n">cache_label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_desired_cache_labels</span><span class="p">:</span>
+        <span class="n">desired_pcollections</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">desired_pcollections</span>
+
+  <span class="k">def</span> <span class="nf">_referenced_pcollections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_proto</span><span class="p">,</span> <span class="n">required_transforms</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns referenced PCollections.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline_proto: (Pipeline proto)</span>
+<span class="sd">      required_transforms: (dict from str to PTransform proto) Mapping from</span>
+<span class="sd">          transform ID to transform proto.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      (dict from str to PCollection proto) A dict mapping PCollections IDs to</span>
+<span class="sd">      PCollections referenced during execution. They might be intermediate</span>
+<span class="sd">      results, and not referenced the user directly. These PCollections should</span>
+<span class="sd">      be cached with sampling at the end of pipeline execution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">referenced_pcollections</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">transform_proto</span> <span class="ow">in</span> <span class="n">required_transforms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">referenced_pcollections</span><span class="p">[</span>
+            <span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">pcollections</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span>
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">referenced_pcollections</span><span class="p">[</span>
+            <span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">pcollections</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">referenced_pcollections</span></div>
+
+
+<div class="viewcode-block" id="ReadCache"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.ReadCache">[docs]</a><span class="k">class</span> <span class="nc">ReadCache</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PTransform that reads the PCollections from the cache.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_manager</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span> <span class="o">=</span> <span class="n">cache_manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">=</span> <span class="n">label</span>
+
+<div class="viewcode-block" id="ReadCache.expand"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.ReadCache.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pbegin</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="k">return</span> <span class="n">pbegin</span> <span class="o">|</span> <span class="s1">&#39;Load</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span> <span class="o">&gt;&gt;</span> <span class="p">(</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">glob_path</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label</span><span class="p">),</span>
+                <span class="n">coder</span><span class="o">=</span><span class="n">SafeFastPrimitivesCoder</span><span class="p">())</span><span class="o">.</span><span class="n">_source</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="WriteCache"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.WriteCache">[docs]</a><span class="k">class</span> <span class="nc">WriteCache</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PTransform that writes the PCollections to the cache.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache_manager</span><span class="p">,</span> <span class="n">sample</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span> <span class="o">=</span> <span class="n">cache_manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span> <span class="o">=</span> <span class="n">sample</span>
+
+<div class="viewcode-block" id="WriteCache.expand"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.WriteCache.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcolls_to_write</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">pcoll</span> <span class="ow">in</span> <span class="n">pcolls_to_write</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">prefix</span> <span class="o">=</span> <span class="s1">&#39;sample&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span> <span class="k">else</span> <span class="s1">&#39;full&#39;</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample</span><span class="p">:</span>
+          <span class="n">pcoll</span> <span class="o">|=</span> <span class="s1">&#39;Sample</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">label</span> <span class="o">&gt;&gt;</span> <span class="p">(</span>
+              <span class="n">combiners</span><span class="o">.</span><span class="n">Sample</span><span class="o">.</span><span class="n">FixedSizeGlobally</span><span class="p">(</span><span class="n">SAMPLE_SIZE</span><span class="p">)</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">sample</span><span class="p">:</span> <span class="n">sample</span><span class="p">))</span>
+        <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Cache</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">label</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">label</span><span class="p">),</span>
+            <span class="n">coder</span><span class="o">=</span><span class="n">SafeFastPrimitivesCoder</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="CacheManager"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager">[docs]</a><span class="k">class</span> <span class="nc">CacheManager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Maps PCollections to files for materialization.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_temp_dir</span> <span class="o">=</span> <span class="n">temp_dir</span> <span class="ow">or</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span>
+        <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;interactive-temp-&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;TEST_TMPDIR&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+<div class="viewcode-block" id="CacheManager.exists"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager.exists">[docs]</a>  <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">labels</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">filesystems</span><span class="o">.</span><span class="n">FileSystems</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">glob_path</span><span class="p">(</span><span class="o">*</span><span class="n">labels</span><span class="p">)],</span>
+                                      <span class="n">limits</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">metadata_list</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CacheManager.read"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager.read">[docs]</a>  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">SafeFastPrimitivesCoder</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">glob_path</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">)):</span>
+      <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CacheManager.glob_path"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager.glob_path">[docs]</a>  <span class="k">def</span> <span class="nf">glob_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">labels</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">(</span><span class="o">*</span><span class="n">labels</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-*-of-*&#39;</span></div>
+
+<div class="viewcode-block" id="CacheManager.path"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager.path">[docs]</a>  <span class="k">def</span> <span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">labels</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">filesystems</span><span class="o">.</span><span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_temp_dir</span><span class="p">,</span> <span class="o">*</span><span class="n">labels</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CacheManager.cleanup"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.CacheManager.cleanup">[docs]</a>  <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_temp_dir</span><span class="p">):</span>
+      <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_temp_dir</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="PipelineInfo"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineInfo">[docs]</a><span class="k">class</span> <span class="nc">PipelineInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Provides access to pipeline metadata.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_proto</span> <span class="o">=</span> <span class="n">proto</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">transform_id</span><span class="p">,</span> <span class="n">transform_proto</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proto</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">subtransforms</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">transform_id</span><span class="p">,</span> <span class="n">tag</span>
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform_id</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_derivations</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="PipelineInfo.all_pcollections"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineInfo.all_pcollections">[docs]</a>  <span class="k">def</span> <span class="nf">all_pcollections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proto</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineInfo.leaf_pcollections"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineInfo.leaf_pcollections">[docs]</a>  <span class="k">def</span> <span class="nf">leaf_pcollections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proto</span><span class="o">.</span><span class="n">pcollections</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]:</span>
+        <span class="k">yield</span> <span class="n">pcoll_id</span></div>
+
+<div class="viewcode-block" id="PipelineInfo.producer"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineInfo.producer">[docs]</a>  <span class="k">def</span> <span class="nf">producer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="PipelineInfo.derivation"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineInfo.derivation">[docs]</a>  <span class="k">def</span> <span class="nf">derivation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll_id</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the Derivation corresponding to the PCollection.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_derivations</span><span class="p">:</span>
+      <span class="n">transform_id</span><span class="p">,</span> <span class="n">output_tag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span>
+      <span class="n">transform_proto</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proto</span><span class="o">.</span><span class="n">transforms</span><span class="p">[</span><span class="n">transform_id</span><span class="p">]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_derivations</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">Derivation</span><span class="p">({</span>
+          <span class="n">input_tag</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">input_id</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">input_tag</span><span class="p">,</span> <span class="n">input_id</span> <span class="ow">in</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+      <span class="p">},</span> <span class="n">transform_proto</span><span class="p">,</span> <span class="n">output_tag</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_derivations</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span></div></div>
+
+
+<div class="viewcode-block" id="Derivation"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.Derivation">[docs]</a><span class="k">class</span> <span class="nc">Derivation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Records derivation info of a PCollection. Helper for PipelineInfo.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">transform_proto</span><span class="p">,</span> <span class="n">output_tag</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor of Derivation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      inputs: (Dict[str, str]) a dict that contains input PCollections to the</span>
+<span class="sd">        producing PTransform of the output PCollection. Maps local names to IDs.</span>
+<span class="sd">      transform_proto: (Transform proto) the producing PTransform of the output</span>
+<span class="sd">        PCollection.</span>
+<span class="sd">      output_tag: (str) local name of the output PCollection; this is the</span>
+<span class="sd">        PCollection in analysis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="n">inputs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_transform_info</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;urn&#39;</span><span class="p">:</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">urn</span><span class="p">,</span>
+        <span class="s1">&#39;payload&#39;</span><span class="p">:</span> <span class="n">transform_proto</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_output_tag</span> <span class="o">=</span> <span class="n">output_tag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_hash</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Derivation</span><span class="p">):</span>
+      <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_inputs</span> <span class="ow">and</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_transform_info</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_transform_info</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hash</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_hash</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_transform_info</span><span class="o">.</span><span class="n">items</span><span class="p">())))</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span>
+          <span class="nb">hash</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span> <span class="o">*</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="nb">input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hash</span>
+
+<div class="viewcode-block" id="Derivation.cache_label"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.Derivation.cache_label">[docs]</a>  <span class="k">def</span> <span class="nf">cache_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># TODO(qinyeli): Collision resistance?</span>
+    <span class="k">return</span> <span class="s1">&#39;Pcoll-</span><span class="si">%x</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Derivation.json"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.Derivation.json">[docs]</a>  <span class="k">def</span> <span class="nf">json</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;inputs&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">,</span>
+        <span class="s1">&#39;transform&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_info</span><span class="p">,</span>
+        <span class="s1">&#39;output_tag&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_tag</span>
+    <span class="p">}</span></div>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="SafeFastPrimitivesCoder"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder">[docs]</a><span class="k">class</span> <span class="nc">SafeFastPrimitivesCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;This class add an quote/unquote step to escape special characters.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SafeFastPrimitivesCoder.encode"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">urllib</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SafeFastPrimitivesCoder.decode"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.SafeFastPrimitivesCoder.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">urllib</span><span class="o">.</span><span class="n">unquote</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div></div>
+
+
+<span class="c1"># TODO(qinyeli) move to proto_utils</span>
+<div class="viewcode-block" id="set_proto_map"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.set_proto_map">[docs]</a><span class="k">def</span> <span class="nf">set_proto_map</span><span class="p">(</span><span class="n">proto_map</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+  <span class="n">proto_map</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+  <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">new_value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">proto_map</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PipelineResult"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineResult">[docs]</a><span class="k">class</span> <span class="nc">PipelineResult</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">runners</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">PipelineResult</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Provides access to information about a pipeline.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">underlying_result</span><span class="p">,</span> <span class="n">runner</span><span class="p">,</span> <span class="n">pipeline_info</span><span class="p">,</span> <span class="n">cache_manager</span><span class="p">,</span>
+               <span class="n">pcolls_to_pcoll_id</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PipelineResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">underlying_result</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span> <span class="o">=</span> <span class="n">runner</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_info</span> <span class="o">=</span> <span class="n">pipeline_info</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span> <span class="o">=</span> <span class="n">cache_manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls_to_pcoll_id</span> <span class="o">=</span> <span class="n">pcolls_to_pcoll_id</span>
+
+  <span class="k">def</span> <span class="nf">_cache_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="n">pcoll_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls_to_pcoll_id</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PipelineResult.wait_until_finish"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineResult.wait_until_finish">[docs]</a>  <span class="k">def</span> <span class="nf">wait_until_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># PipelineResult is not constructed until pipeline execution is finished.</span>
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="PipelineResult.get"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineResult.get">[docs]</a>  <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="n">cache_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="o">.</span><span class="n">_desired_cache_labels</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cache_label</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;PCollection not available, please run the pipeline.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineResult.sample"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_runner.html#apache_beam.runners.interactive.interactive_runner.PipelineResult.sample">[docs]</a>  <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="n">cache_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="o">.</span><span class="n">_desired_cache_labels</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cache_label</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;PCollection not available, please run the pipeline.&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

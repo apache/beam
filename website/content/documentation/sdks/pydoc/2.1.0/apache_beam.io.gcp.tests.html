@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.tests package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.metrics package" href="apache_beam.metrics.html" />
+    <link rel="prev" title="apache_beam.io.gcp.internal package" href="apache_beam.io.gcp.internal.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.metrics.html" title="apache_beam.metrics package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.internal.html" title="apache_beam.io.gcp.internal package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" >apache_beam.io package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.io.gcp.html" accesskey="U">apache_beam.io.gcp package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.io.gcp.tests package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.tests.bigquery_matcher">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.io.gcp.tests">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.io.gcp.internal.html"
+                        title="previous chapter">apache_beam.io.gcp.internal package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.metrics.html"
+                        title="next chapter">apache_beam.metrics package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.io.gcp.tests.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-io-gcp-tests-package">
+<h1>apache_beam.io.gcp.tests package<a class="headerlink" href="#apache-beam-io-gcp-tests-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.io.gcp.tests.bigquery_matcher">
+<span id="apache-beam-io-gcp-tests-bigquery-matcher-module"></span><h2>apache_beam.io.gcp.tests.bigquery_matcher module<a class="headerlink" href="#module-apache_beam.io.gcp.tests.bigquery_matcher" title="Permalink to this headline">¶</a></h2>
+<p>Bigquery data verifier for end-to-end test.</p>
+<dl class="class">
+<dt id="apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.io.gcp.tests.bigquery_matcher.</code><code class="descname">BigqueryMatcher</code><span class="sig-paren">(</span><em>project</em>, <em>query</em>, <em>checksum</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/tests/bigquery_matcher.html#BigqueryMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+<p>Matcher that verifies Bigquery data with given query.</p>
+<p>Fetch Bigquery data with given query, compute a hash string and compare
+with expected checksum.</p>
+<dl class="method">
+<dt id="apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_mismatch">
+<code class="descname">describe_mismatch</code><span class="sig-paren">(</span><em>pipeline_result</em>, <em>mismatch_description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/tests/bigquery_matcher.html#BigqueryMatcher.describe_mismatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_mismatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_to">
+<code class="descname">describe_to</code><span class="sig-paren">(</span><em>description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/gcp/tests/bigquery_matcher.html#BigqueryMatcher.describe_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.io.gcp.tests">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.io.gcp.tests" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.metrics.html" title="apache_beam.metrics package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.internal.html" title="apache_beam.io.gcp.internal package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.io.html" >apache_beam.io package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.io.gcp.html" >apache_beam.io.gcp package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

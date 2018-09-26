@@ -1,0 +1,7 @@
+apache\_beam\.io\.filebasedsource module
+========================================
+
+.. automodule:: apache_beam.io.filebasedsource
+    :members:
+    :undoc-members:
+    :show-inheritance:

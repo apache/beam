@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.internal.util &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.internal.util</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Utility functions used throughout the package.</span>
+
+<span class="sd">For internal use only. No backwards compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">multiprocessing.pool</span> <span class="k">import</span> <span class="n">ThreadPool</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+
+
+<div class="viewcode-block" id="ArgumentPlaceholder"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.util.ArgumentPlaceholder">[docs]</a><span class="k">class</span> <span class="nc">ArgumentPlaceholder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A place holder object replacing PValues in argument lists.</span>
+
+<span class="sd">  A Fn object can take any number of &quot;side inputs&quot;, which are PValues that will</span>
+<span class="sd">  be evaluated during pipeline execution and will be provided to the function</span>
+<span class="sd">  at the moment of its execution as positional or keyword arguments.</span>
+
+<span class="sd">  This is used only internally and should never be used by user code. A custom</span>
+<span class="sd">  Fn object by the time it executes will have such values replaced with real</span>
+<span class="sd">  computed values.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tests for equality of two placeholder objects.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      other: Another placeholder object to compare to.</span>
+
+<span class="sd">    This method is used only for test code. All placeholder objects are</span>
+<span class="sd">    equal to each other.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ArgumentPlaceholder</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="remove_objects_from_args"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.util.remove_objects_from_args">[docs]</a><span class="k">def</span> <span class="nf">remove_objects_from_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">pvalue_classes</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Replaces all objects of a given type in args/kwargs with a placeholder.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    args: A list of positional arguments.</span>
+<span class="sd">    kwargs: A dictionary of keyword arguments.</span>
+<span class="sd">    pvalue_classes: A tuple of class objects representing the types of the</span>
+<span class="sd">      arguments that must be replaced with a placeholder value (instance of</span>
+<span class="sd">      ArgumentPlaceholder)</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A 3-tuple containing a modified list of positional arguments, a modified</span>
+<span class="sd">    dictionary of keyword arguments, and a list of all objects replaced with</span>
+<span class="sd">    a placeholder value.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">pvals</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">swapper</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="n">pvals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ArgumentPlaceholder</span><span class="p">()</span>
+  <span class="n">new_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">swapper</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue_classes</span><span class="p">)</span> <span class="k">else</span> <span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+  <span class="c1"># Make sure the order in which we process the dictionary keys is predictable</span>
+  <span class="c1"># by sorting the entries first. This will be important when putting back</span>
+  <span class="c1"># PValues.</span>
+  <span class="n">new_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">swapper</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue_classes</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">new_args</span><span class="p">,</span> <span class="n">new_kwargs</span><span class="p">,</span> <span class="n">pvals</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="insert_values_in_args"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.util.insert_values_in_args">[docs]</a><span class="k">def</span> <span class="nf">insert_values_in_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Replaces all placeholders in args/kwargs with actual values.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    args: A list of positional arguments.</span>
+<span class="sd">    kwargs: A dictionary of keyword arguments.</span>
+<span class="sd">    values: A list of values that will be used to replace placeholder values.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A 2-tuple containing a modified list of positional arguments, and a</span>
+<span class="sd">    modified dictionary of keyword arguments.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># Use a local iterator so that we don&#39;t modify values.</span>
+  <span class="n">v_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+  <span class="n">new_args</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="n">v_iter</span><span class="o">.</span><span class="n">next</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">ArgumentPlaceholder</span><span class="p">)</span> <span class="k">else</span> <span class="n">arg</span>
+      <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+  <span class="n">new_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+      <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v_iter</span><span class="o">.</span><span class="n">next</span><span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ArgumentPlaceholder</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">new_args</span><span class="p">,</span> <span class="n">new_kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run_using_threadpool"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.util.run_using_threadpool">[docs]</a><span class="k">def</span> <span class="nf">run_using_threadpool</span><span class="p">(</span><span class="n">fn_to_execute</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">pool_size</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Runs the given function on given inputs using a thread pool.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    fn_to_execute: Function to execute</span>
+<span class="sd">    inputs: Inputs on which given function will be executed in parallel.</span>
+<span class="sd">    pool_size: Size of thread pool.</span>
+<span class="sd">  Returns:</span>
+<span class="sd">    Results retrieved after executing the given function on given inputs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># ThreadPool crashes in old versions of Python (&lt; 2.7.5) if created</span>
+  <span class="c1"># from a child thread. (http://bugs.python.org/issue10015)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">current_thread</span><span class="p">(),</span> <span class="s1">&#39;_children&#39;</span><span class="p">):</span>
+    <span class="n">threading</span><span class="o">.</span><span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">_children</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">WeakKeyDictionary</span><span class="p">()</span>
+  <span class="n">pool</span> <span class="o">=</span> <span class="n">ThreadPool</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">pool_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)))</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="c1"># We record and reset logging level here since &#39;apitools&#39; library Beam</span>
+    <span class="c1"># depends on updates the logging level when used with a threadpool -</span>
+    <span class="c1"># https://github.com/google/apitools/issues/141</span>
+    <span class="c1"># TODO: Remove this once above issue in &#39;apitools&#39; is fixed.</span>
+    <span class="n">old_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">level</span>
+    <span class="k">return</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">fn_to_execute</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+  <span class="k">finally</span><span class="p">:</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">old_level</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

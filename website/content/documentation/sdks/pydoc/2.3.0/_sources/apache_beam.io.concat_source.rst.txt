@@ -1,0 +1,7 @@
+apache\_beam\.io\.concat\_source module
+=======================================
+
+.. automodule:: apache_beam.io.concat_source
+    :members:
+    :undoc-members:
+    :show-inheritance:

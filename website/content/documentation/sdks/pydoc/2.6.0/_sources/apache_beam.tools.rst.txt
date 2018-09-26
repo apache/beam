@@ -1,0 +1,18 @@
+apache\_beam\.tools package
+===========================
+
+.. automodule:: apache_beam.tools
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.tools.coders_microbenchmark
+   apache_beam.tools.distribution_counter_microbenchmark
+   apache_beam.tools.sideinput_microbenchmark
+   apache_beam.tools.utils
+

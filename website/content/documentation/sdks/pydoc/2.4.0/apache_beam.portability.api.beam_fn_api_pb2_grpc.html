@@ -1,0 +1,405 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.portability.api.beam_fn_api_pb2_grpc module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.portability.api package" href="apache_beam.portability.api.html"/>
+        <link rel="next" title="apache_beam.portability.api.beam_job_api_pb2_grpc module" href="apache_beam.portability.api.beam_job_api_pb2_grpc.html"/>
+        <link rel="prev" title="apache_beam.portability.api.beam_artifact_api_pb2_grpc module" href="apache_beam.portability.api.beam_artifact_api_pb2_grpc.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.portability.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.portability.api.html">apache_beam.portability.api package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.portability.api.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.portability.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.portability.html">apache_beam.portability package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.portability.api.html">apache_beam.portability.api package</a> &raquo;</li>
+        
+      <li>apache_beam.portability.api.beam_fn_api_pb2_grpc module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.portability.api.beam_fn_api_pb2_grpc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.portability.api.beam_fn_api_pb2_grpc">
+<span id="apache-beam-portability-api-beam-fn-api-pb2-grpc-module"></span><h1>apache_beam.portability.api.beam_fn_api_pb2_grpc module<a class="headerlink" href="#module-apache_beam.portability.api.beam_fn_api_pb2_grpc" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnControlStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+<p>Constructor.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>channel</strong> – A grpc.Channel.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnControlServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlServicer.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer.Control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instructions sent by the runner to the SDK requesting different types
+of work.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnControlServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnControlServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnDataStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Stable</p>
+<p>Constructor.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>channel</strong> – A grpc.Channel.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnDataServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataServicer.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer.Data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to send data between harnesses.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnDataServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnDataServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnStateStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Constructor.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>channel</strong> – A grpc.Channel.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnStateServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer.State">
+<code class="descname">State</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateServicer.State"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to get/append/clear state stored by the runner on behalf of the SDK.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnStateServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnStateServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnLoggingStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Stable</p>
+<p>Constructor.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>channel</strong> – A grpc.Channel.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnLoggingServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer.Logging">
+<code class="descname">Logging</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingServicer.Logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows for the SDK to emit log entries which the runner can
+associate with the active job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnLoggingServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnLoggingServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.portability.api.beam_job_api_pb2_grpc.html" class="btn btn-neutral float-right" title="apache_beam.portability.api.beam_job_api_pb2_grpc module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.portability.api.beam_artifact_api_pb2_grpc.html" class="btn btn-neutral" title="apache_beam.portability.api.beam_artifact_api_pb2_grpc module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

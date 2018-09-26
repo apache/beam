@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.watermark\_manager module
+========================================================
+
+.. automodule:: apache_beam.runners.direct.watermark_manager
+    :members:
+    :undoc-members:
+    :show-inheritance:

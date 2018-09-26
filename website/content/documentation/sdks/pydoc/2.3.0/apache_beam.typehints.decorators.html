@@ -1,0 +1,489 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.typehints.decorators module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.typehints package" href="apache_beam.typehints.html"/>
+        <link rel="next" title="apache_beam.typehints.native_type_compatibility module" href="apache_beam.typehints.native_type_compatibility.html"/>
+        <link rel="prev" title="apache_beam.typehints package" href="apache_beam.typehints.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.native_type_compatibility.html">apache_beam.typehints.native_type_compatibility module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.opcodes.html">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.trivial_inference.html">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typecheck.html">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.typehints.typehints.html">apache_beam.typehints.typehints module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.typehints.html">apache_beam.typehints package</a> &raquo;</li>
+        
+      <li>apache_beam.typehints.decorators module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.typehints.decorators.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.typehints.decorators">
+<span id="apache-beam-typehints-decorators-module"></span><h1>apache_beam.typehints.decorators module<a class="headerlink" href="#module-apache_beam.typehints.decorators" title="Permalink to this headline">¶</a></h1>
+<p>Type hinting decorators allowing static or runtime type-checking for the SDK.</p>
+<p>This module defines decorators which utilize the type-hints defined in
+‘type_hints.py’ to allow annotation of the types of function arguments and
+return values.</p>
+<p>Type-hints for functions are annotated using two separate decorators. One is for
+type-hinting the types of function arguments, the other for type-hinting the
+function return value. Type-hints can either be specified in the form of
+positional arguments:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>Keyword arguments:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>Or even a mix of both:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>Example usage for type-hinting arguments only:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">to_lower</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">a</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Example usage for type-hinting return values only:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_output_types</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">bool</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">compress_point</span><span class="p">(</span><span class="n">ec_point</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">ec_point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">ec_point</span><span class="o">.</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>Example usage for type-hinting both arguments and return values:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">int_to_str</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+  <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Type-hinting a function with arguments that unpack tuples are also supported. As
+an example, such a function would be defined as:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">foo</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
+  <span class="o">...</span>
+</pre></div>
+</div>
+<p>The valid type-hint for such as function looks like the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_input_types</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">foo</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)):</span>
+  <span class="o">...</span>
+</pre></div>
+</div>
+<p>Notice that we hint the type of each unpacked argument independently, rather
+than hinting the type of the tuple as a whole (Tuple[int, int]).</p>
+<p>Optionally, type-hints can be type-checked at runtime. To toggle this behavior
+this module defines two functions: ‘enable_run_time_type_checking’ and
+‘disable_run_time_type_checking’. NOTE: for this toggle behavior to work
+properly it must appear at the top of the module where all functions are
+defined, or before importing a module containing type-hinted functions.</p>
+<dl class="class">
+<dt id="apache_beam.typehints.decorators.WithTypeHints">
+<em class="property">class </em><code class="descclassname">apache_beam.typehints.decorators.</code><code class="descname">WithTypeHints</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#WithTypeHints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.WithTypeHints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A mixin class that provides the ability to set and retrieve type hints.</p>
+<dl class="method">
+<dt id="apache_beam.typehints.decorators.WithTypeHints.get_type_hints">
+<code class="descname">get_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#WithTypeHints.get_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.WithTypeHints.get_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.decorators.WithTypeHints.default_type_hints">
+<code class="descname">default_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#WithTypeHints.default_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.WithTypeHints.default_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.decorators.WithTypeHints.with_input_types">
+<code class="descname">with_input_types</code><span class="sig-paren">(</span><em>*arg_hints</em>, <em>**kwarg_hints</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#WithTypeHints.with_input_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.WithTypeHints.with_input_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.typehints.decorators.WithTypeHints.with_output_types">
+<code class="descname">with_output_types</code><span class="sig-paren">(</span><em>*arg_hints</em>, <em>**kwarg_hints</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#WithTypeHints.with_output_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.WithTypeHints.with_output_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.typehints.decorators.TypeCheckError">
+<em class="property">exception </em><code class="descclassname">apache_beam.typehints.decorators.</code><code class="descname">TypeCheckError</code><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#TypeCheckError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.TypeCheckError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.Exception" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.decorators.with_input_types">
+<code class="descclassname">apache_beam.typehints.decorators.</code><code class="descname">with_input_types</code><span class="sig-paren">(</span><em>*positional_hints</em>, <em>**keyword_hints</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#with_input_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.with_input_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator that type-checks defined type-hints with passed func arguments.</p>
+<p>All type-hinted arguments can be specified using positional arguments,
+keyword arguments, or a mix of both. Additionaly, all function arguments must
+be type-hinted in totality if even one parameter is type-hinted.</p>
+<p>Once fully decorated, if the arguments passed to the resulting function
+violate the type-hint constraints defined, a <a class="reference internal" href="#apache_beam.typehints.decorators.TypeCheckError" title="apache_beam.typehints.decorators.TypeCheckError"><code class="xref py py-class docutils literal"><span class="pre">TypeCheckError</span></code></a>
+detailing the error will be raised.</p>
+<p>To be used as:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_input_types</span>
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">upper</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Or:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_input_types</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Tuple</span>
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">ls</span><span class="o">=</span><span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]])</span>
+<span class="k">def</span> <span class="nf">increment</span><span class="p">(</span><span class="n">ls</span><span class="p">):</span>
+  <span class="p">[(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ls</span><span class="p">]</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>*positional_hints</strong> – Positional type-hints having identical order as the
+function’s formal arguments. Values for this argument must either be a
+built-in Python type or an instance of a
+<code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code> created by
+‘indexing’ a
+<code class="xref py py-class docutils literal"><span class="pre">CompositeTypeHint</span></code> instance
+with a type parameter.</li>
+<li><strong>**keyword_hints</strong> – Keyword arguments mirroring the names of the parameters to
+the decorated functions. The value of each keyword argument must either
+be one of the allowed built-in Python types, a custom class, or an
+instance of a <code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code>
+created by ‘indexing’ a
+<code class="xref py py-class docutils literal"><span class="pre">CompositeTypeHint</span></code> instance
+with a type parameter.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">ValueError</span></code></a> – If not all function arguments have
+corresponding type-hints specified. Or if the inner wrapper function isn’t
+passed a function object.</li>
+<li><a class="reference internal" href="#apache_beam.typehints.decorators.TypeCheckError" title="apache_beam.typehints.decorators.TypeCheckError"><code class="xref py py-class docutils literal"><span class="pre">TypeCheckError</span></code></a> – If the any of the passed type-hint
+constraints are not a type or
+<code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code> instance.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The original function decorated such that it enforces type-hint constraints
+for all received function arguments.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.typehints.decorators.with_output_types">
+<code class="descclassname">apache_beam.typehints.decorators.</code><code class="descname">with_output_types</code><span class="sig-paren">(</span><em>*return_type_hint</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/typehints/decorators.html#with_output_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.typehints.decorators.with_output_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator that type-checks defined type-hints for return values(s).</p>
+<p>This decorator will type-check the return value(s) of the decorated function.</p>
+<p>Only a single type-hint is accepted to specify the return type of the return
+value. If the function to be decorated has multiple return values, then one
+should use: <code class="docutils literal"><span class="pre">Tuple[type_1,</span> <span class="pre">type_2]</span></code> to annotate the types of the return
+values.</p>
+<p>If the ultimate return value for the function violates the specified type-hint
+a <a class="reference internal" href="#apache_beam.typehints.decorators.TypeCheckError" title="apache_beam.typehints.decorators.TypeCheckError"><code class="xref py py-class docutils literal"><span class="pre">TypeCheckError</span></code></a> will be raised detailing the type-constraint
+violation.</p>
+<p>This decorator is intended to be used like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_output_types</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Set</span>
+
+<span class="k">class</span> <span class="nc">Coordinate</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="n">Set</span><span class="p">[</span><span class="n">Coordinate</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">parse_ints</span><span class="p">(</span><span class="n">ints</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">{</span><span class="n">Coordinate</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ints</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Or with a simple type-hint:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_output_types</span>
+
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">negate</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+  <span class="k">return</span> <span class="ow">not</span> <span class="n">p</span> <span class="k">if</span> <span class="n">p</span> <span class="k">else</span> <span class="n">p</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>*return_type_hint</strong> – A type-hint specifying the proper return type of the
+function. This argument should either be a built-in Python type or an
+instance of a <code class="xref py py-class docutils literal"><span class="pre">TypeConstraint</span></code>
+created by ‘indexing’ a
+<code class="xref py py-class docutils literal"><span class="pre">CompositeTypeHint</span></code>.</li>
+<li><strong>**kwargs</strong> – Not used.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">ValueError</span></code></a> – If any kwarg parameters are passed in,
+or the length of <strong>return_type_hint</strong> is greater than <code class="docutils literal"><span class="pre">1</span></code>. Or if the
+inner wrapper function isn’t passed a function object.</li>
+<li><a class="reference internal" href="#apache_beam.typehints.decorators.TypeCheckError" title="apache_beam.typehints.decorators.TypeCheckError"><code class="xref py py-class docutils literal"><span class="pre">TypeCheckError</span></code></a> – If the <strong>return_type_hint</strong> object is
+in invalid type-hint.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The original function decorated such that it enforces type-hint constraints
+for all return values.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.typehints.native_type_compatibility.html" class="btn btn-neutral float-right" title="apache_beam.typehints.native_type_compatibility module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.typehints.html" class="btn btn-neutral" title="apache_beam.typehints package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

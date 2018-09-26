@@ -1,0 +1,252 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.internal.gcp package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.io package" href="apache_beam.io.html" />
+    <link rel="prev" title="apache_beam.internal package" href="apache_beam.internal.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.html" title="apache_beam.io package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.html" title="apache_beam.internal package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.internal.html" accesskey="U">apache_beam.internal package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.internal.gcp package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal.gcp.auth">apache_beam.internal.gcp.auth module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal.gcp.json_value">apache_beam.internal.gcp.json_value module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.internal.html"
+                        title="previous chapter">apache_beam.internal package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.io.html"
+                        title="next chapter">apache_beam.io package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.internal.gcp.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-internal-gcp-package">
+<h1>apache_beam.internal.gcp package<a class="headerlink" href="#apache-beam-internal-gcp-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.internal.gcp.auth">
+<span id="apache-beam-internal-gcp-auth-module"></span><h2>apache_beam.internal.gcp.auth module<a class="headerlink" href="#module-apache_beam.internal.gcp.auth" title="Permalink to this headline">¶</a></h2>
+<p>Dataflow credentials and authentication.</p>
+<dl class="exception">
+<dt id="apache_beam.internal.gcp.auth.AuthenticationException">
+<em class="property">exception </em><code class="descclassname">apache_beam.internal.gcp.auth.</code><code class="descname">AuthenticationException</code><a class="reference internal" href="_modules/apache_beam/internal/gcp/auth.html#AuthenticationException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.auth.AuthenticationException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.html#apache_beam.utils.retry.PermanentException" title="apache_beam.utils.retry.PermanentException"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.retry.PermanentException</span></code></a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.auth.get_service_credentials">
+<code class="descclassname">apache_beam.internal.gcp.auth.</code><code class="descname">get_service_credentials</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/auth.html#get_service_credentials"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.auth.get_service_credentials" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Get credentials to access Google services.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.auth.set_running_in_gce">
+<code class="descclassname">apache_beam.internal.gcp.auth.</code><code class="descname">set_running_in_gce</code><span class="sig-paren">(</span><em>worker_executing_project</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/auth.html#set_running_in_gce"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.auth.set_running_in_gce" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Informs the authentication library that we are running in GCE.</p>
+<p>When we are running in GCE, we have the option of using the VM metadata
+credentials for authentication to Google services.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>worker_executing_project</strong> &#8211; The project running the workflow. This information
+comes from worker startup information.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.internal.gcp.json_value">
+<span id="apache-beam-internal-gcp-json-value-module"></span><h2>apache_beam.internal.gcp.json_value module<a class="headerlink" href="#module-apache_beam.internal.gcp.json_value" title="Permalink to this headline">¶</a></h2>
+<p>JSON conversion utility functions.</p>
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.from_json_value">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">from_json_value</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#from_json_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.from_json_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts extra_types.JsonValue objects into Python objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>v</strong> &#8211; JsonValue object to be converted.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A Python object structured as values, lists, and dictionaries corresponding
+to JsonValue, JsonArray and JsonObject types.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if the JsonValue object contains a type that is not supported.</td>
+</tr>
+</tbody>
+</table>
+<p>The types supported are str, bool, list, dict, and None. The Dataflow API
+returns JsonValue(s) in many places and it is quite convenient to be able to
+convert these hierarchical objects to much simpler Python objects.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.get_typed_value_descriptor">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">get_typed_value_descriptor</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#get_typed_value_descriptor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.get_typed_value_descriptor" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts a basic type into a &#64;type/value dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> &#8211; A basestring, bool, int, or float to be converted.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A dictionary containing the keys <a class="reference external" href="mailto:'&#37;&#52;&#48;type">'<span>&#64;</span>type</a>&#8216; and &#8216;value&#8217; with the value for
+the &#64;type of appropriate type.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if the Python object has a type that is not supported.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.to_json_value">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">to_json_value</code><span class="sig-paren">(</span><em>obj</em>, <em>with_type=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#to_json_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.to_json_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts Python objects into extra_types.JsonValue objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>obj</strong> &#8211; Python object to be converted. Can be &#8216;None&#8217;.</li>
+<li><strong>with_type</strong> &#8211; If true then the basic types (string, int, float, bool) will
+be wrapped in &#64;type/value dictionaries. Otherwise the straight value is
+encoded into a JsonValue.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A JsonValue object using JsonValue, JsonArray and JsonObject types for the
+corresponding values, lists, or dictionaries.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if the Python object contains a type that is not supported.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The types supported are str, bool, list, tuple, dict, and None. The Dataflow
+API requires JsonValue(s) in many places, and it is quite convenient to be
+able to specify these hierarchical objects using Python syntax.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.internal.gcp">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.internal.gcp" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.io.html" title="apache_beam.io package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.html" title="apache_beam.internal package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.internal.html" >apache_beam.internal package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

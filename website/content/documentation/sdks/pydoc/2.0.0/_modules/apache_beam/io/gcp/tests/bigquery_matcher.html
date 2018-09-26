@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.tests.bigquery_matcher &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.tests.bigquery_matcher</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Bigquery data verifier for end-to-end test.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">hamcrest.core.base_matcher</span> <span class="k">import</span> <span class="n">BaseMatcher</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.testing.test_utils</span> <span class="k">import</span> <span class="n">compute_hash</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">retry</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;BigqueryMatcher&#39;</span><span class="p">]</span>
+
+
+<span class="c1"># Protect against environments where bigquery library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud</span> <span class="k">import</span> <span class="n">bigquery</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.exceptions</span> <span class="k">import</span> <span class="n">GoogleCloudError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">bigquery</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+<span class="n">MAX_RETRIES</span> <span class="o">=</span> <span class="mi">4</span>
+
+
+<span class="k">def</span> <span class="nf">retry_on_http_and_value_error</span><span class="p">(</span><span class="n">exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Filter allowing retries on Bigquery errors and value error.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="p">(</span><span class="n">GoogleCloudError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="BigqueryMatcher"><a class="viewcode-back" href="../../../../../apache_beam.io.gcp.tests.html#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher">[docs]</a><span class="k">class</span> <span class="nc">BigqueryMatcher</span><span class="p">(</span><span class="n">BaseMatcher</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Matcher that verifies Bigquery data with given query.</span>
+
+<span class="sd">  Fetch Bigquery data with given query, compute a hash string and compare</span>
+<span class="sd">  with expected checksum.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">checksum</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">bigquery</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Bigquery dependencies are not installed.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Invalid argument: query. Please use non-empty string&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">checksum</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">checksum</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Invalid argument: checksum. Please use non-empty string&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="n">project</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">query</span> <span class="o">=</span> <span class="n">query</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">expected_checksum</span> <span class="o">=</span> <span class="n">checksum</span>
+
+  <span class="k">def</span> <span class="nf">_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Start verify Bigquery data.&#39;</span><span class="p">)</span>
+    <span class="c1"># Run query</span>
+    <span class="n">bigquery_client</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">project</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_with_retry</span><span class="p">(</span><span class="n">bigquery_client</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Read from given query (</span><span class="si">%s</span><span class="s1">), total rows </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span>
+                 <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="p">))</span>
+
+    <span class="c1"># Compute checksum</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">checksum</span> <span class="o">=</span> <span class="n">compute_hash</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generate checksum: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">checksum</span><span class="p">)</span>
+
+    <span class="c1"># Verify result</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">checksum</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">expected_checksum</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">num_retries</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry_on_http_and_value_error</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_query_with_retry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bigquery_client</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run Bigquery query with retry if got error http response&quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">bigquery_client</span><span class="o">.</span><span class="n">run_sync_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+    <span class="n">query</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="c1"># Fetch query data one page at a time.</span>
+    <span class="n">page_token</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">rows</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">page_token</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">fetch_data</span><span class="p">(</span><span class="n">page_token</span><span class="o">=</span><span class="n">page_token</span><span class="p">)</span>
+      <span class="n">results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">page_token</span><span class="p">:</span>
+        <span class="k">break</span>
+
+    <span class="k">return</span> <span class="n">results</span>
+
+<div class="viewcode-block" id="BigqueryMatcher.describe_to"><a class="viewcode-back" href="../../../../../apache_beam.io.gcp.tests.html#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_to">[docs]</a>  <span class="k">def</span> <span class="nf">describe_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">description</span><span class="p">):</span>
+    <span class="n">description</span> \
+      <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="s2">&quot;Expected checksum is &quot;</span><span class="p">)</span> \
+      <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expected_checksum</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BigqueryMatcher.describe_mismatch"><a class="viewcode-back" href="../../../../../apache_beam.io.gcp.tests.html#apache_beam.io.gcp.tests.bigquery_matcher.BigqueryMatcher.describe_mismatch">[docs]</a>  <span class="k">def</span> <span class="nf">describe_mismatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_result</span><span class="p">,</span> <span class="n">mismatch_description</span><span class="p">):</span>
+    <span class="n">mismatch_description</span> \
+      <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="s2">&quot;Actual checksum is &quot;</span><span class="p">)</span> \
+      <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checksum</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

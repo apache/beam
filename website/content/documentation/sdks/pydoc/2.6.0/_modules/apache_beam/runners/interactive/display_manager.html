@@ -1,0 +1,396 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.interactive.display_manager &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.runners.interactive.display_manager</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.runners.interactive.display_manager</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Manages displaying pipeline graph and execution status on the frontend.</span>
+
+<span class="sd">This module is experimental. No backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.runners.interactive</span> <span class="k">import</span> <span class="n">interactive_pipeline_graph</span>
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">IPython</span>  <span class="c1"># pylint: disable=import-error</span>
+  <span class="c1"># _display_progress defines how outputs are printed on the frontend.</span>
+  <span class="n">_display_progress</span> <span class="o">=</span> <span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">display</span>
+
+  <span class="k">def</span> <span class="nf">_formatter</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">pp</span><span class="p">,</span> <span class="n">cycle</span><span class="p">):</span>  <span class="c1"># pylint: disable=unused-argument</span>
+    <span class="n">pp</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+  <span class="n">plain</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span><span class="o">.</span><span class="n">display_formatter</span><span class="o">.</span><span class="n">formatters</span><span class="p">[</span><span class="s1">&#39;text/plain&#39;</span><span class="p">]</span>  <span class="c1"># pylint: disable=undefined-variable</span>
+  <span class="n">plain</span><span class="o">.</span><span class="n">for_type</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">_formatter</span><span class="p">)</span>
+
+<span class="c1"># NameError is added here because get_ipython() throws &quot;not defined&quot; NameError</span>
+<span class="c1"># if not started with IPython.</span>
+<span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">NameError</span><span class="p">):</span>
+  <span class="n">IPython</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">_display_progress</span> <span class="o">=</span> <span class="nb">print</span>
+
+
+<div class="viewcode-block" id="DisplayManager"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.display_manager.html#apache_beam.runners.interactive.display_manager.DisplayManager">[docs]</a><span class="k">class</span> <span class="nc">DisplayManager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Manages displaying pipeline graph and execution status on the frontend.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_info</span><span class="p">,</span> <span class="n">pipeline_proto</span><span class="p">,</span> <span class="n">caches_used</span><span class="p">,</span> <span class="n">cache_manager</span><span class="p">,</span>
+               <span class="n">referenced_pcollections</span><span class="p">,</span> <span class="n">required_transforms</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor of DisplayManager.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline_info: (interactive_runner.PipelineInfo)</span>
+<span class="sd">      pipeline_proto: (Pipeline proto)</span>
+<span class="sd">      caches_used: (set of str) A set of PCollection IDs of those whose cached</span>
+<span class="sd">          results are used in the execution.</span>
+<span class="sd">      cache_manager: (interactive_runner.CacheManager) DisplayManager fetches</span>
+<span class="sd">          the latest status of pipeline execution by querying cache_manager.</span>
+<span class="sd">      referenced_pcollections: (dict from str to PCollection proto) PCollection</span>
+<span class="sd">          ID mapped to PCollection referenced during pipeline execution.</span>
+<span class="sd">      required_transforms: (dict from str to PTransform proto) Mapping from</span>
+<span class="sd">          transform ID to transforms that leads to visible results.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Every parameter except cache_manager is expected to remain constant.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_info</span> <span class="o">=</span> <span class="n">pipeline_info</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_proto</span> <span class="o">=</span> <span class="n">pipeline_proto</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_caches_used</span> <span class="o">=</span> <span class="n">caches_used</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span> <span class="o">=</span> <span class="n">cache_manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span> <span class="o">=</span> <span class="n">referenced_pcollections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_required_transforms</span> <span class="o">=</span> <span class="n">required_transforms</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">unique_name</span>
+
+    <span class="c1"># To be printed.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s1">&#39;Using </span><span class="si">%s</span><span class="s1"> cached PCollections</span><span class="se">\n</span><span class="s1">Executing </span><span class="si">%s</span><span class="s1"> of </span><span class="si">%s</span><span class="s1"> &#39;</span>
+        <span class="s1">&#39;transforms.&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">caches_used</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">required_transforms</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">caches_used</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">([</span>
+                <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="o">.</span><span class="n">subtransforms</span>
+            <span class="p">]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_text_samples</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># For periodic update.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_periodic_update</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="DisplayManager.update_display"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.display_manager.html#apache_beam.runners.interactive.display_manager.DisplayManager.update_display">[docs]</a>  <span class="k">def</span> <span class="nf">update_display</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Updates display on the frontend.</span>
+
+<span class="sd">    Retrieves the latest execution status by querying CacheManager and updates</span>
+<span class="sd">    display on the fronend. The assumption is that there is only one pipeline in</span>
+<span class="sd">    a cell, because it clears up everything in the cell output every update</span>
+<span class="sd">    cycle.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      force: (bool) whether to force updating when no stats change happens.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">new_stats</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_info</span><span class="o">.</span><span class="n">all_pcollections</span><span class="p">():</span>
+        <span class="n">cache_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_info</span><span class="o">.</span><span class="n">derivation</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span><span class="o">.</span><span class="n">cache_label</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">pcoll_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">)):</span>
+          <span class="n">contents</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_cache_manager</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="n">cache_label</span><span class="p">))</span>
+          <span class="n">new_stats</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;sample&#39;</span><span class="p">:</span> <span class="n">contents</span><span class="p">}</span>
+          <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_text_samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span>
+                <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> produced </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_producers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">],</span>
+                    <span class="n">interactive_pipeline_graph</span><span class="o">.</span><span class="n">format_sample</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="mi">5</span><span class="p">))))</span>
+      <span class="k">if</span> <span class="n">force</span> <span class="ow">or</span> <span class="n">new_stats</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">IPython</span><span class="p">:</span>
+          <span class="n">IPython</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">clear_output</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">new_stats</span><span class="p">)</span>
+        <span class="c1"># TODO(qinyeli): Enable updating pipeline graph instead of constructing</span>
+        <span class="c1"># everytime, if it worths.</span>
+
+        <span class="n">pipeline_graph</span> <span class="o">=</span> <span class="n">interactive_pipeline_graph</span><span class="o">.</span><span class="n">InteractivePipelineGraph</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_proto</span><span class="p">,</span>
+            <span class="n">required_transforms</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_required_transforms</span><span class="p">,</span>
+            <span class="n">referenced_pcollections</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span><span class="p">,</span>
+            <span class="n">cached_pcollections</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_caches_used</span><span class="p">,</span>
+            <span class="n">pcollection_stats</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span><span class="p">)</span>
+        <span class="n">pipeline_graph</span><span class="o">.</span><span class="n">display_graph</span><span class="p">()</span>
+
+        <span class="n">_display_progress</span><span class="p">(</span><span class="s1">&#39;Running...&#39;</span><span class="p">)</span>
+        <span class="n">_display_progress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">text_sample</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_samples</span><span class="p">:</span>
+          <span class="n">_display_progress</span><span class="p">(</span><span class="n">text_sample</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DisplayManager.start_periodic_update"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.display_manager.html#apache_beam.runners.interactive.display_manager.DisplayManager.start_periodic_update">[docs]</a>  <span class="k">def</span> <span class="nf">start_periodic_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Start a thread that periodically updates the display.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_display</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_periodic_update</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_updater</span><span class="p">():</span>
+      <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_periodic_update</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_display</span><span class="p">()</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">02</span><span class="p">)</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">_updater</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DisplayManager.stop_periodic_update"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.display_manager.html#apache_beam.runners.interactive.display_manager.DisplayManager.stop_periodic_update">[docs]</a>  <span class="k">def</span> <span class="nf">stop_periodic_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Stop periodically updating the display.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_display</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_periodic_update</span> <span class="o">=</span> <span class="kc">False</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

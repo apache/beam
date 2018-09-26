@@ -1,0 +1,291 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.options.pipeline_options_validator &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.options.pipeline_options_validator</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Pipeline options validator.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">DebugOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">TestOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">TypeOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">WorkerOptions</span>
+
+
+<div class="viewcode-block" id="PipelineOptionsValidator"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator">[docs]</a><span class="k">class</span> <span class="nc">PipelineOptionsValidator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Validates PipelineOptions.</span>
+
+<span class="sd">  Goes through a list of known PipelineOption subclassess and calls::</span>
+
+<span class="sd">    validate(validator)</span>
+
+<span class="sd">  if one is implemented. Aggregates a list of validation errors from all and</span>
+<span class="sd">  returns an aggregated list.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Validator will call validate on these subclasses of PipelineOptions</span>
+  <span class="n">OPTIONS</span> <span class="o">=</span> <span class="p">[</span><span class="n">DebugOptions</span><span class="p">,</span> <span class="n">GoogleCloudOptions</span><span class="p">,</span> <span class="n">SetupOptions</span><span class="p">,</span> <span class="n">StandardOptions</span><span class="p">,</span>
+             <span class="n">TypeOptions</span><span class="p">,</span> <span class="n">WorkerOptions</span><span class="p">,</span> <span class="n">TestOptions</span><span class="p">]</span>
+
+  <span class="c1"># Possible validation errors.</span>
+  <span class="n">ERR_MISSING_OPTION</span> <span class="o">=</span> <span class="s1">&#39;Missing required option: </span><span class="si">%s</span><span class="s1">.&#39;</span>
+  <span class="n">ERR_MISSING_GCS_PATH</span> <span class="o">=</span> <span class="s1">&#39;Missing GCS path option: </span><span class="si">%s</span><span class="s1">.&#39;</span>
+  <span class="n">ERR_INVALID_GCS_PATH</span> <span class="o">=</span> <span class="s1">&#39;Invalid GCS path (</span><span class="si">%s</span><span class="s1">), given for the option: </span><span class="si">%s</span><span class="s1">.&#39;</span>
+  <span class="n">ERR_INVALID_GCS_BUCKET</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid GCS bucket (</span><span class="si">%s</span><span class="s1">), given for the option: </span><span class="si">%s</span><span class="s1">. See &#39;</span>
+      <span class="s1">&#39;https://developers.google.com/storage/docs/bucketnaming &#39;</span>
+      <span class="s1">&#39;for more details.&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_GCS_OBJECT</span> <span class="o">=</span> <span class="s1">&#39;Invalid GCS object (</span><span class="si">%s</span><span class="s1">), given for the option: </span><span class="si">%s</span><span class="s1">.&#39;</span>
+  <span class="n">ERR_INVALID_JOB_NAME</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid job_name (</span><span class="si">%s</span><span class="s1">); the name must consist of only the characters &#39;</span>
+      <span class="s1">&#39;[-a-z0-9], starting with a letter and ending with a letter or number&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_PROJECT_NUMBER</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid Project ID (</span><span class="si">%s</span><span class="s1">). Please make sure you specified the Project ID, &#39;</span>
+      <span class="s1">&#39;not project number.&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_PROJECT_ID</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid Project ID (</span><span class="si">%s</span><span class="s1">). Please make sure you specified the Project ID, &#39;</span>
+      <span class="s1">&#39;not project description.&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_NOT_POSITIVE</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Invalid value (</span><span class="si">%s</span><span class="s1">) for option: </span><span class="si">%s</span><span class="s1">. Value needs &#39;</span>
+                              <span class="s1">&#39;to be positive.&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_TEST_MATCHER_TYPE</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid value (</span><span class="si">%s</span><span class="s1">) for option: </span><span class="si">%s</span><span class="s1">. Please extend your matcher object &#39;</span>
+      <span class="s1">&#39;from hamcrest.core.base_matcher.BaseMatcher.&#39;</span><span class="p">)</span>
+  <span class="n">ERR_INVALID_TEST_MATCHER_UNPICKLABLE</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s1">&#39;Invalid value (</span><span class="si">%s</span><span class="s1">) for option: </span><span class="si">%s</span><span class="s1">. Please make sure the test matcher &#39;</span>
+      <span class="s1">&#39;is unpicklable.&#39;</span><span class="p">)</span>
+
+  <span class="c1"># GCS path specific patterns.</span>
+  <span class="n">GCS_URI</span> <span class="o">=</span> <span class="s1">&#39;(?P&lt;SCHEME&gt;[^:]+)://(?P&lt;BUCKET&gt;[^/]+)(/(?P&lt;OBJECT&gt;.*))?&#39;</span>
+  <span class="n">GCS_BUCKET</span> <span class="o">=</span> <span class="s1">&#39;^[a-z0-9][-_a-z0-9.]+[a-z0-9]$&#39;</span>
+  <span class="n">GCS_SCHEME</span> <span class="o">=</span> <span class="s1">&#39;gs&#39;</span>
+
+  <span class="c1"># GoogleCloudOptions specific patterns.</span>
+  <span class="n">JOB_PATTERN</span> <span class="o">=</span> <span class="s1">&#39;[a-z]([-a-z0-9]*[a-z0-9])?&#39;</span>
+  <span class="n">PROJECT_ID_PATTERN</span> <span class="o">=</span> <span class="s1">&#39;[a-z][-a-z0-9:.]+[a-z0-9]&#39;</span>
+  <span class="n">PROJECT_NUMBER_PATTERN</span> <span class="o">=</span> <span class="s1">&#39;[0-9]*&#39;</span>
+  <span class="n">ENDPOINT_PATTERN</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;https://[\S]*googleapis\.com[/]?&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">runner</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="n">runner</span>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.validate"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate">[docs]</a>  <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calls validate on subclassess and returns a list of errors.</span>
+
+<span class="sd">    validate will call validate method on subclasses, accumulate the returned</span>
+<span class="sd">    list of errors, and returns the aggregate list.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Aggregate list of errors after all calling all possible validate methods.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">OPTIONS</span><span class="p">:</span>
+      <span class="k">if</span> <span class="s1">&#39;validate&#39;</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">errors</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.is_service_runner"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_service_runner">[docs]</a>  <span class="k">def</span> <span class="nf">is_service_runner</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;True if pipeline will execute on the Google Cloud Dataflow service.&quot;&quot;&quot;</span>
+    <span class="n">is_service_runner</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                         <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="ow">in</span> <span class="p">[</span>
+                             <span class="s1">&#39;DataflowRunner&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;TestDataflowRunner&#39;</span><span class="p">])</span>
+
+    <span class="n">dataflow_endpoint</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">dataflow_endpoint</span><span class="p">)</span>
+    <span class="n">is_service_endpoint</span> <span class="o">=</span> <span class="p">(</span><span class="n">dataflow_endpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">is_full_string_match</span><span class="p">(</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ENDPOINT_PATTERN</span><span class="p">,</span> <span class="n">dataflow_endpoint</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">is_service_runner</span> <span class="ow">and</span> <span class="n">is_service_endpoint</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.is_full_string_match"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.is_full_string_match">[docs]</a>  <span class="k">def</span> <span class="nf">is_full_string_match</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">string</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns True if the pattern matches the whole string.&quot;&quot;&quot;</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="s1">&#39;^</span><span class="si">%s</span><span class="s1">$&#39;</span> <span class="o">%</span> <span class="n">pattern</span>
+    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">string</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+  <span class="k">def</span> <span class="nf">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">err</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">err</span> <span class="o">%</span> <span class="n">args</span><span class="p">]</span>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.validate_gcs_path"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_gcs_path">[docs]</a>  <span class="k">def</span> <span class="nf">validate_gcs_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validates a GCS path against gs://bucket/object URI format.&quot;&quot;&quot;</span>
+    <span class="n">arg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_MISSING_GCS_PATH</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">GCS_URI</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_GCS_PATH</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+
+    <span class="n">scheme</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;SCHEME&#39;</span><span class="p">)</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;BUCKET&#39;</span><span class="p">)</span>
+    <span class="n">gcs_object</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;OBJECT&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">((</span><span class="n">scheme</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">scheme</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">GCS_SCHEME</span><span class="p">)</span> <span class="ow">or</span>
+        <span class="p">(</span><span class="n">bucket</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_GCS_PATH</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_full_string_match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">GCS_BUCKET</span><span class="p">,</span> <span class="n">bucket</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_GCS_BUCKET</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">gcs_object</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">gcs_object</span> <span class="ow">or</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">gcs_object</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_GCS_OBJECT</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.validate_cloud_options"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_cloud_options">[docs]</a>  <span class="k">def</span> <span class="nf">validate_cloud_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validates job_name and project arguments.&quot;&quot;&quot;</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">view</span><span class="o">.</span><span class="n">job_name</span> <span class="ow">and</span>
+        <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_full_string_match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">JOB_PATTERN</span><span class="p">,</span> <span class="n">view</span><span class="o">.</span><span class="n">job_name</span><span class="p">)):</span>
+      <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_JOB_NAME</span><span class="p">,</span>
+                                         <span class="n">view</span><span class="o">.</span><span class="n">job_name</span><span class="p">))</span>
+    <span class="n">project</span> <span class="o">=</span> <span class="n">view</span><span class="o">.</span><span class="n">project</span>
+    <span class="k">if</span> <span class="n">project</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_MISSING_OPTION</span><span class="p">,</span> <span class="s1">&#39;project&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_full_string_match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT_NUMBER_PATTERN</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_PROJECT_NUMBER</span><span class="p">,</span> <span class="n">project</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_full_string_match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PROJECT_ID_PATTERN</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_PROJECT_ID</span><span class="p">,</span> <span class="n">project</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">errors</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.validate_optional_argument_positive"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_optional_argument_positive">[docs]</a>  <span class="k">def</span> <span class="nf">validate_optional_argument_positive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validates that an optional argument (if set) has a positive value.&quot;&quot;&quot;</span>
+    <span class="n">arg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_NOT_POSITIVE</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsValidator.validate_test_matcher"><a class="viewcode-back" href="../../../apache_beam.options.html#apache_beam.options.pipeline_options_validator.PipelineOptionsValidator.validate_test_matcher">[docs]</a>  <span class="k">def</span> <span class="nf">validate_test_matcher</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validates that on_success_matcher argument if set.</span>
+
+<span class="sd">    Validates that on_success_matcher is unpicklable and is instance</span>
+<span class="sd">    of `hamcrest.core.base_matcher.BaseMatcher`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This is a test only method and requires hamcrest</span>
+    <span class="kn">from</span> <span class="nn">hamcrest.core.base_matcher</span> <span class="k">import</span> <span class="n">BaseMatcher</span>
+    <span class="n">pickled_matcher</span> <span class="o">=</span> <span class="n">view</span><span class="o">.</span><span class="n">on_success_matcher</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">matcher</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickled_matcher</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">matcher</span><span class="p">,</span> <span class="n">BaseMatcher</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_TEST_MATCHER_TYPE</span><span class="p">,</span> <span class="n">matcher</span><span class="p">,</span> <span class="n">arg_name</span><span class="p">))</span>
+    <span class="k">except</span><span class="p">:</span>   <span class="c1"># pylint: disable=bare-except</span>
+      <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_validate_error</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">ERR_INVALID_TEST_MATCHER_UNPICKLABLE</span><span class="p">,</span>
+              <span class="n">pickled_matcher</span><span class="p">,</span>
+              <span class="n">arg_name</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">errors</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

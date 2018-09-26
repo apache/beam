@@ -1,0 +1,291 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.retry &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.retry</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Retry decorators for calls raising exceptions.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">This module is used mostly to decorate all integration points where the code</span>
+<span class="sd">makes calls to remote services. Searching through the code base for @retry</span>
+<span class="sd">should find all such places. For this reason even places where retry is not</span>
+<span class="sd">needed right now use a @retry.no_retries decorator.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="c1"># TODO(sourabhbajaj): Remove the GCP specific error code to a submodule</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.exceptions</span> <span class="k">import</span> <span class="n">HttpError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">HttpError</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<div class="viewcode-block" id="PermanentException"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.PermanentException">[docs]</a><span class="k">class</span> <span class="nc">PermanentException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for exceptions that should not be retried.&quot;&quot;&quot;</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="FuzzedExponentialIntervals"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.FuzzedExponentialIntervals">[docs]</a><span class="k">class</span> <span class="nc">FuzzedExponentialIntervals</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Iterable for intervals that are exponentially spaced, with fuzzing.</span>
+
+<span class="sd">  On iteration, yields retry interval lengths, in seconds. Every iteration over</span>
+<span class="sd">  this iterable will yield differently fuzzed interval lengths, as long as fuzz</span>
+<span class="sd">  is nonzero.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    initial_delay_secs: The delay before the first retry, in seconds.</span>
+<span class="sd">    num_retries: The total number of times to retry.</span>
+<span class="sd">    factor: The exponential factor to use on subsequent retries.</span>
+<span class="sd">      Default is 2 (doubling).</span>
+<span class="sd">    fuzz: A value between 0 and 1, indicating the fraction of fuzz. For a</span>
+<span class="sd">      given delay d, the fuzzed delay is randomly chosen between</span>
+<span class="sd">      [(1 - fuzz) * d, d].</span>
+<span class="sd">    max_delay_secs: Maximum delay (in seconds). After this limit is reached,</span>
+<span class="sd">      further tries use max_delay_sec instead of exponentially increasing</span>
+<span class="sd">      the time. Defaults to 1 hour.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_delay_secs</span><span class="p">,</span> <span class="n">num_retries</span><span class="p">,</span> <span class="n">factor</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">fuzz</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+               <span class="n">max_delay_secs</span><span class="o">=</span><span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_initial_delay_secs</span> <span class="o">=</span> <span class="n">initial_delay_secs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_num_retries</span> <span class="o">=</span> <span class="n">num_retries</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_factor</span> <span class="o">=</span> <span class="n">factor</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">fuzz</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Fuzz parameter expected to be in [0, 1] range.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fuzz</span> <span class="o">=</span> <span class="n">fuzz</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_max_delay_secs</span> <span class="o">=</span> <span class="n">max_delay_secs</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">current_delay_secs</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_delay_secs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_delay_secs</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_num_retries</span><span class="p">):</span>
+      <span class="n">fuzz_multiplier</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fuzz</span> <span class="o">+</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fuzz</span>
+      <span class="k">yield</span> <span class="n">current_delay_secs</span> <span class="o">*</span> <span class="n">fuzz_multiplier</span>
+      <span class="n">current_delay_secs</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_max_delay_secs</span><span class="p">,</span> <span class="n">current_delay_secs</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_factor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="retry_on_server_errors_filter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.retry_on_server_errors_filter">[docs]</a><span class="k">def</span> <span class="nf">retry_on_server_errors_filter</span><span class="p">(</span><span class="n">exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Filter allowing retries on server errors and non-HttpErrors.&quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="n">HttpError</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">exception</span><span class="o">.</span><span class="n">status_code</span> <span class="o">&gt;=</span> <span class="mi">500</span>
+  <span class="k">return</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="n">PermanentException</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="retry_on_server_errors_and_timeout_filter"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.retry_on_server_errors_and_timeout_filter">[docs]</a><span class="k">def</span> <span class="nf">retry_on_server_errors_and_timeout_filter</span><span class="p">(</span><span class="n">exception</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">HttpError</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="n">HttpError</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">exception</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">408</span><span class="p">:</span>  <span class="c1"># 408 Request Timeout</span>
+      <span class="k">return</span> <span class="kc">True</span>
+  <span class="k">return</span> <span class="n">retry_on_server_errors_filter</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span></div>
+
+
+<span class="n">SERVER_ERROR_OR_TIMEOUT_CODES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">408</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">,</span> <span class="mi">598</span><span class="p">,</span> <span class="mi">599</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Clock"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.Clock">[docs]</a><span class="k">class</span> <span class="nc">Clock</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A simple clock implementing sleep().&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Clock.sleep"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.Clock.sleep">[docs]</a>  <span class="k">def</span> <span class="nf">sleep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="no_retries"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.no_retries">[docs]</a><span class="k">def</span> <span class="nf">no_retries</span><span class="p">(</span><span class="n">fun</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A retry decorator for places where we do not want retries.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="n">with_exponential_backoff</span><span class="p">(</span>
+      <span class="n">retry_filter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="n">clock</span><span class="o">=</span><span class="kc">None</span><span class="p">)(</span><span class="n">fun</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="with_exponential_backoff"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.io.gcp.gcsio.with_exponential_backoff">[docs]</a><span class="k">def</span> <span class="nf">with_exponential_backoff</span><span class="p">(</span>
+    <span class="n">num_retries</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">initial_delay_secs</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">,</span>
+    <span class="n">retry_filter</span><span class="o">=</span><span class="n">retry_on_server_errors_filter</span><span class="p">,</span>
+    <span class="n">clock</span><span class="o">=</span><span class="n">Clock</span><span class="p">(),</span> <span class="n">fuzz</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">factor</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_delay_secs</span><span class="o">=</span><span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Decorator with arguments that control the retry logic.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    num_retries: The total number of times to retry.</span>
+<span class="sd">    initial_delay_secs: The delay before the first retry, in seconds.</span>
+<span class="sd">    logger: A callable used to report an exception. Must have the same signature</span>
+<span class="sd">      as functions in the standard logging module. The default is</span>
+<span class="sd">      logging.warning.</span>
+<span class="sd">    retry_filter: A callable getting the exception raised and returning True</span>
+<span class="sd">      if the retry should happen. For instance we do not want to retry on</span>
+<span class="sd">      404 Http errors most of the time. The default value will return true</span>
+<span class="sd">      for server errors (HTTP status code &gt;= 500) and non Http errors.</span>
+<span class="sd">    clock: A clock object implementing a sleep method. The default clock will</span>
+<span class="sd">      use time.sleep().</span>
+<span class="sd">    fuzz: True if the delay should be fuzzed (default). During testing False</span>
+<span class="sd">      can be used so that the delays are not randomized.</span>
+<span class="sd">    factor: The exponential factor to use on subsequent retries.</span>
+<span class="sd">      Default is 2 (doubling).</span>
+<span class="sd">    max_delay_secs: Maximum delay (in seconds). After this limit is reached,</span>
+<span class="sd">      further tries use max_delay_sec instead of exponentially increasing</span>
+<span class="sd">      the time. Defaults to 1 hour.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    As per Python decorators with arguments pattern returns a decorator</span>
+<span class="sd">    for the function which in turn will return the wrapped (decorated) function.</span>
+
+<span class="sd">  The decorator is intended to be used on callables that make HTTP or RPC</span>
+<span class="sd">  requests that can temporarily timeout or have transient errors. For instance</span>
+<span class="sd">  the make_http_request() call below will be retried 16 times with exponential</span>
+<span class="sd">  backoff and fuzzing of the delay interval (default settings).</span>
+
+<span class="sd">  from apache_beam.utils import retry</span>
+<span class="sd">  # ...</span>
+<span class="sd">  @retry.with_exponential_backoff()</span>
+<span class="sd">  make_http_request(args)</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">real_decorator</span><span class="p">(</span><span class="n">fun</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The real decorator whose purpose is to return the wrapped function.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="n">retry_intervals</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span>
+          <span class="n">FuzzedExponentialIntervals</span><span class="p">(</span>
+              <span class="n">initial_delay_secs</span><span class="p">,</span> <span class="n">num_retries</span><span class="p">,</span> <span class="n">factor</span><span class="p">,</span>
+              <span class="n">fuzz</span><span class="o">=</span><span class="mf">0.5</span> <span class="k">if</span> <span class="n">fuzz</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span> <span class="n">max_delay_secs</span><span class="o">=</span><span class="n">max_delay_secs</span><span class="p">))</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">retry_filter</span><span class="p">(</span><span class="n">exn</span><span class="p">):</span>
+            <span class="k">raise</span>
+          <span class="c1"># Get the traceback object for the current exception. The</span>
+          <span class="c1"># sys.exc_info() function returns a tuple with three elements:</span>
+          <span class="c1"># exception type, exception value, and exception traceback.</span>
+          <span class="n">exn_traceback</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+          <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+              <span class="n">sleep_interval</span> <span class="o">=</span> <span class="n">retry_intervals</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+              <span class="c1"># Re-raise the original exception since we finished the retries.</span>
+              <span class="k">raise</span> <span class="n">exn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">exn_traceback</span>  <span class="c1"># pylint: disable=raising-bad-type</span>
+
+            <span class="n">logger</span><span class="p">(</span>
+                <span class="s1">&#39;Retry with exponential backoff: waiting for </span><span class="si">%s</span><span class="s1"> seconds before &#39;</span>
+                <span class="s1">&#39;retrying </span><span class="si">%s</span><span class="s1"> because we caught exception: </span><span class="si">%s</span><span class="s1"> &#39;</span>
+                <span class="s1">&#39;Traceback for above exception (most recent call last):</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="n">sleep_interval</span><span class="p">,</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fun</span><span class="p">)),</span>
+                <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exception_only</span><span class="p">(</span><span class="n">exn</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">exn</span><span class="p">)),</span>
+                <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_tb</span><span class="p">(</span><span class="n">exn_traceback</span><span class="p">)))</span>
+            <span class="n">clock</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_interval</span><span class="p">)</span>
+          <span class="k">finally</span><span class="p">:</span>
+            <span class="c1"># Traceback objects in locals can cause reference cycles that will</span>
+            <span class="c1"># prevent garbage collection. Clear it now since we do not need</span>
+            <span class="c1"># it anymore.</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exc_clear</span><span class="p">()</span>
+            <span class="n">exn_traceback</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+  <span class="k">return</span> <span class="n">real_decorator</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,325 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.interactive.display_manager module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.interactive package" href="apache_beam.runners.interactive.html"/>
+        <link rel="next" title="apache_beam.runners.interactive.interactive_pipeline_graph module" href="apache_beam.runners.interactive.interactive_pipeline_graph.html"/>
+        <link rel="prev" title="apache_beam.runners.interactive package" href="apache_beam.runners.interactive.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.interactive.html">apache_beam.runners.interactive package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.interactive.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.interactive.html">apache_beam.runners.interactive package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.interactive.display_manager module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.interactive.display_manager.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.interactive.display_manager">
+<span id="apache-beam-runners-interactive-display-manager-module"></span><h1>apache_beam.runners.interactive.display_manager module<a class="headerlink" href="#module-apache_beam.runners.interactive.display_manager" title="Permalink to this headline">¶</a></h1>
+<p>Manages displaying pipeline graph and execution status on the frontend.</p>
+<p>This module is experimental. No backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.runners.interactive.display_manager.DisplayManager">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.interactive.display_manager.</code><code class="descname">DisplayManager</code><span class="sig-paren">(</span><em>pipeline_info</em>, <em>pipeline_proto</em>, <em>caches_used</em>, <em>cache_manager</em>, <em>referenced_pcollections</em>, <em>required_transforms</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/display_manager.html#DisplayManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.display_manager.DisplayManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Manages displaying pipeline graph and execution status on the frontend.</p>
+<p>Constructor of DisplayManager.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pipeline_info</strong> – (interactive_runner.PipelineInfo)</li>
+<li><strong>pipeline_proto</strong> – (Pipeline proto)</li>
+<li><strong>caches_used</strong> – (set of str) A set of PCollection IDs of those whose cached
+results are used in the execution.</li>
+<li><strong>cache_manager</strong> – (interactive_runner.CacheManager) DisplayManager fetches
+the latest status of pipeline execution by querying cache_manager.</li>
+<li><strong>referenced_pcollections</strong> – (dict from str to PCollection proto) PCollection
+ID mapped to PCollection referenced during pipeline execution.</li>
+<li><strong>required_transforms</strong> – (dict from str to PTransform proto) Mapping from
+transform ID to transforms that leads to visible results.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.runners.interactive.display_manager.DisplayManager.start_periodic_update">
+<code class="descname">start_periodic_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/display_manager.html#DisplayManager.start_periodic_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.display_manager.DisplayManager.start_periodic_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start a thread that periodically updates the display.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.display_manager.DisplayManager.stop_periodic_update">
+<code class="descname">stop_periodic_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/display_manager.html#DisplayManager.stop_periodic_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.display_manager.DisplayManager.stop_periodic_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop periodically updating the display.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.interactive.display_manager.DisplayManager.update_display">
+<code class="descname">update_display</code><span class="sig-paren">(</span><em>force=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/interactive/display_manager.html#DisplayManager.update_display"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.interactive.display_manager.DisplayManager.update_display" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates display on the frontend.</p>
+<p>Retrieves the latest execution status by querying CacheManager and updates
+display on the fronend. The assumption is that there is only one pipeline in
+a cell, because it clears up everything in the cell output every update
+cycle.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> – (bool) whether to force updating when no stats change happens.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.interactive.interactive_pipeline_graph.html" class="btn btn-neutral float-right" title="apache_beam.runners.interactive.interactive_pipeline_graph module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.interactive.html" class="btn btn-neutral" title="apache_beam.runners.interactive package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

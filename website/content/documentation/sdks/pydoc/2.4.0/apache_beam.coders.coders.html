@@ -1,0 +1,731 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.coders.coders module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.coders package" href="apache_beam.coders.html"/>
+        <link rel="next" title="apache_beam.coders.observable module" href="apache_beam.coders.observable.html"/>
+        <link rel="prev" title="apache_beam.coders package" href="apache_beam.coders.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.coders.coders module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.observable.html">apache_beam.coders.observable module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.slow_stream.html">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.typecoders.html">apache_beam.coders.typecoders module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.coders.html">apache_beam.coders package</a> &raquo;</li>
+        
+      <li>apache_beam.coders.coders module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.coders.coders.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.coders.coders">
+<span id="apache-beam-coders-coders-module"></span><h1>apache_beam.coders.coders module<a class="headerlink" href="#module-apache_beam.coders.coders" title="Permalink to this headline">¶</a></h1>
+<p>Collection of useful coders.</p>
+<p>Only those coders listed in __all__ are part of the public API of this module.</p>
+<dl class="class">
+<dt id="apache_beam.coders.coders.Coder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">Coder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Base class for coders.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Encodes the given object into a byte string.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>encoded</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.decode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decodes the given byte string into the corresponding object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether this coder is guaranteed to encode values deterministically.</p>
+<p>A deterministic coder is required for key coders in GroupByKey operations
+to produce consistent results.</p>
+<p>For example, note that the default coder, the PickleCoder, is not
+deterministic: the ordering of picked entries in maps may vary across
+executions since there is no defined order, and such a coder is not in
+general suitable for usage as a key coder in GroupByKey operations, since
+each instance of the same key may be encoded differently.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Whether coder is deterministic.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a deterministic version of self, if possible.</p>
+<p>Otherwise raises a value error.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.estimate_size">
+<code class="descname">estimate_size</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.estimate_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.estimate_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Estimates the encoded size of the given value, in bytes.</p>
+<p>Dataflow estimates the encoded size of a PCollection processed in a pipeline
+step by using the estimated size of a random sample of elements in that
+PCollection.</p>
+<p>The default implementation encodes the given value and returns its byte
+size.  If a coder can provide a fast estimate of the encoded size of a value
+(e.g., if the encoding has a fixed size), it can provide its estimate here
+to improve performance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> – the value whose encoded size is to be estimated.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The estimated encoded size of the given value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.get_impl">
+<code class="descname">get_impl</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.get_impl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.get_impl" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns the CoderImpl backing this Coder.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.coders.coders.Coder.from_type_hint">
+<em class="property">classmethod </em><code class="descname">from_type_hint</code><span class="sig-paren">(</span><em>unused_typehint</em>, <em>unused_registry</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.from_type_hint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.from_type_hint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.is_kv_coder">
+<code class="descname">is_kv_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.is_kv_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.is_kv_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.key_coder">
+<code class="descname">key_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.key_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.key_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.value_coder">
+<code class="descname">value_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.value_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.value_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns Google Cloud Dataflow API description of this coder.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.coders.coders.Coder.register_urn">
+<em class="property">classmethod </em><code class="descname">register_urn</code><span class="sig-paren">(</span><em>urn</em>, <em>parameter_type</em>, <em>fn=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.register_urn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.register_urn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registers a urn with a constructor.</p>
+<p>For example, if ‘beam:fn:foo’ had parameter type FooPayload, one could
+write <cite>RunnerApiFn.register_urn(‘bean:fn:foo’, FooPayload, foo_from_proto)</cite>
+where foo_from_proto took as arguments a FooPayload and a PipelineContext.
+This function can also be used as a decorator rather than passing the
+callable in as the final parameter.</p>
+<p>A corresponding to_runner_api_parameter method would be expected that
+returns the tuple (‘beam:fn:foo’, FooPayload)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.coders.coders.Coder.from_runner_api">
+<em class="property">classmethod </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>coder_proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts from an SdkFunctionSpec to a Fn object.</p>
+<p>Prefer registering a urn with its parameter type and constructor.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.Coder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.Coder.register_structured_urn">
+<em class="property">static </em><code class="descname">register_structured_urn</code><span class="sig-paren">(</span><em>urn</em>, <em>cls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#Coder.register_structured_urn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.Coder.register_structured_urn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a coder that’s completely defined by its urn and its
+component(s), if any, which are passed to construct the instance.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.StrUtf8Coder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">StrUtf8Coder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#StrUtf8Coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.StrUtf8Coder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.Coder</span></code></a></p>
+<p>A coder used for reading and writing strings as UTF-8.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.StrUtf8Coder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#StrUtf8Coder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.StrUtf8Coder.encode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.StrUtf8Coder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#StrUtf8Coder.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.StrUtf8Coder.decode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.StrUtf8Coder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#StrUtf8Coder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.StrUtf8Coder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.BytesCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">BytesCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#BytesCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.BytesCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Byte string coder.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.BytesCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#BytesCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.BytesCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.BytesCoder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#BytesCoder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.BytesCoder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.BytesCoder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.coders.coders.BytesCoder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.VarIntCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">VarIntCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#VarIntCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.VarIntCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Variable-length integer coder.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.VarIntCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#VarIntCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.VarIntCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.VarIntCoder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.coders.coders.VarIntCoder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.FloatCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">FloatCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FloatCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FloatCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>A coder used for floating-point values.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.FloatCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FloatCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FloatCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.TimestampCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">TimestampCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TimestampCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TimestampCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>A coder used for timeutil.Timestamp values.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.TimestampCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TimestampCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TimestampCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.SingletonCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">SingletonCoder</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#SingletonCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.SingletonCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>A coder that always encodes exactly one value.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.SingletonCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#SingletonCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.SingletonCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.PickleCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">PickleCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#PickleCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.PickleCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders._PickleCoderBase</span></code></p>
+<p>Coder using Python’s pickle functionality.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.PickleCoder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#PickleCoder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.PickleCoder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.DillCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">DillCoder</code><a class="reference internal" href="_modules/apache_beam/coders/coders.html#DillCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.DillCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders._PickleCoderBase</span></code></p>
+<p>Coder using dill’s pickle functionality.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">FastPrimitivesCoder</code><span class="sig-paren">(</span><em>fallback_coder=PickleCoder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Encodes simple primitives (e.g. str, int) efficiently.</p>
+<p>For unknown types, falls back to another coder (e.g. PickleCoder).</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><em>is_pair_like=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.is_kv_coder">
+<code class="descname">is_kv_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.is_kv_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.is_kv_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.key_coder">
+<code class="descname">key_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.key_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.key_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.FastPrimitivesCoder.value_coder">
+<code class="descname">value_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#FastPrimitivesCoder.value_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.FastPrimitivesCoder.value_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.ProtoCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">ProtoCoder</code><span class="sig-paren">(</span><em>proto_message_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#ProtoCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.ProtoCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>A Coder for Google Protocol Buffers.</p>
+<p>It supports both Protocol Buffers syntax versions 2 and 3. However,
+the runtime version of the python protobuf library must exactly match the
+version of the protoc compiler what was used to generate the protobuf
+messages.</p>
+<p>ProtoCoder is registered in the global CoderRegistry as the default coder for
+any protobuf Message object.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.ProtoCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#ProtoCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.ProtoCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.ProtoCoder.from_type_hint">
+<em class="property">static </em><code class="descname">from_type_hint</code><span class="sig-paren">(</span><em>typehint</em>, <em>unused_registry</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#ProtoCoder.from_type_hint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.ProtoCoder.from_type_hint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.TupleCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">TupleCoder</code><span class="sig-paren">(</span><em>components</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Coder of tuple objects.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.TupleCoder.from_type_hint">
+<em class="property">static </em><code class="descname">from_type_hint</code><span class="sig-paren">(</span><em>typehint</em>, <em>registry</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.from_type_hint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.from_type_hint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.coders">
+<code class="descname">coders</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.coders"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.coders" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.is_kv_coder">
+<code class="descname">is_kv_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.is_kv_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.is_kv_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.key_coder">
+<code class="descname">key_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.key_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.key_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.value_coder">
+<code class="descname">value_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.value_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.value_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleCoder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.TupleCoder.from_runner_api_parameter">
+<em class="property">static </em><code class="descname">from_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_payload</em>, <em>components</em>, <em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleCoder.from_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleCoder.from_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.TupleSequenceCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">TupleSequenceCoder</code><span class="sig-paren">(</span><em>elem_coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleSequenceCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleSequenceCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Coder of homogeneous tuple objects.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleSequenceCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleSequenceCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleSequenceCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.TupleSequenceCoder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleSequenceCoder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleSequenceCoder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.TupleSequenceCoder.from_type_hint">
+<em class="property">static </em><code class="descname">from_type_hint</code><span class="sig-paren">(</span><em>typehint</em>, <em>registry</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#TupleSequenceCoder.from_type_hint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.TupleSequenceCoder.from_type_hint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.IterableCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">IterableCoder</code><span class="sig-paren">(</span><em>elem_coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Coder of iterables of homogeneous objects.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.IterableCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.IterableCoder.as_deterministic_coder">
+<code class="descname">as_deterministic_coder</code><span class="sig-paren">(</span><em>step_label</em>, <em>error_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder.as_deterministic_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.as_deterministic_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.IterableCoder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.IterableCoder.value_coder">
+<code class="descname">value_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder.value_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.value_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.coders.coders.IterableCoder.from_type_hint">
+<em class="property">static </em><code class="descname">from_type_hint</code><span class="sig-paren">(</span><em>typehint</em>, <em>registry</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#IterableCoder.from_type_hint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.from_type_hint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.IterableCoder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.coders.coders.IterableCoder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.coders.WindowedValueCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.coders.</code><code class="descname">WindowedValueCoder</code><span class="sig-paren">(</span><em>wrapped_value_coder</em>, <em>window_coder=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.FastCoder</span></code></p>
+<p>Coder for windowed values.</p>
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.as_cloud_object">
+<code class="descname">as_cloud_object</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder.as_cloud_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.as_cloud_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.is_kv_coder">
+<code class="descname">is_kv_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder.is_kv_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.is_kv_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.key_coder">
+<code class="descname">key_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder.key_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.key_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.value_coder">
+<code class="descname">value_coder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/coders.html#WindowedValueCoder.value_coder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.value_coder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.coders.WindowedValueCoder.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.coders.coders.WindowedValueCoder.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.coders.observable.html" class="btn btn-neutral float-right" title="apache_beam.coders.observable module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.coders.html" class="btn btn-neutral" title="apache_beam.coders package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -1,0 +1,818 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.textio &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.io.textio</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.io.textio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A source and a sink for reading from and writing to text files.&quot;&quot;&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+
+<span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">integer_types</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsink</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource</span> <span class="k">import</span> <span class="n">ReadAllFiles</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Read</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Write</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ReadFromText&#39;</span><span class="p">,</span> <span class="s1">&#39;ReadAllFromText&#39;</span><span class="p">,</span> <span class="s1">&#39;WriteToText&#39;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">_TextSource</span><span class="p">(</span><span class="n">filebasedsource</span><span class="o">.</span><span class="n">FileBasedSource</span><span class="p">):</span>
+  <span class="sa">r</span><span class="sd">&quot;&quot;&quot;A source for reading text files.</span>
+
+<span class="sd">  Parses a text file as newline-delimited elements. Supports newline delimiters</span>
+<span class="sd">  &#39;\n&#39; and &#39;\r\n.</span>
+
+<span class="sd">  This implementation only supports reading text encoded using UTF-8 or</span>
+<span class="sd">  ASCII.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">DEFAULT_READ_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">8192</span>
+
+  <span class="k">class</span> <span class="nc">ReadBuffer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="c1"># A buffer that gives the buffered data and next position in the</span>
+    <span class="c1"># buffer that should be read.</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">position</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+
+    <span class="nd">@data</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_position</span>
+
+    <span class="nd">@position</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">integer_types</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot set position to </span><span class="si">%d</span><span class="s1"> since it</span><span class="se">\&#39;</span><span class="s1">s larger than &#39;</span>
+                         <span class="s1">&#39;size of data </span><span class="si">%d</span><span class="s1">.&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_pattern</span><span class="p">,</span>
+               <span class="n">min_bundle_size</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="p">,</span>
+               <span class="n">strip_trailing_newlines</span><span class="p">,</span>
+               <span class="n">coder</span><span class="p">,</span>
+               <span class="n">buffer_size</span><span class="o">=</span><span class="n">DEFAULT_READ_BUFFER_SIZE</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">header_processor_fns</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a _TextSource</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      header_processor_fns (tuple): a tuple of a `header_matcher` function</span>
+<span class="sd">        and a `header_processor` function. The `header_matcher` should</span>
+<span class="sd">        return `True` for all lines at the start of the file that are part</span>
+<span class="sd">        of the file header and `False` otherwise. These header lines will</span>
+<span class="sd">        not be yielded when reading records and instead passed into</span>
+<span class="sd">        `header_processor` to be handled. If `skip_header_lines` and a</span>
+<span class="sd">        `header_matcher` are both provided, the value of `skip_header_lines`</span>
+<span class="sd">        lines will be skipped and the header will be processed from</span>
+<span class="sd">        there.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if skip_lines is negative.</span>
+
+<span class="sd">    Please refer to documentation in class `ReadFromText` for the rest</span>
+<span class="sd">    of the arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_TextSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="p">,</span>
+                                      <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">,</span>
+                                      <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_strip_trailing_newlines</span> <span class="o">=</span> <span class="n">strip_trailing_newlines</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span> <span class="o">=</span> <span class="n">coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span> <span class="o">=</span> <span class="n">buffer_size</span>
+    <span class="k">if</span> <span class="n">skip_header_lines</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot skip negative number of header lines: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span>
+                       <span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">skip_header_lines</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+          <span class="s1">&#39;Skipping </span><span class="si">%d</span><span class="s1"> header lines. Skipping large number of header &#39;</span>
+          <span class="s1">&#39;lines might significantly slow down processing.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_skip_header_lines</span> <span class="o">=</span> <span class="n">skip_header_lines</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_header_matcher</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_processor</span> <span class="o">=</span> <span class="n">header_processor_fns</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">parent_dd</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_TextSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">display_data</span><span class="p">()</span>
+    <span class="n">parent_dd</span><span class="p">[</span><span class="s1">&#39;strip_newline&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_strip_trailing_newlines</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Strip Trailing New Lines&#39;</span><span class="p">)</span>
+    <span class="n">parent_dd</span><span class="p">[</span><span class="s1">&#39;buffer_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Buffer Size&#39;</span><span class="p">)</span>
+    <span class="n">parent_dd</span><span class="p">[</span><span class="s1">&#39;coder&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Coder&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parent_dd</span>
+
+  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="n">start_offset</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+    <span class="n">read_buffer</span> <span class="o">=</span> <span class="n">_TextSource</span><span class="o">.</span><span class="n">ReadBuffer</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">next_record_start_position</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">split_points_unclaimed</span><span class="p">(</span><span class="n">stop_position</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">stop_position</span> <span class="o">&lt;=</span> <span class="n">next_record_start_position</span>
+              <span class="k">else</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span><span class="p">)</span>
+
+    <span class="n">range_tracker</span><span class="o">.</span><span class="n">set_split_points_unclaimed_callback</span><span class="p">(</span><span class="n">split_points_unclaimed</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">file_to_read</span><span class="p">:</span>
+      <span class="n">position_after_processing_header_lines</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_process_header</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">))</span>
+      <span class="n">start_offset</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">start_offset</span><span class="p">,</span> <span class="n">position_after_processing_header_lines</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">start_offset</span> <span class="o">&gt;</span> <span class="n">position_after_processing_header_lines</span><span class="p">:</span>
+        <span class="c1"># Seeking to one position before the start index and ignoring the</span>
+        <span class="c1"># current line. If start_position is at beginning if the line, that line</span>
+        <span class="c1"># belongs to the current bundle, hence ignoring that is incorrect.</span>
+        <span class="c1"># Seeking to one byte before prevents that.</span>
+
+        <span class="n">file_to_read</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start_offset</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">read_buffer</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="n">sep_bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_separator_bounds</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sep_bounds</span><span class="p">:</span>
+          <span class="c1"># Could not find a separator after (start_offset - 1). This means that</span>
+          <span class="c1"># none of the records within the file belongs to the current source.</span>
+          <span class="k">return</span>
+
+        <span class="n">_</span><span class="p">,</span> <span class="n">sep_end</span> <span class="o">=</span> <span class="n">sep_bounds</span>
+        <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">sep_end</span><span class="p">:]</span>
+        <span class="n">next_record_start_position</span> <span class="o">=</span> <span class="n">start_offset</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">sep_end</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">next_record_start_position</span> <span class="o">=</span> <span class="n">position_after_processing_header_lines</span>
+
+      <span class="k">while</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">next_record_start_position</span><span class="p">):</span>
+        <span class="n">record</span><span class="p">,</span> <span class="n">num_bytes_to_next_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_record</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span>
+                                                             <span class="n">read_buffer</span><span class="p">)</span>
+        <span class="c1"># For compressed text files that use an unsplittable OffsetRangeTracker</span>
+        <span class="c1"># with infinity as the end position, above &#39;try_claim()&#39; invocation</span>
+        <span class="c1"># would pass for an empty record at the end of file that is not</span>
+        <span class="c1"># followed by a new line character. Since such a record is at the last</span>
+        <span class="c1"># position of a file, it should not be a part of the considered range.</span>
+        <span class="c1"># We do this check to ignore such records.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">record</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">num_bytes_to_next_record</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># pylint: disable=len-as-condition</span>
+          <span class="k">break</span>
+
+        <span class="c1"># Record separator must be larger than zero bytes.</span>
+        <span class="k">assert</span> <span class="n">num_bytes_to_next_record</span> <span class="o">!=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">num_bytes_to_next_record</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">next_record_start_position</span> <span class="o">+=</span> <span class="n">num_bytes_to_next_record</span>
+
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_bytes_to_next_record</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">break</span>
+
+  <span class="k">def</span> <span class="nf">_process_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">):</span>
+    <span class="c1"># Returns a tuple containing the position in file after processing header</span>
+    <span class="c1"># records and a list of decoded header lines that match</span>
+    <span class="c1"># &#39;header_matcher&#39;.</span>
+    <span class="n">header_lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_skip_lines</span><span class="p">(</span>
+        <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_skip_header_lines</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_skip_header_lines</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_matcher</span><span class="p">:</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">record</span><span class="p">,</span> <span class="n">num_bytes_to_next_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_record</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span>
+                                                             <span class="n">read_buffer</span><span class="p">)</span>
+        <span class="n">decoded_line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_matcher</span><span class="p">(</span><span class="n">decoded_line</span><span class="p">):</span>
+          <span class="c1"># We&#39;ve read past the header section at this point, so go back a line.</span>
+          <span class="n">file_to_read</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">position</span><span class="p">)</span>
+          <span class="n">read_buffer</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+          <span class="k">break</span>
+        <span class="n">header_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">decoded_line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_bytes_to_next_record</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">break</span>
+        <span class="n">position</span> <span class="o">+=</span> <span class="n">num_bytes_to_next_record</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_processor</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_header_processor</span><span class="p">(</span><span class="n">header_lines</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">position</span>
+
+  <span class="k">def</span> <span class="nf">_find_separator_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">):</span>
+    <span class="c1"># Determines the start and end positions within &#39;read_buffer.data&#39; of the</span>
+    <span class="c1"># next separator starting from position &#39;read_buffer.position&#39;.</span>
+    <span class="c1"># Currently supports following separators.</span>
+    <span class="c1"># * &#39;\n&#39;</span>
+    <span class="c1"># * &#39;\r\n&#39;</span>
+    <span class="c1"># This method may increase the size of buffer but it will not decrease the</span>
+    <span class="c1"># size of it.</span>
+
+    <span class="n">current_pos</span> <span class="o">=</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">current_pos</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
+        <span class="c1"># Ensuring that there are enough bytes to determine if there is a &#39;\n&#39;</span>
+        <span class="c1"># at current_pos.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_try_to_ensure_num_bytes_in_buffer</span><span class="p">(</span>
+            <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">,</span> <span class="n">current_pos</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+          <span class="k">return</span>
+
+      <span class="c1"># Using find() here is more efficient than a linear scan of the byte</span>
+      <span class="c1"># array.</span>
+      <span class="n">next_lf</span> <span class="o">=</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">current_pos</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">next_lf</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">next_lf</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">next_lf</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">:</span>
+          <span class="c1"># Found a &#39;\r\n&#39;. Accepting that as the next separator.</span>
+          <span class="k">return</span> <span class="p">(</span><span class="n">next_lf</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">next_lf</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c1"># Found a &#39;\n&#39;. Accepting that as the next separator.</span>
+          <span class="k">return</span> <span class="p">(</span><span class="n">next_lf</span><span class="p">,</span> <span class="n">next_lf</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+      <span class="n">current_pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_try_to_ensure_num_bytes_in_buffer</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">,</span> <span class="n">num_bytes</span><span class="p">):</span>
+    <span class="c1"># Tries to ensure that there are at least num_bytes bytes in the buffer.</span>
+    <span class="c1"># Returns True if this can be fulfilled, returned False if this cannot be</span>
+    <span class="c1"># fulfilled due to reaching EOF.</span>
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">num_bytes</span><span class="p">:</span>
+      <span class="n">read_data</span> <span class="o">=</span> <span class="n">file_to_read</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">read_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+      <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span> <span class="o">+=</span> <span class="n">read_data</span>
+
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="k">def</span> <span class="nf">_skip_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">,</span> <span class="n">num_lines</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Skip num_lines from file_to_read, return num_lines+1 start position.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">file_to_read</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">file_to_read</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_lines</span><span class="p">):</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">num_bytes_to_next_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_record</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">num_bytes_to_next_record</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># We reached end of file. It is OK to just break here</span>
+        <span class="c1"># because subsequent _read_record will return same result.</span>
+        <span class="k">break</span>
+      <span class="n">position</span> <span class="o">+=</span> <span class="n">num_bytes_to_next_record</span>
+    <span class="k">return</span> <span class="n">position</span>
+
+  <span class="k">def</span> <span class="nf">_read_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">):</span>
+    <span class="c1"># Returns a tuple containing the current_record and number of bytes to the</span>
+    <span class="c1"># next record starting from &#39;read_buffer.position&#39;. If EOF is</span>
+    <span class="c1"># reached, returns a tuple containing the current record and -1.</span>
+
+    <span class="k">if</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span><span class="p">:</span>
+      <span class="c1"># read_buffer is too large. Truncating and adjusting it.</span>
+      <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span><span class="p">:]</span>
+      <span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">record_start_position_in_buffer</span> <span class="o">=</span> <span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span>
+    <span class="n">sep_bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_separator_bounds</span><span class="p">(</span><span class="n">file_to_read</span><span class="p">,</span> <span class="n">read_buffer</span><span class="p">)</span>
+    <span class="n">read_buffer</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">sep_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">sep_bounds</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span>
+        <span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sep_bounds</span><span class="p">:</span>
+      <span class="c1"># Reached EOF. Bytes up to the EOF is the next record. Returning &#39;-1&#39; for</span>
+      <span class="c1"># the starting position of the next record.</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">record_start_position_in_buffer</span><span class="p">:],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_trailing_newlines</span><span class="p">:</span>
+      <span class="c1"># Current record should not contain the separator.</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">record_start_position_in_buffer</span><span class="p">:</span><span class="n">sep_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+              <span class="n">sep_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">record_start_position_in_buffer</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Current record should contain the separator.</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">read_buffer</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">record_start_position_in_buffer</span><span class="p">:</span><span class="n">sep_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+              <span class="n">sep_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">record_start_position_in_buffer</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_TextSink</span><span class="p">(</span><span class="n">filebasedsink</span><span class="o">.</span><span class="n">FileBasedSink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A sink to a GCS or local text file or files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+               <span class="n">append_trailing_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">(),</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+               <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a _TextSink.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_path_prefix: The file path to write to. The files written will begin</span>
+<span class="sd">        with this prefix, followed by a shard identifier (see num_shards), and</span>
+<span class="sd">        end in a common extension, if given by file_name_suffix. In most cases,</span>
+<span class="sd">        only this argument is specified and num_shards, shard_name_template, and</span>
+<span class="sd">        file_name_suffix use default values.</span>
+<span class="sd">      file_name_suffix: Suffix for the files written.</span>
+<span class="sd">      append_trailing_newlines: indicate whether this sink should write an</span>
+<span class="sd">        additional newline char after writing each element.</span>
+<span class="sd">      num_shards: The number of files (shards) used for output. If not set, the</span>
+<span class="sd">        service will decide on the optimal number of shards.</span>
+<span class="sd">        Constraining the number of shards is likely to reduce</span>
+<span class="sd">        the performance of a pipeline.  Setting this value is not recommended</span>
+<span class="sd">        unless you require a specific number of output files.</span>
+<span class="sd">      shard_name_template: A template string containing placeholders for</span>
+<span class="sd">        the shard number and shard count. When constructing a filename for a</span>
+<span class="sd">        particular shard number, the upper-case letters &#39;S&#39; and &#39;N&#39; are</span>
+<span class="sd">        replaced with the 0-padded shard number and shard count respectively.</span>
+<span class="sd">        This argument can be &#39;&#39; in which case it behaves as if num_shards was</span>
+<span class="sd">        set to 1 and only one file will be generated. The default pattern used</span>
+<span class="sd">        is &#39;-SSSSS-of-NNNNN&#39; if None is passed as the shard_name_template.</span>
+<span class="sd">      coder: Coder used to encode each line.</span>
+<span class="sd">      compression_type: Used to handle compressed output files. Typical value</span>
+<span class="sd">        is CompressionTypes.AUTO, in which case the final file path&#39;s</span>
+<span class="sd">        extension (as determined by file_path_prefix, file_name_suffix,</span>
+<span class="sd">        num_shards and shard_name_template) will be used to detect the</span>
+<span class="sd">        compression.</span>
+<span class="sd">      header: String to write at beginning of file as a header. If not None and</span>
+<span class="sd">        append_trailing_newlines is set, &#39;\n&#39; will be added.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A _TextSink object usable for writing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_TextSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">file_path_prefix</span><span class="p">,</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="n">file_name_suffix</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="n">num_shards</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="n">shard_name_template</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="n">coder</span><span class="p">,</span>
+        <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;text/plain&#39;</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_append_trailing_newlines</span> <span class="o">=</span> <span class="n">append_trailing_newlines</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_header</span> <span class="o">=</span> <span class="n">header</span>
+
+  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">):</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_TextSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_header</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_append_trailing_newlines</span><span class="p">:</span>
+        <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">file_handle</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">dd_parent</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_TextSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">display_data</span><span class="p">()</span>
+    <span class="n">dd_parent</span><span class="p">[</span><span class="s1">&#39;append_newline&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DisplayDataItem</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_append_trailing_newlines</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Append Trailing New Lines&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dd_parent</span>
+
+  <span class="k">def</span> <span class="nf">write_encoded_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">encoded_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes a single encoded record.&quot;&quot;&quot;</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">encoded_value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_append_trailing_newlines</span><span class="p">:</span>
+      <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_create_text_source</span><span class="p">(</span>
+    <span class="n">file_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">strip_trailing_newlines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">_TextSource</span><span class="p">(</span>
+      <span class="n">file_pattern</span><span class="o">=</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="o">=</span><span class="n">min_bundle_size</span><span class="p">,</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">,</span>
+      <span class="n">strip_trailing_newlines</span><span class="o">=</span><span class="n">strip_trailing_newlines</span><span class="p">,</span>
+      <span class="n">coder</span><span class="o">=</span><span class="n">coder</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">skip_header_lines</span><span class="o">=</span><span class="n">skip_header_lines</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReadAllFromText"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.ReadAllFromText">[docs]</a><span class="k">class</span> <span class="nc">ReadAllFromText</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` for reading a ``PCollection`` of text files.</span>
+
+<span class="sd">   Reads a ``PCollection`` of text files or file patterns and and produces a</span>
+<span class="sd">   ``PCollection`` of strings.</span>
+
+<span class="sd">  Parses a text file as newline-delimited elements, by default assuming</span>
+<span class="sd">  UTF-8 encoding. Supports newline delimiters &#39;\\n&#39; and &#39;\\r\\n&#39;.</span>
+
+<span class="sd">  This implementation only supports reading text encoded using UTF-8 or ASCII.</span>
+<span class="sd">  This does not support other encodings such as UTF-16 or UTF-32.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">DEFAULT_DESIRED_BUNDLE_SIZE</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>  <span class="c1"># 64MB</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span>
+      <span class="n">min_bundle_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+      <span class="n">desired_bundle_size</span><span class="o">=</span><span class="n">DEFAULT_DESIRED_BUNDLE_SIZE</span><span class="p">,</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+      <span class="n">strip_trailing_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span>
+      <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the ``ReadAllFromText`` transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      min_bundle_size: Minimum size of bundles that should be generated when</span>
+<span class="sd">        splitting this source into bundles. See ``FileBasedSource`` for more</span>
+<span class="sd">        details.</span>
+<span class="sd">      desired_bundle_size: Desired size of bundles that should be generated when</span>
+<span class="sd">        splitting this source into bundles. See ``FileBasedSource`` for more</span>
+<span class="sd">        details.</span>
+<span class="sd">      compression_type: Used to handle compressed input files. Typical value</span>
+<span class="sd">        is ``CompressionTypes.AUTO``, in which case the underlying file_path&#39;s</span>
+<span class="sd">        extension will be used to detect the compression.</span>
+<span class="sd">      strip_trailing_newlines: Indicates whether this source should remove</span>
+<span class="sd">        the newline char in each line it reads before decoding that line.</span>
+<span class="sd">      validate: flag to verify that the files exist during the pipeline</span>
+<span class="sd">        creation time.</span>
+<span class="sd">      skip_header_lines: Number of header lines to skip. Same number is skipped</span>
+<span class="sd">        from each source file. Must be 0 or higher. Large number of skipped</span>
+<span class="sd">        lines might impact performance.</span>
+<span class="sd">      coder: Coder used to decode each line.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadAllFromText</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">source_from_file</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">_create_text_source</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="o">=</span><span class="n">min_bundle_size</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">compression_type</span><span class="p">,</span>
+        <span class="n">strip_trailing_newlines</span><span class="o">=</span><span class="n">strip_trailing_newlines</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coder</span><span class="p">,</span>
+        <span class="n">skip_header_lines</span><span class="o">=</span><span class="n">skip_header_lines</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_desired_bundle_size</span> <span class="o">=</span> <span class="n">desired_bundle_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span> <span class="o">=</span> <span class="n">min_bundle_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_read_all_files</span> <span class="o">=</span> <span class="n">ReadAllFiles</span><span class="p">(</span>
+        <span class="kc">True</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="p">,</span>
+        <span class="n">source_from_file</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReadAllFromText.expand"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.ReadAllFromText.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span> <span class="o">|</span> <span class="s1">&#39;ReadAllFiles&#39;</span> <span class="o">&gt;&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_all_files</span></div></div>
+
+
+<div class="viewcode-block" id="ReadFromText"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.ReadFromText">[docs]</a><span class="k">class</span> <span class="nc">ReadFromText</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sa">r</span><span class="sd">&quot;&quot;&quot;A :class:`~apache_beam.transforms.ptransform.PTransform` for reading text</span>
+<span class="sd">  files.</span>
+
+<span class="sd">  Parses a text file as newline-delimited elements, by default assuming</span>
+<span class="sd">  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.</span>
+
+<span class="sd">  This implementation only supports reading text encoded using ``UTF-8`` or</span>
+<span class="sd">  ``ASCII``.</span>
+<span class="sd">  This does not support other encodings such as ``UTF-16`` or ``UTF-32``.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span>
+      <span class="n">file_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+      <span class="n">min_bundle_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+      <span class="n">strip_trailing_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span>
+      <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">skip_header_lines</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the :class:`ReadFromText` transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_pattern (str): The file path to read from as a local file path or a</span>
+<span class="sd">        GCS ``gs://`` path. The path can contain glob characters</span>
+<span class="sd">        (``*``, ``?``, and ``[...]`` sets).</span>
+<span class="sd">      min_bundle_size (int): Minimum size of bundles that should be generated</span>
+<span class="sd">        when splitting this source into bundles. See</span>
+<span class="sd">        :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more</span>
+<span class="sd">        details.</span>
+<span class="sd">      compression_type (str): Used to handle compressed input files.</span>
+<span class="sd">        Typical value is :attr:`CompressionTypes.AUTO</span>
+<span class="sd">        &lt;apache_beam.io.filesystem.CompressionTypes.AUTO&gt;`, in which case the</span>
+<span class="sd">        underlying file_path&#39;s extension will be used to detect the compression.</span>
+<span class="sd">      strip_trailing_newlines (bool): Indicates whether this source should</span>
+<span class="sd">        remove the newline char in each line it reads before decoding that line.</span>
+<span class="sd">      validate (bool): flag to verify that the files exist during the pipeline</span>
+<span class="sd">        creation time.</span>
+<span class="sd">      skip_header_lines (int): Number of header lines to skip. Same number is</span>
+<span class="sd">        skipped from each source file. Must be 0 or higher. Large number of</span>
+<span class="sd">        skipped lines might impact performance.</span>
+<span class="sd">      coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromText</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">_TextSource</span><span class="p">(</span>
+        <span class="n">file_pattern</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">,</span>
+        <span class="n">strip_trailing_newlines</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">,</span>
+        <span class="n">skip_header_lines</span><span class="o">=</span><span class="n">skip_header_lines</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReadFromText.expand"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.ReadFromText.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">|</span> <span class="n">Read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="WriteToText"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.WriteToText">[docs]</a><span class="k">class</span> <span class="nc">WriteToText</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to</span>
+<span class="sd">  text files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span>
+      <span class="n">file_path_prefix</span><span class="p">,</span>
+      <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+      <span class="n">append_trailing_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+      <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+      <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+      <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">(),</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+      <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize a :class:`WriteToText` transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_path_prefix (str): The file path to write to. The files written will</span>
+<span class="sd">        begin with this prefix, followed by a shard identifier (see</span>
+<span class="sd">        **num_shards**), and end in a common extension, if given by</span>
+<span class="sd">        **file_name_suffix**. In most cases, only this argument is specified and</span>
+<span class="sd">        **num_shards**, **shard_name_template**, and **file_name_suffix** use</span>
+<span class="sd">        default values.</span>
+<span class="sd">      file_name_suffix (str): Suffix for the files written.</span>
+<span class="sd">      append_trailing_newlines (bool): indicate whether this sink should write</span>
+<span class="sd">        an additional newline char after writing each element.</span>
+<span class="sd">      num_shards (int): The number of files (shards) used for output.</span>
+<span class="sd">        If not set, the service will decide on the optimal number of shards.</span>
+<span class="sd">        Constraining the number of shards is likely to reduce</span>
+<span class="sd">        the performance of a pipeline.  Setting this value is not recommended</span>
+<span class="sd">        unless you require a specific number of output files.</span>
+<span class="sd">      shard_name_template (str): A template string containing placeholders for</span>
+<span class="sd">        the shard number and shard count. Currently only ``&#39;&#39;`` and</span>
+<span class="sd">        ``&#39;-SSSSS-of-NNNNN&#39;`` are patterns accepted by the service.</span>
+<span class="sd">        When constructing a filename for a particular shard number, the</span>
+<span class="sd">        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded</span>
+<span class="sd">        shard number and shard count respectively.  This argument can be ``&#39;&#39;``</span>
+<span class="sd">        in which case it behaves as if num_shards was set to 1 and only one file</span>
+<span class="sd">        will be generated. The default pattern used is ``&#39;-SSSSS-of-NNNNN&#39;``.</span>
+<span class="sd">      coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.</span>
+<span class="sd">      compression_type (str): Used to handle compressed output files.</span>
+<span class="sd">        Typical value is :class:`CompressionTypes.AUTO</span>
+<span class="sd">        &lt;apache_beam.io.filesystem.CompressionTypes.AUTO&gt;`, in which case the</span>
+<span class="sd">        final file path&#39;s extension (as determined by **file_path_prefix**,</span>
+<span class="sd">        **file_name_suffix**, **num_shards** and **shard_name_template**) will</span>
+<span class="sd">        be used to detect the compression.</span>
+<span class="sd">      header (str): String to write at beginning of file as a header.</span>
+<span class="sd">        If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will</span>
+<span class="sd">        be added.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span> <span class="o">=</span> <span class="n">_TextSink</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="p">,</span>
+                           <span class="n">append_trailing_newlines</span><span class="p">,</span> <span class="n">num_shards</span><span class="p">,</span>
+                           <span class="n">shard_name_template</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WriteToText.expand"><a class="viewcode-back" href="../../../apache_beam.io.textio.html#apache_beam.io.textio.WriteToText.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

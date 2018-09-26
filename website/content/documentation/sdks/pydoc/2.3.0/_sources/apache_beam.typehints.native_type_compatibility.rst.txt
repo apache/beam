@@ -1,0 +1,7 @@
+apache\_beam\.typehints\.native\_type\_compatibility module
+===========================================================
+
+.. automodule:: apache_beam.typehints.native_type_compatibility
+    :members:
+    :undoc-members:
+    :show-inheritance:

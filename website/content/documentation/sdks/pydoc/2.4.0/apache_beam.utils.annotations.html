@@ -1,0 +1,325 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.utils.annotations module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.utils package" href="apache_beam.utils.html"/>
+        <link rel="next" title="apache_beam.utils.plugin module" href="apache_beam.utils.plugin.html"/>
+        <link rel="prev" title="apache_beam.utils package" href="apache_beam.utils.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.utils.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.utils.annotations module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.plugin.html">apache_beam.utils.plugin module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.processes.html">apache_beam.utils.processes module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.profiler.html">apache_beam.utils.profiler module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.proto_utils.html">apache_beam.utils.proto_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.retry.html">apache_beam.utils.retry module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.timestamp.html">apache_beam.utils.timestamp module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.utils.urns.html">apache_beam.utils.urns module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.utils.html">apache_beam.utils package</a> &raquo;</li>
+        
+      <li>apache_beam.utils.annotations module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.utils.annotations.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.utils.annotations">
+<span id="apache-beam-utils-annotations-module"></span><h1>apache_beam.utils.annotations module<a class="headerlink" href="#module-apache_beam.utils.annotations" title="Permalink to this headline">¶</a></h1>
+<p>Deprecated and experimental annotations.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Annotations come in two flavors: deprecated and experimental</p>
+<p>The ‘deprecated’ annotation requires a ‘since” parameter to specify
+what version deprecated it.
+Both ‘deprecated’ and ‘experimental’ annotations can specify the
+current recommended version to use by means of a ‘current’ parameter.</p>
+<p>The following example illustrates how to annotate coexisting versions of the
+same function ‘multiply’.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span>
+</pre></div>
+</div>
+<p># This annotation marks ‘old_multiply’ as deprecated since ‘v.1’ and suggests
+# using ‘multiply’ instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">old_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">arg1</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">arg2</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the old way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p># This annotation marks ‘exp_multiply’ as experimental and suggests
+# using ‘multiply’ instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@experimental</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">exp_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the experimental way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg1</span><span class="o">/</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg2</span><span class="o">/</span><span class="n">arg1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p># Set a warning filter to control how often warnings are produced.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;always&quot;</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">old_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">exp_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="function">
+<dt id="apache_beam.utils.annotations.annotate">
+<code class="descclassname">apache_beam.utils.annotations.</code><code class="descname">annotate</code><span class="sig-paren">(</span><em>label</em>, <em>since</em>, <em>current</em>, <em>extra_message</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations.html#annotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations.annotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorates a function with a deprecated or experimental annotation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>label</strong> – the kind of annotation (‘deprecated’ or ‘experimental’).</li>
+<li><strong>since</strong> – the version that causes the annotation.</li>
+<li><strong>current</strong> – the suggested replacement function.</li>
+<li><strong>extra_message</strong> – an optional additional message.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The decorator for the function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.utils.plugin.html" class="btn btn-neutral float-right" title="apache_beam.utils.plugin module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.utils.html" class="btn btn-neutral" title="apache_beam.utils package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

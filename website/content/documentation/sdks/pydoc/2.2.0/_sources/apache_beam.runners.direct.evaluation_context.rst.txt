@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.evaluation\_context module
+=========================================================
+
+.. automodule:: apache_beam.runners.direct.evaluation_context
+    :members:
+    :undoc-members:
+    :show-inheritance:

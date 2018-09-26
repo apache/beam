@@ -1,0 +1,1154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.typehints &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.typehints</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Syntax &amp; semantics for type-hinting custom-functions/PTransforms in the SDK.</span>
+
+<span class="sd">This module defines type-hinting objects and the corresponding syntax for</span>
+<span class="sd">type-hinting function arguments, function return types, or PTransform object</span>
+<span class="sd">themselves. TypeHint&#39;s defined in the module can be used to implement either</span>
+<span class="sd">static or run-time type-checking in regular Python code.</span>
+
+<span class="sd">Type-hints are defined by &#39;indexing&#39; a type-parameter into a defined</span>
+<span class="sd">CompositeTypeHint instance:</span>
+
+<span class="sd">  * &#39;List[int]&#39;.</span>
+
+<span class="sd">Valid type-hints are partitioned into two categories: simple, and composite.</span>
+
+<span class="sd">Simple type hints are type hints based on a subset of Python primitive types:</span>
+<span class="sd">int, bool, float, str, object, None, and bytes. No other primitive types are</span>
+<span class="sd">allowed.</span>
+
+<span class="sd">Composite type-hints are reserved for hinting the types of container-like</span>
+<span class="sd">Python objects such as &#39;list&#39;. Composite type-hints can be parameterized by an</span>
+<span class="sd">inner simple or composite type-hint, using the &#39;indexing&#39; syntax. In order to</span>
+<span class="sd">avoid conflicting with the namespace of the built-in container types, when</span>
+<span class="sd">specifying this category of type-hints, the first letter should capitalized.</span>
+<span class="sd">The following composite type-hints are permitted. NOTE: &#39;T&#39; can be any of the</span>
+<span class="sd">type-hints listed or a simple Python type:</span>
+
+<span class="sd">  * Any</span>
+<span class="sd">  * Union[T, T, T]</span>
+<span class="sd">  * Optional[T]</span>
+<span class="sd">  * Tuple[T, T]</span>
+<span class="sd">  * Tuple[T, ...]</span>
+<span class="sd">  * List[T]</span>
+<span class="sd">  * KV[T, T]</span>
+<span class="sd">  * Dict[T, T]</span>
+<span class="sd">  * Set[T]</span>
+<span class="sd">  * Iterable[T]</span>
+<span class="sd">  * Iterator[T]</span>
+<span class="sd">  * Generator[T]</span>
+
+<span class="sd">Type-hints can be nested, allowing one to define type-hints for complex types:</span>
+
+<span class="sd">  * &#39;List[Tuple[int, int, str]]</span>
+
+<span class="sd">In addition, type-hints can be used to implement run-time type-checking via the</span>
+<span class="sd">&#39;type_check&#39; method on each TypeConstraint.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">types</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;Any&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Union&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Optional&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Tuple&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Tuple&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;List&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;KV&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Dict&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Set&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Iterable&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Iterator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Generator&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;WindowedValue&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TypeVariable&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1"># A set of the built-in Python types we don&#39;t support, guiding the users</span>
+<span class="c1"># to templated (upper-case) versions instead.</span>
+<span class="n">DISALLOWED_PRIMITIVE_TYPES</span> <span class="o">=</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">set</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">SimpleTypeHintError</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">CompositeTypeHintError</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">GetitemConstructor</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A metaclass that makes Cls[arg] an alias for Cls(arg).&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">TypeConstraint</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;The base-class for all created type-constraints defined below.</span>
+
+<span class="sd">  A TypeConstraint is the result of parameterizing a CompositeTypeHint with</span>
+<span class="sd">  with one of the allowed Python types or another CompositeTypeHint. It</span>
+<span class="sd">  binds and enforces a specific version of a generalized TypeHint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns whether sub is consistent with self.</span>
+
+<span class="sd">    Has the same relationship to is_consistent_with() as</span>
+<span class="sd">    __subclasscheck__ does for issubclass().</span>
+
+<span class="sd">    Not meant to be called directly; call is_consistent_with(sub, self)</span>
+<span class="sd">    instead.</span>
+
+<span class="sd">    Implementation may assume that maybe_sub_type is not Any</span>
+<span class="sd">    and has been normalized.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+  <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Determines if the type of &#39;instance&#39; satisfies this type constraint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      instance: An instance of a Python object.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: The passed &#39;instance&#39; doesn&#39;t satisfy this TypeConstraint.</span>
+<span class="sd">        Subclasses of TypeConstraint are free to raise any of the subclasses of</span>
+<span class="sd">        TypeError defined above, depending on the manner of the type hint error.</span>
+
+<span class="sd">    All TypeConstraint sub-classes must define this method in other for the</span>
+<span class="sd">    class object to be created.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+  <span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_concrete_type</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_bindings</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Iterates over the inner types of the composite type.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visitor</span><span class="p">,</span> <span class="n">visitor_arg</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Visitor method to visit all inner types of a composite type.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      visitor: A callable invoked for all nodes in the type tree comprising</span>
+<span class="sd">        a composite type. The visitor will be called with the node visited</span>
+<span class="sd">        and the visitor argument specified here.</span>
+<span class="sd">      visitor_arg: Visitor callback second argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">visitor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visitor_arg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inner_types</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">,</span> <span class="n">visitor_arg</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">visitor</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">visitor_arg</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">concrete_type</span><span class="p">):</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">type_constraint</span><span class="o">.</span><span class="n">match_type_variables</span><span class="p">(</span><span class="n">concrete_type</span><span class="p">)</span>
+  <span class="k">return</span> <span class="p">{}</span>
+
+
+<span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">bindings</span><span class="p">):</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">type_constraint</span><span class="o">.</span><span class="n">bind_type_variables</span><span class="p">(</span><span class="n">bindings</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">type_constraint</span>
+
+
+<span class="k">class</span> <span class="nc">SequenceTypeConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A common base-class for all sequence related type-constraint classes.</span>
+
+<span class="sd">  A sequence is defined as an arbitrary length homogeneous container type. Type</span>
+<span class="sd">  hints which fall under this category include: List[T], Set[T], Iterable[T],</span>
+<span class="sd">  and Tuple[T, ...].</span>
+
+<span class="sd">  Sub-classes may need to override &#39;_consistent_with_check_&#39; if a particular</span>
+<span class="sd">  sequence requires special handling with respect to type compatibility.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    inner_type: The type which every element in the sequence should be an</span>
+<span class="sd">      instance of.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inner_type</span><span class="p">,</span> <span class="n">sequence_type</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span> <span class="o">=</span> <span class="n">inner_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span> <span class="o">=</span> <span class="n">sequence_type</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">SequenceTypeConstraint</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span> <span class="o">^</span> <span class="mi">13</span> <span class="o">*</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span>
+
+  <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sequence_instance</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sequence_instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+          <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> type-constraint violated. Valid object instance &quot;</span>
+          <span class="s2">&quot;must be of type &#39;</span><span class="si">%s</span><span class="s2">&#39;. Instead, an instance of &#39;</span><span class="si">%s</span><span class="s2">&#39; &quot;</span>
+          <span class="s2">&quot;was received.&quot;</span>
+          <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">title</span><span class="p">(),</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+             <span class="n">sequence_instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sequence_instance</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">check_constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+      <span class="k">except</span> <span class="n">SimpleTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. The type of element #</span><span class="si">%s</span><span class="s1"> in &#39;</span>
+            <span class="s1">&#39;the passed </span><span class="si">%s</span><span class="s1"> is incorrect. Expected an instance of type </span><span class="si">%s</span><span class="s1">, &#39;</span>
+            <span class="s1">&#39;instead received an instance of type </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
+            <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">index</span><span class="p">,</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span><span class="p">),</span>
+             <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">),</span> <span class="n">elem</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+      <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. The type of element #</span><span class="si">%s</span><span class="s1"> in &#39;</span>
+            <span class="s1">&#39;the passed </span><span class="si">%s</span><span class="s1"> is incorrect: </span><span class="si">%s</span><span class="s1">&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequence_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concrete_type</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">concrete_type</span><span class="p">,</span> <span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="n">concrete_type</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bindings</span><span class="p">):</span>
+    <span class="n">bound_inner_type</span> <span class="o">=</span> <span class="n">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="n">bindings</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">bound_inner_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span>
+    <span class="n">bound_self</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">bound_self</span><span class="o">.</span><span class="n">inner_type</span> <span class="o">=</span> <span class="n">bound_inner_type</span>
+    <span class="k">return</span> <span class="n">bound_self</span>
+
+
+<span class="k">class</span> <span class="nc">CompositeTypeHint</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The base-class for all created type-hint classes defined below.</span>
+
+<span class="sd">  CompositeTypeHint&#39;s serve primarily as TypeConstraint factories. They are</span>
+<span class="sd">  only required to define a single method: &#39;__getitem__&#39; which should return a</span>
+<span class="sd">  parameterized TypeConstraint, that can be used to enforce static or run-time</span>
+<span class="sd">  type-checking.</span>
+
+<span class="sd">  &#39;__getitem__&#39; is used as a factory function in order to provide a familiar</span>
+<span class="sd">  API for defining type-hints. The ultimate result is that one will be able to</span>
+<span class="sd">  use: CompositeTypeHint[type_parameter] to create a type-hint object that</span>
+<span class="sd">  behaves like any other Python object. This allows one to create</span>
+<span class="sd">  &#39;type-aliases&#39; by assigning the returned type-hints to a variable.</span>
+
+<span class="sd">    * Example: &#39;Coordinates = List[Tuple[int, int]]&#39;</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__getitem___</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">py_type</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a type creates a TypeConstraint instance parameterized by the type.</span>
+
+<span class="sd">    This function serves as a factory function which creates TypeConstraint</span>
+<span class="sd">    instances. Additionally, implementations by sub-classes should perform any</span>
+<span class="sd">    sanity checking of the passed types in this method in order to rule-out</span>
+<span class="sd">    disallowed behavior. Such as, attempting to create a TypeConstraint whose</span>
+<span class="sd">    parameterized type is actually an object instance.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      py_type: An instance of a Python type or TypeConstraint.</span>
+
+<span class="sd">    Returns: An instance of a custom TypeConstraint for this CompositeTypeHint.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: If the passed type violates any contraints for this particular</span>
+<span class="sd">        TypeHint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<span class="k">def</span> <span class="nf">validate_composite_type_param</span><span class="p">(</span><span class="n">type_param</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Determines if an object is a valid type parameter to a CompositeTypeHint.</span>
+
+<span class="sd">  Implements sanity checking to disallow things like:</span>
+<span class="sd">    * List[1, 2, 3] or Dict[5].</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    type_param: An object instance.</span>
+<span class="sd">    error_msg_prefix: A string prefix used to format an error message in the</span>
+<span class="sd">      case of an exception.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeError: If the passed &#39;type_param&#39; is not a valid type parameter for a</span>
+<span class="sd">      CompositeTypeHint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># Must either be a TypeConstraint instance or a basic Python type.</span>
+  <span class="n">is_not_type_constraint</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_param</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ClassType</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">))</span>
+      <span class="ow">and</span> <span class="n">type_param</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+  <span class="n">is_forbidden_type</span> <span class="o">=</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">type_param</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span>
+                       <span class="n">type_param</span> <span class="ow">in</span> <span class="n">DISALLOWED_PRIMITIVE_TYPES</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">is_not_type_constraint</span> <span class="ow">or</span> <span class="n">is_forbidden_type</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> must be a non-sequence, a type, or a TypeConstraint. </span><span class="si">%s</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39; is an instance of </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">error_msg_prefix</span><span class="p">,</span> <span class="n">type_param</span><span class="p">,</span>
+                                                <span class="n">type_param</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_unified_repr</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Given an object return a qualified name for the object.</span>
+
+<span class="sd">  This function closely mirrors &#39;__qualname__&#39; which was introduced in</span>
+<span class="sd">  Python 3.3. It is used primarily to format types or object instances for</span>
+<span class="sd">  error messages.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    o: An instance of a TypeConstraint or a type.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A qualified name for the passed Python object fit for string formatting.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span>
+      <span class="n">o</span><span class="p">,</span> <span class="p">(</span><span class="n">TypeConstraint</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">NoneType</span><span class="p">))</span> <span class="k">else</span> <span class="n">o</span><span class="o">.</span><span class="vm">__name__</span>
+
+
+<span class="k">def</span> <span class="nf">check_constraint</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">object_instance</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Determine if the passed type instance satisfies the TypeConstraint.</span>
+
+<span class="sd">  When examining a candidate type for constraint satisfaction in</span>
+<span class="sd">  &#39;type_check&#39;, all CompositeTypeHint&#39;s eventually call this function. This</span>
+<span class="sd">  function may end up being called recursively if the hinted type of a</span>
+<span class="sd">  CompositeTypeHint is another CompositeTypeHint.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    type_constraint: An instance of a TypeConstraint or a built-in Python type.</span>
+<span class="sd">    object_instance: An object instance.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    SimpleTypeHintError: If &#39;type_constraint&#39; is a one of the allowed primitive</span>
+<span class="sd">      Python types and &#39;object_instance&#39; isn&#39;t an instance of this type.</span>
+<span class="sd">    CompositeTypeHintError: If &#39;type_constraint&#39; is a TypeConstraint object and</span>
+<span class="sd">      &#39;object_instance&#39; does not satisfy its constraint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">type_constraint</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">object_instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">return</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+    <span class="n">type_constraint</span><span class="o">.</span><span class="n">type_check</span><span class="p">(</span><span class="n">object_instance</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">type_constraint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># TODO(robertwb): Fix uses of None for Any.</span>
+    <span class="k">pass</span>
+  <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;bad type: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">type_constraint</span><span class="p">,))</span>
+  <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">object_instance</span><span class="p">,</span> <span class="n">type_constraint</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="n">SimpleTypeHintError</span>
+
+
+<span class="k">class</span> <span class="nc">AnyTypeConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An Any type-hint.</span>
+
+<span class="sd">  Any is intended to be used as a &quot;don&#39;t care&quot; when hinting the types of</span>
+<span class="sd">  function arguments or return types. All other TypeConstraint&#39;s are equivalent</span>
+<span class="sd">  to &#39;Any&#39;, and its &#39;type_check&#39; method is a no-op.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Any&#39;</span>
+
+  <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="TypeVariable"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typehints.TypeVariable">[docs]</a><span class="k">class</span> <span class="nc">TypeVariable</span><span class="p">(</span><span class="n">AnyTypeConstraint</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;TypeVariable[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+<div class="viewcode-block" id="TypeVariable.match_type_variables"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typehints.TypeVariable.match_type_variables">[docs]</a>  <span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concrete_type</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="bp">self</span><span class="p">:</span> <span class="n">concrete_type</span><span class="p">}</span></div>
+
+<div class="viewcode-block" id="TypeVariable.bind_type_variables"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typehints.TypeVariable.bind_type_variables">[docs]</a>  <span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bindings</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">bindings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">UnionHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A Union type-hint. Union[X, Y] accepts instances of type X OR type Y.</span>
+
+<span class="sd">  Duplicate type parameters are ignored. Additonally, Nested Union hints will</span>
+<span class="sd">  be flattened out. For example:</span>
+
+<span class="sd">    * Union[Union[str, int], bool] -&gt; Union[str, int, bool]</span>
+
+<span class="sd">  A candidate type instance satisfies a UnionConstraint if it is an</span>
+<span class="sd">  instance of any of the parameterized &#39;union_types&#39; for a Union.</span>
+
+<span class="sd">  Union[X] is disallowed, and all type parameters will be sanity checked to</span>
+<span class="sd">  ensure compatibility with nested type-hints.</span>
+
+<span class="sd">  When comparing two Union hints, ordering is enforced before comparison.</span>
+
+<span class="sd">    * Union[int, str] == Union[str, int]</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">UnionConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">union_types</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">union_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">UnionHint</span><span class="o">.</span><span class="n">UnionConstraint</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">union_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="c1"># Sorting the type name strings simplifies unit tests.</span>
+      <span class="k">return</span> <span class="s1">&#39;Union[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_unified_repr</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                                             <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">UnionConstraint</span><span class="p">):</span>
+        <span class="c1"># A union type is compatible if every possible type is compatible.</span>
+        <span class="c1"># E.g. Union[A, B, C] &gt; Union[A, B].</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">union_types</span><span class="p">)</span>
+      <span class="c1"># Other must be compatible with at least one of this union&#39;s subtypes.</span>
+      <span class="c1"># E.g. Union[A, B, C] &gt; T if T &gt; A or T &gt; B or T &gt; C.</span>
+      <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+      <span class="n">error_msg</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+      <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">check_constraint</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">instance</span><span class="p">)</span>
+          <span class="k">return</span>
+        <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+          <span class="n">error_msg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+          <span class="k">continue</span>
+
+      <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+          <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> type-constraint violated. Expected an instance of one of: </span><span class="si">%s</span><span class="s1">, &#39;</span>
+          <span class="s1">&#39;received </span><span class="si">%s</span><span class="s1"> instead.</span><span class="si">%s</span><span class="s1">&#39;</span>
+          <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+             <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_unified_repr</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">union_types</span><span class="p">)),</span>
+             <span class="n">instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">error_msg</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_params</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span> <span class="nb">set</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Cannot create Union without a sequence of types.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Flatten nested Union&#39;s and duplicated repeated type hints.</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">type_params</span><span class="p">:</span>
+      <span class="n">validate_composite_type_param</span><span class="p">(</span>
+          <span class="n">t</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;All parameters to a Union hint&#39;</span>
+      <span class="p">)</span>
+
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">UnionConstraint</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">|=</span> <span class="n">t</span><span class="o">.</span><span class="n">union_types</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">Any</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">Any</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">UnionConstraint</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+
+<span class="n">UnionConstraint</span> <span class="o">=</span> <span class="n">UnionHint</span><span class="o">.</span><span class="n">UnionConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">OptionalHint</span><span class="p">(</span><span class="n">UnionHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An Option type-hint. Optional[X] accepts instances of X or None.</span>
+
+<span class="sd">  The Optional[X] factory function proxies to Union[X, None]</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">py_type</span><span class="p">):</span>
+    <span class="c1"># A single type must have been passed.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">py_type</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;An Option type-hint only accepts a single type &#39;</span>
+                      <span class="s1">&#39;parameter.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">Union</span><span class="p">[</span><span class="n">py_type</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">TupleHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A Tuple type-hint.</span>
+
+<span class="sd">  Tuple can accept 1 or more type-hint parameters.</span>
+
+<span class="sd">  Tuple[X, Y] represents a tuple of *exactly* two elements, with the first</span>
+<span class="sd">  being of type &#39;X&#39; and the second an instance of type &#39;Y&#39;.</span>
+
+<span class="sd">    * (1, 2) satisfies Tuple[int, int]</span>
+
+<span class="sd">  Additionally, one is able to type-hint an arbitary length, homogeneous tuple</span>
+<span class="sd">  by passing the Ellipsis (...) object as the second parameter.</span>
+
+<span class="sd">  As an example, Tuple[str, ...] indicates a tuple of any length with each</span>
+<span class="sd">  element being an instance of &#39;str&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">TupleSequenceConstraint</span><span class="p">(</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_param</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleSequenceConstraint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">type_param</span><span class="p">,</span>
+                                                              <span class="nb">tuple</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Tuple[</span><span class="si">%s</span><span class="s1">, ...]&#39;</span> <span class="o">%</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">TupleConstraint</span><span class="p">):</span>
+        <span class="c1"># E.g. Tuple[A, B] &lt; Tuple[C, ...] iff A &lt; C and B &lt; C.</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+      <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">TupleSequenceConstraint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_consistent_with_check_</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+
+  <span class="k">class</span> <span class="nc">TupleConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_params</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">type_params</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Tuple[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_unified_repr</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                                      <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub_elem</span><span class="p">,</span> <span class="n">elem</span><span class="p">)</span>
+                      <span class="k">for</span> <span class="n">sub_elem</span><span class="p">,</span> <span class="n">elem</span>
+                      <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tuple_instance</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tuple_instance</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s2">&quot;Tuple type constraint violated. Valid object instance must be of &quot;</span>
+            <span class="s2">&quot;type &#39;tuple&#39;. Instead, an instance of &#39;</span><span class="si">%s</span><span class="s2">&#39; was received.&quot;</span>
+            <span class="o">%</span> <span class="n">tuple_instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tuple_instance</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;Passed object instance is of the proper type, but differs in &#39;</span>
+            <span class="s1">&#39;length from the hinted type. Expected a tuple of length </span><span class="si">%s</span><span class="s1">, &#39;</span>
+            <span class="s1">&#39;received a tuple of length </span><span class="si">%s</span><span class="s1">.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">tuple_instance</span><span class="p">)))</span>
+
+      <span class="k">for</span> <span class="n">type_pos</span><span class="p">,</span> <span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">actual</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">,</span>
+                                                        <span class="n">tuple_instance</span><span class="p">)):</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">check_constraint</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">actual</span><span class="p">)</span>
+          <span class="k">continue</span>
+        <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+              <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. The type of element #</span><span class="si">%s</span><span class="s1"> in &#39;</span>
+              <span class="s1">&#39;the passed tuple is incorrect. Expected an instance of &#39;</span>
+              <span class="s1">&#39;type </span><span class="si">%s</span><span class="s1">, instead received an instance of type </span><span class="si">%s</span><span class="s1">.&#39;</span>
+              <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">type_pos</span><span class="p">,</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="n">expected</span><span class="p">),</span>
+                 <span class="n">actual</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+              <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. The type of element #</span><span class="si">%s</span><span class="s1"> in &#39;</span>
+              <span class="s1">&#39;the passed tuple is incorrect. </span><span class="si">%s</span><span class="s1">&#39;</span>
+              <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">type_pos</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concrete_type</span><span class="p">):</span>
+      <span class="n">bindings</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">concrete_type</span><span class="p">,</span> <span class="n">TupleConstraint</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">,</span> <span class="n">concrete_type</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">):</span>
+          <span class="n">bindings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">match_type_variables</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">bindings</span>
+
+    <span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bindings</span><span class="p">):</span>
+      <span class="n">bound_tuple_types</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+          <span class="n">bind_type_variables</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">bindings</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">bound_tuple_types</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span>
+      <span class="k">return</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">bound_tuple_types</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_params</span><span class="p">):</span>
+    <span class="n">ellipsis</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+      <span class="c1"># Special case for hinting tuples with arity-1.</span>
+      <span class="n">type_params</span> <span class="o">=</span> <span class="p">(</span><span class="n">type_params</span><span class="p">,)</span>
+
+    <span class="k">if</span> <span class="n">type_params</span> <span class="ow">and</span> <span class="n">type_params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="bp">Ellipsis</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">type_params</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Ellipsis can only be used to type-hint an arbitrary &#39;</span>
+                        <span class="s1">&#39;length tuple of containing a single type: &#39;</span>
+                        <span class="s1">&#39;Tuple[A, ...].&#39;</span><span class="p">)</span>
+      <span class="c1"># Tuple[A, ...] indicates an arbitary length homogeneous tuple.</span>
+      <span class="n">type_params</span> <span class="o">=</span> <span class="n">type_params</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">ellipsis</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">type_params</span><span class="p">:</span>
+      <span class="n">validate_composite_type_param</span><span class="p">(</span>
+          <span class="n">t</span><span class="p">,</span>
+          <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;All parameters to a Tuple hint&#39;</span>
+      <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ellipsis</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">TupleSequenceConstraint</span><span class="p">(</span><span class="n">type_params</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">(</span><span class="n">type_params</span><span class="p">)</span>
+
+
+<span class="n">TupleConstraint</span> <span class="o">=</span> <span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span>
+<span class="n">TupleSequenceConstraint</span> <span class="o">=</span> <span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleSequenceConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">ListHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A List type-hint.</span>
+
+<span class="sd">  List[X] represents an instance of a list populated by a single homogeneous</span>
+<span class="sd">  type. The parameterized type &#39;X&#39; can either be a built-in Python type or an</span>
+<span class="sd">  instance of another TypeConstraint.</span>
+
+<span class="sd">    * [&#39;1&#39;, &#39;2&#39;, &#39;3&#39;] satisfies List[str]</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">ListConstraint</span><span class="p">(</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span>  <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_type</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">ListHint</span><span class="o">.</span><span class="n">ListConstraint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">list_type</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;List[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Parameter to List hint&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListConstraint</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+
+<span class="n">ListConstraint</span> <span class="o">=</span> <span class="n">ListHint</span><span class="o">.</span><span class="n">ListConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">KVHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A KV type-hint, represents a Key-Value pair of a particular type.</span>
+
+<span class="sd">  Internally, KV[X, Y] proxies to Tuple[X, Y]. A KV type-hint accepts only</span>
+<span class="sd">  accepts exactly two type-parameters. The first represents the required</span>
+<span class="sd">  key-type and the second the required value-type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_params</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Parameter to KV type-hint must be a tuple of types: &#39;</span>
+                      <span class="s1">&#39;KV[.., ..].&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">type_params</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s1">&#39;Length of parameters to a KV type-hint must be exactly 2. Passed &#39;</span>
+          <span class="s1">&#39;parameters: </span><span class="si">%s</span><span class="s1">, have a length of </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">type_params</span><span class="p">))</span>
+      <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">type_params</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">key_value_types</span><span class="p">(</span><span class="n">kv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the key and value type of a KV type-hint.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    kv: An instance of a TypeConstraint sub-class.</span>
+<span class="sd">  Returns:</span>
+<span class="sd">    A tuple: (key_type, value_type) if the passed type-hint is an instance of a</span>
+<span class="sd">    KV type-hint, and (Any, Any) otherwise.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kv</span><span class="p">,</span> <span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">kv</span><span class="o">.</span><span class="n">tuple_types</span>
+  <span class="k">return</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Any</span>
+
+
+<span class="k">class</span> <span class="nc">DictHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A Dict type-hint.</span>
+
+<span class="sd">  Dict[K, V] Represents a dictionary where all keys are of a particular type</span>
+<span class="sd">  and all values are of another (possible the same) type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">DictConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_type</span><span class="p">,</span> <span class="n">value_type</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span> <span class="o">=</span> <span class="n">key_type</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span> <span class="o">=</span> <span class="n">value_type</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Dict[</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">),</span>
+                               <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">key_type</span>
+              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">value_type</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_raise_hint_exception_or_inner_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_key</span><span class="p">,</span>
+                                                 <span class="n">incorrect_instance</span><span class="p">,</span>
+                                                 <span class="n">inner_error_message</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+      <span class="n">incorrect_type</span> <span class="o">=</span> <span class="s1">&#39;values&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_key</span> <span class="k">else</span> <span class="s1">&#39;keys&#39;</span>
+      <span class="n">hinted_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">is_key</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span>
+      <span class="k">if</span> <span class="n">inner_error_message</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint </span><span class="si">%s</span><span class="s1">-type constraint violated. All </span><span class="si">%s</span><span class="s1"> should be of type &#39;</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">. Instead: </span><span class="si">%s</span><span class="s1">&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">incorrect_type</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">incorrect_type</span><span class="p">,</span>
+               <span class="n">_unified_repr</span><span class="p">(</span><span class="n">hinted_type</span><span class="p">),</span> <span class="n">inner_error_message</span><span class="p">)</span>
+        <span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint </span><span class="si">%s</span><span class="s1">-type constraint violated. All </span><span class="si">%s</span><span class="s1"> should be of &#39;</span>
+            <span class="s1">&#39;type </span><span class="si">%s</span><span class="s1">. Instead, </span><span class="si">%s</span><span class="s1"> is of type </span><span class="si">%s</span><span class="s1">.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">incorrect_type</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">incorrect_type</span><span class="p">,</span>
+               <span class="n">_unified_repr</span><span class="p">(</span><span class="n">hinted_type</span><span class="p">),</span>
+               <span class="n">incorrect_instance</span><span class="p">,</span> <span class="n">incorrect_instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dict_instance</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dict_instance</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;Dict type-constraint violated. All passed instances must be of &#39;</span>
+            <span class="s1">&#39;type dict. </span><span class="si">%s</span><span class="s1"> is of type </span><span class="si">%s</span><span class="s1">.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">dict_instance</span><span class="p">,</span> <span class="n">dict_instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+      <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dict_instance</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">check_constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_raise_hint_exception_or_inner_exception</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_raise_hint_exception_or_inner_exception</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">check_constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_raise_hint_exception_or_inner_exception</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_raise_hint_exception_or_inner_exception</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concrete_type</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">concrete_type</span><span class="p">,</span> <span class="n">DictConstraint</span><span class="p">):</span>
+        <span class="n">bindings</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">bindings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="n">concrete_type</span><span class="o">.</span><span class="n">key_type</span><span class="p">))</span>
+        <span class="n">bindings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">match_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">,</span> <span class="n">concrete_type</span><span class="o">.</span><span class="n">value_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">bindings</span>
+      <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bindings</span><span class="p">):</span>
+      <span class="n">bound_key_type</span> <span class="o">=</span> <span class="n">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">,</span> <span class="n">bindings</span><span class="p">)</span>
+      <span class="n">bound_value_type</span> <span class="o">=</span> <span class="n">bind_type_variables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">,</span> <span class="n">bindings</span><span class="p">)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">bound_key_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_type</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">bound_value_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+      <span class="k">return</span> <span class="n">Dict</span><span class="p">[</span><span class="n">bound_key_type</span><span class="p">,</span> <span class="n">bound_value_type</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_params</span><span class="p">):</span>
+    <span class="c1"># Type param must be a (k, v) pair.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Parameter to Dict type-hint must be a tuple of types: &#39;</span>
+                      <span class="s1">&#39;Dict[.., ..].&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">type_params</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s1">&#39;Length of parameters to a Dict type-hint must be exactly 2. Passed &#39;</span>
+          <span class="s1">&#39;parameters: </span><span class="si">%s</span><span class="s1">, have a length of </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="n">type_params</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">type_params</span><span class="p">))</span>
+      <span class="p">)</span>
+
+    <span class="n">key_type</span><span class="p">,</span> <span class="n">value_type</span> <span class="o">=</span> <span class="n">type_params</span>
+
+    <span class="n">validate_composite_type_param</span><span class="p">(</span>
+        <span class="n">key_type</span><span class="p">,</span>
+        <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Key-type parameter to a Dict hint&#39;</span>
+    <span class="p">)</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span>
+        <span class="n">value_type</span><span class="p">,</span>
+        <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Value-type parameter to a Dict hint&#39;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">DictConstraint</span><span class="p">(</span><span class="n">key_type</span><span class="p">,</span> <span class="n">value_type</span><span class="p">)</span>
+
+
+<span class="n">DictConstraint</span> <span class="o">=</span> <span class="n">DictHint</span><span class="o">.</span><span class="n">DictConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">SetHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A Set type-hint.</span>
+
+
+<span class="sd">  Set[X] defines a type-hint for a set of homogeneous types. &#39;X&#39; may be either a</span>
+<span class="sd">  built-in Python type or a another nested TypeConstraint.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">SetTypeConstraint</span><span class="p">(</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_param</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">SetHint</span><span class="o">.</span><span class="n">SetTypeConstraint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">type_param</span><span class="p">,</span> <span class="nb">set</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Set[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_param</span><span class="p">):</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span>
+        <span class="n">type_param</span><span class="p">,</span>
+        <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Parameter to a Set hint&#39;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">SetTypeConstraint</span><span class="p">(</span><span class="n">type_param</span><span class="p">)</span>
+
+
+<span class="n">SetTypeConstraint</span> <span class="o">=</span> <span class="n">SetHint</span><span class="o">.</span><span class="n">SetTypeConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">IterableHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An Iterable type-hint.</span>
+
+<span class="sd">  Iterable[X] defines a type-hint for an object implementing an &#39;__iter__&#39;</span>
+<span class="sd">  method which yields objects which are all of the same type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">IterableTypeConstraint</span><span class="p">(</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iter_type</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">IterableHint</span><span class="o">.</span><span class="n">IterableTypeConstraint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+          <span class="n">iter_type</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Iterable[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">TupleConstraint</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sub</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">:</span>
+          <span class="c1"># The empty tuple is consistent with Iterator[T] for any T.</span>
+          <span class="k">return</span> <span class="kc">True</span>
+        <span class="c1"># Each element in the hetrogenious tuple must be consistent with</span>
+        <span class="c1"># the iterator type.</span>
+        <span class="c1"># E.g. Tuple[A, B] &lt; Iterable[C] if A &lt; C and B &lt; C.</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_param</span><span class="p">):</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span>
+        <span class="n">type_param</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Parameter to an Iterable hint&#39;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">IterableTypeConstraint</span><span class="p">(</span><span class="n">type_param</span><span class="p">)</span>
+
+
+<span class="n">IterableTypeConstraint</span> <span class="o">=</span> <span class="n">IterableHint</span><span class="o">.</span><span class="n">IterableTypeConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">IteratorHint</span><span class="p">(</span><span class="n">CompositeTypeHint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An Iterator type-hint.</span>
+
+<span class="sd">  Iterator[X] defines a type-hint for an object implementing both &#39;__iter__&#39;</span>
+<span class="sd">  and a &#39;next&#39; method which yields objects which are all of the same type. Type</span>
+<span class="sd">  checking a type-hint of this type is deferred in order to avoid depleting the</span>
+<span class="sd">  underlying lazily generated sequence. See decorators.interleave_type_check for</span>
+<span class="sd">  further information.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">IteratorTypeConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span> <span class="o">=</span> <span class="n">t</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;Iterator[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span>
+
+    <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+              <span class="ow">and</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">yielded_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+      <span class="c1"># Special case for lazy types, we only need to enforce the underlying</span>
+      <span class="c1"># type. This avoid having to compute the entirety of the generator/iter.</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">check_constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span><span class="p">,</span> <span class="n">instance</span><span class="p">)</span>
+        <span class="k">return</span>
+      <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)))</span>
+      <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. Expected a iterator of type </span><span class="si">%s</span><span class="s1">. &#39;</span>
+            <span class="s1">&#39;Instead received a iterator of type </span><span class="si">%s</span><span class="s1">.&#39;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yielded_type</span><span class="p">),</span>
+               <span class="n">instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_param</span><span class="p">):</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span>
+        <span class="n">type_param</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;Parameter to an Iterator hint&#39;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">IteratorTypeConstraint</span><span class="p">(</span><span class="n">type_param</span><span class="p">)</span>
+
+
+<span class="n">IteratorTypeConstraint</span> <span class="o">=</span> <span class="n">IteratorHint</span><span class="o">.</span><span class="n">IteratorTypeConstraint</span>
+
+
+<span class="k">class</span> <span class="nc">WindowedTypeConstraint</span><span class="p">(</span><span class="n">TypeConstraint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A type constraint for WindowedValue objects.</span>
+
+<span class="sd">  Mostly for internal use.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    inner_type: The type which the element should be an instance of.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">GetitemConstructor</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inner_type</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span> <span class="o">=</span> <span class="n">inner_type</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">WindowedTypeConstraint</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">)</span> <span class="o">^</span> <span class="mi">13</span> <span class="o">*</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_inner_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span>
+
+  <span class="k">def</span> <span class="nf">_consistent_with_check_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+          <span class="s2">&quot;Window type-constraint violated. Valid object instance &quot;</span>
+          <span class="s2">&quot;must be of type &#39;WindowedValue&#39;. Instead, an instance of &#39;</span><span class="si">%s</span><span class="s2">&#39; &quot;</span>
+          <span class="s2">&quot;was received.&quot;</span>
+          <span class="o">%</span> <span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">check_constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">,</span> <span class="n">instance</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">CompositeTypeHintError</span><span class="p">,</span> <span class="n">SimpleTypeHintError</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">CompositeTypeHintError</span><span class="p">(</span>
+          <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> hint type-constraint violated. The type of element in &#39;</span>
+          <span class="s1">&#39;is incorrect. Expected an instance of type </span><span class="si">%s</span><span class="s1">, &#39;</span>
+          <span class="s1">&#39;instead received an instance of type </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="n">_unified_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_type</span><span class="p">),</span>
+           <span class="n">instance</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">GeneratorHint</span><span class="p">(</span><span class="n">IteratorHint</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+
+<span class="c1"># Create the actual instances for all defined type-hints above.</span>
+<span class="n">Any</span> <span class="o">=</span> <span class="n">AnyTypeConstraint</span><span class="p">()</span>
+<span class="n">Union</span> <span class="o">=</span> <span class="n">UnionHint</span><span class="p">()</span>
+<span class="n">Optional</span> <span class="o">=</span> <span class="n">OptionalHint</span><span class="p">()</span>
+<span class="n">Tuple</span> <span class="o">=</span> <span class="n">TupleHint</span><span class="p">()</span>
+<span class="n">List</span> <span class="o">=</span> <span class="n">ListHint</span><span class="p">()</span>
+<span class="n">KV</span> <span class="o">=</span> <span class="n">KVHint</span><span class="p">()</span>
+<span class="n">Dict</span> <span class="o">=</span> <span class="n">DictHint</span><span class="p">()</span>
+<span class="n">Set</span> <span class="o">=</span> <span class="n">SetHint</span><span class="p">()</span>
+<span class="n">Iterable</span> <span class="o">=</span> <span class="n">IterableHint</span><span class="p">()</span>
+<span class="n">Iterator</span> <span class="o">=</span> <span class="n">IteratorHint</span><span class="p">()</span>
+<span class="n">Generator</span> <span class="o">=</span> <span class="n">GeneratorHint</span><span class="p">()</span>
+<span class="n">WindowedValue</span> <span class="o">=</span> <span class="n">WindowedTypeConstraint</span>
+
+
+<span class="n">_KNOWN_PRIMITIVE_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nb">dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="nb">list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="nb">tuple</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="nb">set</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="c1"># Using None for the NoneType is a common convention.</span>
+    <span class="kc">None</span><span class="p">:</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_KNOWN_PRIMITIVE_TYPES</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">_KNOWN_PRIMITIVE_TYPES</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+  <span class="k">return</span> <span class="n">x</span>
+
+
+<span class="k">def</span> <span class="nf">is_consistent_with</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns whether the type a is consistent with b.</span>
+
+<span class="sd">  This is accordig to the terminology of PEP 483/484.  This relationship is</span>
+<span class="sd">  neither symmetric nor transitive, but a good mnemonic to keep in mind is that</span>
+<span class="sd">  is_consistent_with(a, b) is roughly equivalent to the issubclass(a, b)</span>
+<span class="sd">  relation, but also handles the special Any type as well as type</span>
+<span class="sd">  parameterization.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">sub</span> <span class="o">==</span> <span class="n">base</span><span class="p">:</span>
+    <span class="c1"># Common special case.</span>
+    <span class="k">return</span> <span class="kc">True</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">AnyTypeConstraint</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">AnyTypeConstraint</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">True</span>
+  <span class="n">sub</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+  <span class="n">base</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">UnionConstraint</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">union_types</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">base</span><span class="o">.</span><span class="n">_consistent_with_check_</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">TypeConstraint</span><span class="p">):</span>
+    <span class="c1"># Nothing but object lives above any type constraints.</span>
+    <span class="k">return</span> <span class="n">base</span> <span class="o">==</span> <span class="nb">object</span>
+  <span class="k">return</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

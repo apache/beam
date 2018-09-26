@@ -1,0 +1,7 @@
+apache\_beam\.testing\.synthetic\_pipeline module
+=================================================
+
+.. automodule:: apache_beam.testing.synthetic_pipeline
+    :members:
+    :undoc-members:
+    :show-inheritance:

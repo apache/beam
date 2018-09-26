@@ -1,0 +1,7 @@
+apache\_beam\.tools\.sideinput\_microbenchmark module
+=====================================================
+
+.. automodule:: apache_beam.tools.sideinput_microbenchmark
+    :members:
+    :undoc-members:
+    :show-inheritance:

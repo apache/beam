@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.datastore.v1.query_splitter &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.datastore.v1.query_splitter</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Implements a Cloud Datastore query splitter.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1</span> <span class="k">import</span> <span class="n">helper</span>
+
+<span class="c1"># Protect against environments where datastore library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">query_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1.query_pb2</span> <span class="k">import</span> <span class="n">PropertyFilter</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1.query_pb2</span> <span class="k">import</span> <span class="n">CompositeFilter</span>
+  <span class="kn">from</span> <span class="nn">googledatastore</span> <span class="k">import</span> <span class="n">helper</span> <span class="k">as</span> <span class="n">datastore_helper</span>
+  <span class="n">UNSUPPORTED_OPERATORS</span> <span class="o">=</span> <span class="p">[</span><span class="n">PropertyFilter</span><span class="o">.</span><span class="n">LESS_THAN</span><span class="p">,</span>
+                           <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">LESS_THAN_OR_EQUAL</span><span class="p">,</span>
+                           <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">GREATER_THAN</span><span class="p">,</span>
+                           <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">GREATER_THAN_OR_EQUAL</span><span class="p">]</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">UNSUPPORTED_OPERATORS</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;get_splits&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">SCATTER_PROPERTY_NAME</span> <span class="o">=</span> <span class="s1">&#39;__scatter__&#39;</span>
+<span class="n">KEY_PROPERTY_NAME</span> <span class="o">=</span> <span class="s1">&#39;__key__&#39;</span>
+<span class="c1"># The number of keys to sample for each split.</span>
+<span class="n">KEYS_PER_SPLIT</span> <span class="o">=</span> <span class="mi">32</span>
+
+
+<div class="viewcode-block" id="get_splits"><a class="viewcode-back" href="../../../../../../apache_beam.io.gcp.datastore.v1.html#apache_beam.io.gcp.datastore.v1.query_splitter.get_splits">[docs]</a><span class="k">def</span> <span class="nf">get_splits</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">partition</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns a list of sharded queries for the given Cloud Datastore query.</span>
+
+<span class="sd">  This will create up to the desired number of splits, however it may return</span>
+<span class="sd">  less splits if the desired number of splits is unavailable. This will happen</span>
+<span class="sd">  if the number of split points provided by the underlying Datastore is less</span>
+<span class="sd">  than the desired number, which will occur if the number of results for the</span>
+<span class="sd">  query is too small.</span>
+
+<span class="sd">  This implementation of the QuerySplitter uses the __scatter__ property to</span>
+<span class="sd">  gather random split points for a query.</span>
+
+<span class="sd">  Note: This implementation is derived from the java query splitter in</span>
+<span class="sd">  https://github.com/GoogleCloudPlatform/google-cloud-datastore/blob/master/java/datastore/src/main/java/com/google/datastore/v1/client/QuerySplitterImpl.java</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    datastore: the datastore client.</span>
+<span class="sd">    query: the query to split.</span>
+<span class="sd">    num_splits: the desired number of splits.</span>
+<span class="sd">    partition: the partition the query is running in.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list of split queries, of a max length of `num_splits`</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Validate that the number of splits is not out of bounds.</span>
+  <span class="k">if</span> <span class="n">num_splits</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The number of splits must be greater than 0.&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">num_splits</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">query</span><span class="p">]</span>
+
+  <span class="n">_validate_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+  <span class="n">splits</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">scatter_keys</span> <span class="o">=</span> <span class="n">_get_scatter_keys</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">partition</span><span class="p">)</span>
+  <span class="n">last_key</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="k">for</span> <span class="n">next_key</span> <span class="ow">in</span> <span class="n">_get_split_key</span><span class="p">(</span><span class="n">scatter_keys</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+    <span class="n">splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_create_split</span><span class="p">(</span><span class="n">last_key</span><span class="p">,</span> <span class="n">next_key</span><span class="p">,</span> <span class="n">query</span><span class="p">))</span>
+    <span class="n">last_key</span> <span class="o">=</span> <span class="n">next_key</span>
+
+  <span class="n">splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_create_split</span><span class="p">(</span><span class="n">last_key</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">splits</span></div>
+
+
+<span class="k">def</span> <span class="nf">_validate_query</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Verifies that the given query can be properly scattered.&quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Query must have exactly one kind.&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">order</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Query cannot have any sort orders.&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;limit&#39;</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Query cannot have a limit set.&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">offset</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Query cannot have an offset set.&#39;</span><span class="p">)</span>
+
+  <span class="n">_validate_filter</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_validate_filter</span><span class="p">(</span><span class="nb">filter</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Validates that we only have allowable filters.</span>
+
+<span class="sd">  Note that equality and ancestor filters are allowed, however they may result</span>
+<span class="sd">  in inefficient sharding.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="nb">filter</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;composite_filter&#39;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">sub_filter</span> <span class="ow">in</span> <span class="nb">filter</span><span class="o">.</span><span class="n">composite_filter</span><span class="o">.</span><span class="n">filters</span><span class="p">:</span>
+      <span class="n">_validate_filter</span><span class="p">(</span><span class="n">sub_filter</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">filter</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;property_filter&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">filter</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">op</span> <span class="ow">in</span> <span class="n">UNSUPPORTED_OPERATORS</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Query cannot have any inequality filters.&#39;</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">_create_scatter_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creates a scatter query from the given user query.&quot;&quot;&quot;</span>
+
+  <span class="n">scatter_query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+  <span class="k">for</span> <span class="n">kind</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="p">:</span>
+    <span class="n">scatter_kind</span> <span class="o">=</span> <span class="n">scatter_query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">scatter_kind</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span>
+
+  <span class="c1"># ascending order</span>
+  <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_property_orders</span><span class="p">(</span><span class="n">scatter_query</span><span class="p">,</span> <span class="n">SCATTER_PROPERTY_NAME</span><span class="p">)</span>
+
+  <span class="c1"># There is a split containing entities before and after each scatter entity:</span>
+  <span class="c1"># ||---*------*------*------*------*------*------*---||  * = scatter entity</span>
+  <span class="c1"># If we represent each split as a region before a scatter entity, there is an</span>
+  <span class="c1"># extra region following the last scatter point. Thus, we do not need the</span>
+  <span class="c1"># scatter entity for the last region.</span>
+  <span class="n">scatter_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_splits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">KEYS_PER_SPLIT</span>
+  <span class="n">datastore_helper</span><span class="o">.</span><span class="n">add_projection</span><span class="p">(</span><span class="n">scatter_query</span><span class="p">,</span> <span class="n">KEY_PROPERTY_NAME</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">scatter_query</span>
+
+
+<span class="k">def</span> <span class="nf">_get_scatter_keys</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">,</span> <span class="n">partition</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Gets a list of split keys given a desired number of splits.</span>
+
+<span class="sd">  This list will contain multiple split keys for each split. Only a single split</span>
+<span class="sd">  key will be chosen as the split point, however providing multiple keys allows</span>
+<span class="sd">  for more uniform sharding.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    numSplits: the number of desired splits.</span>
+<span class="sd">    query: the user query.</span>
+<span class="sd">    partition: the partition to run the query in.</span>
+<span class="sd">    datastore: the client to datastore containing the data.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list of scatter keys returned by Datastore.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">scatter_point_query</span> <span class="o">=</span> <span class="n">_create_scatter_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)</span>
+
+  <span class="n">key_splits</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="n">datastore_pb2</span><span class="o">.</span><span class="n">RunQueryRequest</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">partition</span><span class="p">:</span>
+      <span class="n">req</span><span class="o">.</span><span class="n">partition_id</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">partition</span><span class="p">)</span>
+
+    <span class="n">req</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">scatter_point_query</span><span class="p">)</span>
+
+    <span class="n">resp</span> <span class="o">=</span> <span class="n">datastore</span><span class="o">.</span><span class="n">run_query</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">entity_result</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">:</span>
+      <span class="n">key_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entity_result</span><span class="o">.</span><span class="n">entity</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">more_results</span> <span class="o">!=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">QueryResultBatch</span><span class="o">.</span><span class="n">NOT_FINISHED</span><span class="p">:</span>
+      <span class="k">break</span>
+
+    <span class="n">scatter_point_query</span><span class="o">.</span><span class="n">start_cursor</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">end_cursor</span>
+    <span class="n">scatter_point_query</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">value</span> <span class="o">-=</span> <span class="nb">len</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">entity_results</span><span class="p">)</span>
+
+  <span class="n">key_splits</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">helper</span><span class="o">.</span><span class="n">key_comparator</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">key_splits</span>
+
+
+<span class="k">def</span> <span class="nf">_get_split_key</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Given a list of keys and a number of splits find the keys to split on.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    keys: the list of keys.</span>
+<span class="sd">    num_splits: the number of splits.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list of keys to split on.</span>
+
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># If the number of keys is less than the number of splits, we are limited</span>
+  <span class="c1"># in the number of splits we can make.</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">keys</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">num_splits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)):</span>
+    <span class="k">return</span> <span class="n">keys</span>
+
+  <span class="c1"># Calculate the number of keys per split. This should be KEYS_PER_SPLIT,</span>
+  <span class="c1"># but may be less if there are not KEYS_PER_SPLIT * (numSplits - 1) scatter</span>
+  <span class="c1"># entities.</span>
+  <span class="c1">#</span>
+  <span class="c1"># Consider the following dataset, where - represents an entity and</span>
+  <span class="c1"># * represents an entity that is returned as a scatter entity:</span>
+  <span class="c1"># ||---*-----*----*-----*-----*------*----*----||</span>
+  <span class="c1"># If we want 4 splits in this data, the optimal split would look like:</span>
+  <span class="c1"># ||---*-----*----*-----*-----*------*----*----||</span>
+  <span class="c1">#            |          |            |</span>
+  <span class="c1"># The scatter keys in the last region are not useful to us, so we never</span>
+  <span class="c1"># request them:</span>
+  <span class="c1"># ||---*-----*----*-----*-----*------*---------||</span>
+  <span class="c1">#            |          |            |</span>
+  <span class="c1"># With 6 scatter keys we want to set scatter points at indexes: 1, 3, 5.</span>
+  <span class="c1">#</span>
+  <span class="c1"># We keep this as a float so that any &quot;fractional&quot; keys per split get</span>
+  <span class="c1"># distributed throughout the splits and don&#39;t make the last split</span>
+  <span class="c1"># significantly larger than the rest.</span>
+
+  <span class="n">num_keys_per_split</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_splits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+
+  <span class="n">split_keys</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="c1"># Grab the last sample for each split, otherwise the first split will be too</span>
+  <span class="c1"># small.</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">):</span>
+    <span class="n">split_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">num_keys_per_split</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">split_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">split_index</span><span class="p">])</span>
+
+  <span class="k">return</span> <span class="n">split_keys</span>
+
+
+<span class="k">def</span> <span class="nf">_create_split</span><span class="p">(</span><span class="n">last_key</span><span class="p">,</span> <span class="n">next_key</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Create a new {@link Query} given the query and range..</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    last_key: the previous key. If null then assumed to be the beginning.</span>
+<span class="sd">    next_key: the next key. If null then assumed to be the end.</span>
+<span class="sd">    query: the desired query.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A split query with fetches entities in the range [last_key, next_key)</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">last_key</span> <span class="ow">or</span> <span class="n">next_key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">query</span>
+
+  <span class="n">split_query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+  <span class="n">split_query</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+  <span class="n">composite_filter</span> <span class="o">=</span> <span class="n">split_query</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">composite_filter</span>
+  <span class="n">composite_filter</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">CompositeFilter</span><span class="o">.</span><span class="n">AND</span>
+
+  <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;filter&#39;</span><span class="p">):</span>
+    <span class="n">composite_filter</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">last_key</span><span class="p">:</span>
+    <span class="n">lower_bound</span> <span class="o">=</span> <span class="n">composite_filter</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">lower_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">property</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">KEY_PROPERTY_NAME</span>
+    <span class="n">lower_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">GREATER_THAN_OR_EQUAL</span>
+    <span class="n">lower_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">key_value</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">last_key</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">next_key</span><span class="p">:</span>
+    <span class="n">upper_bound</span> <span class="o">=</span> <span class="n">composite_filter</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">upper_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">property</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">KEY_PROPERTY_NAME</span>
+    <span class="n">upper_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">op</span> <span class="o">=</span> <span class="n">PropertyFilter</span><span class="o">.</span><span class="n">LESS_THAN</span>
+    <span class="n">upper_bound</span><span class="o">.</span><span class="n">property_filter</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">key_value</span><span class="o">.</span><span class="n">CopyFrom</span><span class="p">(</span><span class="n">next_key</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">split_query</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

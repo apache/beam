@@ -1,0 +1,7 @@
+apache\_beam\.tools\.coders\_microbenchmark module
+==================================================
+
+.. automodule:: apache_beam.tools.coders_microbenchmark
+    :members:
+    :undoc-members:
+    :show-inheritance:

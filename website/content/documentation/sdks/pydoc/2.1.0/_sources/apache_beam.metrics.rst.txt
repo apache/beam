@@ -1,0 +1,46 @@
+apache\_beam\.metrics package
+=============================
+
+Submodules
+----------
+
+apache\_beam\.metrics\.cells module
+-----------------------------------
+
+.. automodule:: apache_beam.metrics.cells
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.metrics\.execution module
+---------------------------------------
+
+.. automodule:: apache_beam.metrics.execution
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.metrics\.metric module
+------------------------------------
+
+.. automodule:: apache_beam.metrics.metric
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.metrics\.metricbase module
+----------------------------------------
+
+.. automodule:: apache_beam.metrics.metricbase
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.metrics
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,410 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.testing package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.transforms package" href="apache_beam.transforms.html" />
+    <link rel="prev" title="apache_beam.runners.direct package" href="apache_beam.runners.direct.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.transforms.html" title="apache_beam.transforms package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.direct.html" title="apache_beam.runners.direct package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.testing package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing.pipeline_verifiers">apache_beam.testing.pipeline_verifiers module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing.test_pipeline">apache_beam.testing.test_pipeline module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing.test_stream">apache_beam.testing.test_stream module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing.test_utils">apache_beam.testing.test_utils module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing.util">apache_beam.testing.util module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.testing">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.direct.html"
+                        title="previous chapter">apache_beam.runners.direct package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.transforms.html"
+                        title="next chapter">apache_beam.transforms package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.testing.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-testing-package">
+<h1>apache_beam.testing package<a class="headerlink" href="#apache-beam-testing-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.testing.pipeline_verifiers">
+<span id="apache-beam-testing-pipeline-verifiers-module"></span><h2>apache_beam.testing.pipeline_verifiers module<a class="headerlink" href="#module-apache_beam.testing.pipeline_verifiers" title="Permalink to this headline">¶</a></h2>
+<p>End-to-end test result verifiers</p>
+<p>A set of verifiers that are used in end-to-end tests to verify state/output
+of test pipeline job. Customized verifier should extend
+<cite>hamcrest.core.base_matcher.BaseMatcher</cite> and override _matches.</p>
+<dl class="class">
+<dt id="apache_beam.testing.pipeline_verifiers.PipelineStateMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.pipeline_verifiers.</code><code class="descname">PipelineStateMatcher</code><span class="sig-paren">(</span><em>expected_state='DONE'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#PipelineStateMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.PipelineStateMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+<p>Matcher that verify pipeline job terminated in expected state</p>
+<p>Matcher compares the actual pipeline terminate state with expected.
+By default, <cite>PipelineState.DONE</cite> is used as expected state.</p>
+<dl class="method">
+<dt id="apache_beam.testing.pipeline_verifiers.PipelineStateMatcher.describe_mismatch">
+<code class="descname">describe_mismatch</code><span class="sig-paren">(</span><em>pipeline_result</em>, <em>mismatch_description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#PipelineStateMatcher.describe_mismatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.PipelineStateMatcher.describe_mismatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.pipeline_verifiers.PipelineStateMatcher.describe_to">
+<code class="descname">describe_to</code><span class="sig-paren">(</span><em>description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#PipelineStateMatcher.describe_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.PipelineStateMatcher.describe_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.testing.pipeline_verifiers.FileChecksumMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.pipeline_verifiers.</code><code class="descname">FileChecksumMatcher</code><span class="sig-paren">(</span><em>file_path</em>, <em>expected_checksum</em>, <em>sleep_secs=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#FileChecksumMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.FileChecksumMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+<p>Matcher that verifies file(s) content by comparing file checksum.</p>
+<p>Use apache_beam.io.filebasedsink to fetch file(s) from given path.
+File checksum is a hash string computed from content of file(s).</p>
+<dl class="method">
+<dt id="apache_beam.testing.pipeline_verifiers.FileChecksumMatcher.describe_mismatch">
+<code class="descname">describe_mismatch</code><span class="sig-paren">(</span><em>pipeline_result</em>, <em>mismatch_description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#FileChecksumMatcher.describe_mismatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.FileChecksumMatcher.describe_mismatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.pipeline_verifiers.FileChecksumMatcher.describe_to">
+<code class="descname">describe_to</code><span class="sig-paren">(</span><em>description</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#FileChecksumMatcher.describe_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.FileChecksumMatcher.describe_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.testing.pipeline_verifiers.retry_on_io_error_and_server_error">
+<code class="descclassname">apache_beam.testing.pipeline_verifiers.</code><code class="descname">retry_on_io_error_and_server_error</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/pipeline_verifiers.html#retry_on_io_error_and_server_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.pipeline_verifiers.retry_on_io_error_and_server_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter allowing retries on file I/O errors and service error.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.testing.test_pipeline">
+<span id="apache-beam-testing-test-pipeline-module"></span><h2>apache_beam.testing.test_pipeline module<a class="headerlink" href="#module-apache_beam.testing.test_pipeline" title="Permalink to this headline">¶</a></h2>
+<p>Test Pipeline, a wrapper of Pipeline for test purpose</p>
+<dl class="class">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_pipeline.</code><code class="descname">TestPipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em>, <em>is_integration_test=False</em>, <em>blocking=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.html#apache_beam.pipeline.Pipeline" title="apache_beam.pipeline.Pipeline"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.Pipeline</span></code></a></p>
+<p>TestPipeline class is used inside of Beam tests that can be configured to
+run against pipeline runner.</p>
+<p>It has a functionality to parse arguments from command line and build pipeline
+options for tests who runs against a pipeline runner and utilizes resources
+of the pipeline runner. Those test functions are recommended to be tagged by
+&#64;attr(&#8220;ValidatesRunner&#8221;) annotation.</p>
+<p>In order to configure the test with customized pipeline options from command
+line, system argument &#8216;test-pipeline-options&#8217; can be used to obtains a list
+of pipeline options. If no options specified, default value will be used.</p>
+<p>For example, use following command line to execute all ValidatesRunner tests:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">nosetests</span> <span class="o">-</span><span class="n">a</span> <span class="n">ValidatesRunner</span>         <span class="o">--</span><span class="n">test</span><span class="o">-</span><span class="n">pipeline</span><span class="o">-</span><span class="n">options</span><span class="o">=</span><span class="s2">&quot;--runner=DirectRunner                                  --job_name=myJobName                                  --num_workers=1&quot;</span>
+</pre></div>
+</div>
+<p>For example, use assert_that for test validation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+<span class="n">pcoll</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.get_full_options_as_args">
+<code class="descname">get_full_options_as_args</code><span class="sig-paren">(</span><em>**extra_opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.get_full_options_as_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.get_full_options_as_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get full pipeline options as an argument list.</p>
+<p>Append extra pipeline options to existing option list if provided.
+Test verifier (if contains in extra options) should be pickled before
+appending, and will be unpickled later in the TestRunner.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.get_option">
+<code class="descname">get_option</code><span class="sig-paren">(</span><em>opt_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.get_option"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.get_option" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a pipeline option value by name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>opt_name</strong> &#8211; The name of the pipeline option.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None if option is not found in existing option list which is generated
+by parsing value of argument <cite>test-pipeline-options</cite>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_pipeline.TestPipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_pipeline.html#TestPipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_pipeline.TestPipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.testing.test_stream">
+<span id="apache-beam-testing-test-stream-module"></span><h2>apache_beam.testing.test_stream module<a class="headerlink" href="#module-apache_beam.testing.test_stream" title="Permalink to this headline">¶</a></h2>
+<p>Provides TestStream for verifying streaming runner semantics.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.testing.test_stream.Event">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_stream.</code><code class="descname">Event</code><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#Event"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.Event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Test stream event to be emitted during execution of a TestStream.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.testing.test_stream.ElementEvent">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_stream.</code><code class="descname">ElementEvent</code><span class="sig-paren">(</span><em>timestamped_values</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#ElementEvent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.ElementEvent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.testing.test_stream.Event" title="apache_beam.testing.test_stream.Event"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.testing.test_stream.Event</span></code></a></p>
+<p>Element-producing test stream event.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.testing.test_stream.WatermarkEvent">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_stream.</code><code class="descname">WatermarkEvent</code><span class="sig-paren">(</span><em>new_watermark</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#WatermarkEvent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.WatermarkEvent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.testing.test_stream.Event" title="apache_beam.testing.test_stream.Event"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.testing.test_stream.Event</span></code></a></p>
+<p>Watermark-advancing test stream event.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.testing.test_stream.ProcessingTimeEvent">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_stream.</code><code class="descname">ProcessingTimeEvent</code><span class="sig-paren">(</span><em>advance_by</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#ProcessingTimeEvent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.ProcessingTimeEvent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.testing.test_stream.Event" title="apache_beam.testing.test_stream.Event"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.testing.test_stream.Event</span></code></a></p>
+<p>Processing time-advancing test stream event.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.testing.test_stream.TestStream">
+<em class="property">class </em><code class="descclassname">apache_beam.testing.test_stream.</code><code class="descname">TestStream</code><span class="sig-paren">(</span><em>coder=&lt;class 'apache_beam.coders.coders.FastPrimitivesCoder'&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Test stream that generates events on an unbounded PCollection of elements.</p>
+<p>Each event emits elements, advances the watermark or advances the processing
+time.  After all of the specified elements are emitted, ceases to produce
+output.</p>
+<dl class="method">
+<dt id="apache_beam.testing.test_stream.TestStream.add_elements">
+<code class="descname">add_elements</code><span class="sig-paren">(</span><em>elements</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream.add_elements"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream.add_elements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add elements to the TestStream.</p>
+<p>Elements added to the TestStream will be produced during pipeline execution.
+These elements can be TimestampedValue, WindowedValue or raw unwrapped
+elements that are serializable using the TestStream&#8217;s specified Coder.  When
+a TimestampedValue or a WindowedValue element is used, the timestamp of the
+TimestampedValue or WindowedValue will be the timestamp of the produced
+element; otherwise, the current watermark timestamp will be used for that
+element.  The windows of a given WindowedValue are ignored by the
+TestStream.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_stream.TestStream.advance_processing_time">
+<code class="descname">advance_processing_time</code><span class="sig-paren">(</span><em>advance_by</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream.advance_processing_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream.advance_processing_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Advance the current processing time by a given duration in seconds.</p>
+<p>The duration must be a positive second duration and should be given as an
+int, float or utils.timestamp.Duration object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_stream.TestStream.advance_watermark_to">
+<code class="descname">advance_watermark_to</code><span class="sig-paren">(</span><em>new_watermark</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream.advance_watermark_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream.advance_watermark_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Advance the watermark to a given Unix timestamp.</p>
+<p>The Unix timestamp value used must be later than the previous watermark
+value and should be given as an int, float or utils.timestamp.Timestamp
+object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_stream.TestStream.advance_watermark_to_infinity">
+<code class="descname">advance_watermark_to_infinity</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream.advance_watermark_to_infinity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream.advance_watermark_to_infinity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Advance the watermark to the end of time.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.testing.test_stream.TestStream.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_stream.html#TestStream.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_stream.TestStream.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.testing.test_utils">
+<span id="apache-beam-testing-test-utils-module"></span><h2>apache_beam.testing.test_utils module<a class="headerlink" href="#module-apache_beam.testing.test_utils" title="Permalink to this headline">¶</a></h2>
+<p>Utility methods for testing</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="function">
+<dt id="apache_beam.testing.test_utils.compute_hash">
+<code class="descclassname">apache_beam.testing.test_utils.</code><code class="descname">compute_hash</code><span class="sig-paren">(</span><em>content</em>, <em>hashing_alg='sha1'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_utils.html#compute_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_utils.compute_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute a hash value from a list of string.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.testing.test_utils.patch_retry">
+<code class="descclassname">apache_beam.testing.test_utils.</code><code class="descname">patch_retry</code><span class="sig-paren">(</span><em>testcase</em>, <em>module</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/test_utils.html#patch_retry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.test_utils.patch_retry" title="Permalink to this definition">¶</a></dt>
+<dd><p>A function to patch retry module to use mock clock and logger.</p>
+<p>Clock and logger that defined in retry decorator will be replaced in test
+in order to skip sleep phase when retry happens.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>testcase</strong> &#8211; An instance of unittest.TestCase that calls this function to
+patch retry module.</li>
+<li><strong>module</strong> &#8211; The module that uses retry and need to be replaced with mock
+clock and logger in test.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.testing.util">
+<span id="apache-beam-testing-util-module"></span><h2>apache_beam.testing.util module<a class="headerlink" href="#module-apache_beam.testing.util" title="Permalink to this headline">¶</a></h2>
+<p>Utilities for testing Beam pipelines.</p>
+<dl class="function">
+<dt id="apache_beam.testing.util.assert_that">
+<code class="descclassname">apache_beam.testing.util.</code><code class="descname">assert_that</code><span class="sig-paren">(</span><em>actual</em>, <em>matcher</em>, <em>label='assert_that'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/util.html#assert_that"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.util.assert_that" title="Permalink to this definition">¶</a></dt>
+<dd><p>A PTransform that checks a PCollection has an expected value.</p>
+<p>Note that assert_that should be used only for testing pipelines since the
+check relies on materializing the entire PCollection being checked.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>actual</strong> &#8211; A PCollection.</li>
+<li><strong>matcher</strong> &#8211; A matcher function taking as argument the actual value of a
+materialized PCollection. The matcher validates this actual value against
+expectations and raises BeamAssertException if they are not met.</li>
+<li><strong>label</strong> &#8211; Optional string label. This is needed in case several assert_that
+transforms are introduced in the same pipeline.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Ignored.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.testing.util.equal_to">
+<code class="descclassname">apache_beam.testing.util.</code><code class="descname">equal_to</code><span class="sig-paren">(</span><em>expected</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/util.html#equal_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.util.equal_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.testing.util.is_empty">
+<code class="descclassname">apache_beam.testing.util.</code><code class="descname">is_empty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/testing/util.html#is_empty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.testing.util.is_empty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.testing">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.testing" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.transforms.html" title="apache_beam.transforms package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.direct.html" title="apache_beam.runners.direct package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

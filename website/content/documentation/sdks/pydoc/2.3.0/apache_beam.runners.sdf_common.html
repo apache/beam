@@ -1,0 +1,371 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.sdf_common module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners package" href="apache_beam.runners.html"/>
+        <link rel="next" title="apache_beam.testing package" href="apache_beam.testing.html"/>
+        <link rel="prev" title="apache_beam.runners.runner module" href="apache_beam.runners.runner.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.pipeline_context.html">apache_beam.runners.pipeline_context module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.runner.html">apache_beam.runners.runner module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.runners.sdf_common module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.sdf_common module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.sdf_common.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.sdf_common">
+<span id="apache-beam-runners-sdf-common-module"></span><h1>apache_beam.runners.sdf_common module<a class="headerlink" href="#module-apache_beam.runners.sdf_common" title="Permalink to this headline">¶</a></h1>
+<p>This module contains Splittable DoFn logic that’s common to all runners.</p>
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.SplittableParDoOverride">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">SplittableParDoOverride</code><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplittableParDoOverride"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplittableParDoOverride" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.pipeline.html#apache_beam.pipeline.PTransformOverride" title="apache_beam.pipeline.PTransformOverride"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.PTransformOverride</span></code></a></p>
+<p>A transform override for ParDo transformss of SplittableDoFns.</p>
+<p>Replaces the ParDo transform with a SplittableParDo transform that performs
+SDF specific logic.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.SplittableParDoOverride.get_matcher">
+<code class="descname">get_matcher</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplittableParDoOverride.get_matcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplittableParDoOverride.get_matcher" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.SplittableParDoOverride.get_replacement_transform">
+<code class="descname">get_replacement_transform</code><span class="sig-paren">(</span><em>ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplittableParDoOverride.get_replacement_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplittableParDoOverride.get_replacement_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.SplittableParDo">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">SplittableParDo</code><span class="sig-paren">(</span><em>ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplittableParDo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplittableParDo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that processes a PCollection using a Splittable DoFn.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.SplittableParDo.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplittableParDo.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplittableParDo.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.ElementAndRestriction">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">ElementAndRestriction</code><span class="sig-paren">(</span><em>element</em>, <em>restriction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#ElementAndRestriction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.ElementAndRestriction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A holder for an element and a restriction.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.PairWithRestrictionFn">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">PairWithRestrictionFn</code><span class="sig-paren">(</span><em>do_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#PairWithRestrictionFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.PairWithRestrictionFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A transform that pairs each element with a restriction.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.PairWithRestrictionFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#PairWithRestrictionFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.PairWithRestrictionFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.PairWithRestrictionFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#PairWithRestrictionFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.PairWithRestrictionFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.SplitRestrictionFn">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">SplitRestrictionFn</code><span class="sig-paren">(</span><em>do_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplitRestrictionFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplitRestrictionFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A transform that perform initial splitting of Splittable DoFn inputs.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.SplitRestrictionFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplitRestrictionFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplitRestrictionFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.SplitRestrictionFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element_and_restriction</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#SplitRestrictionFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.SplitRestrictionFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.ExplodeWindowsFn">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">ExplodeWindowsFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#ExplodeWindowsFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.ExplodeWindowsFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A transform that forces the runner to explode windows.</p>
+<p>This is done to make sure that Splittable DoFn proceses an element for each of
+the windows that element belongs to.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.ExplodeWindowsFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#ExplodeWindowsFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.ExplodeWindowsFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.RandomUniqueKeyFn">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">RandomUniqueKeyFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#RandomUniqueKeyFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.RandomUniqueKeyFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A transform that assigns a unique key to each element.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.RandomUniqueKeyFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#RandomUniqueKeyFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.RandomUniqueKeyFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.sdf_common.ProcessKeyedElements">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.sdf_common.</code><code class="descname">ProcessKeyedElements</code><span class="sig-paren">(</span><em>sdf</em>, <em>element_coder</em>, <em>restriction_coder</em>, <em>windowing_strategy</em>, <em>ptransform_args</em>, <em>ptransform_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#ProcessKeyedElements"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.ProcessKeyedElements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A primitive transform that performs SplittableDoFn magic.</p>
+<p>Input to this transform should be a PCollection of keyed ElementAndRestriction
+objects.</p>
+<dl class="method">
+<dt id="apache_beam.runners.sdf_common.ProcessKeyedElements.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/sdf_common.html#ProcessKeyedElements.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.sdf_common.ProcessKeyedElements.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.testing.html" class="btn btn-neutral float-right" title="apache_beam.testing package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.runner.html" class="btn btn-neutral" title="apache_beam.runners.runner module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

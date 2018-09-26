@@ -1,0 +1,464 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.avroio &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.avroio</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;Implements a source for reading Avro files.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">cStringIO</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">zlib</span>
+
+<span class="kn">import</span> <span class="nn">avro</span>
+<span class="kn">from</span> <span class="nn">avro</span> <span class="k">import</span> <span class="n">datafile</span>
+<span class="kn">from</span> <span class="nn">avro</span> <span class="k">import</span> <span class="n">io</span> <span class="k">as</span> <span class="n">avroio</span>
+<span class="kn">from</span> <span class="nn">avro</span> <span class="k">import</span> <span class="n">schema</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">filebasedsink</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.iobase</span> <span class="k">import</span> <span class="n">Read</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ReadFromAvro&#39;</span><span class="p">,</span> <span class="s1">&#39;WriteToAvro&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ReadFromAvro"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.ReadFromAvro">[docs]</a><span class="k">class</span> <span class="nc">ReadFromAvro</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` for reading avro files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``ReadFromAvro``.</span>
+
+<span class="sd">    Uses source &#39;_AvroSource&#39; to read a set of Avro files defined by a given</span>
+<span class="sd">    file pattern.</span>
+<span class="sd">    If &#39;/mypath/myavrofiles*&#39; is a file-pattern that points to a set of Avro</span>
+<span class="sd">    files, a ``PCollection`` for the records in these Avro files can be created</span>
+<span class="sd">    in the following manner.</span>
+<span class="sd">      p = df.Pipeline(argv=pipeline_args)</span>
+<span class="sd">      records = p | &#39;Read&#39; &gt;&gt; df.io.ReadFromAvro(&#39;/mypath/myavrofiles*&#39;)</span>
+
+<span class="sd">    Each record of this ``PCollection`` will contain a single record read from a</span>
+<span class="sd">    source. Records that are of simple types will be mapped into corresponding</span>
+<span class="sd">    Python types. Records that are of Avro type &#39;RECORD&#39; will be mapped to</span>
+<span class="sd">    Python dictionaries that comply with the schema contained in the Avro file</span>
+<span class="sd">    that contains those records. In this case, keys of each dictionary</span>
+<span class="sd">    will contain the corresponding field names and will be of type ``string``</span>
+<span class="sd">    while the values of the dictionary will be of the type defined in the</span>
+<span class="sd">    corresponding Avro schema.</span>
+<span class="sd">    For example, if schema of the Avro file is the following.</span>
+<span class="sd">      {&quot;namespace&quot;: &quot;example.avro&quot;,&quot;type&quot;: &quot;record&quot;,&quot;name&quot;: &quot;User&quot;,&quot;fields&quot;:</span>
+<span class="sd">      [{&quot;name&quot;: &quot;name&quot;, &quot;type&quot;: &quot;string&quot;},</span>
+<span class="sd">       {&quot;name&quot;: &quot;favorite_number&quot;,  &quot;type&quot;: [&quot;int&quot;, &quot;null&quot;]},</span>
+<span class="sd">       {&quot;name&quot;: &quot;favorite_color&quot;, &quot;type&quot;: [&quot;string&quot;, &quot;null&quot;]}]}</span>
+<span class="sd">    Then records generated by ``AvroSource`` will be dictionaries of the</span>
+<span class="sd">    following form.</span>
+<span class="sd">      {u&#39;name&#39;: u&#39;Alyssa&#39;, u&#39;favorite_number&#39;: 256, u&#39;favorite_color&#39;: None}).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_pattern: the set of files to be read.</span>
+<span class="sd">      min_bundle_size: the minimum size in bytes, to be considered when</span>
+<span class="sd">                       splitting the input into bundles.</span>
+<span class="sd">      validate: flag to verify that the files exist during the pipeline</span>
+<span class="sd">                creation time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromAvro</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">_AvroSource</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">min_bundle_size</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReadFromAvro.expand"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.ReadFromAvro.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">|</span> <span class="n">Read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadFromAvro.display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.ReadFromAvro.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;source_dd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">}</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_AvroUtils</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">read_meta_data_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads metadata from a given Avro file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      f: Avro file to read.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      a tuple containing the codec, schema, and the sync marker of the Avro</span>
+<span class="sd">      file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if the file does not start with the byte sequence defined in</span>
+<span class="sd">                  the specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">decoder</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">BinaryDecoder</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">DatumReader</span><span class="p">()</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="n">datafile</span><span class="o">.</span><span class="n">META_SCHEMA</span><span class="p">,</span>
+                                            <span class="n">datafile</span><span class="o">.</span><span class="n">META_SCHEMA</span><span class="p">,</span> <span class="n">decoder</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;magic&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">datafile</span><span class="o">.</span><span class="n">MAGIC</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Not an Avro file. File header should start with </span><span class="si">%s</span><span class="s1"> but&#39;</span>
+                       <span class="s1">&#39;started with </span><span class="si">%s</span><span class="s1"> instead.&#39;</span><span class="p">,</span> <span class="n">datafile</span><span class="o">.</span><span class="n">MAGIC</span><span class="p">,</span>
+                       <span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;magic&#39;</span><span class="p">))</span>
+
+    <span class="n">meta</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="s1">&#39;meta&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">datafile</span><span class="o">.</span><span class="n">CODEC_KEY</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+      <span class="n">codec</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="n">datafile</span><span class="o">.</span><span class="n">CODEC_KEY</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">codec</span> <span class="o">=</span> <span class="s1">&#39;null&#39;</span>
+
+    <span class="n">schema_string</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="n">datafile</span><span class="o">.</span><span class="n">SCHEMA_KEY</span><span class="p">]</span>
+    <span class="n">sync_marker</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">codec</span><span class="p">,</span> <span class="n">schema_string</span><span class="p">,</span> <span class="n">sync_marker</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">read_block_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">codec</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">expected_sync_marker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads a block from a given Avro file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      f: Avro file to read.</span>
+<span class="sd">      codec: The codec to use for block-level decompression.</span>
+<span class="sd">        Supported codecs: &#39;null&#39;, &#39;deflate&#39;, &#39;snappy&#39;</span>
+<span class="sd">      schema: Avro Schema definition represented as JSON string.</span>
+<span class="sd">      expected_sync_marker: Avro synchronization marker. If the block&#39;s sync</span>
+<span class="sd">        marker does not match with this parameter then ValueError is thrown.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      A single _AvroBlock.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: If the block cannot be read properly because the file doesn&#39;t</span>
+<span class="sd">        match the specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">offset</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
+    <span class="n">decoder</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">BinaryDecoder</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="n">num_records</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">read_long</span><span class="p">()</span>
+    <span class="n">block_size</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">read_long</span><span class="p">()</span>
+    <span class="n">block_bytes</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">block_size</span><span class="p">)</span>
+    <span class="n">sync_marker</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_sync_marker</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">sync_marker</span> <span class="o">!=</span> <span class="n">expected_sync_marker</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unexpected sync marker (actual &quot;</span><span class="si">%s</span><span class="s1">&quot; vs expected &quot;</span><span class="si">%s</span><span class="s1">&quot;). &#39;</span>
+                       <span class="s1">&#39;Maybe the underlying avro file is corrupted?&#39;</span><span class="p">,</span>
+                       <span class="n">sync_marker</span><span class="p">,</span> <span class="n">expected_sync_marker</span><span class="p">)</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">-</span> <span class="n">offset</span>
+    <span class="k">return</span> <span class="n">_AvroBlock</span><span class="p">(</span><span class="n">block_bytes</span><span class="p">,</span> <span class="n">num_records</span><span class="p">,</span> <span class="n">codec</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">advance_file_past_next_sync_marker</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">sync_marker</span><span class="p">):</span>
+    <span class="n">buf_size</span> <span class="o">=</span> <span class="mi">10000</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf_size</span><span class="p">)</span>
+    <span class="k">while</span> <span class="n">data</span><span class="p">:</span>
+      <span class="n">pos</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">sync_marker</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">pos</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Adjusting the current position to the ending position of the sync</span>
+        <span class="c1"># marker.</span>
+        <span class="n">backtrack</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">pos</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync_marker</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">backtrack</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_CUR</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync_marker</span><span class="p">):</span>
+          <span class="c1"># Backtracking in case we partially read the sync marker during the</span>
+          <span class="c1"># previous read. We only have to backtrack if there are at least</span>
+          <span class="c1"># len(sync_marker) bytes before current position. We only have to</span>
+          <span class="c1"># backtrack (len(sync_marker) - 1) bytes.</span>
+          <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sync_marker</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_CUR</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">buf_size</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_AvroBlock</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents a block of an Avro file.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block_bytes</span><span class="p">,</span> <span class="n">num_records</span><span class="p">,</span> <span class="n">codec</span><span class="p">,</span> <span class="n">schema_string</span><span class="p">,</span>
+               <span class="n">offset</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="c1"># Decompress data early on (if needed) and thus decrease the number of</span>
+    <span class="c1"># parallel copies of the data in memory at any given in time during</span>
+    <span class="c1"># block iteration.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_decompressed_block_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decompress_bytes</span><span class="p">(</span><span class="n">block_bytes</span><span class="p">,</span> <span class="n">codec</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_num_records</span> <span class="o">=</span> <span class="n">num_records</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_schema</span> <span class="o">=</span> <span class="n">schema</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">schema_string</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span> <span class="o">=</span> <span class="n">offset</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">=</span> <span class="n">size</span>
+
+  <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span>
+
+  <span class="k">def</span> <span class="nf">offset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_decompress_bytes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">codec</span> <span class="o">==</span> <span class="s1">&#39;null&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">data</span>
+    <span class="k">elif</span> <span class="n">codec</span> <span class="o">==</span> <span class="s1">&#39;deflate&#39;</span><span class="p">:</span>
+      <span class="c1"># zlib.MAX_WBITS is the window size. &#39;-&#39; sign indicates that this is</span>
+      <span class="c1"># raw data (without headers). See zlib and Avro documentations for more</span>
+      <span class="c1"># details.</span>
+      <span class="k">return</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">-</span><span class="n">zlib</span><span class="o">.</span><span class="n">MAX_WBITS</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">codec</span> <span class="o">==</span> <span class="s1">&#39;snappy&#39;</span><span class="p">:</span>
+      <span class="c1"># Snappy is an optional avro codec.</span>
+      <span class="c1"># See Snappy and Avro documentation for more details.</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">snappy</span>
+      <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Snappy does not seem to be installed.&#39;</span><span class="p">)</span>
+
+      <span class="c1"># Compressed data includes a 4-byte CRC32 checksum which we verify.</span>
+      <span class="c1"># We take care to avoid extra copies of data while slicing large objects</span>
+      <span class="c1"># by use of a buffer.</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">snappy</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">buffer</span><span class="p">(</span><span class="n">data</span><span class="p">)[:</span><span class="o">-</span><span class="mi">4</span><span class="p">])</span>
+      <span class="n">avroio</span><span class="o">.</span><span class="n">BinaryDecoder</span><span class="p">(</span><span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]))</span><span class="o">.</span><span class="n">check_crc32</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">result</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown codec: </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">codec</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">num_records</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_records</span>
+
+  <span class="k">def</span> <span class="nf">records</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">decoder</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">BinaryDecoder</span><span class="p">(</span>
+        <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_decompressed_block_bytes</span><span class="p">))</span>
+    <span class="n">reader</span> <span class="o">=</span> <span class="n">avroio</span><span class="o">.</span><span class="n">DatumReader</span><span class="p">(</span>
+        <span class="n">writers_schema</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_schema</span><span class="p">,</span> <span class="n">readers_schema</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_schema</span><span class="p">)</span>
+
+    <span class="n">current_record</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">current_record</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_records</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">decoder</span><span class="p">)</span>
+      <span class="n">current_record</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="k">class</span> <span class="nc">_AvroSource</span><span class="p">(</span><span class="n">filebasedsource</span><span class="o">.</span><span class="n">FileBasedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A source for reading Avro files.</span>
+
+<span class="sd">  ``_AvroSource`` is implemented using the file-based source framework available</span>
+<span class="sd">  in module &#39;filebasedsource&#39;. Hence please refer to module &#39;filebasedsource&#39;</span>
+<span class="sd">  to fully understand how this source implements operations common to all</span>
+<span class="sd">  file-based sources such as file-pattern expansion and splitting into bundles</span>
+<span class="sd">  for parallel processing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="n">next_block_start</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">split_points_unclaimed</span><span class="p">(</span><span class="n">stop_position</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">next_block_start</span> <span class="o">&gt;=</span> <span class="n">stop_position</span><span class="p">:</span>
+        <span class="c1"># Next block starts at or after the suggested stop position. Hence</span>
+        <span class="c1"># there will not be split points to be claimed for the range ending at</span>
+        <span class="c1"># suggested stop position.</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+      <span class="k">return</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="o">.</span><span class="n">SPLIT_POINTS_UNKNOWN</span>
+
+    <span class="n">range_tracker</span><span class="o">.</span><span class="n">set_split_points_unclaimed_callback</span><span class="p">(</span><span class="n">split_points_unclaimed</span><span class="p">)</span>
+
+    <span class="n">start_offset</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">start_offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start_offset</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">codec</span><span class="p">,</span> <span class="n">schema_string</span><span class="p">,</span> <span class="n">sync_marker</span> <span class="o">=</span> <span class="n">_AvroUtils</span><span class="o">.</span><span class="n">read_meta_data_from_file</span><span class="p">(</span>
+          <span class="n">f</span><span class="p">)</span>
+
+      <span class="c1"># We have to start at current position if previous bundle ended at the</span>
+      <span class="c1"># end of a sync marker.</span>
+      <span class="n">start_offset</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">start_offset</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync_marker</span><span class="p">))</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start_offset</span><span class="p">)</span>
+      <span class="n">_AvroUtils</span><span class="o">.</span><span class="n">advance_file_past_next_sync_marker</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">sync_marker</span><span class="p">)</span>
+
+      <span class="k">while</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()):</span>
+        <span class="n">block</span> <span class="o">=</span> <span class="n">_AvroUtils</span><span class="o">.</span><span class="n">read_block_from_file</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">codec</span><span class="p">,</span> <span class="n">schema_string</span><span class="p">,</span>
+                                                <span class="n">sync_marker</span><span class="p">)</span>
+        <span class="n">next_block_start</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">offset</span><span class="p">()</span> <span class="o">+</span> <span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">block</span><span class="o">.</span><span class="n">records</span><span class="p">():</span>
+          <span class="k">yield</span> <span class="n">record</span>
+
+
+<div class="viewcode-block" id="WriteToAvro"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.WriteToAvro">[docs]</a><span class="k">class</span> <span class="nc">WriteToAvro</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``PTransform`` for writing avro files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">schema</span><span class="p">,</span>
+               <span class="n">codec</span><span class="o">=</span><span class="s1">&#39;deflate&#39;</span><span class="p">,</span>
+               <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/x-avro&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a WriteToAvro transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_path_prefix: The file path to write to. The files written will begin</span>
+<span class="sd">        with this prefix, followed by a shard identifier (see num_shards), and</span>
+<span class="sd">        end in a common extension, if given by file_name_suffix. In most cases,</span>
+<span class="sd">        only this argument is specified and num_shards, shard_name_template, and</span>
+<span class="sd">        file_name_suffix use default values.</span>
+<span class="sd">      schema: The schema to use, as returned by avro.schema.parse</span>
+<span class="sd">      codec: The codec to use for block-level compression. Any string supported</span>
+<span class="sd">        by the Avro specification is accepted (for example &#39;null&#39;).</span>
+<span class="sd">      file_name_suffix: Suffix for the files written.</span>
+<span class="sd">      num_shards: The number of files (shards) used for output. If not set, the</span>
+<span class="sd">        service will decide on the optimal number of shards.</span>
+<span class="sd">        Constraining the number of shards is likely to reduce</span>
+<span class="sd">        the performance of a pipeline.  Setting this value is not recommended</span>
+<span class="sd">        unless you require a specific number of output files.</span>
+<span class="sd">      shard_name_template: A template string containing placeholders for</span>
+<span class="sd">        the shard number and shard count. Currently only &#39;&#39; and</span>
+<span class="sd">        &#39;-SSSSS-of-NNNNN&#39; are patterns accepted by the service.</span>
+<span class="sd">        When constructing a filename for a particular shard number, the</span>
+<span class="sd">        upper-case letters &#39;S&#39; and &#39;N&#39; are replaced with the 0-padded shard</span>
+<span class="sd">        number and shard count respectively.  This argument can be &#39;&#39; in which</span>
+<span class="sd">        case it behaves as if num_shards was set to 1 and only one file will be</span>
+<span class="sd">        generated. The default pattern used is &#39;-SSSSS-of-NNNNN&#39;.</span>
+<span class="sd">      mime_type: The MIME type to use for the produced files, if the filesystem</span>
+<span class="sd">        supports specifying MIME types.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A WriteToAvro transform usable for writing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span> <span class="o">=</span> <span class="n">_AvroSink</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">codec</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="p">,</span>
+                           <span class="n">num_shards</span><span class="p">,</span> <span class="n">shard_name_template</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WriteToAvro.expand"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.WriteToAvro.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">iobase</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WriteToAvro.display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.avroio.WriteToAvro.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;sink_dd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sink</span><span class="p">}</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_AvroSink</span><span class="p">(</span><span class="n">filebasedsink</span><span class="o">.</span><span class="n">FileBasedSink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A sink to avro files.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">schema</span><span class="p">,</span>
+               <span class="n">codec</span><span class="p">,</span>
+               <span class="n">file_name_suffix</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="p">,</span>
+               <span class="n">mime_type</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_AvroSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">file_path_prefix</span><span class="p">,</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="n">file_name_suffix</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="n">num_shards</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="n">shard_name_template</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">mime_type</span><span class="o">=</span><span class="n">mime_type</span><span class="p">,</span>
+        <span class="c1"># Compression happens at the block level using the supplied codec, and</span>
+        <span class="c1"># not at the file level.</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_schema</span> <span class="o">=</span> <span class="n">schema</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span> <span class="o">=</span> <span class="n">codec</span>
+
+  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">):</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_AvroSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">avro</span><span class="o">.</span><span class="n">datafile</span><span class="o">.</span><span class="n">DataFileWriter</span><span class="p">(</span>
+        <span class="n">file_handle</span><span class="p">,</span> <span class="n">avro</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">DatumWriter</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_schema</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">write_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">display_data</span><span class="p">()</span>
+    <span class="n">res</span><span class="p">[</span><span class="s1">&#39;codec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_codec</span><span class="p">)</span>
+    <span class="n">res</span><span class="p">[</span><span class="s1">&#39;schema&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_schema</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

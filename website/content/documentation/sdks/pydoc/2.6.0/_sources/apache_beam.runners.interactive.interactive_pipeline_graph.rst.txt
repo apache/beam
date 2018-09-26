@@ -1,0 +1,7 @@
+apache\_beam\.runners\.interactive\.interactive\_pipeline\_graph module
+=======================================================================
+
+.. automodule:: apache_beam.runners.interactive.interactive_pipeline_graph
+    :members:
+    :undoc-members:
+    :show-inheritance:

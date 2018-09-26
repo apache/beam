@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.filesystems &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.filesystems</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;FileSystems interface class for accessing the correct filesystem&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">BeamIOError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">FileSystem</span>
+
+<span class="c1"># All filesystem implements should be added here</span>
+<span class="c1"># pylint: disable=wrong-import-position, unused-import</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.localfilesystem</span> <span class="k">import</span> <span class="n">LocalFileSystem</span>
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp.gcsfilesystem</span> <span class="k">import</span> <span class="n">GCSFileSystem</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="k">pass</span>
+<span class="c1"># pylint: enable=wrong-import-position, unused-import</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FileSystems&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="FileSystems"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems">[docs]</a><span class="k">class</span> <span class="nc">FileSystems</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class that defines the functions that can be performed on a filesystem.</span>
+<span class="sd">  All methods are static and access the underlying registered filesystems.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">URI_SCHEMA_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;(?P&lt;scheme&gt;[a-zA-Z][-a-zA-Z0-9+.]*)://.*&#39;</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.get_scheme"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.get_scheme">[docs]</a>  <span class="k">def</span> <span class="nf">get_scheme</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">match_result</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">URI_SCHEMA_PATTERN</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">match_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">match_result</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()[</span><span class="s1">&#39;scheme&#39;</span><span class="p">]</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.get_filesystem"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.get_filesystem">[docs]</a>  <span class="k">def</span> <span class="nf">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the correct filesystem for the specified path</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">path_scheme</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_scheme</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+      <span class="n">systems</span> <span class="o">=</span> <span class="p">[</span><span class="n">fs</span> <span class="k">for</span> <span class="n">fs</span> <span class="ow">in</span> <span class="n">FileSystem</span><span class="o">.</span><span class="n">get_all_subclasses</span><span class="p">()</span>
+                 <span class="k">if</span> <span class="n">fs</span><span class="o">.</span><span class="n">scheme</span><span class="p">()</span> <span class="o">==</span> <span class="n">path_scheme</span><span class="p">]</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">systems</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unable to get the Filesystem for path </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">systems</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">systems</span><span class="p">[</span><span class="mi">0</span><span class="p">]()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Found more than one filesystem for path </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+      <span class="k">raise</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span><span class="s1">&#39;Unable to get the Filesystem&#39;</span><span class="p">,</span> <span class="p">{</span><span class="n">path</span><span class="p">:</span> <span class="n">e</span><span class="p">})</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.join"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.join">[docs]</a>  <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="n">basepath</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Join two or more pathname components for the filesystem</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      basepath: string path of the first component of the path</span>
+<span class="sd">      paths: path components to be added</span>
+
+<span class="sd">    Returns: full path after combining all the passed components</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">basepath</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basepath</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.split">[docs]</a>  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Splits the given path into two parts.</span>
+
+<span class="sd">    Splits the path into a pair (head, tail) such that tail contains the last</span>
+<span class="sd">    component of the path and head contains everything up to that.</span>
+
+<span class="sd">    For file-systems other than the local file-system, head should include the</span>
+<span class="sd">    prefix.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: path as a string</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      a pair of path components as strings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.mkdirs"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.mkdirs">[docs]</a>  <span class="k">def</span> <span class="nf">mkdirs</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Recursively create directories for the provided path.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: string path of the directory structure that should be created</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      IOError if leaf directory already exists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">mkdirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.match"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.match">[docs]</a>  <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">patterns</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Find all matching paths to the patterns provided.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      patterns: list of string for the file path pattern to match against</span>
+<span class="sd">      limits: list of maximum number of responses that need to be fetched</span>
+
+<span class="sd">    Returns: list of ``MatchResult`` objects.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ``BeamIOError`` if any of the pattern match operations fail</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">patterns</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">patterns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">patterns</span><span class="p">,</span> <span class="n">limits</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.create"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.create">[docs]</a>  <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+             <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a write channel for the given file path.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: string path of the file object to be written to the system</span>
+<span class="sd">      mime_type: MIME type to specify the type of content in the file object</span>
+<span class="sd">      compression_type: Type of compression to be used for this object. See</span>
+<span class="sd">        ``CompressionTypes`` for possible values.</span>
+
+<span class="sd">    Returns: file handle with a ``close`` function for the user to use.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.open"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+           <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a read channel for the given file path.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: string path of the file object to be written to the system</span>
+<span class="sd">      mime_type: MIME type to specify the type of content in the file object</span>
+<span class="sd">      compression_type: Type of compression to be used for this object. See</span>
+<span class="sd">        ``CompressionTypes`` for possible values.</span>
+
+<span class="sd">    Returns: file handle with a ``close`` function for the user to use.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.copy"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.copy">[docs]</a>  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Recursively copy the file list from the source to the destination</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      source_file_names: list of source file objects that needs to be copied</span>
+<span class="sd">      destination_file_names: list of destination of the new object</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ``BeamIOError`` if any of the copy operations fail</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.rename"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.rename">[docs]</a>  <span class="k">def</span> <span class="nf">rename</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Rename the files at the source list to the destination list.</span>
+<span class="sd">    Source and destination lists should be of the same size.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      source_file_names: List of file paths that need to be moved</span>
+<span class="sd">      destination_file_names: List of destination_file_names for the files</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ``BeamIOError`` if any of the rename operations fail</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.exists"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.exists">[docs]</a>  <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check if the provided path exists on the FileSystem.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: string path that needs to be checked.</span>
+
+<span class="sd">    Returns: boolean flag indicating if path exists</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.delete"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.delete">[docs]</a>  <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deletes files or directories at the provided paths.</span>
+<span class="sd">    Directories will be deleted recursively.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      paths: list of paths that give the file objects to be deleted</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ``BeamIOError`` if any of the delete operations fail</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FileSystems.get_chunk_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filesystems.FileSystems.get_chunk_size">[docs]</a>  <span class="k">def</span> <span class="nf">get_chunk_size</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the correct chunk size for the FileSystem.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: string path that needs to be checked.</span>
+
+<span class="sd">    Returns: integer size for parallelization in the FS operations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filesystem</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_filesystem</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">CHUNK_SIZE</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

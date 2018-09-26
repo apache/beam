@@ -1,0 +1,23 @@
+apache\_beam\.transforms package
+================================
+
+.. automodule:: apache_beam.transforms
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.transforms.combiners
+   apache_beam.transforms.core
+   apache_beam.transforms.display
+   apache_beam.transforms.ptransform
+   apache_beam.transforms.sideinputs
+   apache_beam.transforms.timeutil
+   apache_beam.transforms.trigger
+   apache_beam.transforms.util
+   apache_beam.transforms.window
+

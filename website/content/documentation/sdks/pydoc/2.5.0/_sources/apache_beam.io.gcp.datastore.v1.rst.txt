@@ -1,0 +1,20 @@
+apache\_beam\.io\.gcp\.datastore\.v1 package
+============================================
+
+.. automodule:: apache_beam.io.gcp.datastore.v1
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.io.gcp.datastore.v1.adaptive_throttler
+   apache_beam.io.gcp.datastore.v1.datastoreio
+   apache_beam.io.gcp.datastore.v1.fake_datastore
+   apache_beam.io.gcp.datastore.v1.helper
+   apache_beam.io.gcp.datastore.v1.query_splitter
+   apache_beam.io.gcp.datastore.v1.util
+

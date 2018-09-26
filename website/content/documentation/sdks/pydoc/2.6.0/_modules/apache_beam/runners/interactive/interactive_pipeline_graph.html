@@ -1,0 +1,420 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.interactive.interactive_pipeline_graph &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.runners.interactive.interactive_pipeline_graph</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.runners.interactive.interactive_pipeline_graph</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Helper to render pipeline graph in IPython when running interactively.</span>
+
+<span class="sd">This module is experimental. No backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.runners.interactive</span> <span class="k">import</span> <span class="n">pipeline_graph</span>
+
+
+<div class="viewcode-block" id="nice_str"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_pipeline_graph.html#apache_beam.runners.interactive.interactive_pipeline_graph.nice_str">[docs]</a><span class="k">def</span> <span class="nf">nice_str</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+  <span class="n">s</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+  <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+  <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;|&#39;</span><span class="p">)</span>
+  <span class="n">s</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[^\x20-\x7F]&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="s1">&#39;&quot;&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">s</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">35</span><span class="p">:</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[:</span><span class="mi">35</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;...&#39;</span>
+  <span class="k">return</span> <span class="n">s</span></div>
+
+
+<div class="viewcode-block" id="format_sample"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_pipeline_graph.html#apache_beam.runners.interactive.interactive_pipeline_graph.format_sample">[docs]</a><span class="k">def</span> <span class="nf">format_sample</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+  <span class="n">contents</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+  <span class="n">elems</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">nice_str</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">contents</span><span class="p">[:</span><span class="n">count</span><span class="p">]])</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">count</span><span class="p">:</span>
+    <span class="n">elems</span> <span class="o">+=</span> <span class="s1">&#39;, ...&#39;</span>
+  <span class="k">assert</span> <span class="s1">&#39;&quot;&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elems</span>
+  <span class="k">return</span> <span class="s1">&#39;{</span><span class="si">%s</span><span class="s1">}&#39;</span> <span class="o">%</span> <span class="n">elems</span></div>
+
+
+<div class="viewcode-block" id="InteractivePipelineGraph"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_pipeline_graph.html#apache_beam.runners.interactive.interactive_pipeline_graph.InteractivePipelineGraph">[docs]</a><span class="k">class</span> <span class="nc">InteractivePipelineGraph</span><span class="p">(</span><span class="n">pipeline_graph</span><span class="o">.</span><span class="n">PipelineGraph</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creates the DOT representation of an interactive pipeline. Thread-safe.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">pipeline_proto</span><span class="p">,</span>
+               <span class="n">required_transforms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">referenced_pcollections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">cached_pcollections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">pcollection_stats</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor of PipelineGraph.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">      pipeline_graph = PipelineGraph(pipeline_proto)</span>
+<span class="sd">      print(pipeline_graph.get_dot())</span>
+<span class="sd">      pipeline_graph.display_graph()</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline_proto: (Pipeline proto) Pipeline to be rendered.</span>
+<span class="sd">      required_transforms: (dict from str to PTransform proto) Mapping from</span>
+<span class="sd">          transform ID to transforms that leads to visible results.</span>
+<span class="sd">      referenced_pcollections: (dict from str to PCollection proto) PCollection</span>
+<span class="sd">          ID mapped to PCollection referenced during pipeline execution.</span>
+<span class="sd">      cached_pcollections: (set of str) A set of PCollection IDs of those whose</span>
+<span class="sd">          cached results are used in the execution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_proto</span> <span class="o">=</span> <span class="n">pipeline_proto</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_required_transforms</span> <span class="o">=</span> <span class="n">required_transforms</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span> <span class="o">=</span> <span class="n">referenced_pcollections</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_pcollections</span> <span class="o">=</span> <span class="n">cached_pcollections</span> <span class="ow">or</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span> <span class="o">=</span> <span class="n">pcollection_stats</span> <span class="ow">or</span> <span class="p">{}</span>
+
+    <span class="nb">super</span><span class="p">(</span><span class="n">InteractivePipelineGraph</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">pipeline_proto</span><span class="o">=</span><span class="n">pipeline_proto</span><span class="p">,</span>
+        <span class="n">default_vertex_attrs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="s1">&#39;fontcolor&#39;</span><span class="p">:</span> <span class="s1">&#39;gray&#39;</span><span class="p">},</span>
+        <span class="n">default_edge_attrs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="s1">&#39;gray&#39;</span><span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="n">transform_updates</span><span class="p">,</span> <span class="n">pcollection_updates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_graph_update_dicts</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_update_graph</span><span class="p">(</span><span class="n">transform_updates</span><span class="p">,</span> <span class="n">pcollection_updates</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InteractivePipelineGraph.display_graph"><a class="viewcode-back" href="../../../../apache_beam.runners.interactive.interactive_pipeline_graph.html#apache_beam.runners.interactive.interactive_pipeline_graph.InteractivePipelineGraph.display_graph">[docs]</a>  <span class="k">def</span> <span class="nf">display_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Displays graph via IPython or prints DOT if not possible.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">IPython.core</span> <span class="k">import</span> <span class="n">display</span>  <span class="c1"># pylint: disable=import-error</span>
+      <span class="n">display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">display</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_graph</span><span class="p">()</span><span class="o">.</span><span class="n">create_svg</span><span class="p">()))</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_graph</span><span class="p">()))</span></div>
+
+  <span class="k">def</span> <span class="nf">_generate_graph_update_dicts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline_proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span>
+
+    <span class="n">transform_dict</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># maps PTransform IDs to properties</span>
+    <span class="n">pcoll_dict</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># maps PCollection IDs to properties</span>
+
+    <span class="k">def</span> <span class="nf">leaf_transform_ids</span><span class="p">(</span><span class="n">parent_id</span><span class="p">):</span>
+      <span class="n">parent</span> <span class="o">=</span> <span class="n">transforms</span><span class="p">[</span><span class="n">parent_id</span><span class="p">]</span>
+      <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">subtransforms</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">parent</span><span class="o">.</span><span class="n">subtransforms</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">leaf</span> <span class="ow">in</span> <span class="n">leaf_transform_ids</span><span class="p">(</span><span class="n">child</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">leaf</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">parent_id</span>
+
+    <span class="k">for</span> <span class="n">transform_id</span><span class="p">,</span> <span class="n">transform</span> <span class="ow">in</span> <span class="n">transforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">super</span><span class="p">(</span>
+          <span class="n">InteractivePipelineGraph</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_is_top_level_transform</span><span class="p">(</span><span class="n">transform</span><span class="p">):</span>
+        <span class="k">continue</span>
+
+      <span class="n">transform_dict</span><span class="p">[</span><span class="n">transform</span><span class="o">.</span><span class="n">unique_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="s1">&#39;required&#39;</span><span class="p">:</span>
+              <span class="nb">all</span><span class="p">(</span>
+                  <span class="n">leaf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_required_transforms</span>
+                  <span class="k">for</span> <span class="n">leaf</span> <span class="ow">in</span> <span class="n">leaf_transform_ids</span><span class="p">(</span><span class="n">transform_id</span><span class="p">))</span>
+      <span class="p">}</span>
+
+      <span class="k">for</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;cached&#39;</span><span class="p">:</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_pcollections</span><span class="p">,</span>
+            <span class="s1">&#39;referenced&#39;</span><span class="p">:</span> <span class="n">pcoll_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_referenced_pcollections</span>
+        <span class="p">}</span>
+
+        <span class="c1"># TODO(qinyeli): Enable updating pcollection_stats instead of creating a</span>
+        <span class="c1"># new instance every time when pcollection_stats changes.</span>
+        <span class="n">properties</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pcollection_stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">,</span> <span class="p">{}))</span>
+
+        <span class="k">if</span> <span class="n">pcoll_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">:</span>
+          <span class="n">invisible_leaf</span> <span class="o">=</span> <span class="s1">&#39;leaf</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="n">pcoll_id</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10000</span><span class="p">)</span>
+          <span class="n">pcoll_dict</span><span class="p">[(</span><span class="n">transform</span><span class="o">.</span><span class="n">unique_name</span><span class="p">,</span> <span class="n">invisible_leaf</span><span class="p">)]</span> <span class="o">=</span> <span class="n">properties</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_consumers</span><span class="p">[</span><span class="n">pcoll_id</span><span class="p">]:</span>
+            <span class="n">producer_name</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">unique_name</span>
+            <span class="n">consumer_name</span> <span class="o">=</span> <span class="n">transforms</span><span class="p">[</span><span class="n">consumer</span><span class="p">]</span><span class="o">.</span><span class="n">unique_name</span>
+            <span class="n">pcoll_dict</span><span class="p">[(</span><span class="n">producer_name</span><span class="p">,</span> <span class="n">consumer_name</span><span class="p">)]</span> <span class="o">=</span> <span class="n">properties</span>
+
+    <span class="k">def</span> <span class="nf">vertex_properties_to_attributes</span><span class="p">(</span><span class="n">vertex</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Converts PCollection properties to DOT vertex attributes.&quot;&quot;&quot;</span>
+      <span class="n">attrs</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">if</span> <span class="s1">&#39;leaf&#39;</span> <span class="ow">in</span> <span class="n">vertex</span><span class="p">:</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;style&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;invis&#39;</span>
+      <span class="k">elif</span> <span class="n">vertex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;required&#39;</span><span class="p">):</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;blue&#39;</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;fontcolor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;blue&#39;</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;grey&#39;</span>
+      <span class="k">return</span> <span class="n">attrs</span>
+
+    <span class="k">def</span> <span class="nf">edge_properties_to_attributes</span><span class="p">(</span><span class="n">edge</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Converts PTransform properties to DOT edge attributes.&quot;&quot;&quot;</span>
+      <span class="n">attrs</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">if</span> <span class="n">edge</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cached&#39;</span><span class="p">):</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;red&#39;</span>
+      <span class="k">elif</span> <span class="n">edge</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;referenced&#39;</span><span class="p">):</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;grey&#39;</span>
+
+      <span class="k">if</span> <span class="s1">&#39;sample&#39;</span> <span class="ow">in</span> <span class="n">edge</span><span class="p">:</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">format_sample</span><span class="p">(</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;sample&#39;</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;labeltooltip&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">format_sample</span><span class="p">(</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;sample&#39;</span><span class="p">],</span> <span class="mi">10</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;?&#39;</span>
+      <span class="k">return</span> <span class="n">attrs</span>
+
+    <span class="n">vertex_dict</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># maps vertex names to attributes</span>
+    <span class="n">edge_dict</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># maps edge names to attributes</span>
+
+    <span class="k">for</span> <span class="n">transform_name</span><span class="p">,</span> <span class="n">transform_properties</span> <span class="ow">in</span> <span class="n">transform_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">vertex_dict</span><span class="p">[</span><span class="n">transform_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">vertex_properties_to_attributes</span><span class="p">(</span>
+          <span class="n">transform_properties</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">pcoll_name</span><span class="p">,</span> <span class="n">pcoll_properties</span> <span class="ow">in</span> <span class="n">pcoll_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">edge_dict</span><span class="p">[</span><span class="n">pcoll_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_properties_to_attributes</span><span class="p">(</span><span class="n">pcoll_properties</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">vertex_dict</span><span class="p">,</span> <span class="n">edge_dict</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

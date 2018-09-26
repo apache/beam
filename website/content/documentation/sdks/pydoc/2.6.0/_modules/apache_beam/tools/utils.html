@@ -1,0 +1,363 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.tools.utils &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.tools.html">apache_beam.tools package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.tools.utils</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.tools.utils</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements. See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Utility functions for all microbenchmarks.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+
+<div class="viewcode-block" id="check_compiled"><a class="viewcode-back" href="../../../apache_beam.tools.utils.html#apache_beam.tools.utils.check_compiled">[docs]</a><span class="k">def</span> <span class="nf">check_compiled</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Check whether given module has been compiled.</span>
+<span class="sd">  Args:</span>
+<span class="sd">    module: string, module name</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">check_module</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="nb">globals</span><span class="p">(),</span> <span class="nb">locals</span><span class="p">(),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+  <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">check_module</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+  <span class="k">if</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;.py&#39;</span><span class="p">,</span> <span class="s1">&#39;.pyc&#39;</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s2">&quot;Profiling uncompiled code.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="s2">&quot;To compile beam, run &quot;</span>
+        <span class="s2">&quot;&#39;pip install Cython; python setup.py build_ext --inplace&#39;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BenchmarkConfig"><a class="viewcode-back" href="../../../apache_beam.tools.utils.html#apache_beam.tools.utils.BenchmarkConfig">[docs]</a><span class="k">class</span> <span class="nc">BenchmarkConfig</span><span class="p">(</span>
+    <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span>
+        <span class="s2">&quot;BenchmarkConfig&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;benchmark&quot;</span><span class="p">,</span> <span class="s2">&quot;size&quot;</span><span class="p">,</span> <span class="s2">&quot;num_runs&quot;</span><span class="p">])):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Attributes:</span>
+<span class="sd">    benchmark: a callable that takes an int argument - benchmark size,</span>
+<span class="sd">      and returns a callable. A returned callable must run the code being</span>
+<span class="sd">      benchmarked on an input of specified size.</span>
+
+<span class="sd">      For example, one can implement a benchmark as:</span>
+
+<span class="sd">      class MyBenchmark(object):</span>
+<span class="sd">        def __init__(self, size):</span>
+<span class="sd">          [do necessary initialization]</span>
+<span class="sd">        def __call__(self):</span>
+<span class="sd">          [run the code in question]</span>
+
+<span class="sd">    size: int, a size of the input. Aggregated per-element metrics</span>
+<span class="sd">      are counted based on the size of the input.</span>
+<span class="sd">    num_runs: int, number of times to run each benchmark.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2"> element(s)&quot;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">benchmark</span><span class="p">)),</span>
+        <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="run_benchmarks"><a class="viewcode-back" href="../../../apache_beam.tools.utils.html#apache_beam.tools.utils.run_benchmarks">[docs]</a><span class="k">def</span> <span class="nf">run_benchmarks</span><span class="p">(</span><span class="n">benchmark_suite</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs benchmarks, and collects execution times.</span>
+
+<span class="sd">  A simple instrumentation to run a callable several times, collect and print</span>
+<span class="sd">  its execution times.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    benchmark_suite: A list of BenchmarkConfig.</span>
+<span class="sd">    verbose: bool, whether to print benchmark results to stdout.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A dictionary of the form string -&gt; list of floats. Keys of the dictionary</span>
+<span class="sd">    are benchmark names, values are execution times in seconds for each run.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">benchmark_fn</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="c1"># Contain each run of a benchmark inside a function so that any temporary</span>
+    <span class="c1"># objects can be garbage-collected after the run.</span>
+    <span class="n">benchmark_instance_callable</span> <span class="o">=</span> <span class="n">benchmark_fn</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">benchmark_instance_callable</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+  <span class="n">cost_series</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">benchmark_config</span> <span class="ow">in</span> <span class="n">benchmark_suite</span><span class="p">:</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">benchmark_config</span><span class="p">)</span>
+    <span class="n">num_runs</span> <span class="o">=</span> <span class="n">benchmark_config</span><span class="o">.</span><span class="n">num_runs</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">benchmark_config</span><span class="o">.</span><span class="n">size</span>
+    <span class="k">for</span> <span class="n">run_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_runs</span><span class="p">):</span>
+      <span class="c1"># Do a proactive GC before each run to minimize side-effects of different</span>
+      <span class="c1"># runs.</span>
+      <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+      <span class="n">time_cost</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="n">benchmark_config</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+      <span class="n">cost_series</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">time_cost</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">per_element_cost</span> <span class="o">=</span> <span class="n">time_cost</span> <span class="o">/</span> <span class="n">size</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">: run </span><span class="si">%d</span><span class="s2"> of </span><span class="si">%d</span><span class="s2">, per element time cost: </span><span class="si">%g</span><span class="s2"> sec&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">run_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_runs</span><span class="p">,</span> <span class="n">per_element_cost</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+    <span class="n">pad_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">bc</span><span class="p">))</span> <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">benchmark_suite</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">benchmark_config</span> <span class="ow">in</span> <span class="n">benchmark_suite</span><span class="p">:</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">benchmark_config</span><span class="p">)</span>
+      <span class="n">per_element_median_cost</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">numpy</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">cost_series</span><span class="p">[</span><span class="n">name</span><span class="p">])</span> <span class="o">/</span> <span class="n">benchmark_config</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+      <span class="n">std</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">cost_series</span><span class="p">[</span><span class="n">name</span><span class="p">])</span> <span class="o">/</span> <span class="n">benchmark_config</span><span class="o">.</span><span class="n">size</span>
+
+      <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">: per element median time cost: </span><span class="si">%g</span><span class="s2"> sec, relative std: </span><span class="si">%.2f%%</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">name</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="n">pad_length</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">),</span> <span class="n">per_element_median_cost</span><span class="p">,</span>
+          <span class="n">std</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="n">per_element_median_cost</span><span class="p">))</span>
+
+  <span class="k">return</span> <span class="n">cost_series</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+apache\_beam\.version module
+============================
+
+.. automodule:: apache_beam.version
+    :members:
+    :undoc-members:
+    :show-inheritance:

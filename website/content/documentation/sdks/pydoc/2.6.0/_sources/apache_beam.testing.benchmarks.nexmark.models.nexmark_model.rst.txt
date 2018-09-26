@@ -1,0 +1,7 @@
+apache\_beam\.testing\.benchmarks\.nexmark\.models\.nexmark\_model module
+=========================================================================
+
+.. automodule:: apache_beam.testing.benchmarks.nexmark.models.nexmark_model
+    :members:
+    :undoc-members:
+    :show-inheritance:

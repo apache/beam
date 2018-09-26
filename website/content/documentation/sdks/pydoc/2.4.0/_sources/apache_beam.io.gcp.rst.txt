@@ -1,0 +1,25 @@
+apache\_beam\.io\.gcp package
+=============================
+
+.. automodule:: apache_beam.io.gcp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp.datastore
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.io.gcp.bigquery
+   apache_beam.io.gcp.gcsfilesystem
+   apache_beam.io.gcp.gcsio
+   apache_beam.io.gcp.pubsub
+

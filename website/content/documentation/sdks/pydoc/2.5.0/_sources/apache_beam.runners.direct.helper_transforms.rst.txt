@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.helper\_transforms module
+========================================================
+
+.. automodule:: apache_beam.runners.direct.helper_transforms
+    :members:
+    :undoc-members:
+    :show-inheritance:

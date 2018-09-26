@@ -1,0 +1,7 @@
+apache\_beam\.tools\.distribution\_counter\_microbenchmark module
+=================================================================
+
+.. automodule:: apache_beam.tools.distribution_counter_microbenchmark
+    :members:
+    :undoc-members:
+    :show-inheritance:

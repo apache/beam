@@ -1,0 +1,886 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.dataflow_runner &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.dataflow_runner</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A runner implementation that submits a job for remote execution.</span>
+
+<span class="sd">The runner will create a JSON description of the job graph and then submit it</span>
+<span class="sd">to the Dataflow Service for remote execution by a worker.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">error</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal.gcp</span> <span class="k">import</span> <span class="n">json_value</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">AsSideInput</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.dataflow_metrics</span> <span class="k">import</span> <span class="n">DataflowMetrics</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">names</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.clients</span> <span class="k">import</span> <span class="n">dataflow</span> <span class="k">as</span> <span class="n">dataflow_api</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.names</span> <span class="k">import</span> <span class="n">PropertyNames</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.names</span> <span class="k">import</span> <span class="n">TransformNames</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PValueCache</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;DataflowRunner&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="DataflowRunner"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner">[docs]</a><span class="k">class</span> <span class="nc">DataflowRunner</span><span class="p">(</span><span class="n">PipelineRunner</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A runner that creates job graphs and submits them for remote execution.</span>
+
+<span class="sd">  Every execution of the run() method will submit an independent job for</span>
+<span class="sd">  remote execution that consists of the nodes reachable from the passed in</span>
+<span class="sd">  node argument or entire graph if node is None. The run() method returns</span>
+<span class="sd">  after the service created the job and  will not wait for the job to finish</span>
+<span class="sd">  if blocking is set to False.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Environment version information. It is passed to the service during a</span>
+  <span class="c1"># a job submission and is used by the service to establish what features</span>
+  <span class="c1"># are expected by the workers.</span>
+  <span class="n">BATCH_ENVIRONMENT_MAJOR_VERSION</span> <span class="o">=</span> <span class="s1">&#39;5&#39;</span>
+  <span class="n">STREAMING_ENVIRONMENT_MAJOR_VERSION</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Cache of CloudWorkflowStep protos generated while the runner</span>
+    <span class="c1"># &quot;executes&quot; a pipeline.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="n">cache</span> <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">PValueCache</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_step_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="nf">_get_unique_step_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_step_id</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="s1">&#39;s</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_step_id</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DataflowRunner.poll_for_job_completion"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.poll_for_job_completion">[docs]</a>  <span class="k">def</span> <span class="nf">poll_for_job_completion</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Polls for the specified job to finish running (successfully or not).&quot;&quot;&quot;</span>
+    <span class="n">last_message_time</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">last_message_hash</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">last_error_rank</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">)</span>
+    <span class="n">last_error_msg</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">last_job_state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># How long to wait after pipeline failure for the error</span>
+    <span class="c1"># message to show up giving the reason for the failure.</span>
+    <span class="c1"># It typically takes about 30 seconds.</span>
+    <span class="n">final_countdown_timer_secs</span> <span class="o">=</span> <span class="mf">50.0</span>
+    <span class="n">sleep_secs</span> <span class="o">=</span> <span class="mf">5.0</span>
+
+    <span class="c1"># Try to prioritize the user-level traceback, if any.</span>
+    <span class="k">def</span> <span class="nf">rank_error</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+      <span class="k">if</span> <span class="s1">&#39;work item was attempted&#39;</span> <span class="ow">in</span> <span class="n">msg</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+      <span class="k">elif</span> <span class="s1">&#39;Traceback&#39;</span> <span class="ow">in</span> <span class="n">msg</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">1</span>
+      <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">job_id</span><span class="p">()</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">response</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">dataflow_client</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+      <span class="c1"># If get() is called very soon after Create() the response may not contain</span>
+      <span class="c1"># an initialized &#39;currentState&#39; field.</span>
+      <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">currentState</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">currentState</span> <span class="o">!=</span> <span class="n">last_job_state</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Job </span><span class="si">%s</span><span class="s1"> is in state </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span>
+          <span class="n">last_job_state</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">currentState</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;JOB_STATE_RUNNING&#39;</span><span class="p">:</span>
+          <span class="c1"># Stop checking for new messages on timeout, explanatory</span>
+          <span class="c1"># message received, success, or a terminal job state caused</span>
+          <span class="c1"># by the user that therefore doesn&#39;t require explanation.</span>
+          <span class="k">if</span> <span class="p">(</span><span class="n">final_countdown_timer_secs</span> <span class="o">&lt;=</span> <span class="mf">0.0</span>
+              <span class="ow">or</span> <span class="n">last_error_msg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+              <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_DONE&#39;</span>
+              <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_CANCELLED&#39;</span>
+              <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_UPDATED&#39;</span>
+              <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">currentState</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;JOB_STATE_DRAINED&#39;</span><span class="p">):</span>
+            <span class="k">break</span>
+          <span class="c1"># The job has failed; ensure we see any final error messages.</span>
+          <span class="n">sleep_secs</span> <span class="o">=</span> <span class="mf">1.0</span>      <span class="c1"># poll faster during the final countdown</span>
+          <span class="n">final_countdown_timer_secs</span> <span class="o">-=</span> <span class="n">sleep_secs</span>
+      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_secs</span><span class="p">)</span>
+
+      <span class="c1"># Get all messages since beginning of the job run or since last message.</span>
+      <span class="n">page_token</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">messages</span><span class="p">,</span> <span class="n">page_token</span> <span class="o">=</span> <span class="n">runner</span><span class="o">.</span><span class="n">dataflow_client</span><span class="o">.</span><span class="n">list_messages</span><span class="p">(</span>
+            <span class="n">job_id</span><span class="p">,</span> <span class="n">page_token</span><span class="o">=</span><span class="n">page_token</span><span class="p">,</span> <span class="n">start_time</span><span class="o">=</span><span class="n">last_message_time</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">:</span>
+          <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">messageImportance</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">messageText</span><span class="p">)</span>
+          <span class="n">m_hash</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+          <span class="k">if</span> <span class="n">last_message_hash</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">m_hash</span> <span class="o">==</span> <span class="n">last_message_hash</span><span class="p">:</span>
+            <span class="c1"># Skip the first message if it is the last message we got in the</span>
+            <span class="c1"># previous round. This can happen because we use the</span>
+            <span class="c1"># last_message_time as a parameter of the query for new messages.</span>
+            <span class="k">continue</span>
+          <span class="n">last_message_time</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">time</span>
+          <span class="n">last_message_hash</span> <span class="o">=</span> <span class="n">m_hash</span>
+          <span class="c1"># Skip empty messages.</span>
+          <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">messageImportance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+          <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">messageImportance</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;JOB_MESSAGE_ERROR&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">rank_error</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">messageText</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">last_error_rank</span><span class="p">:</span>
+              <span class="n">last_error_rank</span> <span class="o">=</span> <span class="n">rank_error</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">messageText</span><span class="p">)</span>
+              <span class="n">last_error_msg</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">messageText</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">page_token</span><span class="p">:</span>
+          <span class="k">break</span>
+
+    <span class="n">result</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">response</span>
+    <span class="n">runner</span><span class="o">.</span><span class="n">last_error_msg</span> <span class="o">=</span> <span class="n">last_error_msg</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DataflowRunner.group_by_key_input_visitor"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.group_by_key_input_visitor">[docs]</a>  <span class="k">def</span> <span class="nf">group_by_key_input_visitor</span><span class="p">():</span>
+    <span class="c1"># Imported here to avoid circular dependencies.</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>
+
+    <span class="k">class</span> <span class="nc">GroupByKeyInputVisitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;A visitor that replaces `Any` element type for input `PCollection` of</span>
+<span class="sd">      a `GroupByKey` or `_GroupByKeyOnly` with a `KV` type.</span>
+
+<span class="sd">      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,</span>
+<span class="sd">      we could directly replace the coder instead of mutating the element type.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+
+      <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="c1"># Imported here to avoid circular dependencies.</span>
+        <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+        <span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">GroupByKey</span><span class="p">,</span> <span class="n">_GroupByKeyOnly</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="p">(</span><span class="n">GroupByKey</span><span class="p">,</span> <span class="n">_GroupByKeyOnly</span><span class="p">)):</span>
+          <span class="n">pcoll</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+          <span class="n">input_type</span> <span class="o">=</span> <span class="n">pcoll</span><span class="o">.</span><span class="n">element_type</span>
+          <span class="c1"># If input_type is not specified, then treat it as `Any`.</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">input_type</span><span class="p">:</span>
+            <span class="n">input_type</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span>
+
+          <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_type</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_type</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">AnyTypeConstraint</span><span class="p">):</span>
+              <span class="c1"># `Any` type needs to be replaced with a KV[Any, Any] to</span>
+              <span class="c1"># force a KV coder as the main output coder for the pcollection</span>
+              <span class="c1"># preceding a GroupByKey.</span>
+              <span class="n">pcoll</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">KV</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+              <span class="c1"># TODO: Handle other valid types,</span>
+              <span class="c1"># e.g. Union[KV[str, int], KV[str, float]]</span>
+              <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                  <span class="s2">&quot;Input to GroupByKey must be of Tuple or Any type. &quot;</span>
+                  <span class="s2">&quot;Found </span><span class="si">%s</span><span class="s2"> for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">input_type</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">GroupByKeyInputVisitor</span><span class="p">()</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DataflowRunner.flatten_input_visitor"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.flatten_input_visitor">[docs]</a>  <span class="k">def</span> <span class="nf">flatten_input_visitor</span><span class="p">():</span>
+    <span class="c1"># Imported here to avoid circular dependencies.</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>
+
+    <span class="k">class</span> <span class="nc">FlattenInputVisitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;A visitor that replaces the element type for input ``PCollections``s of</span>
+<span class="sd">       a ``Flatten`` transform with that of the output ``PCollection``.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+
+      <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="c1"># Imported here to avoid circular dependencies.</span>
+        <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+        <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">Flatten</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="n">Flatten</span><span class="p">):</span>
+          <span class="n">output_pcoll</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+          <span class="k">for</span> <span class="n">input_pcoll</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+            <span class="n">input_pcoll</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">output_pcoll</span><span class="o">.</span><span class="n">element_type</span>
+
+    <span class="k">return</span> <span class="n">FlattenInputVisitor</span><span class="p">()</span></div>
+
+  <span class="c1"># TODO(mariagh): Make this method take pipepline_options</span>
+<div class="viewcode-block" id="DataflowRunner.run"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Remotely executes entire pipeline or parts reachable from node.&quot;&quot;&quot;</span>
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">apiclient</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+          <span class="s1">&#39;Google Cloud Dataflow runner not available, &#39;</span>
+          <span class="s1">&#39;please install apache_beam[gcp]&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Job</span><span class="p">(</span><span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="p">)</span>
+
+    <span class="c1"># Dataflow runner requires a KV type for GBK inputs, hence we enforce that</span>
+    <span class="c1"># here.</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">group_by_key_input_visitor</span><span class="p">())</span>
+
+    <span class="c1"># Dataflow runner requires output type of the Flatten to be the same as the</span>
+    <span class="c1"># inputs, hence we enforce that here.</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flatten_input_visitor</span><span class="p">())</span>
+
+    <span class="c1"># The superclass&#39;s run will trigger a traversal of all reachable nodes.</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DataflowRunner</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+
+    <span class="n">standard_options</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">standard_options</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+      <span class="n">job_version</span> <span class="o">=</span> <span class="n">DataflowRunner</span><span class="o">.</span><span class="n">STREAMING_ENVIRONMENT_MAJOR_VERSION</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">job_version</span> <span class="o">=</span> <span class="n">DataflowRunner</span><span class="o">.</span><span class="n">BATCH_ENVIRONMENT_MAJOR_VERSION</span>
+
+    <span class="c1"># Get a Dataflow API client and set its options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">DataflowApplicationClient</span><span class="p">(</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="p">,</span> <span class="n">job_version</span><span class="p">)</span>
+
+    <span class="c1"># Create the job</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">DataflowPipelineResult</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">),</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_metrics</span> <span class="o">=</span> <span class="n">DataflowMetrics</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataflow_client</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">metric_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metrics</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+  <span class="k">def</span> <span class="nf">_get_typehint_based_encoding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typehint</span><span class="p">,</span> <span class="n">window_coder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an encoding based on a typehint object.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cloud_encoding</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_coder</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span>
+                                                    <span class="n">window_coder</span><span class="o">=</span><span class="n">window_coder</span><span class="p">))</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_get_coder</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="n">window_coder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a coder based on a typehint object.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">window_coder</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span>
+          <span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">get_coder</span><span class="p">(</span><span class="n">typehint</span><span class="p">),</span>
+          <span class="n">window_coder</span><span class="o">=</span><span class="n">window_coder</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">get_coder</span><span class="p">(</span><span class="n">typehint</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_get_cloud_encoding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an encoding based on a coder object.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Coder object must inherit from coders.Coder: </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">coder</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_get_side_input_encoding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_encoding</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an encoding for the output of a view transform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      input_encoding: encoding of current transform&#39;s input. Side inputs need</span>
+<span class="sd">        this because the service will check that input and output types match.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      An encoding that matches the output and input encoding. This is essential</span>
+<span class="sd">      for the View transforms introduced to produce side inputs to a ParDo.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="n">input_encoding</span><span class="p">[</span><span class="s1">&#39;@type&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;component_encodings&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">input_encoding</span><span class="p">]</span>
+    <span class="p">}</span>
+
+  <span class="k">def</span> <span class="nf">_get_encoded_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">,</span> <span class="n">window_value</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the cloud encoding of the coder for the output of a transform.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="ow">and</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span><span class="o">.</span><span class="n">element_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="c1"># TODO(robertwb): Handle type hints for multi-output transforms.</span>
+      <span class="n">element_type</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span><span class="o">.</span><span class="n">element_type</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># TODO(silviuc): Remove this branch (and assert) when typehints are</span>
+      <span class="c1"># propagated everywhere. Returning an &#39;Any&#39; as type hint will trigger</span>
+      <span class="c1"># usage of the fallback coder (i.e., cPickler).</span>
+      <span class="n">element_type</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span>
+    <span class="k">if</span> <span class="n">window_value</span><span class="p">:</span>
+      <span class="n">window_coder</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">transform_node</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span><span class="o">.</span><span class="n">windowing</span><span class="o">.</span><span class="n">windowfn</span><span class="o">.</span><span class="n">get_window_coder</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">window_coder</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_typehint_based_encoding</span><span class="p">(</span>
+        <span class="n">element_type</span><span class="p">,</span> <span class="n">window_coder</span><span class="o">=</span><span class="n">window_coder</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_add_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_kind</span><span class="p">,</span> <span class="n">step_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">,</span> <span class="n">side_tags</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a Step object and adds it to the cache.&quot;&quot;&quot;</span>
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">apiclient</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Step</span><span class="p">(</span><span class="n">step_kind</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_unique_step_name</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">proto</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">,</span> <span class="n">step_label</span><span class="p">)</span>
+    <span class="c1"># Cache the node/step association for the main output of the transform node.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">cache_output</span><span class="p">(</span><span class="n">transform_node</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+    <span class="c1"># If side_tags is not () then this is a multi-output transform node and we</span>
+    <span class="c1"># need to cache the (node, tag, step) for each of the tags used to access</span>
+    <span class="c1"># the outputs. This is essential because the keys used to search in the</span>
+    <span class="c1"># cache always contain the tag.</span>
+    <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">side_tags</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">cache_output</span><span class="p">(</span><span class="n">transform_node</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+
+    <span class="c1"># Finally, we add the display data items to the pipeline step.</span>
+    <span class="c1"># If the transform contains no display data then an empty list is added.</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">DISPLAY_DATA</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">get_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span>
+         <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">step</span>
+
+  <span class="k">def</span> <span class="nf">_add_singleton_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">full_label</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">input_step</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a CollectionToSingleton step used to handle ParDo side inputs.&quot;&quot;&quot;</span>
+    <span class="c1"># Import here to avoid adding the dependency for local running scenarios.</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">apiclient</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Step</span><span class="p">(</span><span class="n">TransformNames</span><span class="o">.</span><span class="n">COLLECTION_TO_SINGLETON</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">proto</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">,</span> <span class="n">full_label</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">PARALLEL_INPUT</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">tag</span><span class="p">)})</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_side_input_encoding</span><span class="p">(</span><span class="n">input_step</span><span class="o">.</span><span class="n">encoding</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span>
+        <span class="p">[{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT</span><span class="p">)),</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">}])</span>
+    <span class="k">return</span> <span class="n">step</span>
+
+<div class="viewcode-block" id="DataflowRunner.run_Flatten"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Flatten">[docs]</a>  <span class="k">def</span> <span class="nf">run_Flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span><span class="n">TransformNames</span><span class="o">.</span><span class="n">FLATTEN</span><span class="p">,</span>
+                          <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">)</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">one_input</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+      <span class="n">input_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">one_input</span><span class="p">)</span>
+      <span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+           <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+           <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">one_input</span><span class="o">.</span><span class="n">tag</span><span class="p">)})</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">INPUTS</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoded_output_coder</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span>
+        <span class="p">[{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">)),</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">}])</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.apply_GroupByKey"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_GroupByKey">[docs]</a>  <span class="k">def</span> <span class="nf">apply_GroupByKey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c1"># Infer coder of parent.</span>
+    <span class="c1">#</span>
+    <span class="c1"># TODO(ccy): make Coder inference and checking less specialized and more</span>
+    <span class="c1"># comprehensive.</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="n">pcoll</span><span class="o">.</span><span class="n">producer</span>
+    <span class="k">if</span> <span class="n">parent</span><span class="p">:</span>
+      <span class="n">coder</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">_infer_output_coder</span><span class="p">()</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">coder</span><span class="p">:</span>
+      <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_coder</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">element_type</span> <span class="ow">or</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">coder</span><span class="o">.</span><span class="n">is_kv_coder</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">((</span><span class="s1">&#39;Coder for the GroupByKey operation &quot;</span><span class="si">%s</span><span class="s1">&quot; is not a &#39;</span>
+                        <span class="s1">&#39;key-value coder: </span><span class="si">%s</span><span class="s1">.&#39;</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+                                                   <span class="n">coder</span><span class="p">))</span>
+    <span class="c1"># TODO(robertwb): Update the coder itself if it changed.</span>
+    <span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">verify_deterministic</span><span class="p">(</span>
+        <span class="n">coder</span><span class="o">.</span><span class="n">key_coder</span><span class="p">(),</span> <span class="s1">&#39;GroupByKey operation &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.run_GroupByKey"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_GroupByKey">[docs]</a>  <span class="k">def</span> <span class="nf">run_GroupByKey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">input_tag</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tag</span>
+    <span class="n">input_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span>
+        <span class="n">TransformNames</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">PARALLEL_INPUT</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)})</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoded_output_coder</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span>
+        <span class="p">[{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">)),</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">}])</span>
+    <span class="n">windowing</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">get_windowing</span><span class="p">(</span>
+        <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">SERIALIZED_FN</span><span class="p">,</span> <span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">windowing</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.run_ParDo"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_ParDo">[docs]</a>  <span class="k">def</span> <span class="nf">run_ParDo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span>
+    <span class="n">input_tag</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tag</span>
+    <span class="n">input_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Attach side inputs.</span>
+    <span class="n">si_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># We must call self._cache.get_pvalue exactly once due to refcounting.</span>
+    <span class="n">si_labels</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">lookup_label</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">side_pval</span><span class="p">:</span> <span class="n">si_labels</span><span class="p">[</span><span class="n">side_pval</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">side_pval</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">side_pval</span><span class="p">,</span> <span class="n">AsSideInput</span><span class="p">)</span>
+      <span class="n">si_label</span> <span class="o">=</span> <span class="s1">&#39;SideInput-&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_unique_step_name</span><span class="p">()</span>
+      <span class="n">si_full_label</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">si_label</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_add_singleton_step</span><span class="p">(</span>
+          <span class="n">si_label</span><span class="p">,</span> <span class="n">si_full_label</span><span class="p">,</span> <span class="n">side_pval</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">side_pval</span><span class="o">.</span><span class="n">pvalue</span><span class="p">))</span>
+      <span class="n">si_dict</span><span class="p">[</span><span class="n">si_label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">si_label</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">}</span>
+      <span class="n">si_labels</span><span class="p">[</span><span class="n">side_pval</span><span class="p">]</span> <span class="o">=</span> <span class="n">si_label</span>
+
+    <span class="c1"># Now create the step for the ParDo transform being handled.</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span>
+        <span class="n">TransformNames</span><span class="o">.</span><span class="n">DO</span><span class="p">,</span>
+        <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="s1">&#39;/Do&#39;</span> <span class="k">if</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">side_inputs</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
+        <span class="n">transform_node</span><span class="p">,</span>
+        <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">output_tags</span><span class="p">)</span>
+    <span class="n">fn_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pardo_fn_data</span><span class="p">(</span><span class="n">transform_node</span><span class="p">,</span> <span class="n">lookup_label</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">SERIALIZED_FN</span><span class="p">,</span> <span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">fn_data</span><span class="p">))</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">PARALLEL_INPUT</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)})</span>
+    <span class="c1"># Add side inputs if any.</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">NON_PARALLEL_INPUTS</span><span class="p">,</span> <span class="n">si_dict</span><span class="p">)</span>
+
+    <span class="c1"># Generate description for the outputs. The output names</span>
+    <span class="c1"># will be &#39;out&#39; for main output and &#39;out_&lt;tag&gt;&#39; for a tagged output.</span>
+    <span class="c1"># Using &#39;out&#39; as a tag will not clash with the name for main since it will</span>
+    <span class="c1"># be transformed into &#39;out_out&#39; internally.</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoded_output_coder</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+
+    <span class="c1"># Add the main output to the description.</span>
+    <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="p">{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">)),</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">})</span>
+    <span class="k">for</span> <span class="n">side_tag</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">output_tags</span><span class="p">:</span>
+      <span class="c1"># The assumption here is that all outputs will have the same typehint</span>
+      <span class="c1"># and coder as the main output. This is certainly the case right now</span>
+      <span class="c1"># but conceivably it could change in the future.</span>
+      <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="p">{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+              <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">side_tag</span><span class="p">)),</span>
+           <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+           <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="p">(</span>
+               <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">,</span> <span class="n">side_tag</span><span class="p">))})</span>
+
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_pardo_fn_data</span><span class="p">(</span><span class="n">transform_node</span><span class="p">,</span> <span class="n">get_label</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span>
+    <span class="n">si_tags_and_types</span> <span class="o">=</span> <span class="p">[</span>  <span class="c1"># pylint: disable=protected-access</span>
+        <span class="p">(</span><span class="n">get_label</span><span class="p">(</span><span class="n">side_pval</span><span class="p">),</span> <span class="n">side_pval</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">side_pval</span><span class="o">.</span><span class="n">_view_options</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">side_pval</span> <span class="ow">in</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">si_tags_and_types</span><span class="p">,</span>
+            <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">windowing</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DataflowRunner.apply_CombineValues"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_CombineValues">[docs]</a>  <span class="k">def</span> <span class="nf">apply_CombineValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.run_CombineValues"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_CombineValues">[docs]</a>  <span class="k">def</span> <span class="nf">run_CombineValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span>
+    <span class="n">input_tag</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tag</span>
+    <span class="n">input_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span>
+        <span class="n">TransformNames</span><span class="o">.</span><span class="n">COMBINE</span><span class="p">,</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">)</span>
+    <span class="c1"># Combiner functions do not take deferred side-inputs (i.e. PValues) and</span>
+    <span class="c1"># therefore the code to handle extra args/kwargs is simpler than for the</span>
+    <span class="c1"># DoFn&#39;s of the ParDo transform. In the last, empty argument is where</span>
+    <span class="c1"># side inputs information would go.</span>
+    <span class="n">fn_data</span> <span class="o">=</span> <span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="p">())</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">SERIALIZED_FN</span><span class="p">,</span>
+                      <span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">fn_data</span><span class="p">))</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">PARALLEL_INPUT</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)})</span>
+    <span class="c1"># Note that the accumulator must not have a WindowedValue encoding, while</span>
+    <span class="c1"># the output of this step does in fact have a WindowedValue encoding.</span>
+    <span class="n">accumulator_encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoded_output_coder</span><span class="p">(</span><span class="n">transform_node</span><span class="p">,</span>
+                                                          <span class="n">window_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">output_encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoded_output_coder</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span>
+
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="n">output_encoding</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">,</span> <span class="n">accumulator_encoding</span><span class="p">)</span>
+    <span class="c1"># Generate description for main output &#39;out.&#39;</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Add the main output to the description.</span>
+    <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="p">{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">)),</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">})</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.run_Read"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Read">[docs]</a>  <span class="k">def</span> <span class="nf">run_Read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span>
+        <span class="n">TransformNames</span><span class="o">.</span><span class="n">READ</span><span class="p">,</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">)</span>
+    <span class="c1"># TODO(mairbek): refactor if-else tree to use registerable functions.</span>
+    <span class="c1"># Initialize the source specific properties.</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s1">&#39;format&#39;</span><span class="p">):</span>
+      <span class="c1"># If a format is not set, we assume the source to be a custom source.</span>
+      <span class="n">source_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+      <span class="n">source_dict</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="n">names</span><span class="o">.</span><span class="n">SOURCE_TYPE</span><span class="p">,</span>
+          <span class="n">names</span><span class="o">.</span><span class="n">SERIALIZED_SOURCE_KEY</span><span class="p">:</span> <span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+      <span class="p">}</span>
+
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">source_dict</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;estimated_size_bytes&#39;</span><span class="p">:</span> <span class="n">json_value</span><span class="o">.</span><span class="n">get_typed_value_descriptor</span><span class="p">(</span>
+                <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">())</span>
+        <span class="p">}</span>
+      <span class="k">except</span> <span class="n">error</span><span class="o">.</span><span class="n">RuntimeValueProviderError</span><span class="p">:</span>
+        <span class="c1"># Size estimation is best effort, and this error is by value provider.</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Could not estimate size of source </span><span class="si">%r</span><span class="s1"> due to &#39;</span> <span class="o">+</span> \
+            <span class="s1">&#39;RuntimeValueProviderError&#39;</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="c1"># Size estimation is best effort. So we log the error and continue.</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Could not estimate size of source </span><span class="si">%r</span><span class="s1"> due to an exception: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">SOURCE_STEP_INPUT</span><span class="p">,</span>
+                        <span class="n">source_dict</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">FILE_PATTERN</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;bigquery&#39;</span><span class="p">:</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_EXPORT_FORMAT</span><span class="p">,</span> <span class="s1">&#39;FORMAT_AVRO&#39;</span><span class="p">)</span>
+      <span class="c1"># TODO(silviuc): Add table validation if transform.source.validate.</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_DATASET</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">)</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_TABLE</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+        <span class="c1"># If project owning the table was not specified then the project owning</span>
+        <span class="c1"># the workflow (current project) will be used.</span>
+        <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_PROJECT</span><span class="p">,</span>
+                            <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">query</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_QUERY</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_USE_LEGACY_SQL</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">use_legacy_sql</span><span class="p">)</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_FLATTEN_RESULTS</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">flatten_results</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;BigQuery source </span><span class="si">%r</span><span class="s1"> must specify either a table or&#39;</span>
+                         <span class="s1">&#39; a query&#39;</span><span class="p">,</span>
+                         <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;pubsub&#39;</span><span class="p">:</span>
+      <span class="n">standard_options</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">standard_options</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;PubSubSource is currently available for use only in &#39;</span>
+                         <span class="s1">&#39;streaming pipelines.&#39;</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">PUBSUB_TOPIC</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">topic</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">subscription</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">PUBSUB_SUBSCRIPTION</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">topic</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">id_label</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">PUBSUB_ID_LABEL</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">id_label</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Source </span><span class="si">%r</span><span class="s1"> has unexpected format </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">format</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s1">&#39;format&#39;</span><span class="p">):</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">FORMAT</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">SOURCE_FORMAT</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">FORMAT</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+
+    <span class="c1"># Wrap coder in WindowedValueCoder: this is necessary as the encoding of a</span>
+    <span class="c1"># step should be the type of value outputted by each step.  Read steps</span>
+    <span class="c1"># automatically wrap output values in a WindowedValue wrapper, if necessary.</span>
+    <span class="c1"># This is also necessary for proper encoding for size estimation.</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">_infer_output_coder</span><span class="p">())</span>  <span class="c1"># pylint: disable=protected-access</span>
+
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cloud_encoding</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_INFO</span><span class="p">,</span>
+        <span class="p">[{</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">USER_NAME</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">)),</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUT</span><span class="p">}])</span></div>
+
+<div class="viewcode-block" id="DataflowRunner.run__NativeWrite"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run__NativeWrite">[docs]</a>  <span class="k">def</span> <span class="nf">run__NativeWrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span>
+    <span class="n">input_tag</span> <span class="o">=</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tag</span>
+    <span class="n">input_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get_pvalue</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_step</span><span class="p">(</span>
+        <span class="n">TransformNames</span><span class="o">.</span><span class="n">WRITE</span><span class="p">,</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">)</span>
+    <span class="c1"># TODO(mairbek): refactor if-else tree to use registerable functions.</span>
+    <span class="c1"># Initialize the sink specific properties.</span>
+    <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+      <span class="c1"># Note that it is important to use typed properties (@type/value dicts)</span>
+      <span class="c1"># for non-string properties and also for empty strings. For example,</span>
+      <span class="c1"># in the code below the num_shards must have type and also</span>
+      <span class="c1"># file_name_suffix and shard_name_template (could be empty strings).</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">FILE_NAME_PREFIX</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">file_name_prefix</span><span class="p">,</span>
+          <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">FILE_NAME_SUFFIX</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="p">,</span>
+          <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+          <span class="n">PropertyNames</span><span class="o">.</span><span class="n">SHARD_NAME_TEMPLATE</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">shard_name_template</span><span class="p">,</span>
+          <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">num_shards</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+            <span class="n">PropertyNames</span><span class="o">.</span><span class="n">NUM_SHARDS</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">num_shards</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="c1"># TODO(silviuc): Implement sink validation.</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">VALIDATE_SINK</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">with_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;bigquery&#39;</span><span class="p">:</span>
+      <span class="c1"># TODO(silviuc): Add table validation if transform.sink.validate.</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_DATASET</span><span class="p">,</span>
+                        <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">datasetId</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_TABLE</span><span class="p">,</span>
+                        <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">tableId</span><span class="p">)</span>
+      <span class="c1"># If project owning the table was not specified then the project owning</span>
+      <span class="c1"># the workflow (current project) will be used.</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_PROJECT</span><span class="p">,</span>
+                          <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_reference</span><span class="o">.</span><span class="n">projectId</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_CREATE_DISPOSITION</span><span class="p">,</span>
+                        <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">create_disposition</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_WRITE_DISPOSITION</span><span class="p">,</span>
+                        <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">write_disposition</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">table_schema</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+            <span class="n">PropertyNames</span><span class="o">.</span><span class="n">BIGQUERY_SCHEMA</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">schema_as_json</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s1">&#39;pubsub&#39;</span><span class="p">:</span>
+      <span class="n">standard_options</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">transform_node</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">standard_options</span><span class="o">.</span><span class="n">streaming</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;PubSubSink is currently available for use only in &#39;</span>
+                         <span class="s1">&#39;streaming pipelines.&#39;</span><span class="p">)</span>
+      <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">PUBSUB_TOPIC</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">topic</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Sink </span><span class="si">%r</span><span class="s1"> has unexpected format </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">format</span><span class="p">))</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">FORMAT</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+
+    <span class="c1"># Wrap coder in WindowedValueCoder: this is necessary for proper encoding</span>
+    <span class="c1"># for size estimation.</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">coder</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cloud_encoding</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">PropertyNames</span><span class="o">.</span><span class="n">ENCODING</span><span class="p">,</span> <span class="n">step</span><span class="o">.</span><span class="n">encoding</span><span class="p">)</span>
+    <span class="n">step</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span>
+        <span class="n">PropertyNames</span><span class="o">.</span><span class="n">PARALLEL_INPUT</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;OutputReference&#39;</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">STEP_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+         <span class="n">PropertyNames</span><span class="o">.</span><span class="n">OUTPUT_NAME</span><span class="p">:</span> <span class="n">input_step</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)})</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">DataflowPipelineResult</span><span class="p">(</span><span class="n">PipelineResult</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents the state of a pipeline run on the Dataflow service.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">runner</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Job is a Job message from the Dataflow API.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">job</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span> <span class="o">=</span> <span class="n">runner</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">metric_results</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">id</span>
+
+  <span class="k">def</span> <span class="nf">metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric_results</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">has_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the current state of the remote job.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A PipelineState object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_job</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UNKNOWN</span>
+
+    <span class="n">values_enum</span> <span class="o">=</span> <span class="n">dataflow_api</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">CurrentStateValueValuesEnum</span>
+    <span class="n">api_jobstate_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_UNKNOWN</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UNKNOWN</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_STOPPED</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_RUNNING</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_DONE</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_FAILED</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_CANCELLED</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">CANCELLED</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_UPDATED</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UPDATED</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_DRAINING</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DRAINING</span><span class="p">,</span>
+        <span class="n">values_enum</span><span class="o">.</span><span class="n">JOB_STATE_DRAINED</span><span class="p">:</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DRAINED</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">api_jobstate_map</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">currentState</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">currentState</span>
+            <span class="k">else</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UNKNOWN</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_is_in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_job</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="p">[</span>
+        <span class="n">PipelineState</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">,</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+        <span class="n">PipelineState</span><span class="o">.</span><span class="n">CANCELLED</span><span class="p">,</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DRAINED</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">wait_until_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_in_terminal_state</span><span class="p">():</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_job</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Failed to get the Dataflow job id.&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">duration</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;DataflowRunner does not support duration argument.&#39;</span><span class="p">)</span>
+
+      <span class="n">thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+          <span class="n">target</span><span class="o">=</span><span class="n">DataflowRunner</span><span class="o">.</span><span class="n">poll_for_job_completion</span><span class="p">,</span>
+          <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
+
+      <span class="c1"># Mark the thread as a daemon thread so a keyboard interrupt on the main</span>
+      <span class="c1"># thread will terminate everything. This is also the reason we will not</span>
+      <span class="c1"># use thread.join() to wait for the polling thread.</span>
+      <span class="n">thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+      <span class="k">while</span> <span class="n">thread</span><span class="o">.</span><span class="n">isAlive</span><span class="p">():</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">5.0</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span><span class="p">:</span>
+        <span class="c1"># TODO(BEAM-1290): Consider converting this to an error log based on the</span>
+        <span class="c1"># resolution of the issue.</span>
+        <span class="k">raise</span> <span class="n">DataflowRuntimeException</span><span class="p">(</span>
+            <span class="s1">&#39;Dataflow pipeline failed. State: </span><span class="si">%s</span><span class="s1">, Error:</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="p">,</span> <span class="s1">&#39;last_error_msg&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">(),</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="p">,</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+
+
+<span class="k">class</span> <span class="nc">DataflowRuntimeException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Indicates an error has occurred in running this pipeline.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DataflowRuntimeException</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

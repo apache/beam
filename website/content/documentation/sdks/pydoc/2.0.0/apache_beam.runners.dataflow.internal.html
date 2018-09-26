@@ -1,0 +1,649 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.runners.dataflow.native_io package" href="apache_beam.runners.dataflow.native_io.html" />
+    <link rel="prev" title="apache_beam.runners.dataflow package" href="apache_beam.runners.dataflow.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.html" title="apache_beam.runners.dataflow package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" >apache_beam.runners package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.runners.dataflow.html" accesskey="U">apache_beam.runners.dataflow package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.runners.dataflow.internal package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.internal.apiclient">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.internal.dependency">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.internal.names">apache_beam.runners.dataflow.internal.names module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.internal">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.html"
+                        title="previous chapter">apache_beam.runners.dataflow package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.native_io.html"
+                        title="next chapter">apache_beam.runners.dataflow.native_io package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.runners.dataflow.internal.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-runners-dataflow-internal-package">
+<h1>apache_beam.runners.dataflow.internal package<a class="headerlink" href="#apache-beam-runners-dataflow-internal-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.internal.apiclient">
+<span id="apache-beam-runners-dataflow-internal-apiclient-module"></span><h2>apache_beam.runners.dataflow.internal.apiclient module<a class="headerlink" href="#module-apache_beam.runners.dataflow.internal.apiclient" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only. No backwards compatibility guarantees.</p>
+<p>Dataflow client utility functions.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">DataflowApplicationClient</code><span class="sig-paren">(</span><em>options</em>, <em>environment_version</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#DataflowApplicationClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A Dataflow API client used by application code to create and query jobs.</p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.create_job">
+<code class="descname">create_job</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.create_job" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.create_job_description">
+<code class="descname">create_job_description</code><span class="sig-paren">(</span><em>job</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#DataflowApplicationClient.create_job_description"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.create_job_description" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a job described by the workflow proto.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.get_job">
+<code class="descname">get_job</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.get_job" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.get_job_metrics">
+<code class="descname">get_job_metrics</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.get_job_metrics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.list_messages">
+<code class="descname">list_messages</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.list_messages" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.modify_job_state">
+<code class="descname">modify_job_state</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.modify_job_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.stage_file">
+<code class="descname">stage_file</code><span class="sig-paren">(</span><em>gcs_or_local_path</em>, <em>file_name</em>, <em>stream</em>, <em>mime_type='application/octet-stream'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#DataflowApplicationClient.stage_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.stage_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stages a file at a GCS or local path with stream-supplied contents.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.submit_job_description">
+<code class="descname">submit_job_description</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.DataflowApplicationClient.submit_job_description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Environment">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">Environment</code><span class="sig-paren">(</span><em>packages</em>, <em>options</em>, <em>environment_version</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Environment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Environment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Wrapper for a dataflow Environment protobuf.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Job">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Wrapper for a dataflow Job protobuf.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Job.default_job_name">
+<em class="property">static </em><code class="descname">default_job_name</code><span class="sig-paren">(</span><em>job_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Job.default_job_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Job.default_job_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Job.json">
+<code class="descname">json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Job.json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Job.json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">MetricUpdateTranslators</code><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Translators between accumulators and dataflow metric updates.</p>
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_boolean">
+<em class="property">static </em><code class="descname">translate_boolean</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators.translate_boolean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_boolean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_float">
+<em class="property">static </em><code class="descname">translate_scalar_counter_float</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators.translate_scalar_counter_float"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_float" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_int">
+<em class="property">static </em><code class="descname">translate_scalar_counter_int</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators.translate_scalar_counter_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_counter_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_float">
+<em class="property">static </em><code class="descname">translate_scalar_mean_float</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators.translate_scalar_mean_float"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_float" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_int">
+<em class="property">static </em><code class="descname">translate_scalar_mean_int</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#MetricUpdateTranslators.translate_scalar_mean_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.MetricUpdateTranslators.translate_scalar_mean_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Step">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">Step</code><span class="sig-paren">(</span><em>step_kind</em>, <em>step_name</em>, <em>additional_properties=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Step" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Wrapper for a dataflow Step protobuf.</p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Step.add_property">
+<code class="descname">add_property</code><span class="sig-paren">(</span><em>name</em>, <em>value</em>, <em>with_type=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Step.add_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Step.add_property" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.Step.get_output">
+<code class="descname">get_output</code><span class="sig-paren">(</span><em>tag=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#Step.get_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.Step.get_output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns name if it is one of the outputs or first output if name is None.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>tag</strong> &#8211; tag of the output as a string or None if we want to get the
+name of the first output.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The name of the output associated with the tag or the first output
+if tag was None.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code> &#8211; if the tag does not exist within outputs.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.to_split_int">
+<code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">to_split_int</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#to_split_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.to_split_int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.translate_distribution">
+<code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">translate_distribution</code><span class="sig-paren">(</span><em>distribution_update</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#translate_distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.translate_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Translate metrics DistributionUpdate to dataflow distribution update.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.translate_mean">
+<code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">translate_mean</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#translate_mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.translate_mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.translate_scalar">
+<code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">translate_scalar</code><span class="sig-paren">(</span><em>accumulator</em>, <em>metric_update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#translate_scalar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.translate_scalar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.apiclient.translate_value">
+<code class="descclassname">apache_beam.runners.dataflow.internal.apiclient.</code><code class="descname">translate_value</code><span class="sig-paren">(</span><em>value</em>, <em>metric_update_proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/apiclient.html#translate_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.apiclient.translate_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.internal.dependency">
+<span id="apache-beam-runners-dataflow-internal-dependency-module"></span><h2>apache_beam.runners.dataflow.internal.dependency module<a class="headerlink" href="#module-apache_beam.runners.dataflow.internal.dependency" title="Permalink to this headline">¶</a></h2>
+<p>Support for installing custom code and required dependencies.</p>
+<p>Workflows, with the exception of very simple ones, are organized in multiple
+modules and packages. Typically, these modules and packages have
+dependencies on other standard libraries. Dataflow relies on the Python
+setuptools package to handle these scenarios. For further details please read:
+<a class="reference external" href="https://pythonhosted.org/an_example_pypi_project/setuptools.html">https://pythonhosted.org/an_example_pypi_project/setuptools.html</a></p>
+<p>When a runner tries to run a pipeline it will check for a &#8211;requirements_file
+and a &#8211;setup_file option.</p>
+<p>If &#8211;setup_file is present then it is assumed that the folder containing the
+file specified by the option has the typical layout required by setuptools and
+it will run &#8216;python setup.py sdist&#8217; to produce a source distribution. The
+resulting tarball (a .tar or .tar.gz file) will be staged at the GCS staging
+location specified as job option. When a worker starts it will check for the
+presence of this file and will run &#8216;easy_install tarball&#8217; to install the
+package in the worker.</p>
+<p>If &#8211;requirements_file is present then the file specified by the option will be
+staged in the GCS staging location.  When a worker starts it will check for the
+presence of this file and will run &#8216;pip install -r requirements.txt&#8217;. A
+requirements file can be easily generated by running &#8216;pip freeze -r
+requirements.txt&#8217;. The reason a Dataflow runner does not run this automatically
+is because quite often only a small fraction of the dependencies present in a
+requirements.txt file are actually needed for remote execution and therefore a
+one-time manual trimming is desirable.</p>
+<p>TODO(silviuc): Staged files should have a job specific prefix.
+To prevent several jobs in the same project stomping on each other due to a
+shared staging location.</p>
+<p>TODO(silviuc): Should we allow several setup packages?
+TODO(silviuc): We should allow customizing the exact command for setup build.</p>
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.dependency.get_required_container_version">
+<code class="descclassname">apache_beam.runners.dataflow.internal.dependency.</code><code class="descname">get_required_container_version</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/dependency.html#get_required_container_version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.dependency.get_required_container_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns the Google Cloud Dataflow container version for remote execution.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.dependency.get_sdk_name_and_version">
+<code class="descclassname">apache_beam.runners.dataflow.internal.dependency.</code><code class="descname">get_sdk_name_and_version</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/dependency.html#get_sdk_name_and_version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.dependency.get_sdk_name_and_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns name and version of SDK reported to Google Cloud Dataflow.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.dependency.get_sdk_package_name">
+<code class="descclassname">apache_beam.runners.dataflow.internal.dependency.</code><code class="descname">get_sdk_package_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/dependency.html#get_sdk_package_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.dependency.get_sdk_package_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns the PyPI package name to be staged to Google Cloud Dataflow.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.runners.dataflow.internal.dependency.stage_job_resources">
+<code class="descclassname">apache_beam.runners.dataflow.internal.dependency.</code><code class="descname">stage_job_resources</code><span class="sig-paren">(</span><em>options</em>, <em>file_copy=&lt;function _dependency_file_copy&gt;</em>, <em>build_setup_args=None</em>, <em>temp_dir=None</em>, <em>populate_requirements_cache=&lt;function _populate_requirements_cache&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/dependency.html#stage_job_resources"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.dependency.stage_job_resources" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Creates (if needed) and stages job resources to options.staging_location.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>options</strong> &#8211; Command line options. More specifically the function will expect
+staging_location, requirements_file, setup_file, and save_main_session
+options to be present.</li>
+<li><strong>file_copy</strong> &#8211; Callable for copying files. The default version will copy from
+a local file to a GCS location using the gsutil tool available in the
+Google Cloud SDK package.</li>
+<li><strong>build_setup_args</strong> &#8211; A list of command line arguments used to build a setup
+package. Used only if options.setup_file is not None. Used only for
+testing.</li>
+<li><strong>temp_dir</strong> &#8211; Temporary folder where the resource building can happen. If None
+then a unique temp directory will be created. Used only for testing.</li>
+<li><strong>populate_requirements_cache</strong> &#8211; Callable for populating the requirements cache.
+Used only for testing.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A list of file names (no paths) for the resources staged. All the files
+are assumed to be staged in options.staging_location.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="xref py py-exc docutils literal"><span class="pre">RuntimeError</span></code> &#8211; If files specified are not found or error encountered while
+trying to create the resources (e.g., build a setup package).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.internal.names">
+<span id="apache-beam-runners-dataflow-internal-names-module"></span><h2>apache_beam.runners.dataflow.internal.names module<a class="headerlink" href="#module-apache_beam.runners.dataflow.internal.names" title="Permalink to this headline">¶</a></h2>
+<p>Various names for properties, transforms, etc.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.names.</code><code class="descname">PropertyNames</code><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/names.html#PropertyNames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Property strings as they are expected in the CloudWorkflow protos.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_CREATE_DISPOSITION">
+<code class="descname">BIGQUERY_CREATE_DISPOSITION</code><em class="property"> = 'create_disposition'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_CREATE_DISPOSITION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_DATASET">
+<code class="descname">BIGQUERY_DATASET</code><em class="property"> = 'dataset'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_DATASET" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_EXPORT_FORMAT">
+<code class="descname">BIGQUERY_EXPORT_FORMAT</code><em class="property"> = 'bigquery_export_format'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_EXPORT_FORMAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_FLATTEN_RESULTS">
+<code class="descname">BIGQUERY_FLATTEN_RESULTS</code><em class="property"> = 'bigquery_flatten_results'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_FLATTEN_RESULTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_PROJECT">
+<code class="descname">BIGQUERY_PROJECT</code><em class="property"> = 'project'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_PROJECT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_QUERY">
+<code class="descname">BIGQUERY_QUERY</code><em class="property"> = 'bigquery_query'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_QUERY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_SCHEMA">
+<code class="descname">BIGQUERY_SCHEMA</code><em class="property"> = 'schema'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_SCHEMA" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_TABLE">
+<code class="descname">BIGQUERY_TABLE</code><em class="property"> = 'table'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_TABLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_USE_LEGACY_SQL">
+<code class="descname">BIGQUERY_USE_LEGACY_SQL</code><em class="property"> = 'bigquery_use_legacy_sql'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_USE_LEGACY_SQL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_WRITE_DISPOSITION">
+<code class="descname">BIGQUERY_WRITE_DISPOSITION</code><em class="property"> = 'write_disposition'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.BIGQUERY_WRITE_DISPOSITION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.DISPLAY_DATA">
+<code class="descname">DISPLAY_DATA</code><em class="property"> = 'display_data'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.DISPLAY_DATA" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.ELEMENT">
+<code class="descname">ELEMENT</code><em class="property"> = 'element'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.ELEMENT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.ELEMENTS">
+<code class="descname">ELEMENTS</code><em class="property"> = 'elements'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.ELEMENTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.ENCODING">
+<code class="descname">ENCODING</code><em class="property"> = 'encoding'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.ENCODING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_NAME_PREFIX">
+<code class="descname">FILE_NAME_PREFIX</code><em class="property"> = 'filename_prefix'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_NAME_PREFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_NAME_SUFFIX">
+<code class="descname">FILE_NAME_SUFFIX</code><em class="property"> = 'filename_suffix'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_NAME_SUFFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_PATTERN">
+<code class="descname">FILE_PATTERN</code><em class="property"> = 'filepattern'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.FILE_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.FORMAT">
+<code class="descname">FORMAT</code><em class="property"> = 'format'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.FORMAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.INPUTS">
+<code class="descname">INPUTS</code><em class="property"> = 'inputs'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.INPUTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.NON_PARALLEL_INPUTS">
+<code class="descname">NON_PARALLEL_INPUTS</code><em class="property"> = 'non_parallel_inputs'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.NON_PARALLEL_INPUTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.NUM_SHARDS">
+<code class="descname">NUM_SHARDS</code><em class="property"> = 'num_shards'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.NUM_SHARDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.OUT">
+<code class="descname">OUT</code><em class="property"> = 'out'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.OUT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT">
+<code class="descname">OUTPUT</code><em class="property"> = 'output'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT_INFO">
+<code class="descname">OUTPUT_INFO</code><em class="property"> = 'output_info'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT_INFO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT_NAME">
+<code class="descname">OUTPUT_NAME</code><em class="property"> = 'output_name'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.OUTPUT_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.PARALLEL_INPUT">
+<code class="descname">PARALLEL_INPUT</code><em class="property"> = 'parallel_input'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.PARALLEL_INPUT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_ID_LABEL">
+<code class="descname">PUBSUB_ID_LABEL</code><em class="property"> = 'pubsub_id_label'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_ID_LABEL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_SUBSCRIPTION">
+<code class="descname">PUBSUB_SUBSCRIPTION</code><em class="property"> = 'pubsub_subscription'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_SUBSCRIPTION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_TOPIC">
+<code class="descname">PUBSUB_TOPIC</code><em class="property"> = 'pubsub_topic'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.PUBSUB_TOPIC" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.SERIALIZED_FN">
+<code class="descname">SERIALIZED_FN</code><em class="property"> = 'serialized_fn'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.SERIALIZED_FN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.SHARD_NAME_TEMPLATE">
+<code class="descname">SHARD_NAME_TEMPLATE</code><em class="property"> = 'shard_template'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.SHARD_NAME_TEMPLATE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.SOURCE_STEP_INPUT">
+<code class="descname">SOURCE_STEP_INPUT</code><em class="property"> = 'custom_source_step_input'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.SOURCE_STEP_INPUT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.STEP_NAME">
+<code class="descname">STEP_NAME</code><em class="property"> = 'step_name'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.STEP_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.USER_FN">
+<code class="descname">USER_FN</code><em class="property"> = 'user_fn'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.USER_FN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.USER_NAME">
+<code class="descname">USER_NAME</code><em class="property"> = 'user_name'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.USER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.VALIDATE_SINK">
+<code class="descname">VALIDATE_SINK</code><em class="property"> = 'validate_sink'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.VALIDATE_SINK" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.VALIDATE_SOURCE">
+<code class="descname">VALIDATE_SOURCE</code><em class="property"> = 'validate_source'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.VALIDATE_SOURCE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.PropertyNames.VALUE">
+<code class="descname">VALUE</code><em class="property"> = 'value'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.PropertyNames.VALUE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.internal.names.</code><code class="descname">TransformNames</code><a class="reference internal" href="_modules/apache_beam/runners/dataflow/internal/names.html#TransformNames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Transform strings as they are expected in the CloudWorkflow protos.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.COLLECTION_TO_SINGLETON">
+<code class="descname">COLLECTION_TO_SINGLETON</code><em class="property"> = 'CollectionToSingleton'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.COLLECTION_TO_SINGLETON" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.COMBINE">
+<code class="descname">COMBINE</code><em class="property"> = 'CombineValues'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.COMBINE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.CREATE_PCOLLECTION">
+<code class="descname">CREATE_PCOLLECTION</code><em class="property"> = 'CreateCollection'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.CREATE_PCOLLECTION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.DO">
+<code class="descname">DO</code><em class="property"> = 'ParallelDo'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.DO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.FLATTEN">
+<code class="descname">FLATTEN</code><em class="property"> = 'Flatten'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.FLATTEN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.GROUP">
+<code class="descname">GROUP</code><em class="property"> = 'GroupByKey'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.GROUP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.READ">
+<code class="descname">READ</code><em class="property"> = 'ParallelRead'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.READ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.internal.names.TransformNames.WRITE">
+<code class="descname">WRITE</code><em class="property"> = 'ParallelWrite'</em><a class="headerlink" href="#apache_beam.runners.dataflow.internal.names.TransformNames.WRITE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.internal">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.runners.dataflow.internal" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.html" title="apache_beam.runners.dataflow package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" >apache_beam.runners package</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="apache_beam.runners.dataflow.html" >apache_beam.runners.dataflow package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

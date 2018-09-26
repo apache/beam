@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.bundle\_factory module
+=====================================================
+
+.. automodule:: apache_beam.runners.direct.bundle_factory
+    :members:
+    :undoc-members:
+    :show-inheritance:
