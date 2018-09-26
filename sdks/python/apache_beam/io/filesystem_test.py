@@ -235,23 +235,12 @@ class TestFileSystem(unittest.TestCase):
     double_star = r'.*'
     join = os_path.join
 
-    def re_join(a, *p):
-      path = a
-      for b in p:
-        if b.startswith(sep_re):
-          path = b
-        elif path == '' or path.endswith(sep_re):
-          path += b
-        else:
-          path += sep_re + b
-      return path
-
     sep = os_path.sep
     pattern__expected = [
-        (join('a', '*'), re_join('a', star)),
-        (join('b', '*') + sep, re_join(r'b', star) + sep_re),
+        (join('a', '*'), sep_re.join(['a', star])),
+        (join('b', '*') + sep, sep_re.join(['b', star]) + sep_re),
         (r'*[abc\]', star + r'[abc\\]'),
-        (join('d', '**', '*'), re_join('d', double_star, star)),
+        (join('d', '**', '*'), sep_re.join(['d', double_star, star])),
     ]
     for pattern, expected in pattern__expected:
       expected += r'\Z(?ms)'
