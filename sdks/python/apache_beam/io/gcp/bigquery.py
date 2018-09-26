@@ -398,8 +398,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         query results. The default value is :data:`True`.
       location (str): The location of the source table or query.
         If :data:`None`, the location will be
-        -   "US" for :data:`query` sources.
-        -   Automatically detected for :data:`table` sources.
+        -   :data:`None` for *query* sources.
+        -   Automatically detected for *table* sources.
         The default value is :data:`None`.
 
     Raises:
