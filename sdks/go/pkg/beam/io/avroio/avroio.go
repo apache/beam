@@ -81,7 +81,7 @@ type avroReadFn struct {
 }
 
 func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit func(beam.X)) (err error) {
-	log.Infof(ctx, "Reading from %v", filename)
+	log.Infof(ctx, "Reading AVRO from %v", filename)
 
 	fs, err := filesystem.New(ctx, filename)
 	if err != nil {
@@ -151,6 +151,7 @@ type writeAvroFn struct {
 }
 
 func (w *writeAvroFn) ProcessElement(ctx context.Context, _ int, lines func(*string) bool) (err error) {
+	log.Infof(ctx, "writing AVRO to %s", w.Filename)
 	fs, err := filesystem.New(ctx, w.Filename)
 	if err != nil {
 		return
