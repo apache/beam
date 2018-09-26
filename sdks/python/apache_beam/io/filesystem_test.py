@@ -114,10 +114,13 @@ class TestFileSystem(unittest.TestCase):
             for file_metadata in match_result.metadata_list]
 
   @parameterized.expand([
-      ('**/*', all),
-      ('gs://**/*', all),
       ('gs://gcsio-test/**', all),
-      ('gs://gcsio-test/*', []),
+      # Does not match root-level files
+      ('gs://gcsio-test/**/*', lambda n, i: n not in ['cat.png']),
+      # Only matches root-level files
+      ('gs://gcsio-test/*', [
+          ('cat.png', 19)
+      ]),
       ('gs://gcsio-test/cow/**', [
           ('cow/cat/fish', 2),
           ('cow/cat/blubber', 3),
@@ -183,13 +186,25 @@ class TestFileSystem(unittest.TestCase):
         ('banana/cat', 16),
         ('banana/cyrano.md', 17),
         ('banana/cyrano.mb', 18),
+        ('cat.png', 19)
     ]
     bucket_name = 'gcsio-test'
 
-    if expected_object_names is all:
-      # A hack around the fact that the parameterized decorator does not have
-      #  access to self.objects
-      expected_object_names = objects
+    if callable(expected_object_names):
+      # A hack around the fact that the parameters do not have access to
+      # the "objects" list.
+
+      if expected_object_names is all:
+        # It's a placeholder for "all" objects
+        expected_object_names = objects
+      else:
+        # It's a filter function of type (str, int) -> bool
+        # that returns true for expected objects
+        filter_func = expected_object_names
+        expected_object_names = [
+            (short_path, size) for short_path, size in objects
+            if filter_func(short_path, size)
+        ]
 
     for object_name, size in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
@@ -202,7 +217,6 @@ class TestFileSystem(unittest.TestCase):
         for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
     ]
 
-    self.maxDiff = None
     self.assertEqual(set(actual_file_names), set(expected_file_names))
 
     # Check if limits are followed correctly
