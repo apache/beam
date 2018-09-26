@@ -668,19 +668,18 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:  # it's a query source
-        if self.source.location is not None:
-            logging.info('Using location=%r from BigQuerySource',
-                         self.source.location)
-            return self.source.location
+      if self.source.location is not None:
+        logging.info('Using location=%r from BigQuerySource',
+                     self.source.location)
+        return self.source.location
 
-        # TODO(BEAM-5457): Is there a way to get the source location from a query?
-        logging.warning(
-            'Could not reliably determine source location. '
-            'Use BigQuerySource(query=..., location="your-location").'
-            'This might cause '
-            '"Cannot read and write in different locations: [...]" errors.')
-        return
-
+      # TODO(BEAM-5457): Is there a way to get the source location from a query?
+      logging.warning(
+          'Could not reliably determine source location. '
+          'Use BigQuerySource(query=..., location="your-location").'
+          'This might cause '
+          '"Cannot read and write in different locations: [...]" errors.')
+      return
 
     if tr.projectId is None:
       source_project_id = self.executing_project
