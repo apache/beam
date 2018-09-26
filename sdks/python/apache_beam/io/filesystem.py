@@ -553,10 +553,10 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     return self._combine_scheme(scheme, posixpath.dirname(path))
 
   def match_files(self, file_metas, pattern):
-    """Filter :class:`FileMetadata` objects by :data:`pattern`
+    """Filter :class:`FileMetadata` objects by *pattern*
 
     Args:
-      file_metas (:obj:`list` of :class:`FileMetadata`):
+      file_metas (list of :class:`FileMetadata`):
         Files to consider when matching
       pattern (str): File pattern
 
@@ -577,7 +577,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @staticmethod
   def translate_pattern(pattern):
     """
-    Translate a :data:`pattern` to a regular expression.
+    Translate a *pattern* to a regular expression.
     There is no way to quote meta-characters.
 
     Pattern syntax:
