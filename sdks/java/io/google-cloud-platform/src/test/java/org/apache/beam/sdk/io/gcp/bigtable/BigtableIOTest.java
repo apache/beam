@@ -1061,6 +1061,44 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadingDisplayDataFromRuntimeParameters() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+
+    DisplayData displayData = DisplayData.from(read);
+
+    System.out.println("displayData:\n" + displayData.toString());
+
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue("Unavailable during pipeline construction"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue("Unavailable during pipeline construction"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue("Unavailable during pipeline construction"))));
+  }
+
+  @Test
   public void testReadWithoutValidate() {
     final String table = "fooTable";
     BigtableIO.Read read =

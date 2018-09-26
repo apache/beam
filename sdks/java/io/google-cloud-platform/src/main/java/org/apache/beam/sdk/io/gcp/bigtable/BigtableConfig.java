@@ -159,13 +159,35 @@ abstract class BigtableConfig implements Serializable {
         "Could not obtain Bigtable instance id");
   }
 
+  /**
+   * @param <T> parameter The runtime parameter.
+   * @return {@code null} if the input parameter is {@code null}, return the String value of runtime
+   *     parameter if the parameter is accessible, returns "Unavailable during pipeline
+   *     construction" if the runtime parameter is not accessible for debugging purpose.
+   */
+  @Nullable
+  static <T> String getDisplayDataForParameter(@Nullable ValueProvider<T> parameter) {
+    if (parameter == null) {
+      return null;
+    }
+
+    if (parameter.isAccessible()) {
+      return String.valueOf(parameter.get());
+    }
+    return "Unavailable during pipeline construction";
+  }
+
   void populateDisplayData(DisplayData.Builder builder) {
     builder
         .addIfNotNull(
-            DisplayData.item("projectId", getProjectId()).withLabel("Bigtable Project Id"))
+            DisplayData.item("projectId", getDisplayDataForParameter(getProjectId()))
+                .withLabel("Bigtable Project Id"))
         .addIfNotNull(
-            DisplayData.item("instanceId", getInstanceId()).withLabel("Bigtable Instance Id"))
-        .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
+            DisplayData.item("instanceId", getDisplayDataForParameter(getInstanceId()))
+                .withLabel("Bigtable Instance Id"))
+        .addIfNotNull(
+            DisplayData.item("tableId", getDisplayDataForParameter(getTableId()))
+                .withLabel("Bigtable Table Id"))
         .add(DisplayData.item("withValidation", getValidate()).withLabel("Check is table exists"));
 
     if (getBigtableOptions() != null) {
