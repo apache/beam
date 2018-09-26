@@ -75,7 +75,8 @@ echo ">>> RUNNING DATAFLOW INTEGRATION TESTS"
 ./sdks/go/build/bin/integration \
     --runner=dataflow \
     --project=$DATAFLOW_PROJECT \
-    --worker_harness_container_image=$CONTAINER:$TAG \
+    --environment_type=DOCKER \
+    --environment_config=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --worker_binary=./sdks/go/test/build/bin/linux-amd64/worker

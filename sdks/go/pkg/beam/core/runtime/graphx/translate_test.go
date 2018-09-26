@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -79,7 +80,12 @@ func TestParDo(t *testing.T) {
 		t.Fatal("expected a single edge")
 	}
 
-	p, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: "foo"})
+	payload, err := proto.Marshal(&pb.DockerPayload{ContainerImage: "foo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := graphx.Marshal(edges,
+		&graphx.Options{Environment: pb.Environment{Url: "foo", Urn: "beam:env:docker:v1", Payload: payload}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -34,6 +36,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
@@ -49,6 +53,13 @@ public class Environments {
 
   private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
 
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  public static final String ENVIRONMENT_DOCKER = "DOCKER";
+  public static final String ENVIRONMENT_PROCESS = "PROCESS";
+  public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -63,11 +74,20 @@ public class Environments {
 
   private Environments() {}
 
-  public static Environment createOrGetDefaultDockerEnvironment(String url) {
-    if (Strings.isNullOrEmpty(url)) {
+  public static Environment createOrGetDefaultEnvironment(String type, String config) {
+    if (Strings.isNullOrEmpty(type)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
-    return createDockerEnvironment(url);
+
+    switch (type) {
+      case ENVIRONMENT_EMBEDDED:
+        return createEmbeddedEnvironment(config);
+      case ENVIRONMENT_PROCESS:
+        return createProcessEnvironment(config);
+      case ENVIRONMENT_DOCKER:
+      default:
+        return createDockerEnvironment(config);
+    }
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
@@ -79,18 +99,46 @@ public class Environments {
         .build();
   }
 
+  private static Environment createProcessEnvironment(String config) {
+    try {
+      ProcessPayloadReferenceJSON payloadReferenceJSON =
+          MAPPER.readValue(config, ProcessPayloadReferenceJSON.class);
+      return createProcessEnvironment(
+          payloadReferenceJSON.getOs(),
+          payloadReferenceJSON.getArch(),
+          payloadReferenceJSON.getCommand(),
+          payloadReferenceJSON.getEnv());
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Unable to parse process environment config: %s", config), e);
+    }
+  }
+
+  private static Environment createEmbeddedEnvironment(String config) {
+    return Environment.newBuilder()
+        .setUrn(ENVIRONMENT_EMBEDDED)
+        .setPayload(ByteString.copyFromUtf8(MoreObjects.firstNonNull(config, "")))
+        .build();
+  }
+
   public static Environment createProcessEnvironment(
       String os, String arch, String command, Map<String, String> env) {
+    ProcessPayload.Builder builder = ProcessPayload.newBuilder();
+    if (!Strings.isNullOrEmpty(os)) {
+      builder.setOs(os);
+    }
+    if (!Strings.isNullOrEmpty(arch)) {
+      builder.setArch(arch);
+    }
+    if (!Strings.isNullOrEmpty(command)) {
+      builder.setCommand(command);
+    }
+    if (env != null) {
+      builder.putAllEnv(env);
+    }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
-        .setPayload(
-            ProcessPayload.newBuilder()
-                .setOs(os)
-                .setArch(arch)
-                .setCommand(command)
-                .putAllEnv(env)
-                .build()
-                .toByteString())
+        .setPayload(builder.build().toByteString())
         .build();
   }
 
@@ -160,5 +208,32 @@ public class Environments {
     return WindowIntoPayload.parseFrom(transform.getSpec().getPayload())
         .getWindowFn()
         .getEnvironmentId();
+  }
+
+  private static class ProcessPayloadReferenceJSON {
+    @Nullable private String os;
+    @Nullable private String arch;
+    @Nullable private String command;
+    @Nullable private Map<String, String> env;
+
+    @Nullable
+    public String getOs() {
+      return os;
+    }
+
+    @Nullable
+    public String getArch() {
+      return arch;
+    }
+
+    @Nullable
+    public String getCommand() {
+      return command;
+    }
+
+    @Nullable
+    public Map<String, String> getEnv() {
+      return env;
+    }
   }
 }

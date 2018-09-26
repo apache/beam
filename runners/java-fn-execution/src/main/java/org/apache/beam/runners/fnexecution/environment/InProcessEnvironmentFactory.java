@@ -28,14 +28,20 @@ import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
+import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,5 +128,26 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
     // TODO: find some way to populate the actual ID in FnHarness.main()
     InstructionRequestHandler handler = clientSource.take("", Duration.ofMinutes(1L));
     return RemoteEnvironment.forHandler(environment, handler);
+  }
+
+  /** Provider of InProcessEnvironmentFactory. */
+  public static class Provider implements EnvironmentFactory.Provider {
+
+    @Override
+    public EnvironmentFactory createEnvironmentFactory(
+        GrpcFnServer<FnApiControlClientPoolService> controlServer,
+        GrpcFnServer<GrpcLoggingService> loggingServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServer,
+        GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
+        ControlClientPool clientPool,
+        IdGenerator idGenerator) {
+      return InProcessEnvironmentFactory.create(
+          PipelineOptionsFactory.create(), loggingServer, controlServer, clientPool.getSource());
+    }
+
+    @Override
+    public ServerFactory getServerFactory() {
+      return InProcessServerFactory.create();
+    }
   }
 }

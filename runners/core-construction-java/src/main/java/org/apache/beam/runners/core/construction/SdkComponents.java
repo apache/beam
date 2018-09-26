@@ -61,9 +61,11 @@ public class SdkComponents {
 
   public static SdkComponents create(PipelineOptions options) {
     SdkComponents sdkComponents = new SdkComponents();
+    PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.registerEnvironment(
-        Environments.createOrGetDefaultDockerEnvironment(
-            options.as(PortablePipelineOptions.class).getDefaultJavaEnvironmentUrl()));
+        Environments.createOrGetDefaultEnvironment(
+            portablePipelineOptions.getDefaultEnvironmentType(),
+            portablePipelineOptions.getDefaultEnvironmentConfig()));
     return sdkComponents;
   }
 
