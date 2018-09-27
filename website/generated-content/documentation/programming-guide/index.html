@@ -2902,7 +2902,7 @@ least 10 minutes:</p>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="kn">import</span> <span class="n">window</span>
 <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
+    <span class="n">items</span> <span class="o">|</span> <span class="s">'window'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)))</span>
 
 </code></pre>
 </div>
