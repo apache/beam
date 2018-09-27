@@ -1061,6 +1061,39 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadingDisplayDataFromRuntimeParameters() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+    DisplayData displayData = DisplayData.from(read);
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableProject, default=null}"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableInstanceId, default=null}"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableTableId, default=null}"))));
+  }
+
+  @Test
   public void testReadWithoutValidate() {
     final String table = "fooTable";
     BigtableIO.Read read =
