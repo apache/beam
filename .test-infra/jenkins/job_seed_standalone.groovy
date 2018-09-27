@@ -75,9 +75,8 @@ job('beam_SeedJob_Standalone') {
     githubPullRequest {
       admins(['asfbot'])
       useGitHubHooks()
-      orgWhitelist(['apache'])
+      orgWhitelist(['apache', 'googlecloudplatform'])
       allowMembersOfWhitelistedOrgsAsAdmin()
-      permitAll()
 
       // Also run when manually kicked on a pull request
       triggerPhrase('Run Standalone Seed Job')
