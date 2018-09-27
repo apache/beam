@@ -60,6 +60,7 @@ from future.utils import with_metaclass
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -151,6 +152,14 @@ class Pipeline(object):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
+
+    # set default experiments for portable runner
+    # (needs to occur prior to pipeline construction)
+    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+      experiments = (self._options.view_as(DebugOptions).experiments or [])
+      if not 'beam_fn_api' in experiments:
+        experiments.append('beam_fn_api')
+        self._options.view_as(DebugOptions).experiments = experiments
 
     # Default runner to be used.
     self.runner = runner
