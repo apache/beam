@@ -102,7 +102,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsIterableContainingInOrder;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -736,10 +736,10 @@ public class BigtableIOTest {
             keyRanges,
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
@@ -753,7 +753,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
   }
 
   /** Tests reduce split with all non adjacent ranges. */
@@ -786,10 +787,10 @@ public class BigtableIOTest {
             keyRanges,
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
@@ -801,8 +802,10 @@ public class BigtableIOTest {
 
     assertAllSourcesHaveSingleRanges(reducedSplits);
 
-    //The expected split source ranges are exactly same as original
-    assertThat(actualRangesAfterSplit, IsIterableContainingInOrder.contains(keyRanges.toArray()));
+    // The expected split source ranges are exactly same as original
+    assertThat(
+        actualRangesAfterSplit,
+        IsIterableContainingInAnyOrder.containsInAnyOrder(keyRanges.toArray()));
   }
 
   /** Tests reduce Splits with all adjacent ranges. */
@@ -826,10 +829,22 @@ public class BigtableIOTest {
             Arrays.asList(ByteKeyRange.ALL_KEYS),
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(numSamples));
+    List<BigtableSource> splits = new ArrayList<>();
+    List<ByteKeyRange> keyRanges =
+        Arrays.asList(
+            ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+            ByteKeyRange.of(createByteKey(1), createByteKey(2)),
+            ByteKeyRange.of(createByteKey(2), createByteKey(3)),
+            ByteKeyRange.of(createByteKey(3), createByteKey(4)),
+            ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+            ByteKeyRange.of(createByteKey(5), createByteKey(6)),
+            ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+            ByteKeyRange.of(createByteKey(7), createByteKey(8)),
+            ByteKeyRange.of(createByteKey(8), createByteKey(9)),
+            ByteKeyRange.of(createByteKey(9), ByteKey.EMPTY));
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
     //expected reduced Split source ranges are [..4][4..8][8..]
@@ -849,7 +864,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
     assertAllSourcesHaveSingleAdjacentRanges(reducedSplits);
     assertSourcesEqualReferenceSource(source, reducedSplits, null /* options */);
   }
