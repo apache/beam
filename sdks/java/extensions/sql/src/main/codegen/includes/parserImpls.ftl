@@ -197,8 +197,9 @@ SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
 {
   <TABLE>
   {
-    throw new ParseException("'CREATE TABLE' is not supported in BeamSQL. You can use "
-    + "'CREATE EXTERNAL TABLE' to register an external data source to BeamSQL");
+    throw new ParseException("'CREATE TABLE' is not supported in SQL. You can use "
+    + "'CREATE EXTERNAL TABLE' to register an external data source to SQL. For more details, "
+    + "please check: https://beam.apache.org/documentation/dsls/sql/create-external-table");
   }
 }
 
