@@ -4,8 +4,8 @@ title: "Beam SQL: CREATE EXTERNAL TABLE Statement"
 section_menu: section-menu/sdks.html
 permalink: /documentation/dsls/sql/create-external-table/
 redirect_from:
-  -/documentation/dsls/sql/statements/create-table/
-  -/documentation/dsls/sql/create-table/
+  - /documentation/dsls/sql/statements/create-table/
+  - /documentation/dsls/sql/create-table/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
