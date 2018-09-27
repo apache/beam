@@ -1,9 +1,11 @@
 ---
 layout: section
-title: "Beam SQL: CREATE TABLE Statement"
+title: "Beam SQL: CREATE EXTERNAL TABLE Statement"
 section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/create-table/
-redirect_from: /documentation/dsls/sql/statements/create-table/
+permalink: /documentation/dsls/sql/create-external-table/
+redirect_from:
+  -/documentation/dsls/sql/statements/create-table/
+  -/documentation/dsls/sql/create-table/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,20 +21,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# CREATE TABLE
+# CREATE EXTERNAL TABLE
 
-Beam SQL's `CREATE TABLE` statement registers a virtual table that maps to an
+Beam SQL's `CREATE EXTERNAL TABLE` statement registers a virtual table that maps to an
 [external storage system](https://beam.apache.org/documentation/io/built-in/).
-For some storage systems, `CREATE TABLE` does not create a physical table until
+For some storage systems, `CREATE EXTERNAL TABLE` does not create a physical table until
 a write occurs. After the physical table exists, you can access the table with
 the `SELECT`, `JOIN`, and `INSERT INTO` statements.
 
-The `CREATE TABLE` statement includes a schema and extended clauses.
+The `CREATE EXTERNAL TABLE` statement includes a schema and extended clauses.
 
 ## Syntax
 
 ```
-CREATE TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE type
 [LOCATION location]
 [TBLPROPERTIES tblProperties]
@@ -83,7 +85,7 @@ tableElement: columnName fieldType [ NOT NULL ]
 ### Syntax
 
 ```
-CREATE TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
 ```
@@ -183,7 +185,7 @@ as follows:
 ### Example
 
 ```
-CREATE TABLE users (id INTEGER, username VARCHAR)
+CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE bigquery
 LOCATION 'testing-integration:apache.users'
 ```
@@ -193,7 +195,7 @@ LOCATION 'testing-integration:apache.users'
 ### Syntax
 
 ```
-CREATE TABLE [ IF NOT EXISTS ] tableName
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
   (
    event_timestamp TIMESTAMP,
    attributes MAP<VARCHAR, VARCHAR>,
@@ -263,7 +265,7 @@ declare a special set of columns, as shown below.
 ### Example
 
 ```
-CREATE TABLE locations (event_timestamp TIMESTAMP, attributes MAP<VARCHAR, VARCHAR>, payload ROW<id INTEGER, location VARCHAR>)
+CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP<VARCHAR, VARCHAR>, payload ROW<id INTEGER, location VARCHAR>)
 TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
 ```
@@ -275,7 +277,7 @@ KafkaIO is experimental in Beam SQL.
 ### Syntax
 
 ```
-CREATE TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
 TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
@@ -313,7 +315,7 @@ access the same underlying data.
 ### Syntax
 
 ```
-CREATE TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE text
 LOCATION '/home/admin/orders'
 TBLPROPERTIES '{"format: "Excel"}'
@@ -345,7 +347,7 @@ Only simple types are supported.
 ### Example
 
 ```
-CREATE TABLE orders (id INTEGER, price INTEGER)
+CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
 ```
