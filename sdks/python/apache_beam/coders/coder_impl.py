@@ -197,6 +197,10 @@ class CallbackCoderImpl(CoderImpl):
 
     return self.estimate_size(value, nested), []
 
+  def __repr__(self):
+    return 'CallbackCoderImpl[encoder=%s, decoder=%s]' % (
+        self._encoder, self._decoder)
+
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
