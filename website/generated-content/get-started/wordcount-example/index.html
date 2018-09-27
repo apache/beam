@@ -689,11 +689,14 @@ $ wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
 </div>
 
 <div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://&lt;your-gcs-bucket&gt;/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+            --staging_location gs://&lt;your-gcs-bucket&gt;/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 </code></pre>
 </div>
@@ -1009,11 +1012,14 @@ $ debugging_wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
 </div>
 
 <div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --output gs://&lt;your-gcs-bucket&gt;/counts \
                       --runner dataflow \
                       --project your-gcp-project \
                       --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+                      --staging_location gs://&lt;your-gcs-bucket&gt;/binaries/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 </code></pre>
 </div>
@@ -1343,11 +1349,14 @@ $ windowed_wordcount --input &lt;PATH_TO_INPUT_FILE&gt; --output counts
 </div>
 
 <div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://&lt;your-gcs-bucket&gt;/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+            --staging_location gs://&lt;your-gcs-bucket&gt;/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 </code></pre>
 </div>
