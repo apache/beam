@@ -18,7 +18,7 @@ task :test do
         /jstorm.io/,
         /datatorrent.com/,
         /ai.google/, # https://issues.apache.org/jira/browse/INFRA-16527
-        /globenewswire.com/
+        /globenewswire.com/ # https://issues.apache.org/jira/browse/BEAM-5518
     ],
     :parallel => { :in_processes => Etc.nprocessors },
     }).run
