@@ -103,6 +103,9 @@ else
 fi
 
 echo "======================Starting Clone Repo======================"
+if [[ ! -z `ls | grep ${LOCAL_CLONE_DIR}` ]]; then
+  rm -rf ${LOCAL_CLONE_DIR}
+fi
 mkdir ${LOCAL_CLONE_DIR}
 cd  ${LOCAL_CLONE_DIR}
 git clone ${GIT_REPO_URL}
