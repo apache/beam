@@ -769,7 +769,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               dataflowOptions.getPathValidator().verifyPath(options.getGcpTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
-    newJob.getEnvironment().setExperiments(options.getExperiments());
+
+    // min_cpu_platform flag is available in PipelineOption. It however requires to be triggered
+    // as an experiment.
+    List<String> experiments = options.getExperiments();
+    if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
+      if (!hasExperiment(options, "min_cpu_platform")) {
+        // If existing experiments do not have min_cpu_platform, append it as an additional
+        // experiment flag.
+        if (experiments == null) {
+          experiments = new ArrayList<String>();
+        }
+        experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+      } else {
+        // When there is already min_cpu_platform flag in experiment section, we assume the user
+        // knows precisely what is needed. In such a case, the flag inside experiments
+        // takes precedence.
+        LOG.warn(
+            "Flag min_cpu_platform is defined in both top level "
+                + "PipelineOption, as well as under experiments.");
+      }
+    }
+    newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
