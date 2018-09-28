@@ -22,7 +22,10 @@ import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -30,6 +33,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -37,7 +41,9 @@ import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
@@ -271,4 +277,94 @@ public class FlatMapElementsTest implements Serializable {
       return ImmutableList.of(input, -input);
     }
   }
+
+  /** Basic test of {@link FlatMapElements.WithFailures}. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapWithErrors() throws Exception {
+    TupleTag<Integer> successTag = new TupleTag<>();
+    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
+    TupleTag<Failure<Integer>> failureTag2 = new TupleTag<>();
+
+    PCollectionTuple pcs =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply(
+                FlatMapElements
+                    // Note that the input type annotation is required.
+                    .into(TypeDescriptors.integers())
+                    .via(
+                        (Integer i) -> {
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
+                          return ImmutableList.of(i, -i);
+                        })
+                    .withSuccessTag(successTag)
+                    .withFailureTag(failureTag1, IntegerException1.class)
+                    .withFailureTag(failureTag2, IntegerException2.class));
+
+    PAssert.that(pcs.get(successTag)).containsInAnyOrder(3, -4, -3, 4);
+    PAssert.that(pcs.get(failureTag1))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  (Failure<Integer> failure) -> {
+                    assertTrue(failure.exception() instanceof IntegerException1);
+                    assertEquals(1, failure.value().intValue());
+                  });
+              return null;
+            });
+    PAssert.that(pcs.get(failureTag2))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  (Failure<Integer> failure) -> {
+                    assertTrue(failure.exception() instanceof IntegerException2);
+                    assertEquals(2, failure.value().intValue());
+                  });
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /** Basic test of {@link FlatMapElements.WithFailures}. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapWithErrorsThrowsUncaught() throws Exception {
+    TupleTag<Integer> successTag = new TupleTag<>();
+    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
+
+    PCollectionTuple pcs =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply(
+                FlatMapElements
+                    // Note that the input type annotation is required.
+                    .into(TypeDescriptors.integers())
+                    .via(
+                        (Integer i) -> {
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
+                          return ImmutableList.of(i, -i);
+                        })
+                    .withSuccessTag(successTag)
+                    .withFailureTag(failureTag1, IntegerException1.class));
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IntegerException2.class));
+    pipeline.run();
+  }
+
+  private static class IntegerException1 extends RuntimeException {}
+
+  private static class IntegerException2 extends RuntimeException {}
 }

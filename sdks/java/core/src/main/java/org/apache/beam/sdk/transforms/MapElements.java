@@ -24,9 +24,14 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
+import org.apache.beam.sdk.transforms.Failure.TaggedExceptionsList;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
@@ -114,6 +119,16 @@ public class MapElements<InputT, OutputT>
         fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
+  private void checkOutputType() {
+    checkState(
+        outputType != null,
+        "%s output type descriptor was null; "
+            + "this probably means that getOutputTypeDescriptor() was called after "
+            + "serialization/deserialization, but it is only available prior to "
+            + "serialization, for constructing a pipeline and inferring coders",
+        MapElements.class.getSimpleName());
+  }
+
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
     checkNotNull(fn, "Must specify a function on MapElements using .via()");
@@ -141,13 +156,7 @@ public class MapElements<InputT, OutputT>
 
                   @Override
                   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                    checkState(
-                        outputType != null,
-                        "%s output type descriptor was null; "
-                            + "this probably means that getOutputTypeDescriptor() was called after "
-                            + "serialization/deserialization, but it is only available prior to "
-                            + "serialization, for constructing a pipeline and inferring coders",
-                        MapElements.class.getSimpleName());
+                    checkOutputType();
                     return outputType;
                   }
                 })
@@ -160,6 +169,91 @@ public class MapElements<InputT, OutputT>
     builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
     if (originalFnForDisplayData instanceof HasDisplayData) {
       builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+    }
+  }
+
+  /**
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple}. This allows you to make subsequent {@link
+   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions to
+   * failure collections.
+   */
+  public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
+    return new WithFailures(successTag, TaggedExceptionsList.empty());
+  }
+
+  /**
+   * Variant of {@link MapElements} that that can handle exceptions and output one or more failure
+   * collections wrapped in a {@link PCollectionTuple}. Specify how to handle exceptions by calling
+   * {@link #withFailureTag(TupleTag, Class, Class[])}.
+   */
+  public class WithFailures extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
+    private final TupleTag<OutputT> successTag;
+    private final TaggedExceptionsList<InputT> taggedExceptionsList;
+
+    WithFailures(TupleTag<OutputT> successTag, TaggedExceptionsList<InputT> taggedExceptionsList) {
+      this.successTag = successTag;
+      this.taggedExceptionsList = taggedExceptionsList;
+    }
+
+    /** Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it. */
+    public WithFailures withFailureTag(
+        TupleTag<Failure<InputT>> tag, Class exceptionToCatch, Class... additionalExceptions) {
+      return new WithFailures(
+          successTag, taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends InputT> input) {
+      checkNotNull(fn, "Must specify a function on MapElements using .via()");
+      PCollectionTuple pcs =
+          input.apply(
+              "MapWithFailures",
+              ParDo.of(
+                      new DoFn<InputT, OutputT>() {
+                        @ProcessElement
+                        public void processElement(
+                            @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
+                            throws Exception {
+                          try {
+                            receiver
+                                .get(successTag)
+                                .output(
+                                    fn.getClosure().apply(element, Context.wrapProcessContext(c)));
+                          } catch (Exception e) {
+                            taggedExceptionsList.outputOrRethrow(e, element, receiver);
+                          }
+                        }
+
+                        @Override
+                        public void populateDisplayData(Builder builder) {
+                          builder.delegate(WithFailures.this);
+                        }
+
+                        @Override
+                        public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                          return inputType;
+                        }
+
+                        @Override
+                        public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                          checkOutputType();
+                          return outputType;
+                        }
+                      })
+                  .withOutputTags(successTag, taggedExceptionsList.tupleTagList())
+                  .withSideInputs(fn.getRequirements().getSideInputs()));
+      taggedExceptionsList.applyFailureCoders(pcs);
+      return pcs;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
+      if (originalFnForDisplayData instanceof HasDisplayData) {
+        builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+      }
     }
   }
 }
