@@ -34,6 +34,8 @@ public interface FlinkPortablePipelineTranslator<
   /** The context used for pipeline translation. */
   interface TranslationContext {
     JobInfo getJobInfo();
+
+    FlinkPipelineOptions getPipelineOptions();
   }
 
   /** Translates the given pipeline. */
