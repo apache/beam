@@ -26,7 +26,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
   description('Runs the Nexmark suite on the Spark runner.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, true)
 
   // Gradle goals for this job.
   steps {

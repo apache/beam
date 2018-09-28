@@ -30,10 +30,10 @@ job('beam_Release_Gradle_NightlySnapshot') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // This is a post-commit job that runs once per day, not for every push.
-  commonJobProperties.setAutoJob(
-      delegate,
-      '0 7 * * *',
-      'dev@beam.apache.org')
+//  commonJobProperties.setAutoJob(
+//      delegate,
+//      '0 7 * * *',
+//      'dev@beam.apache.org')
 
 
   // Allows triggering this build against pull requests.
