@@ -16,9 +16,12 @@
 # limitations under the License.
 ###############################################################################
 
-# These are packages needed by the Python SDK and should be kept in sync with
-# the dependencies at sdks/python/setup.py.
-avro==1.8.2
+# These are packages needed by the Apache Beam Python SDK. Their versions need to be compatible with
+# the requirements in sdks/python/setup.py. Specifying the versions manually helps to resolve
+# dependency conflicts with other packages installed in the container.
+# Additional SDK dependencies not listed here will be installed when SDK is installed when creating
+# the container.
+
 fastavro==0.21.4
 crcmod==1.7
 dill==0.2.8.2
