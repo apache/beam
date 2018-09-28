@@ -59,7 +59,7 @@ public interface PortablePipelineOptions extends PipelineOptions {
           + "Possible options are DOCKER and PROCESS.")
   String getDefaultEnvironmentType();
 
-  void setDefaultEnvironmentType(String envitonmentType);
+  void setDefaultEnvironmentType(String environmentType);
 
   @Description(
       "Set environment configuration for running the user code.\n"
@@ -72,4 +72,19 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getDefaultEnvironmentConfig();
 
   void setDefaultEnvironmentConfig(@Nullable String config);
+
+  String SDK_WORKER_PARALLELISM_PIPELINE = "pipeline";
+  String SDK_WORKER_PARALLELISM_STAGE = "stage";
+
+  @Description(
+      "SDK worker/harness process parallelism. Currently supported options are "
+          + "<null> (let the runner decide) or '"
+          + SDK_WORKER_PARALLELISM_PIPELINE
+          + "' (single SDK harness process per pipeline and runner process) or '"
+          + SDK_WORKER_PARALLELISM_STAGE
+          + "' (separate SDK harness for every executable stage).")
+  @Nullable
+  String getSdkWorkerParallelism();
+
+  void setSdkWorkerParallelism(@Nullable String parallelism);
 }

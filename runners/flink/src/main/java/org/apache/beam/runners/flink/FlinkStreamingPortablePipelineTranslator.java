@@ -35,7 +35,6 @@ import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.RunnerPCollectionView;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -59,7 +58,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -97,16 +95,9 @@ public class FlinkStreamingPortablePipelineTranslator
    * {@link StreamExecutionEnvironment}.
    */
   public static StreamingTranslationContext createTranslationContext(
-      JobInfo jobInfo, List<String> filesToStage) {
-    PipelineOptions pipelineOptions;
-    try {
-      pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+      JobInfo jobInfo, FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
     StreamExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            pipelineOptions.as(FlinkPipelineOptions.class), filesToStage);
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(pipelineOptions, filesToStage);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
@@ -118,12 +109,14 @@ public class FlinkStreamingPortablePipelineTranslator
       implements FlinkPortablePipelineTranslator.TranslationContext {
 
     private final JobInfo jobInfo;
-    private final PipelineOptions options;
+    private final FlinkPipelineOptions options;
     private final StreamExecutionEnvironment executionEnvironment;
     private final Map<String, DataStream<?>> dataStreams;
 
     private StreamingTranslationContext(
-        JobInfo jobInfo, PipelineOptions options, StreamExecutionEnvironment executionEnvironment) {
+        JobInfo jobInfo,
+        FlinkPipelineOptions options,
+        StreamExecutionEnvironment executionEnvironment) {
       this.jobInfo = jobInfo;
       this.options = options;
       this.executionEnvironment = executionEnvironment;
@@ -135,7 +128,8 @@ public class FlinkStreamingPortablePipelineTranslator
       return jobInfo;
     }
 
-    public PipelineOptions getPipelineOptions() {
+    @Override
+    public FlinkPipelineOptions getPipelineOptions() {
       return options;
     }
 
@@ -529,7 +523,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.factory(),
+            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
             collectionIdToTupleTag);
 
     if (transformedSideInputs.unionTagToView.isEmpty()) {

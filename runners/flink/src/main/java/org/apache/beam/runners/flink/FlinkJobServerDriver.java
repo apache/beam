@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -32,6 +33,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -62,7 +64,8 @@ public class FlinkJobServerDriver implements Runnable {
     private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
-    private String artifactStagingPath = "/tmp/beam-artifact-staging";
+    private String artifactStagingPath =
+        Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 
     @Option(
       name = "--clean-artifacts-per-job",
@@ -72,6 +75,20 @@ public class FlinkJobServerDriver implements Runnable {
 
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
     private String flinkMasterUrl = "[auto]";
+
+    public String getFlinkMasterUrl() {
+      return this.flinkMasterUrl;
+    }
+
+    @Option(
+      name = "--sdk-worker-parallelism",
+      usage = "Default parallelism for SDK worker processes (see portable pipeline options)"
+    )
+    private String sdkWorkerParallelism = PortablePipelineOptions.SDK_WORKER_PARALLELISM_PIPELINE;
+
+    public String getSdkWorkerParallelism() {
+      return this.sdkWorkerParallelism;
+    }
   }
 
   public static void main(String[] args) throws Exception {
@@ -232,7 +249,7 @@ public class FlinkJobServerDriver implements Runnable {
     return artifactStagingService;
   }
 
-  private JobInvoker createJobInvoker() throws IOException {
-    return FlinkJobInvoker.create(executor, configuration.flinkMasterUrl);
+  private JobInvoker createJobInvoker() {
+    return FlinkJobInvoker.create(executor, configuration);
   }
 }
