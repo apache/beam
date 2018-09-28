@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM python:2-stretch
+FROM python:3.5-stretch
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 # Install native bindings required for dependencies.
@@ -43,6 +43,7 @@ RUN \
     rm -rf /root/.cache/pip
 
 
+ENV BEAM_EXPERIMENTAL_PY3=1
 COPY apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
