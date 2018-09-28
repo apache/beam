@@ -30,10 +30,10 @@ job('beam_Release_Gradle_NightlySnapshot') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // This is a post-commit job that runs once per day, not for every push.
-  commonJobProperties.setAutoJob(
-      delegate,
-      '0 7 * * *',
-      'dev@beam.apache.org')
+//  commonJobProperties.setAutoJob(
+//      delegate,
+//      '0 7 * * *',
+//      'dev@beam.apache.org')
 
 
   // Allows triggering this build against pull requests.
@@ -54,17 +54,17 @@ job('beam_Release_Gradle_NightlySnapshot') {
       switches('--no-parallel')
       switches('--continue')
     }
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks('publish')
-      commonJobProperties.setGradleSwitches(delegate)
-      // Publish a snapshot build.
-      switches("-Ppublishing")
-      // Don't run tasks in parallel, currently the maven-publish/signing plugins
-      // cause build failures when run in parallel with messages like 'error snapshotting'
-      switches('--no-parallel')
-      switches('--continue')
-    }
+//    gradle {
+//      rootBuildScriptDir(commonJobProperties.checkoutDir)
+//      tasks('publish')
+//      commonJobProperties.setGradleSwitches(delegate)
+//      // Publish a snapshot build.
+//      switches("-Ppublishing")
+//      // Don't run tasks in parallel, currently the maven-publish/signing plugins
+//      // cause build failures when run in parallel with messages like 'error snapshotting'
+//      switches('--no-parallel')
+//      switches('--continue')
+//    }
   }
 }
 
