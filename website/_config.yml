@@ -33,7 +33,7 @@ baseurl: ""
 
 # input and output directory
 source: src
-destination: generated-content
+destination: content
 
 # the base hostname & protocol for your site
 url: "https://beam.apache.org"
