@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Optional;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * {@link PTransform} for parsing JSON {@link String Strings}. Parse {@link PCollection} of {@link
@@ -35,6 +38,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
 
   private final Class<? extends OutputT> outputClass;
   private ObjectMapper customMapper;
+  public static final TupleTag<MapElements.Failure<String>> failureTag = new TupleTag<>();
 
   /**
    * Creates a {@link ParseJsons} {@link PTransform} that will parse JSON {@link String Strings}
@@ -55,22 +59,65 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     return newTransform;
   }
 
+  private SimpleFunction<String, OutputT> parseFn = new SimpleFunction<String, OutputT>() {
+    @Override
+    public OutputT apply(String input) {
+      try {
+        ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
+        return mapper.readValue(input, outputClass);
+      } catch (IOException e) {
+        throw new UncheckedIOException(
+            "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
+      }
+    }
+  };
+
   @Override
   public PCollection<OutputT> expand(PCollection<String> input) {
-    return input.apply(
-        MapElements.via(
-            new SimpleFunction<String, OutputT>() {
-              @Override
-              public OutputT apply(String input) {
-                try {
-                  ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-                  return mapper.readValue(input, outputClass);
-                } catch (IOException e) {
-                  throw new RuntimeException(
-                      "Failed to parse a " + outputClass.getName() + " from JSON value: " + input,
-                      e);
-                }
-              }
-            }));
+    return input.apply(MapElements.via(parseFn));
   }
+
+  /**
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform}
+   * into one that returns a {@link PCollectionTuple}.
+   *
+   * <p>Failures will be associated with static tag {@link ParseJsons#failureTag}
+   * since all {@code ParseJsons} inputs are of the same type ({@code String}).
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * PCollection<String> strings = ...;
+   * TupleTag<Foo> parsedFoosTag = new TupleTag<>();
+   *
+   * PCollection<Foo> foos = strings
+   *   .apply(ParseJsons
+   *     .of(Foo.class)
+   *     .withFailureTag(parsedFoosTag))
+   *   .apply(PTransform.compose((PCollectionTuple pcs) -> {
+   *     pcs.get(ParseJsons.failureTag).apply(new MyErrorOutputTransform());
+   *     return pcs.get(parsedFoosTag);
+   *   }));
+   * }</pre>
+   */
+  public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
+    return new WithFailures(successTag);
+  }
+
+  public class WithFailures extends PTransform<PCollection<? extends String>, PCollectionTuple> {
+    private final TupleTag<OutputT> successTag;
+
+    public WithFailures(TupleTag<OutputT> successTag) {
+      this.successTag = successTag;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends String> input) {
+      return input.apply(MapElements
+          .via(parseFn)
+          .withSuccessTag(successTag)
+          .withFailureTag(failureTag, UncheckedIOException.class));
+    }
+  }
+
 }

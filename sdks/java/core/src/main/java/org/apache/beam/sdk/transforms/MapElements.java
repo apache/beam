@@ -20,13 +20,23 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ObjectArrays;
+import java.io.Serializable;
+import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
@@ -114,6 +124,16 @@ public class MapElements<InputT, OutputT>
         fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
+  private void checkOutputType() {
+    checkState(
+        outputType != null,
+        "%s output type descriptor was null; "
+            + "this probably means that getOutputTypeDescriptor() was called after "
+            + "serialization/deserialization, but it is only available prior to "
+            + "serialization, for constructing a pipeline and inferring coders",
+        MapElements.class.getSimpleName());
+  }
+
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
     checkNotNull(fn, "Must specify a function on MapElements using .via()");
@@ -141,13 +161,7 @@ public class MapElements<InputT, OutputT>
 
                   @Override
                   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                    checkState(
-                        outputType != null,
-                        "%s output type descriptor was null; "
-                            + "this probably means that getOutputTypeDescriptor() was called after "
-                            + "serialization/deserialization, but it is only available prior to "
-                            + "serialization, for constructing a pipeline and inferring coders",
-                        MapElements.class.getSimpleName());
+                    checkOutputType();
                     return outputType;
                   }
                 })
@@ -162,4 +176,149 @@ public class MapElements<InputT, OutputT>
       builder.include("fn", (HasDisplayData) originalFnForDisplayData);
     }
   }
+
+  /**
+   * Wraps an input value together with the exception that it caused.
+   * Invocations of the {@code withFailureTag} method will lead to outputs of type
+   * {@code PCollection<Failure<InputT>>}.
+   */
+  public static class Failure<InputT> implements Serializable {
+    private final Exception exception;
+    private final InputT value;
+
+    private Failure(Exception exception, InputT value) {
+      this.exception = exception;
+      this.value = value;
+    }
+
+    public static <InputT> Failure<InputT> of(Exception exception, InputT value) {
+      return new Failure<>(exception, value);
+    }
+
+    public Exception getException() {
+      return exception;
+    }
+
+    public InputT getValue() {
+      return value;
+    }
+  }
+
+  /**
+   * Wraps a TupleTag together with the exceptions types that should be routed to it.
+   */
+  private static class TaggedExceptions<InputT> implements Serializable {
+    private final TupleTag<Failure<InputT>> tag;
+    private final Class[] exceptionsToCatch;
+
+    private TaggedExceptions(TupleTag<Failure<InputT>> tag, Class[] exceptionsToCatch) {
+      this.tag = tag;
+      this.exceptionsToCatch = exceptionsToCatch;
+    }
+
+    public static <InputT> TaggedExceptions<InputT> of (TupleTag<Failure<InputT>> tag,
+        Class[] exceptionsToCatch) {
+      return new TaggedExceptions<>(tag, exceptionsToCatch);
+    }
+
+    public TupleTag<Failure<InputT>> getTag() {
+      return tag;
+    }
+
+    public Class[] getExceptionsToCatch() {
+      return exceptionsToCatch;
+    }
+  }
+
+  /**
+   * Return this {@link MapElements} instance as a {@link WithFailures} that outputs
+   * a {@link PCollectionTuple} containing successes tagged with the given tag and one or
+   * more failure collections defined by calls to {@code catching}.
+   */
+  public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
+    return new WithFailures(successTag, ImmutableList.of());
+  }
+
+  /**
+   * Variant of {@link MapElements} that results from a call to {@link #withSuccessTag(TupleTag)}.
+   * Specify how to handle exceptions by calling {@link #withFailureTag(TupleTag, Class, Class[])}.
+   */
+  public class WithFailures extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
+    private final TupleTag<OutputT> successesTag;
+    private final List<TaggedExceptions<InputT>> taggedExceptionsList;
+
+    private WithFailures(TupleTag<OutputT> successesTag,
+        List<TaggedExceptions<InputT>> taggedExceptionsList) {
+      this.successesTag = successesTag;
+      this.taggedExceptionsList = taggedExceptionsList;
+    }
+
+    /**
+     * Specify a {@link TupleTag} the {@link Exception} subclasses that should route to it.
+     */
+    public WithFailures withFailureTag(
+        TupleTag<Failure<InputT>> tag,
+        Class exceptionToCatch, Class... additionalExceptions) {
+      final ImmutableList<TaggedExceptions<InputT>> newList = ImmutableList
+          .<TaggedExceptions<InputT>>builder()
+          .addAll(taggedExceptionsList)
+          .add(TaggedExceptions.of(tag,
+              ObjectArrays.concat(exceptionToCatch, additionalExceptions)))
+          .build();
+      return new WithFailures(successesTag, newList);
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends InputT> input) {
+      checkNotNull(fn, "Must specify a function on MapElements using .via()");
+      final TupleTagList failureTags = TupleTagList.of(
+          taggedExceptionsList
+              .stream()
+              .map(TaggedExceptions::getTag)
+              .collect(Collectors.toList()));
+      return input.apply(
+          "MapWithFailures",
+          ParDo.of(
+              new DoFn<InputT, OutputT>() {
+                @ProcessElement
+                public void processElement(
+                    @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
+                    throws Exception {
+                  try {
+                    receiver.get(successesTag).output(
+                        fn.getClosure().apply(element, Context.wrapProcessContext(c)));
+                  } catch (RuntimeException e) {
+                    for (TaggedExceptions<InputT> taggedExceptions : taggedExceptionsList) {
+                      for (Class cls : taggedExceptions.getExceptionsToCatch()) {
+                        if (cls.isInstance(e)) {
+                          receiver.get(taggedExceptions.tag).output(Failure.of(e, element));
+                          return;
+                        }
+                      }
+                    }
+                    throw e;
+                  }
+                }
+
+                @Override
+                public void populateDisplayData(Builder builder) {
+                  builder.delegate(WithFailures.this);
+                }
+
+                @Override
+                public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                  return inputType;
+                }
+
+                @Override
+                public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                  checkOutputType();
+                  return outputType;
+                }
+              })
+              .withOutputTags(successesTag, failureTags)
+              .withSideInputs(fn.getRequirements().getSideInputs()));
+    }
+  }
+
 }
