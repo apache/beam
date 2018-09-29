@@ -245,9 +245,7 @@ task portableWordCount(dependsOn: 'installGcpTest') {
     def options = [
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-direct",
-            "--experiments=beam_fn_api",
             "--runner=PortableRunner",
-            "--sdk_location=container",
     ]
     if (project.hasProperty("streaming"))
       options += ["--streaming"]

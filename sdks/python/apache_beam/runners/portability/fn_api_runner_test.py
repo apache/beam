@@ -243,11 +243,6 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
   def test_pardo_state_only(self):
-    p = self.create_pipeline()
-    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
-      # test is inherited by Flink PVR, which does not support the feature yet
-      self.skipTest('User state not supported.')
-
     index_state_spec = userstate.CombiningValueStateSpec(
         'index', beam.coders.VarIntCoder(), sum)
 
@@ -265,7 +260,7 @@ class FnApiRunnerTest(unittest.TestCase):
                 ('B', 'b', 2),
                 ('B', 'b', 3)]
 
-    with p:
+    with self.create_pipeline() as p:
       assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
                   equal_to(expected))
 
