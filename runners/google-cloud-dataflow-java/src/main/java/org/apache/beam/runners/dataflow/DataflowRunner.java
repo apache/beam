@@ -61,6 +61,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
@@ -770,24 +771,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
 
-    // min_cpu_platform flag is available in PipelineOption. It however requires to be triggered
-    // as an experiment.
-    List<String> experiments = options.getExperiments();
+    // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
+    List<String> experiments =
+        firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
     if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
-      if (!hasExperiment(options, "min_cpu_platform")) {
-        // If existing experiments do not have min_cpu_platform, append it as an additional
-        // experiment flag.
-        if (experiments == null) {
-          experiments = new ArrayList<String>();
-        }
+
+      List<String> minCpuFlags =
+          experiments
+              .stream()
+              .filter(p -> p.startsWith("min_cpu_platform"))
+              .collect(Collectors.toList());
+
+      if (minCpuFlags.isEmpty()) {
         experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
       } else {
-        // When there is already min_cpu_platform flag in experiment section, we assume the user
-        // knows precisely what is needed. In such a case, the flag inside experiments
-        // takes precedence.
         LOG.warn(
-            "Flag min_cpu_platform is defined in both top level "
-                + "PipelineOption, as well as under experiments.");
+            "Flag min_cpu_platform is defined in both top level PipelineOption, "
+                + "as well as under experiments. Proceed using {}.",
+            minCpuFlags.get(0));
       }
     }
     newJob.getEnvironment().setExperiments(experiments);
