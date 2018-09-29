@@ -125,17 +125,9 @@ task commitWebsite << {
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
-  // Make sure we are sync'd to the gitbox head
-  if (!git.remote.list().find { it.name == 'test-upstream' }) {
-    println "Adding test-upstream remote"
-    git.remote.add(name: 'test-upstream',
-                   url: 'https://gitbox.apache.org/repos/asf/beam.git')
-  }
-  shell "git fetch origin"
-  shell "git fetch test-upstream asf-site"
+  shell "git fetch origin asf-site"
   git.checkout(branch: 'asf-site')
-  shell "git reset --hard test-upstream/asf-site"
-  shell "git remote remove test-upstream"
+  shell "git reset --hard origin/asf-site"
 
   // Delete the previous content.
   git.remove(patterns: [ 'website/generated-content' ])
@@ -184,18 +176,9 @@ task publishWebsite << {
     println 'No changes to push'
     return
   }
-  if (!git.remote.list().find { it.name == 'website-publish' }) {
-    println "Adding website-publish remote"
-    // Cannot authenticate to the default github uri, so specify gitbox.
-    git.remote.add(name: 'website-publish',
-                   url: 'https://gitbox.apache.org/repos/asf/beam.git')
-  }
 
   // Because git.push() fails to authenticate, run git push directly.
-  shell "git fetch website-publish asf-site"
-  shell "git merge website-publish/asf-site --no-edit"
-  shell "git push website-publish asf-site < /dev/null"
-  shell "git remote remove website-publish"
+  shell "git push https://gitbox.apache.org/repos/asf/beam.git asf-site"
 }
 
 commitWebsite.dependsOn testWebsite
