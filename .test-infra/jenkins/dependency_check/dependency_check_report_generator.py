@@ -16,13 +16,13 @@
 # limitations under the License.
 #
 
+import dependency_check.version_comparer as version_comparer
 import logging
 import os.path
 import re
 import requests
 import sys
 import traceback
-import version_comparer
 
 from datetime import datetime
 from dependency_check.bigquery_client_utils import BigQueryClientUtils
