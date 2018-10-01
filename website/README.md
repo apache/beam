@@ -1,3 +1,8 @@
+**Deprecation notice:** The website is being migrated to
+https://github.com/apache/beam/tree/master/website
+
+---
+
 # Apache Beam website
 
 This is the website for [Apache Beam](https://beam.apache.org/), hosted at:
