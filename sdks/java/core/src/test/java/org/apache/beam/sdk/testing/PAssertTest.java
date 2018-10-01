@@ -335,7 +335,7 @@ public class PAssertTest implements Serializable {
 
   /** Test that we throw an error for false assertion on singleton. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testPAssertEqualsSingletonFalse() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
@@ -351,7 +351,7 @@ public class PAssertTest implements Serializable {
 
   /** Test that we throw an error for false assertion on singleton. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton(pcollection).isEqualTo(44);
@@ -431,7 +431,7 @@ public class PAssertTest implements Serializable {
 
   /** Tests that {@code containsInAnyOrder} fails when and how it should. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testContainsInAnyOrderFalse() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
 
@@ -452,7 +452,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testEmptyFalse() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that("Vals should have been empty", vals).empty();
@@ -466,7 +466,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testEmptyFalseDefaultReasonString() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that(vals).empty();
@@ -494,7 +494,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithMessage(vals);
@@ -509,7 +509,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithoutMessage(vals);
