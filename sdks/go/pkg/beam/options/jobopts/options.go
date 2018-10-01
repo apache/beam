@@ -41,7 +41,7 @@ var (
 	EnvironmentType = flag.String("environment_type", "DOCKER",
 		"Environment Type. Possible options are DOCKER and PROCESS.")
 
-	// EnvironmentType is the environment type to run the user code.
+	// EnvironmentConfig is the environment configuration for running the user code.
 	EnvironmentConfig = flag.String("environment_config",
 		"",
 		"Set environment configuration for running the user code.\n"+
