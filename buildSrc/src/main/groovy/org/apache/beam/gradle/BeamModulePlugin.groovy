@@ -209,12 +209,21 @@ class BeamModulePlugin implements Plugin<Project> {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      //SplitableDoFnTests
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
