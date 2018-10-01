@@ -62,7 +62,7 @@ if [[ $confirmation != "y" ]]; then
     echo "Please input your name: "
     read name
     echo "======Starting updating KEYS file in dev repo===="
-    if [[ ! -z `ls | grep ${LOCAL_SVN_DIR}` ]]; then
+    if [[ -d ${LOCAL_SVN_DIR} ]]; then
       rm -rf ${LOCAL_SVN_DIR}
     fi
     mkdir ${LOCAL_SVN_DIR}

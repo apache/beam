@@ -59,7 +59,7 @@ hub version
 
 echo "===============Starting creating empty PR==============="
 cd ~
-if [[ ! -z `ls | grep ${LOCAL_BEAM_DIR}` ]]; then
+if [[ -d ${LOCAL_BEAM_DIR} ]]; then
   rm -rf ${LOCAL_BEAM_DIR}
 fi
 mkdir ${LOCAL_BEAM_DIR}

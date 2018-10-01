@@ -81,7 +81,7 @@ if [[ $confirmation = "y" ]]; then
   echo "============Building and Staging Java Artifacts============="
   echo "--------Cloning Beam Repo and Checkout Release Branch-------"
   cd ~
-  if [[ ! -z `ls | grep ${LOCAL_CLONE_DIR}` ]]; then
+  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
     rm -rf ${LOCAL_CLONE_DIR}
   fi
   mkdir ${LOCAL_CLONE_DIR}
@@ -113,7 +113,7 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "=========Staging Source Release on dist.apache.org==========="
   cd ~
-  if [[ ! -z `ls | grep ${LOCAL_JAVA_STAGING_DIR}` ]]; then
+  if [[ -d ${LOCAL_JAVA_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_JAVA_STAGING_DIR}
   fi
   mkdir ${LOCAL_JAVA_STAGING_DIR}
@@ -151,7 +151,7 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging Python Binaries on dist.apache.org========="
   cd ~
-  if [[ ! -z `ls | grep ${LOCAL_PYTHON_STAGING_DIR}` ]]; then
+  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_PYTHON_STAGING_DIR}
   fi
   mkdir ${LOCAL_PYTHON_STAGING_DIR}
@@ -198,7 +198,7 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "==============Creating PR for Updating Website==============="
   cd ~
-  if [[ ! -z `ls | grep ${LOCAL_WEBSITE_UPDATE_DIR}` ]]; then
+  if [[ -d ${LOCAL_WEBSITE_UPDATE_DIR} ]]; then
     rm -rf ${LOCAL_WEBSITE_UPDATE_DIR}
   fi
   mkdir ${LOCAL_WEBSITE_UPDATE_DIR}

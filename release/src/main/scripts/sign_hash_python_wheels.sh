@@ -37,18 +37,20 @@ echo "[Input Required] Please enter the release version:"
 read VERSION
 
 cd ~
-if [[ ! -z `ls | grep $VERSION` ]]; then
+if [[ -d ${VERSION} ]]; then
   rm -rf ${VERSION}
 fi
 
 svn co ${BEAM_SVN_DIR}/${VERSION}
 cd ${VERSION}/${PYTHON_ARTIFACTS_DIR}
+echo "Start signing and hashing python wheels artifacts"
+rm *.whl.asc || true
+rm *.whl.sha512 ||true
 for artifact in *.whl; do
-  echo $artifact
   gpg --armor --detach-sig $artifact
-  sha512sum $artifact > $artifact.sha512
+  sha512sum $artifact > ${artifact}.sha512
 done
-svn add *
+svn add --force *
 svn commit --no-auth-cache
 
 rm -rf ~/${VERSION}
