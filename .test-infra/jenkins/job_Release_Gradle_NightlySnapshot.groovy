@@ -47,13 +47,13 @@ job('beam_Release_Gradle_NightlySnapshot') {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('clean')
     }
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks('build')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('--no-parallel')
-      switches('--continue')
-    }
+//    gradle {
+//      rootBuildScriptDir(commonJobProperties.checkoutDir)
+//      tasks('build')
+//      commonJobProperties.setGradleSwitches(delegate)
+//      switches('--no-parallel')
+//      switches('--continue')
+//    }
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('publish')
@@ -67,4 +67,3 @@ job('beam_Release_Gradle_NightlySnapshot') {
     }
   }
 }
-
