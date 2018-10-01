@@ -273,12 +273,10 @@ a read-only collaborator to apache/beam by opening an INFRA ticket. -->
 
 ## Contributing to the website
 
-The Beam website is in the [Beam Site GitHub
-mirror](https://github.com/apache/beam-site) repository in the `asf-site`
-branch (_not_ `master`).  The
-[README](https://github.com/apache/beam-site/blob/asf-site/README.md) there
-explains how to modify different parts of the site. The GitHub workflow is the
-same - make your change and open a pull request.
+The Beam website is in the `/website` directory of the repo. The
+[README](https://github.com/apache/beam/blob/master/website) there explains how
+to modify different parts of the site. The GitHub workflow is the same - make
+your change and open a pull request.
 
 Issues are tracked in the
 [website](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website)
