@@ -24,13 +24,13 @@ function clean_up(){
   echo "Please sign up your name in the tests you have ran."
 
   echo "===========================Final Cleanup==========================="
-  if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
+  if [[ -f ~/.m2/settings_backup.xml ]]; then
     rm ~/.m2/settings.xml
     cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
     echo "* Restored ~/.m2/settings.xml"
   fi
 
-  if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
+  if [[ -f ~/.bashrc_backup ]]; then
     rm ~/.bashrc
     cp ~/.bashrc_backup ~/.bashrc
     echo "* Restored ~/.bashrc"
@@ -72,7 +72,7 @@ fi
 
 echo "====================Cloning Beam Release Branch===================="
 cd ~
-if [[ ! -z `ls | grep ${LOCAL_CLONE_DIR}` ]]; then
+if [[ -d ${LOCAL_CLONE_DIR} ]]; then
   rm -rf ${LOCAL_CLONE_DIR}
 fi
 
@@ -316,11 +316,11 @@ if [[ $confirmation = "y" ]]; then
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
   cd ~
-  if [[ -z `ls -a ~ | grep ".m2"` ]]; then
+  if [[ -d .m2 ]]; then
     mkdir .m2
   fi
   cd .m2
-  if [[ ! -z `ls -a ~/.m2/ | grep "settings.xml"` ]]; then
+  if [[ -f ~/.m2/settings.xml ]]; then
     mv settings.xml settings_backup.xml
   fi
   touch settings.xml
