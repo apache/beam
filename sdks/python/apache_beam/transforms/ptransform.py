@@ -759,9 +759,6 @@ class _PTransformFnPTransform(PTransform):
     return self._fn(pcoll, *args, **kwargs)
 
   def default_label(self):
-    if self._args:
-      return '%s(%s)' % (
-          label_from_callable(self._fn), label_from_callable(self._args[0]))
     return label_from_callable(self._fn)
 
 
