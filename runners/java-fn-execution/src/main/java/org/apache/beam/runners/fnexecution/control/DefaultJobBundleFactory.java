@@ -172,6 +172,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   @Override
   public void close() throws Exception {
     // Clear the cache. This closes all active environments.
+    // note this may cause open calls to be cancelled by the peer
     environmentCache.invalidateAll();
     environmentCache.cleanUp();
 
@@ -182,6 +183,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     loggingServer.close();
     retrievalServer.close();
     provisioningServer.close();
+
     executor.shutdown();
   }
 
@@ -306,9 +308,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       return;
     }
 
-    EnvironmentFactory.Provider environmentProviderFactory =
+    EnvironmentFactory.Provider environmentFactoryProvider =
         environmentFactoryProviderMap.get(environment.getUrn());
-    ServerFactory serverFactory = environmentProviderFactory.getServerFactory();
+    ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
 
     this.clientPool = MapControlClientPool.create();
     this.executor = Executors.newCachedThreadPool();
@@ -334,15 +336,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     this.environmentFactory =
-        environmentFactoryProviderMap
-            .get(environment.getUrn())
-            .createEnvironmentFactory(
-                controlServer,
-                loggingServer,
-                retrievalServer,
-                provisioningServer,
-                clientPool,
-                stageIdGenerator);
+        environmentFactoryProvider.createEnvironmentFactory(
+            controlServer,
+            loggingServer,
+            retrievalServer,
+            provisioningServer,
+            clientPool,
+            stageIdGenerator);
     this.environment = environment;
   }
 }

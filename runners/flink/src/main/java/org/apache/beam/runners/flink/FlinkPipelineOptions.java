@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
+  String AUTO = "[auto]";
+
   /**
    * List of local files to make available to workers.
    *
@@ -56,7 +58,7 @@ public interface FlinkPipelineOptions
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
           + "[collection] or [auto].")
-  @Default.String("[auto]")
+  @Default.String(AUTO)
   String getFlinkMaster();
 
   void setFlinkMaster(String value);

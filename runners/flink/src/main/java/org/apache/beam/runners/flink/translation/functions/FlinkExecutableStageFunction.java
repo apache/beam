@@ -43,6 +43,8 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Flink operator that passes its input DataSet through an SDK-executed {@link
@@ -54,6 +56,7 @@ import org.apache.flink.util.Collector;
  */
 public class FlinkExecutableStageFunction<InputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, RawUnionValue> {
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutableStageFunction.class);
 
   // Main constructor fields. All must be Serializable because Flink distributes Functions to
   // task managers via java serialization.
@@ -141,8 +144,17 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
-    try (AutoCloseable closable = stageContext) {}
+    // close may be called multiple times when an exception is thrown
+    if (stageContext != null) {
+      try (@SuppressWarnings("unused")
+              AutoCloseable bundleFactoryCloser = stageBundleFactory;
+          @SuppressWarnings("unused")
+              AutoCloseable closable = stageContext) {
+      } catch (Exception e) {
+        LOG.error("Error in close: ", e);
+        throw e;
+      }
+    }
     stageContext = null;
   }
 
