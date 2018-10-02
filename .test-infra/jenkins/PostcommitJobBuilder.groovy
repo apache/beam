@@ -59,14 +59,14 @@ class PostcommitJobBuilder {
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
-    }
 
-    if (name == 'beam_PostCommit_Website_Publish') {
-      // Temp trigger for auto job
-      commonJobProperties.setPullRequestBuildTrigger(
-        delegate,
-        "Website Publish Cron",
-        "Run Website Publish Cron")
+      if (name == 'beam_PostCommit_Website_Publish') {
+        // Temp trigger for auto job
+        commonJobProperties.setPullRequestBuildTrigger(
+          delegate,
+          "Website Publish Cron",
+          "Run Website Publish Cron")
+      }
     }
     autoBuilds.with(jobDefinition)
   }
