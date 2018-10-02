@@ -28,7 +28,7 @@ def buildDir = "${project.rootDir}/build/website"
 def buildContentDir = "${project.rootDir}/build/website/generated-content"
 def repoContentDir = "${project.rootDir}/website/generated-content"
 def commitedChanges = false
-def gitboxUrl = "https://gitbox.apache.org/repos/asf/beam.git"
+def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
 
 def shell = { cmd ->
   println cmd
