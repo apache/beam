@@ -54,12 +54,26 @@ sudo add-apt-repository \
 sudo apt-get update
 sudo apt-get install docker-ce
 
+###################################################
+# Commands below here required to spin up docker  #
+# containers locally. Can be omitted for kuberctl #
+# setup.                                          #
+###################################################
+
 # Install docker-compose
 sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 
+
 # start docker service if it is not running already
 sudo service docker start
+
+# Build images required for spinning up docker-compose
+# related containers.
+docker-compose build
+
+# Spinup docker-compose related containers.
+docker-compose up
 ```
 
 ## Kubernetes setup
