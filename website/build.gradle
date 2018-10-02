@@ -126,9 +126,8 @@ task commitWebsite << {
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
-  shell "git fetch ${gitboxUrl}"
+  shell "git fetch --force origin +asf-site:asf-site"
   git.checkout(branch: 'asf-site')
-  shell "git reset --hard origin/asf-site"
 
   // Delete the previous content.
   git.remove(patterns: [ 'website/generated-content' ])
