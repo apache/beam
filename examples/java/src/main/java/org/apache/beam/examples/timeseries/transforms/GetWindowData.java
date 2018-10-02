@@ -27,8 +27,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Extract the window information from a TSAccum. */
 @Experimental
@@ -36,8 +34,6 @@ public class GetWindowData
     extends PTransform<
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(GetWindowData.class);
 
   @Override
   public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(

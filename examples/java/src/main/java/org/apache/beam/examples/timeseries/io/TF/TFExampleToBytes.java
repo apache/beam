@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.beam.examples.timeseries.io.TF;
+package org.apache.beam.examples.timeseries.io.tf;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tensorflow.example.Example;
 
 /** Convert TensorFlow Example object to byte[]. */
 @Experimental
 public class TFExampleToBytes extends DoFn<Example, byte[]> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TFExampleToBytes.class);
 
   @ProcessElement
   public void processElement(ProcessContext c) {

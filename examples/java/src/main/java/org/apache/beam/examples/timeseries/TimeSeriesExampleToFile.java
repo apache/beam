@@ -21,16 +21,15 @@ package org.apache.beam.examples.timeseries;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
-import org.apache.beam.examples.timeseries.io.TF.TFSequenceExampleToBytes;
-import org.apache.beam.examples.timeseries.io.TF.TSAccumSequenceToTFSequencExample;
+import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
+import org.apache.beam.examples.timeseries.io.tf.TFSequenceExampleToBytes;
+import org.apache.beam.examples.timeseries.io.tf.TSAccumSequenceToTFSequencExample;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.transforms.DebugSortedResult;
 import org.apache.beam.examples.timeseries.transforms.ExtractAggregates;
-import org.apache.beam.examples.timeseries.transforms.GetWindowData;
 import org.apache.beam.examples.timeseries.transforms.OrderOutput;
 import org.apache.beam.examples.timeseries.transforms.TSAccumToFixedWindowSeq;
-import org.apache.beam.examples.timeseries.utils.TSMultiVarientDataPoints;
+import org.apache.beam.examples.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.TFRecordIO;
@@ -41,8 +40,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This example pipeline is used to illustrate an advanced use of Keyed state and timers. The
@@ -55,9 +52,7 @@ import org.slf4j.LoggerFactory;
 @Experimental
 public class TimeSeriesExampleToFile {
 
-  static final Logger LOG = LoggerFactory.getLogger(TimeSeriesExampleToFile.class);
-
-  static final String FILE_LOCATION = "/tmp/tf/";
+  private static final String FILE_LOCATION = "/tmp/tf/";
 
   public static void main(String[] args) {
 
@@ -67,10 +62,9 @@ public class TimeSeriesExampleToFile {
 
     TSConfiguration configuration =
         TSConfiguration.builder()
-            .downSampleDuration(Duration.standardSeconds(5))
+            .downSampleDuration(Duration.standardSeconds(1))
             .timeToLive(Duration.standardMinutes(1))
-            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
-            .build();
+            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
 
     Pipeline p = Pipeline.create(options);
 
@@ -79,13 +73,13 @@ public class TimeSeriesExampleToFile {
     // Read some dummy timeseries data
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> readL1Data =
         p.apply(Create.of(SinWaveSample.generateSinWave()))
-            .apply(ParDo.of(new TSMultiVarientDataPoints.ExtractTimeStamp()))
-            .apply(ParDo.of(new TSMultiVarientDataPoints.ConvertMultiToUniDataPoint()));
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()));
 
     // ------------ Create perfect rectangles of data--------
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> downSampled =
-        readL1Data.apply(new ExtractAggregates(configuration)).apply(new GetWindowData());
+        readL1Data.apply(new ExtractAggregates(configuration));
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> weHaveOrder =
         downSampled.apply(new OrderOutput(configuration));
@@ -118,23 +112,21 @@ public class TimeSeriesExampleToFile {
   }
 
   /** Simple data generator that creates some dummy test data for the timeseries examples. */
-  public static class SinWaveSample {
+  private static class SinWaveSample {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SinWaveSample.class);
-
-    public static List<TimeSeriesData.TSMUltiVarientDataPoint> generateSinWave() {
+    private static List<TimeSeriesData.TSMultiVariateDataPoint> generateSinWave() {
 
       double y;
       double yBase = 1;
       double scale = 20;
 
-      List<TimeSeriesData.TSMUltiVarientDataPoint> dataPoints = new ArrayList<>();
+      List<TimeSeriesData.TSMultiVariateDataPoint> dataPoints = new ArrayList<>();
 
-      for (int k = 0; k < 10; k++) {
+      for (int k = 0; k < 5; k++) {
 
         Instant now = Instant.parse("2018-01-01T00:00Z");
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 20; i++) {
 
           if (!((i % 10 == 0))) {
 
@@ -142,8 +134,8 @@ public class TimeSeriesExampleToFile {
 
             y = (yBase - Math.sin(Math.toRadians(i)) * scale);
 
-            TimeSeriesData.TSMUltiVarientDataPoint mvts =
-                TimeSeriesData.TSMUltiVarientDataPoint.newBuilder()
+            TimeSeriesData.TSMultiVariateDataPoint mvts =
+                TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
                     .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
                     .putData("x", TimeSeriesData.Data.newBuilder().setDoubleVal(i).build())
                     .putData("y", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())

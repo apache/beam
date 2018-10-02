@@ -27,17 +27,17 @@ import org.joda.time.DateTime;
 
 /** Utility functions for TSMultiVarientDataPoint. */
 @Experimental
-public class TSMultiVarientDataPoints {
+public class TSMultiVariateDataPoints {
 
   public static class ConvertMultiToUniDataPoint
       extends DoFn<
-          TimeSeriesData.TSMUltiVarientDataPoint,
+          TimeSeriesData.TSMultiVariateDataPoint,
           KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
 
-      TimeSeriesData.TSMUltiVarientDataPoint mdp = c.element();
+      TimeSeriesData.TSMultiVariateDataPoint mdp = c.element();
 
       for (String key : mdp.getDataMap().keySet()) {
         TimeSeriesData.TSDataPoint dp =
@@ -49,7 +49,7 @@ public class TSMultiVarientDataPoints {
   }
 
   public static class ExtractTimeStamp
-      extends DoFn<TimeSeriesData.TSMUltiVarientDataPoint, TimeSeriesData.TSMUltiVarientDataPoint> {
+      extends DoFn<TimeSeriesData.TSMultiVariateDataPoint, TimeSeriesData.TSMultiVariateDataPoint> {
 
     @ProcessElement
     public void process(ProcessContext c) {
@@ -60,7 +60,7 @@ public class TSMultiVarientDataPoints {
   }
 
   private static TimeSeriesData.TSDataPoint extractDataFromMultiVarientDataPoint(
-      TimeSeriesData.TSMUltiVarientDataPoint meta, String minorKey, TimeSeriesData.Data data) {
+      TimeSeriesData.TSMultiVariateDataPoint meta, String minorKey, TimeSeriesData.Data data) {
 
     return TimeSeriesData.TSDataPoint.newBuilder()
         .setKey(meta.getKey().toBuilder().setMinorKeyString(minorKey))

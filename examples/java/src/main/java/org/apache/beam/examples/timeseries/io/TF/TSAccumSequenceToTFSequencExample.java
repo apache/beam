@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.examples.timeseries.io.TF;
+package org.apache.beam.examples.timeseries.io.tf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.UnsupportedEncodingException;
@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.SequenceExample;
 
-/** Convert TSAccumSequence to TF Sequence Example. */
+/** Convert TSAccumSequence to tf Sequence Example. */
 @Experimental
 public class TSAccumSequenceToTFSequencExample
     extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>, SequenceExample> {

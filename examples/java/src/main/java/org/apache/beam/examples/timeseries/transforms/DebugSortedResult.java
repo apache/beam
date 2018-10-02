@@ -19,9 +19,12 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import com.google.protobuf.util.Timestamps;
+
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
+import java.util.Optional;
+
+import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -36,81 +39,61 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Debug Class to show results in logs, with larger datasets this will fail with OOM. */
-@Experimental
-public class DebugSortedResult
+@Experimental public class DebugSortedResult
     extends PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PDone> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DebugSortedResult.class);
 
-  @Override
-  public PDone expand(PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
+  @Override public PDone expand(
+      PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
-    input
-        .apply(GroupByKey.create())
-        .apply(
-            ParDo.of(
-                new DoFn<KV<TimeSeriesData.TSKey, Iterable<TimeSeriesData.TSAccum>>, String>() {
+    input.apply(GroupByKey.create()).apply(
+        ParDo.of(new DoFn<KV<TimeSeriesData.TSKey, Iterable<TimeSeriesData.TSAccum>>, String>() {
 
-                  //@ProcessElement public void process(ProcessContext c, IntervalWindow w) {
-                  @ProcessElement
-                  public void process(ProcessContext c) {
-                    List<TimeSeriesData.TSAccum> accums = new ArrayList<>();
+          //@ProcessElement public void process(ProcessContext c, IntervalWindow w) {
+          @ProcessElement public void process(ProcessContext c) {
+            List<TimeSeriesData.TSAccum> accums = new ArrayList<>();
 
-                    for (TimeSeriesData.TSAccum accum : c.element().getValue()) {
-                      accums.add(accum);
-                    }
+            for (TimeSeriesData.TSAccum accum : c.element().getValue()) {
+              accums.add(accum);
+            }
 
-                    TSAccums.sortAccumList(accums);
+            TSAccums.sortAccumList(accums);
 
-                    StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
 
-                    for (TimeSeriesData.TSAccum accum : accums) {
-                      boolean heartBeat =
-                          (accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT));
+            for (TimeSeriesData.TSAccum accum : accums) {
+              boolean heartBeat = (accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT));
 
-                      sb.append(
-                          "KEY : "
-                              + c.element().getKey().getMajorKey()
-                              + c.element().getKey().getMinorKeyString()
-                              + "\n");
-                      sb.append(
-                          "\n- Is this a Heart Beat Value?  "
-                              + heartBeat
-                              + "\n"
-                              + "- Window Start "
-                              + Timestamps.toString(accum.getLowerWindowBoundary())
-                              + "\n"
-                              + "- Window End "
-                              + Timestamps.toString(accum.getUpperWindowBoundary())
-                              + ((heartBeat)
-                                  ? "\n Note as this is a HeartBeat first and last Timestamp values will be from last known value and will not match window boundaries.\n"
-                                  : "")
-                              + " First TS - "
-                              + Timestamps.toString(accum.getFirstTimeStamp())
-                              + " Last TS - "
-                              + Timestamps.toString(accum.getLastTimeStamp())
-                              + "\n"
-                              + "- Count = "
-                              + accum.getDataAccum().getCount()
-                              + "\n"
-                              + "- Min = "
-                              + accum.getDataAccum().getMinValue()
-                              + "- Max = "
-                              + accum.getDataAccum().getMaxValue()
-                              + "\n"
-                              + "- Previous Upper Window Boundary = "
-                              + Timestamps.toString(
-                                  accum.getPreviousWindowValue().getUpperWindowBoundary())
-                              + "\n"
-                              + "- Previous_Min = "
-                              + accum.getPreviousWindowValue().getDataAccum().getMinValue()
-                              + "- Previous_Max = "
-                              + accum.getPreviousWindowValue().getDataAccum().getMaxValue());
-                      sb.append("\n\n");
-                    }
-                    LOG.info(sb.toString());
-                  }
-                }));
+              sb.append("KEY : ").append(Optional.ofNullable(c.element().getKey().getMajorKey()))
+                  .append(Optional.ofNullable(c.element().getKey().getMinorKeyString())).append("\n");
+
+              sb.append("\n- Is this a Heart Beat Value?  ").append(heartBeat).append("\n")
+                  .append("- Window Start ")
+                  .append(Timestamps.toString(accum.getLowerWindowBoundary())).append("\n")
+                  .append("- Window End ")
+                  .append(Timestamps.toString(accum.getUpperWindowBoundary())).append(((heartBeat) ?
+                  "\n Note as this is a HeartBeat first and last Timestamp values will be from last known value and will not match window boundaries.\n" :
+                  "")).append(" First TS - ").append(Timestamps.toString(accum.getFirstTimeStamp()))
+                  .append(" Last TS - ").append(Timestamps.toString(accum.getLastTimeStamp()))
+                  .append("\n").append(" First Data In Window - ")
+                  .append(accum.getDataAccum().getFirst().getData().toString())
+                  .append(" Last Data In Window - ")
+                  .append(accum.getDataAccum().getLast().getData().toString()).append("\n")
+                  .append("- Count = ").append(accum.getDataAccum().getCount()).append("\n")
+                  .append("- Min = ").append(accum.getDataAccum().getMinValue()).append("- Max = ")
+                  .append(accum.getDataAccum().getMaxValue()).append("\n")
+                  .append("- Previous Upper Window Boundary = ").append(
+                  Timestamps.toString(accum.getPreviousWindowValue().getUpperWindowBoundary()))
+                  .append("\n").append("- Previous_Min = ")
+                  .append(accum.getPreviousWindowValue().getDataAccum().getMinValue())
+                  .append("- Previous_Max = ")
+                  .append(accum.getPreviousWindowValue().getDataAccum().getMaxValue());
+              sb.append("\n\n");
+            }
+            LOG.info(sb.toString());
+          }
+        }));
 
     return PDone.in(input.getPipeline());
   }

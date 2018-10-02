@@ -23,12 +23,12 @@ import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
+import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.transforms.*;
 import org.apache.beam.examples.timeseries.utils.TSAccumSequences;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
-import org.apache.beam.examples.timeseries.utils.TSMultiVarientDataPoints;
+import org.apache.beam.examples.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -57,8 +57,7 @@ public class TimeSeriesExampleToBigTable {
   static final String FILE_LOCATION = "/tmp/tf/";
 
   /**
-   * Timeseries example that outputs to BigTable --projectId=<projectid>
-   * --bigTableInstanceId=bigtable --bigTableTableId=timeseries
+   * Push Timeseries data into BigTable
    */
   public static void main(String[] args) {
 
@@ -70,8 +69,8 @@ public class TimeSeriesExampleToBigTable {
         TSConfiguration.builder()
             .downSampleDuration(Duration.standardSeconds(5))
             .timeToLive(Duration.standardMinutes(1))
-            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
-            .build();
+            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
+
 
     Pipeline p = Pipeline.create(options);
 
@@ -89,15 +88,15 @@ public class TimeSeriesExampleToBigTable {
     // ------------ READ DATA ------------
 
     // Read some dummy timeseries data
-    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> readL1Data =
+    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> readData =
         p.apply(Create.of(SinWaveSample.generateSinWave()))
-            .apply(ParDo.of(new TSMultiVarientDataPoints.ExtractTimeStamp()))
-            .apply(ParDo.of(new TSMultiVarientDataPoints.ConvertMultiToUniDataPoint()));
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()));
 
     // ------------ Create perfect rectangles of data--------
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> downSampled =
-        readL1Data.apply(new ExtractAggregates(configuration)).apply(new GetWindowData());
+        readData.apply(new ExtractAggregates(configuration)).apply(new GetWindowData());
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> weHaveOrder =
         downSampled.apply(new OrderOutput(configuration));
@@ -106,10 +105,10 @@ public class TimeSeriesExampleToBigTable {
 
     // This transform is purely to allow logged debug output, it will fail with OOM if large dataset is used.
     weHaveOrder.apply(new DebugSortedResult());
-
     // Write to Bigtable
 
-    // TF.Example output
+    
+    // tf.Example output
     weHaveOrder
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccums.OutPutToBigTable())
@@ -117,19 +116,19 @@ public class TimeSeriesExampleToBigTable {
 
     // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(1)))
+        .apply( new TSAccumToFixedWindowSeq("Sequence of 1 Min", configuration, Duration.standardMinutes(1)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(5)))
+        .apply( new TSAccumToFixedWindowSeq("Sequence of 5 Min", configuration, Duration.standardMinutes(5)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(15)))
+        .apply(new TSAccumToFixedWindowSeq("Sequence of 15 Min", configuration, Duration.standardMinutes(15)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
@@ -142,13 +141,13 @@ public class TimeSeriesExampleToBigTable {
 
     private static final Logger LOG = LoggerFactory.getLogger(SinWaveSample.class);
 
-    public static List<TimeSeriesData.TSMUltiVarientDataPoint> generateSinWave() {
+    public static List<TimeSeriesData.TSMultiVariateDataPoint> generateSinWave() {
 
       double y;
       double yBase = 1;
       double scale = 20;
 
-      List<TimeSeriesData.TSMUltiVarientDataPoint> dataPoints = new ArrayList<>();
+      List<TimeSeriesData.TSMultiVariateDataPoint> dataPoints = new ArrayList<>();
 
       for (int k = 0; k < 10; k++) {
 
@@ -162,8 +161,8 @@ public class TimeSeriesExampleToBigTable {
 
             y = (yBase - Math.sin(Math.toRadians(i)) * scale);
 
-            TimeSeriesData.TSMUltiVarientDataPoint mvts =
-                TimeSeriesData.TSMUltiVarientDataPoint.newBuilder()
+            TimeSeriesData.TSMultiVariateDataPoint mvts =
+                TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
                     .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
                     .putData("x", TimeSeriesData.Data.newBuilder().setIntVal(i).build())
                     .putData("y", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())

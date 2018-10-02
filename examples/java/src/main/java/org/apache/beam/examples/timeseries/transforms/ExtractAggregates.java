@@ -19,13 +19,11 @@
 package org.apache.beam.examples.timeseries.transforms;
 
 import java.util.Iterator;
-import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
+import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
 import org.apache.beam.examples.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -37,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Given a Univariant timeseries this transform will downsample and aggregate the values bases on
+ * Given a Univariate timeseries this transform will downsample and aggregate the values based on
  * the TSConfigration.
  */
 @SuppressWarnings("serial")
@@ -61,12 +59,12 @@ public class ExtractAggregates
     return input
         .apply(Window.into(FixedWindows.of(configuration.downSampleDuration())))
         .apply(Combine.perKey(new DownSampleCombinerGen()))
-        .setCoder(
-            KvCoder.of(
-                ProtoCoder.of(TimeSeriesData.TSKey.class),
-                ProtoCoder.of(TimeSeriesData.TSAccum.class)));
+        .apply(new GetWindowData());
   }
 
+  /**
+   * Creates a down sampled accumulator for all data types.
+   */
   public static class DownSampleCombinerGen
       extends CombineFn<
           TimeSeriesData.TSDataPoint, TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
@@ -77,8 +75,7 @@ public class ExtractAggregates
     }
 
     @Override
-    public TimeSeriesData.TSAccum addInput(
-        TimeSeriesData.TSAccum accumulator, TimeSeriesData.TSDataPoint dataPoint) {
+    public TimeSeriesData.TSAccum addInput(TimeSeriesData.TSAccum accumulator, TimeSeriesData.TSDataPoint dataPoint) {
 
       TimeSeriesData.TSAccum.Builder accumBuilder = TimeSeriesData.TSAccum.newBuilder(accumulator);
 
@@ -116,6 +113,8 @@ public class ExtractAggregates
 
       accumBuilder.setDataAccum(dataAccum);
 
+      LOG.debug("Added input " + dataPoint);
+
       return accumBuilder.build();
     }
 
@@ -136,6 +135,8 @@ public class ExtractAggregates
 
     @Override
     public TimeSeriesData.TSAccum extractOutput(TimeSeriesData.TSAccum accum) {
+
+      LOG.debug("Output of Agg is : " + accum);
 
       return accum;
     }

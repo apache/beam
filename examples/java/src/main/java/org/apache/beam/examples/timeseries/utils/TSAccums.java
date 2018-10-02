@@ -28,6 +28,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.*;
@@ -48,7 +50,7 @@ public class TSAccums {
 
   static final Logger LOG = LoggerFactory.getLogger(TSAccums.class);
 
-  public static String getSumString(TimeSeriesData.TSAccum accum) {
+  private static String getSumString(TimeSeriesData.TSAccum accum) {
 
     return TSDatas.getStringValue(accum.getDataAccum().getSum());
   }
@@ -210,12 +212,12 @@ public class TSAccums {
     return accums;
   }
 
-  /** Push to TF Examples generated from TSAccum's to BigTable */
+  /** Push to tf Examples generated from TSAccum's to BigTable */
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<Mutation>> {
 
-    public static final byte[] TF_ACCUM = Bytes.toBytes("TF_ACCUM");
-    public static final byte[] DOWNSAMPLE_SIZE_MS = Bytes.toBytes("DOWNSAMPLE_SIZE_MS");
+    private static final byte[] TF_ACCUM = Bytes.toBytes("TF_ACCUM");
+    private static final byte[] DOWNSAMPLE_SIZE_MS = Bytes.toBytes("DOWNSAMPLE_SIZE_MS");
 
     @Override
     public PCollection<Mutation> expand(PCollection<TimeSeriesData.TSAccum> input) {
@@ -236,7 +238,7 @@ public class TSAccums {
       }
     }
 
-    public static byte[] createBigTableKey(TimeSeriesData.TSAccum accum) {
+    private static byte[] createBigTableKey(TimeSeriesData.TSAccum accum) {
       return Bytes.toBytes(
           String.join(
               "-",
@@ -245,6 +247,147 @@ public class TSAccums {
               Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
               Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))));
     }
+  }
+
+
+  /** Push to tf Examples generated from TSAccum's to BigTable */
+  public static class OutputAccumWithTimestamp
+      extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<TimeSeriesData.TSAccum>> {
+
+    @Override
+    public PCollection<TimeSeriesData.TSAccum> expand(PCollection<TimeSeriesData.TSAccum> input) {
+      return input.apply(ParDo.of(new ExtractTimestamp()));
+    }
+
+    public static class ExtractTimestamp extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
+
+      @ProcessElement
+      public void processElement(DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c)
+          throws Exception {
+        c.outputWithTimestamp(c.element(),new Instant(Timestamps.toMillis(c.element().getLowerWindowBoundary())));
+
+      }
+    }
+
+  }
+
+
+  /**
+   * This utility class stores Raw TSAccum protos into TFRecord container.
+   */
+  public static class StoreRawTFAccumInTFRecordContainer extends PTransform<PCollection<TimeSeriesData.TSAccum>, PDone>{
+
+    String directoryLocation;
+
+    public StoreRawTFAccumInTFRecordContainer(String directoryLocation) {
+      this.directoryLocation = directoryLocation;
+
+    }
+
+    @Override public PDone expand(PCollection<TimeSeriesData.TSAccum> input) {
+
+    return input.apply(ParDo.of(new DoFn<TimeSeriesData.TSAccum, byte[]>() {
+
+         @ProcessElement
+         public void process(ProcessContext c){
+           c.output(c.element().toByteArray());
+
+         }
+      }))
+       .apply(TFRecordIO.write().to(directoryLocation));
+
+    }
+  }
+
+  public static class OutPutTSAccumAsKV
+      extends DoFn<TimeSeriesData.TSAccum, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(KV.of(c.element().getKey(), c.element()));
+    }
+  }
+
+  public static class OutPutTSAccumAsKVWithTimeBoundary
+      extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+
+      TimeSeriesData.TSKey key = c.element().getKey();
+      TimeSeriesData.TSAccum accum = c.element();
+
+      c.output(KV.of(String.join("-",key.getMajorKey(),
+          key.getMinorKeyString(),
+          Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
+          Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary())))
+          , accum));
+    }
+  }
+
+  public static class OutPutTSAccumAsKVWithPrettyTimeBoundary
+      extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+
+      TimeSeriesData.TSKey key = c.element().getKey();
+      TimeSeriesData.TSAccum accum = c.element();
+
+      c.output(KV.of(getTSAccumKeyWithPrettyTimeBoundary(accum), accum));
+    }
+  }
+
+  public static String getTSAccumMajorMinorKeyAsString(TimeSeriesData.TSAccum accum){
+
+    TimeSeriesData.TSKey key = accum.getKey();
+
+    return String.join("-",key.getMajorKey(),
+        key.getMinorKeyString());
+  }
+
+  public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum){
+
+    TimeSeriesData.TSKey key = accum.getKey();
+
+    return String.join("-",key.getMajorKey(),
+        key.getMinorKeyString(),
+        Timestamps.toString(accum.getLowerWindowBoundary()),
+        Timestamps.toString(accum.getUpperWindowBoundary()));
+  }
+
+  public static String debugDetectOutputDiffBetweenTwoAccums(TimeSeriesData.TSAccum accum1, TimeSeriesData.TSAccum accum2){
+
+    StringBuilder sb = new StringBuilder();
+    if(!accum1.getKey().toByteString().equals(accum2.getKey().toByteString())){
+      sb.append(String.format(" Accum 1 had Key %s while Accum 2 has key %s", accum1.getKey(), accum2.getKey()));
+    }
+
+    if(!accum1.getLowerWindowBoundary().toByteString().equals(accum2.getLowerWindowBoundary().toByteString())){
+      sb.append(String.format(" Accum 1 had LowerWindowBoundary %s while Accum 2 has LowerWindowBoundary %s", accum1.getLowerWindowBoundary(), accum2.getLowerWindowBoundary()));
+    }
+
+    if(!accum1.getUpperWindowBoundary().toByteString().equals(accum2.getUpperWindowBoundary().toByteString())){
+      sb.append(String.format(" Accum 1 had UpperWindowBoundary %s while Accum 2 has UpperWindowBoundary %s", accum1.getUpperWindowBoundary(), accum2.getUpperWindowBoundary()));
+    }
+
+    if(!accum1.getPreviousWindowValue().toByteString().equals(accum2.getPreviousWindowValue().toByteString())){
+      sb.append(String.format(" Accum 1  & Accum 2 had difference in PreviousWindowValue accum 1 %s accum 2 %s ", accum1.getPreviousWindowValue(), accum2.getPreviousWindowValue() ));
+    }
+
+    if(!accum1.getDataAccum().toByteString().equals(accum2.getDataAccum().toByteString())){
+      sb.append(String.format(" Accum 1 had DataAccum %s while Accum 2 has DataAccum %s", accum1.getDataAccum(), accum2.getDataAccum()));
+    }
+
+    if(!accum1.getFirstTimeStamp().toByteString().equals(accum2.getFirstTimeStamp().toByteString())){
+      sb.append(String.format(" Accum 1 had FirstTimeStamp %s while Accum 2 has FirstTimeStamp %s", accum1.getFirstTimeStamp(), accum2.getFirstTimeStamp()));
+    }
+
+    if(!accum1.getLastTimeStamp().toByteString().equals(accum2.getLastTimeStamp().toByteString())){
+      sb.append(String.format(" Accum 1 had LastTimeStamp %s while Accum 2 has LastTimeStamp %s", accum1.getLastTimeStamp(), accum2.getLastTimeStamp()));
+    }
+
+    return sb.toString();
   }
 
   public static class CreateCsv

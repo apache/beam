@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.examples.timeseries.Configuration.TSConfiguration;
+import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,35 +42,35 @@ import org.slf4j.LoggerFactory;
 
 /** Utility functions for MultiVarrientTSAccum. */
 @Experimental
-public class MultiVarrientTSAccums {
+public class MultiVariateTSAccums {
 
-  public static final String MAJOR_KEY = "ts_key_major";
-  public static final String HB = TSConfiguration.HEARTBEAT;
+  private static final String MAJOR_KEY = "ts_key_major";
+  private static final String HB = TSConfiguration.HEARTBEAT;
 
-  public static final String FIRST_IN_WINDOW_DATA_VALUE = "first_in_window_data_value";
-  public static final String LAST_IN_WINDOW_DATA_VALUE = "last_in_window_data_value";
+  private static final String FIRST_IN_WINDOW_DATA_VALUE = "first_in_window_data_value";
+  private static final String LAST_IN_WINDOW_DATA_VALUE = "last_in_window_data_value";
 
-  public static final String LOWER_WINDOW_BOUNDARY = "lower_window_boundary";
-  public static final String UPPER_WINDOW_BOUNDARY = "upper_window_boundary";
+  private static final String LOWER_WINDOW_BOUNDARY = "lower_window_boundary";
+  private static final String UPPER_WINDOW_BOUNDARY = "upper_window_boundary";
 
-  public static final String CURRENT = "current_window";
-  public static final String PREVIOUS = "previous_window";
+  private static final String CURRENT = "current_window";
+  private static final String PREVIOUS = "previous_window";
 
-  public static final String COUNT = "count";
-  public static final String SUM = "sum";
-  public static final String AVG = "avg";
-  public static final String MIN = "min";
-  public static final String MAX = "max";
+  private static final String COUNT = "count";
+  private static final String SUM = "sum";
+  private static final String AVG = "avg";
+  private static final String MIN = "min";
+  private static final String MAX = "max";
 
   // BigQuery IO.
   // TODO: Convert Accum object to repeated fields rather than columns.
   public static class CreateTableRowDoFn
-      extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>, TableRow> {
+      extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVariateTSAccum>, TableRow> {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
 
-      TimeSeriesData.MultiVarientTSAccum multiAccum = c.element().getValue();
+      TimeSeriesData.MultiVariateTSAccum multiAccum = c.element().getValue();
 
       // Flatten Object to rows
 
@@ -148,16 +148,19 @@ public class MultiVarrientTSAccums {
     switch (data.getDataPointCase()) {
       case INT_VAL:
         {
-          String rowNameWithSuffix = rowName;
-          row.set(rowNameWithSuffix, data.getIntVal());
+          row.set(rowName, data.getIntVal());
           return row;
         }
       case LONG_VAL:
         {
-          String rowNameWithSuffix = rowName;
-          row.set(rowNameWithSuffix, data.getLongVal());
+          row.set(rowName, data.getLongVal());
           return row;
         }
+      case DOUBLE_VAL:
+      {
+        row.set(rowName, data.getDoubleVal());
+        return row;
+      }
       default:
         //String rowNameWithSuffix = rowName + UNKNOWN_SUFFIX;
         //row.set(rowNameWithSuffix, data.toString());
@@ -207,7 +210,7 @@ public class MultiVarrientTSAccums {
 
   private static List<TableFieldSchema> addDataPoints(String prefix) {
 
-    List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>();
+    List<TableFieldSchema> fields = new ArrayList<>();
 
     // Hard coded for demo
     fields.add(new TableFieldSchema().setName(addPrefix(prefix, COUNT)).setType("INT64"));
@@ -224,7 +227,7 @@ public class MultiVarrientTSAccums {
   public static class GroupByMajorKey
       extends PTransform<
           PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
-          PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>> {
+          PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVariateTSAccum>>> {
 
     TSConfiguration configuration;
 
@@ -236,7 +239,7 @@ public class MultiVarrientTSAccums {
     private static final Logger LOG = LoggerFactory.getLogger(GroupByMajorKey.class);
 
     @Override
-    public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>> expand(
+    public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVariateTSAccum>> expand(
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
       return input
@@ -266,7 +269,7 @@ public class MultiVarrientTSAccums {
               ParDo.of(
                   new DoFn<
                       KV<String, Iterable<TimeSeriesData.TSAccum>>,
-                      KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVarientTSAccum>>() {
+                      KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVariateTSAccum>>() {
 
                     @ProcessElement
                     public void process(ProcessContext c) {
@@ -274,15 +277,15 @@ public class MultiVarrientTSAccums {
                       // TODO : Fix this mess...
                       TimeSeriesData.TSKey key = null;
 
-                      TimeSeriesData.MultiVarientTSAccum.Builder multiVarientTSAccum =
-                          TimeSeriesData.MultiVarientTSAccum.newBuilder();
+                      TimeSeriesData.MultiVariateTSAccum.Builder multiVariateTSAccum =
+                          TimeSeriesData.MultiVariateTSAccum.newBuilder();
 
                       for (TimeSeriesData.TSAccum accum : c.element().getValue()) {
-                        multiVarientTSAccum.putProperties(
+                        multiVariateTSAccum.putProperties(
                             accum.getKey().getMinorKeyString(), accum);
                         key = accum.getKey();
                       }
-                      c.output(KV.of(key, multiVarientTSAccum.build()));
+                      c.output(KV.of(key, multiVariateTSAccum.build()));
                     }
                   }));
     }

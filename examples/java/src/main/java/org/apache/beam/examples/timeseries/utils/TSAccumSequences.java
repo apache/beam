@@ -147,7 +147,7 @@ public class TSAccumSequences {
     return downSampleType.name() + "_PREV";
   }
 
-  /** Push to TF Examples generated from TSAccum's to BigTable **/
+  /** Push to tf Examples generated from TSAccum's to BigTable **/
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccumSequence>, PCollection<Mutation>> {
 

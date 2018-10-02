@@ -31,9 +31,13 @@ public class TSDatas {
   public static String getStringValue(TimeSeriesData.Data data) {
 
     switch (data.getDataPointCase()) {
-      case DOUBLE_VAL:
+      case INT_VAL: {
+        return String.valueOf(data.getIntVal());
+      }
+      case DOUBLE_VAL: {
         return String.valueOf(data.getDoubleVal());
-      case LONG_VAL:
+      }
+        case LONG_VAL:
         {
           return String.valueOf(data.getLongVal());
         }
@@ -47,6 +51,11 @@ public class TSDatas {
     TimeSeriesData.Data.Builder data = TimeSeriesData.Data.newBuilder();
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
+      case INT_VAL:
+      {
+        Integer sum = a.getIntVal() + b.getIntVal();
+        return data.setIntVal(sum).build();
+      }
       case DOUBLE_VAL:
         {
           Double sum = a.getDoubleVal() + b.getDoubleVal();
@@ -58,12 +67,16 @@ public class TSDatas {
           return data.setLongVal(sum).build();
         }
       case FLOAT_VAL:
-        break;
+        {
+        Float sum = a.getFloatVal() + b.getFloatVal();
+        return data.setFloatVal(sum).build();
+        }
       default:
-        return data.build();
+        {
+          // Not implemented
+          return null;
+        }
     }
-
-    return data.build();
   }
 
   public static TimeSeriesData.Data.DataPointCase getCaseFromTwoTSDataValues(
@@ -107,6 +120,10 @@ public class TSDatas {
     }
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
+      case INT_VAL:
+      {
+        return (a.getIntVal() < b.getIntVal()) ? a : b;
+      }
       case DOUBLE_VAL:
         {
           return (a.getDoubleVal() < b.getDoubleVal()) ? a : b;
@@ -124,29 +141,41 @@ public class TSDatas {
 
   public static TimeSeriesData.Data findMaxData(TimeSeriesData.Data a, TimeSeriesData.Data b) {
 
-    TimeSeriesData.Data.Builder data = TimeSeriesData.Data.newBuilder();
+    // If neither A or B have had the value set then return A
+    if (a.getDataPointCase() == TimeSeriesData.Data.DataPointCase.DATAPOINT_NOT_SET
+        && b.getDataPointCase() == TimeSeriesData.Data.DataPointCase.DATAPOINT_NOT_SET) {
+      return a;
+    }
+
+    // If A is not set then return B
+    if (a.getDataPointCase() == TimeSeriesData.Data.DataPointCase.DATAPOINT_NOT_SET) {
+      return b;
+    }
+
+    // If B is not set then return A
+    if (b.getDataPointCase() == TimeSeriesData.Data.DataPointCase.DATAPOINT_NOT_SET) {
+      return a;
+    }
+
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
       case DOUBLE_VAL:
         {
-          Double max = (a.getDoubleVal() > b.getDoubleVal()) ? a.getDoubleVal() : b.getDoubleVal();
-          return data.setDoubleVal(max).build();
+          return  (a.getDoubleVal() > b.getDoubleVal()) ? a : b;
         }
       case LONG_VAL:
         {
-          Long max = (a.getLongVal() > b.getLongVal()) ? a.getLongVal() : b.getLongVal();
-          return data.setLongVal(max).build();
+          return  (a.getLongVal() > b.getLongVal()) ? a : b;
         }
       case INT_VAL:
         {
-          Integer max = (a.getIntVal() > b.getIntVal()) ? a.getIntVal() : b.getIntVal();
-          return data.setIntVal(max).build();
+          return (a.getIntVal() > b.getIntVal()) ? a : b;
         }
-      case FLOAT_VAL:
-        Float max = (a.getFloatVal() > b.getFloatVal()) ? a.getFloatVal() : b.getFloatVal();
-        return data.setFloatVal(max).build();
+      case FLOAT_VAL: {
+        return (a.getFloatVal() > b.getFloatVal()) ? a : b;
+      }
       default:
-        return data.build();
+        return a;
     }
   }
 
@@ -189,12 +218,38 @@ public class TSDatas {
       return a;
     }
 
-    return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) > 0) ? a : b;
+    return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) < 0) ? a : b;
   }
 
   public static TimeSeriesData.TSDataPoint findMaxTimeStamp(
       TimeSeriesData.TSDataPoint a, TimeSeriesData.TSDataPoint b) {
 
-    return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) < 0) ? a : b;
+    // Check if either timestamp is zero, if yes then return the other value
+    if (Timestamps.toMillis(a.getTimestamp()) == 0 && Timestamps.toMillis(b.getTimestamp()) > 0) {
+      return b;
+    }
+
+    if (Timestamps.toMillis(b.getTimestamp()) == 0) {
+      return a;
+    }
+
+    return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) > 0) ? a : b;
+  }
+
+  public static  <T extends Number> TimeSeriesData.Data createData(T data){
+
+    if(data instanceof Double){
+      return TimeSeriesData.Data.newBuilder().setDoubleVal((Double)data).build();
+    }
+
+    if(data instanceof Integer){
+      return TimeSeriesData.Data.newBuilder().setIntVal((Integer)data).build();
+    }
+
+    if(data instanceof Float){
+      return TimeSeriesData.Data.newBuilder().setFloatVal((Float)data).build();
+    }
+
+    throw new IllegalArgumentException("Must be Double, Integer or Float");
   }
 }

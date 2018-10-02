@@ -72,7 +72,7 @@ message TSDataPoint {
 
 // MultiVarient Data points are stored as a bag of properties.
 // Only one timestamp is allowed for the data point.
-message TSMUltiVarientDataPoint {
+message TSMultiVariateDataPoint {
     TSKey key = 1;
     map<string, Data> data = 2;
     map<string, string> metadata = 3;
@@ -131,7 +131,7 @@ message TSAccumSequence {
 
 // MultiVarient TSAccum holds all the accums as a bag of properties, the key being the minor key from the Univarient
 // timeseries.
-message MultiVarientTSAccum {
+message MultiVariateTSAccum {
     TSKey key = 1;
     map<string, TSAccum> properties = 3;
 }
