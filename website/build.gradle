@@ -126,7 +126,7 @@ task commitWebsite << {
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
-  shell "git fetch ${gitboxUrl} asf-site"
+  shell "git fetch ${gitboxUrl}"
   git.checkout(branch: 'asf-site')
   shell "git reset --hard origin/asf-site"
 
