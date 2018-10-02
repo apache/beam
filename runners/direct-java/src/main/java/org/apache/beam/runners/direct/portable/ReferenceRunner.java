@@ -75,8 +75,8 @@ import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
@@ -245,7 +245,7 @@ public class ReferenceRunner {
                 controlClient,
                 IdGenerators.incrementingLongs());
       case IN_PROCESS:
-        return InProcessEnvironmentFactory.create(
+        return EmbeddedEnvironmentFactory.create(
             PipelineOptionsFactory.create(), logging, control, controlClient.getSource());
       default:
         throw new IllegalArgumentException(

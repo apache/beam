@@ -49,8 +49,8 @@ import org.slf4j.LoggerFactory;
  * An {@link EnvironmentFactory} that communicates to a {@link FnHarness} which is executing in the
  * same process.
  */
-public class InProcessEnvironmentFactory implements EnvironmentFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(InProcessEnvironmentFactory.class);
+public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(EmbeddedEnvironmentFactory.class);
 
   private final PipelineOptions options;
 
@@ -64,10 +64,10 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
       ControlClientPool.Source clientSource) {
-    return new InProcessEnvironmentFactory(options, loggingServer, controlServer, clientSource);
+    return new EmbeddedEnvironmentFactory(options, loggingServer, controlServer, clientSource);
   }
 
-  private InProcessEnvironmentFactory(
+  private EmbeddedEnvironmentFactory(
       PipelineOptions options,
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
@@ -110,7 +110,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
                         + "the 'org.apache.beam:beam-sdks-java-harness' artifact "
                         + "and its dependencies must be on the classpath",
                     NoClassDefFoundError.class.getSimpleName(),
-                    InProcessEnvironmentFactory.class.getSimpleName(),
+                    EmbeddedEnvironmentFactory.class.getSimpleName(),
                     e);
                 throw e;
               }
@@ -130,7 +130,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
     return RemoteEnvironment.forHandler(environment, handler);
   }
 
-  /** Provider of InProcessEnvironmentFactory. */
+  /** Provider of EmbeddedEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
 
     @Override
@@ -141,7 +141,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
         GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
-      return InProcessEnvironmentFactory.create(
+      return EmbeddedEnvironmentFactory.create(
           PipelineOptionsFactory.create(), loggingServer, controlServer, clientPool.getSource());
     }
 
