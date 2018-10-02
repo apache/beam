@@ -28,6 +28,7 @@ def buildDir = "${project.rootDir}/build/website"
 def buildContentDir = "${project.rootDir}/build/website/generated-content"
 def repoContentDir = "${project.rootDir}/website/generated-content"
 def commitedChanges = false
+def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
 
 def shell = { cmd ->
   println cmd
@@ -125,7 +126,7 @@ task commitWebsite << {
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
-  shell "git fetch origin asf-site"
+  shell "git fetch ${gitboxUrl} asf-site"
   git.checkout(branch: 'asf-site')
   shell "git reset --hard origin/asf-site"
 
@@ -178,7 +179,7 @@ task publishWebsite << {
   }
 
   // Because git.push() fails to authenticate, run git push directly.
-  shell "git push https://gitbox.apache.org/repos/asf/beam.git asf-site"
+  shell "git push ${gitboxUrl} asf-site"
 }
 
 commitWebsite.dependsOn testWebsite
