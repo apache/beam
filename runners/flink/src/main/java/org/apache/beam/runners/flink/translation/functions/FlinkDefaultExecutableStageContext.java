@@ -34,7 +34,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
-  private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) throws Exception {
+  private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) {
     JobBundleFactory jobBundleFactory =
         DefaultJobBundleFactory.create(
             jobInfo,
@@ -74,4 +74,7 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
       return actualFactory.get(jobInfo);
     }
   }
+
+  static final Factory MULTI_INSTANCE_FACTORY =
+      (jobInfo) -> FlinkDefaultExecutableStageContext.create(jobInfo);
 }
