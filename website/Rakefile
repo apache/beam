@@ -18,7 +18,8 @@ task :test do
         /jstorm.io/,
         /datatorrent.com/,
         /ai.google/, # https://issues.apache.org/jira/browse/INFRA-16527
-        /globenewswire.com/ # https://issues.apache.org/jira/browse/BEAM-5518
+        /globenewswire.com/, # https://issues.apache.org/jira/browse/BEAM-5518
+        /www.se-radio.net/ # Can fail with rate limit HTTP 508 error
     ],
     :parallel => { :in_processes => Etc.nprocessors },
     }).run
