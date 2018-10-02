@@ -187,9 +187,9 @@ public class TopWikipediaSessions {
   public interface Options extends PipelineOptions {
     @Description("Input specified as a GCS path containing a BigQuery table exported as json")
     @Default.String(EXPORTED_WIKI_TABLE)
-    String getInput();
+    String getWikiInput();
 
-    void setInput(String value);
+    void setWikiInput(String value);
 
     @Description("File to output results to")
     @Validation.Required
@@ -203,7 +203,7 @@ public class TopWikipediaSessions {
 
     double samplingThreshold = 0.1;
 
-    p.apply(TextIO.read().from(options.getInput()))
+    p.apply(TextIO.read().from(options.getWikiInput()))
         .apply(MapElements.via(new ParseTableRowJson()))
         .apply(new ComputeTopSessions(samplingThreshold))
         .apply("Write", TextIO.write().to(options.getOutput()));

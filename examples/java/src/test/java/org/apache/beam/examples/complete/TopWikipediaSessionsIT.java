@@ -52,7 +52,7 @@ public class TopWikipediaSessionsIT {
     TopWikipediaSessionsITOptions options =
         TestPipeline.testingPipelineOptions().as(TopWikipediaSessionsITOptions.class);
 
-    options.setInput(DEFAULT_INPUT_10_FILES);
+    options.setWikiInput(DEFAULT_INPUT_10_FILES);
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
