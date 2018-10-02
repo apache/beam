@@ -589,6 +589,8 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       :meth:`match` uses this method
 
     This method is based on `Python 2.7's fnmatch.translate`_.
+    The code in this method is licensed under
+    PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2.
 
     .. _`fnmatch`: https://docs.python.org/2/library/fnmatch.html
 
