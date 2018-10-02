@@ -30,7 +30,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
@@ -43,10 +43,10 @@ import org.junit.rules.TestRule;
  * {@link FnHarness} to properly execute, and provides access to the associated client and harness
  * during test execution.
  */
-public class InProcessSdkHarness extends ExternalResource implements TestRule {
+public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
 
-  public static InProcessSdkHarness create() {
-    return new InProcessSdkHarness();
+  public static EmbeddedSdkHarness create() {
+    return new EmbeddedSdkHarness();
   }
 
   private ExecutorService executor;
@@ -56,7 +56,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
 
   private SdkHarnessClient client;
 
-  private InProcessSdkHarness() {}
+  private EmbeddedSdkHarness() {}
 
   public SdkHarnessClient client() {
     return client;
@@ -85,12 +85,12 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
     InstructionRequestHandler requestHandler =
-        InProcessEnvironmentFactory.create(
+        EmbeddedEnvironmentFactory.create(
                 PipelineOptionsFactory.create(),
                 loggingServer,
                 controlServer,
                 clientPool.getSource())
-            // The InProcessEnvironmentFactory can only create Java environments, regardless of the
+            // The EmbeddedEnvironmentFactory can only create Java environments, regardless of the
             // Environment that's passed to it.
             .createEnvironment(Environment.getDefaultInstance())
             .getInstructionRequestHandler();
