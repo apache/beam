@@ -160,6 +160,8 @@ __all__ = [
     'WriteToBigQuery',
     ]
 
+logger = logging.getLogger(__name__)
+
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 
@@ -665,24 +667,36 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       self.query = self.source.query
 
+  def _get_source_query_location(self):
+    referenced_locations = self.client.get_referenced_locations(
+        self.executing_project,
+        self.source.query,
+        use_legacy_sql=self.source.use_legacy_sql)
+
+    logger.debug("Referenced locations: %r", referenced_locations)
+
+    locations = set(referenced_locations.values())
+
+    if len(locations) > 1:
+      logger.error(
+          "The query %r references tables in different locations: %r. "
+          "Tables and locations: %r",
+          query,
+          locations,
+          referenced_locations)
+      return None
+    elif len(locations) == 1:
+      location = next(iter(locations))
+      logger.info("Using location of referenced tables: %r", location)
+      return location
+
+    logger.debug("Query does not reference any tables.")
+    return None
+
   def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr is None:  # it's a query source
-      if self.source.location is not None:
-        logging.info('Using location=%r from BigQuerySource',
-                     self.source.location)
-        return self.source.location
-
-      # TODO: Find the referenced tables from the query as described in.
-      # https://github.com/apache/beam/pull/5435#discussion_r213817094
-      # and
-      # https://issues.apache.org/jira/browse/BEAM-1909?focusedCommentId=16020138&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-16020138
-      logging.warning(
-          'Could not reliably determine source location. '
-          'Use BigQuerySource(query=..., location="your-location").'
-          'This might cause '
-          '"Cannot read and write in different locations: [...]" errors.')
-      return
+      return self._get_source_query_location()
 
     if tr.projectId is None:
       source_project_id = self.executing_project
@@ -817,6 +831,37 @@ class BigQueryWrapper(object):
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_referenced_locations(self, project_id, query, use_legacy_sql):
+    """
+    Get locations of tables referenced in a query as a mapping of
+    TableReference -> location.
+    """
+    reference = bigquery.JobReference(jobId=uuid.uuid4().hex,
+                                      projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    referenced_tables = response.statistics.query.referencedTables
+    referenced_locations = {
+      table: self.get_table_location(
+          table.projectId, table.datasetId, table.tableId)
+      for table in referenced_tables
+    }
+    return referenced_locations
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
