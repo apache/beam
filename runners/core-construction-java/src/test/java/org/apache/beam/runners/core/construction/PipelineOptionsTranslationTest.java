@@ -82,6 +82,17 @@ public class PipelineOptionsTranslationTest {
       Struct reserializedStruct = PipelineOptionsTranslation.toProto(deserializedStruct);
       assertThat(reserializedStruct.getFieldsMap(), equalTo(originalStruct.getFieldsMap()));
     }
+
+    @Test
+    public void testToFromJson() throws Exception {
+      options.getOptionsId();
+      Struct originalStruct = PipelineOptionsTranslation.toProto(options);
+      String json = PipelineOptionsTranslation.toJson(options);
+
+      PipelineOptions deserializedOptions = PipelineOptionsTranslation.fromJson(json);
+      Struct reserializedStruct = PipelineOptionsTranslation.toProto(deserializedOptions);
+      assertThat(reserializedStruct.getFieldsMap(), equalTo(originalStruct.getFieldsMap()));
+    }
   }
 
   /** Tests that translations contain the correct contents. */
