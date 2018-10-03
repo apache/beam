@@ -107,13 +107,13 @@ NeedsRunner is a category of tests that require a Beam runner. To run
 NeedsRunner tests:
 
 ```
-$ ./gradlew :runners:direct-java:needsRunnerTests
+$ ./gradlew beam-runners-direct-java:needsRunnerTests
 ```
 
 To run a single NeedsRunner test use the `test` property, e.g.
 
 ```
-$ ./gradlew :runners:direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
+$ ./gradlew beam-runners-direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
 ```
 
 will run the `MapElementsTest.testMapBasic()` test.
@@ -123,7 +123,7 @@ NeedsRunner tests in modules that are not required to build runners (e.g.
 command:
 
 ```
-$ ./gradlew sdks:java:io:google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
+$ ./gradlew beam-sdks-java-io-google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
 ```
 
 ### ValidatesRunner
