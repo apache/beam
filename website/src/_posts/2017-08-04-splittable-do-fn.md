@@ -85,24 +85,24 @@ has other limitations that make it insufficient for this task*).
 ## Beam Source API
 
 Apache Beam historically provides a Source API
-([BoundedSource]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
+([BoundedSource](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
 and
-[UnboundedSource]({{ site.baseurl }}/documentation/sdks/javadoc/{{
+[UnboundedSource](https://beam.apache.org/releases/javadoc/{{
 site.release_latest }}/org/apache/beam/sdk/io/UnboundedSource.html)) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-[`Read.from(Source)`]({{ site.baseurl }}/documentation/sdks/javadoc/{{
+[`Read.from(Source)`](https://beam.apache.org/releases/javadoc/{{
 site.release_latest }}/org/apache/beam/sdk/io/Read.html) built-in `PTransform`.
 
 The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-[`BoundedSource`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
+[`BoundedSource`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
 API provides advanced features such as progress reporting and [dynamic
 rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)
 (which together enable autoscaling), and
-[`UnboundedSource`]({{ site.baseurl }}/documentation/sdks/javadoc/{{
+[`UnboundedSource`](https://beam.apache.org/releases/javadoc/{{
 site.release_latest }}/org/apache/beam/sdk/io/UnboundedSource.html) supports
 reporting the source's watermark and backlog *(until SDF, we believed that
 "batch" and "streaming" data sources are fundamentally different and thus

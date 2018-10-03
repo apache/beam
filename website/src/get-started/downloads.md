@@ -71,7 +71,7 @@ the form `major.minor.incremental` and are incremented as follows:
 * minor version for new functionality added in a backward-compatible manner
 * incremental version for forward-compatible bug fixes
 
-Please note that APIs marked [`@Experimental`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/annotations/Experimental.html)
+Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/annotations/Experimental.html)
 may change at any point and are not guaranteed to remain compatible across versions.
 
 Additionally, any API may change before the first stable release, i.e., between

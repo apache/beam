@@ -363,7 +363,7 @@ has: 2
 ## Next Steps
 
 * Learn more about the [Beam SDK for Java]({{ site.baseurl }}/documentation/sdks/java/)
-  and look through the [Java SDK API reference]({{ site.baseurl }}/documentation/sdks/javadoc).
+  and look through the [Java SDK API reference](https://beam.apache.org/releases/javadoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
