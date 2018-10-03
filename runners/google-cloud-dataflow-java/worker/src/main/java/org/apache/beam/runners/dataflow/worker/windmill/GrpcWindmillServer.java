@@ -440,16 +440,16 @@ public class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataResponse getData(GetDataRequest request) {
     if (syncApplianceStub == null) {
-    return callWithBackoff(
-        () ->
-            syncStub()
-                .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
-                .getData(
-                    request
-                        .toBuilder()
-                        .setJobId(options.getJobId())
-                        .setProjectId(options.getProject())
-                        .build()));
+      return callWithBackoff(
+          () ->
+              syncStub()
+                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .getData(
+                      request
+                          .toBuilder()
+                          .setJobId(options.getJobId())
+                          .setProjectId(options.getProject())
+                          .build()));
     } else {
       return callWithBackoff(
           () ->
@@ -462,16 +462,16 @@ public class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public CommitWorkResponse commitWork(CommitWorkRequest request) {
     if (syncApplianceStub == null) {
-    return callWithBackoff(
-        () ->
-            syncStub()
-                .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
-                .commitWork(
-                    request
-                        .toBuilder()
-                        .setJobId(options.getJobId())
-                        .setProjectId(options.getProject())
-                        .build()));
+      return callWithBackoff(
+          () ->
+              syncStub()
+                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .commitWork(
+                      request
+                          .toBuilder()
+                          .setJobId(options.getJobId())
+                          .setProjectId(options.getProject())
+                          .build()));
     } else {
       return callWithBackoff(
           () ->

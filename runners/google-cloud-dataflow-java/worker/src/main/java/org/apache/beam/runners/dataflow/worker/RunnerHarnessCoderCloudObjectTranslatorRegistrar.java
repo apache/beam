@@ -121,7 +121,6 @@ public class RunnerHarnessCoderCloudObjectTranslatorRegistrar
     };
   }
 
-
   private static List<Coder<?>> getComponents(CloudObject target) {
     List<Map<String, Object>> cloudComponents =
         Structs.getListOfMaps(
