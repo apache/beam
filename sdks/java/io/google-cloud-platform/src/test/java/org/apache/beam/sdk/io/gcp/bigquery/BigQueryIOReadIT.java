@@ -18,11 +18,13 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
@@ -45,10 +47,15 @@ public class BigQueryIOReadIT {
   private String project;
   private static final String datasetId = "big_query_import_export";
   private static final String tablePrefix = "export_";
-  private static final Map<String, Integer> numOfRecords = ImmutableMap.of("empty", 0, "1K", 1000);
+  private static final Map<String, Long> numOfRecords =
+      ImmutableMap.<String, Long>of(
+          "empty", 0L,
+          "1M", 10592L,
+          "1G", 11110839L,
+          "1T", 11110839000L);
 
   /** Customized PipelineOption for BigQueryIORead Pipeline. */
-  public interface BigQueryIOReadOptions extends TestPipelineOptions {
+  public interface BigQueryIOReadOptions extends TestPipelineOptions, ExperimentalOptions {
     @Description("The table to be read")
     @Validation.Required
     String getInputTable();
@@ -62,13 +69,17 @@ public class BigQueryIOReadIT {
     void setNumRecords(long numRecords);
   }
 
-  private void setupTestEnvironment(String recordSize) {
+  private void setupTestEnvironment(String recordSize, boolean enableCustomBigquery) {
     PipelineOptionsFactory.register(BigQueryIOReadOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOReadOptions.class);
     options.setNumRecords(numOfRecords.get(recordSize));
     options.setTempLocation(options.getTempRoot() + "/temp-it/");
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + datasetId + "." + tablePrefix + recordSize);
+    if (enableCustomBigquery) {
+      options.setExperiments(
+          ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
+    }
   }
 
   private void runBigQueryIOReadPipeline() {
@@ -83,13 +94,37 @@ public class BigQueryIOReadIT {
 
   @Test
   public void testBigQueryReadEmpty() throws Exception {
-    setupTestEnvironment("empty");
+    setupTestEnvironment("empty", false);
     runBigQueryIOReadPipeline();
   }
 
   @Test
-  public void testBigQueryRead1K() throws Exception {
-    setupTestEnvironment("1K");
+  public void testBigQueryRead1M() throws Exception {
+    setupTestEnvironment("1M", false);
+    runBigQueryIOReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryRead1G() throws Exception {
+    setupTestEnvironment("1G", false);
+    runBigQueryIOReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryRead1T() throws Exception {
+    setupTestEnvironment("1T", false);
+    runBigQueryIOReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryReadEmptyCustom() throws Exception {
+    setupTestEnvironment("empty", true);
+    runBigQueryIOReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryRead1TCustom() throws Exception {
+    setupTestEnvironment("1T", true);
     runBigQueryIOReadPipeline();
   }
 }
