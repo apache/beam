@@ -136,8 +136,8 @@ import org.slf4j.LoggerFactory;
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
  *        public void setParameters(KV<Integer, String> element, PreparedStatement query)
  *          throws SQLException {
- *          query.setInt(1, kv.getKey());
- *          query.setString(2, kv.getValue());
+ *          query.setInt(1, element.getKey());
+ *          query.setString(2, element.getValue());
  *        }
  *      })
  *    );
