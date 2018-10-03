@@ -361,7 +361,7 @@ class BigQuerySource(dataflow_io.NativeSource):
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
                validate=False, coder=None, use_standard_sql=False,
-               flatten_results=True, location=None):
+               flatten_results=True):
     """Initialize a :class:`BigQuerySource`.
 
     Args:
@@ -398,11 +398,6 @@ class BigQuerySource(dataflow_io.NativeSource):
         This parameter is ignored for table inputs.
       flatten_results (bool): Flattens all nested and repeated fields in the
         query results. The default value is :data:`True`.
-      location (str): The location of the source table or query.
-        If :data:`None`, the location will be
-        -   :data:`None` for *query* sources.
-        -   Automatically detected for *table* sources.
-        The default value is :data:`None`.
 
     Raises:
       ~exceptions.ValueError: if any of the following is true:
@@ -439,7 +434,6 @@ class BigQuerySource(dataflow_io.NativeSource):
     self.validate = validate
     self.flatten_results = flatten_results
     self.coder = coder or RowAsDictJsonCoder()
-    self.location = location
 
   def display_data(self):
     if self.query is not None:
