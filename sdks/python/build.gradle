@@ -84,6 +84,19 @@ task buildPython(dependsOn: 'setupVirtualenv') {
 }
 build.dependsOn buildPython
 
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+task depSnapshot(dependsOn: 'installGcpTest') {
+  doLast {
+    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+    }
+  }
+}
+
 task lint {}
 check.dependsOn lint
 
@@ -360,4 +373,9 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
       args '-c', "./scripts/run_dependency_check.sh"
     }
   }
+}
+
+task buildSnapshot() {
+  dependsOn 'sdist'
+  dependsOn 'depSnapshot'
 }
