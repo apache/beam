@@ -673,7 +673,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
                      self.source.location)
         return self.source.location
 
-      # TODO(BEAM-5457): Is there a way to get the source location from a query?
+      # TODO: Find the referenced tables from the query as described in.
+      # https://github.com/apache/beam/pull/5435#discussion_r213817094
+      # and
+      # https://issues.apache.org/jira/browse/BEAM-1909?focusedCommentId=16020138&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-16020138
       logging.warning(
           'Could not reliably determine source location. '
           'Use BigQuerySource(query=..., location="your-location").'
