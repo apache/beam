@@ -104,7 +104,7 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
-      
+
 @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
                                            'fixed on Python 3')
 class NativeTypesTest(unittest.TestCase):
