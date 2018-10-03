@@ -26,7 +26,6 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 group = "org.apache.beam.runners.dataflow"
-version = "google-built"
 
 /******************************************************************************/
 // Apply Java nature with customized configurations
@@ -56,10 +55,10 @@ def getWorkerRelocatedPath = { String suffix ->
 // Following listed dependencies will be shaded only in fnapi worker, not legacy
 // worker
 def sdk_provided_dependencies = [
-  "org.apache.beam:beam-runners-google-cloud-dataflow-java:$beamVersion",
-  "org.apache.beam:beam-sdks-java-core:$beamVersion",
-  "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$beamVersion",
-  "org.apache.beam:beam-sdks-java-io-google-cloud-platform:$beamVersion",
+  "org.apache.beam:beam-runners-google-cloud-dataflow-java:$version",
+  "org.apache.beam:beam-sdks-java-core:$version",
+  "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version",
+  "org.apache.beam:beam-sdks-java-io-google-cloud-platform:$version",
   google_api_services_dataflow,
   library.java.avro,
   library.java.google_api_client,
@@ -151,40 +150,6 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
 })
 
 /******************************************************************************/
-// Define the set of repositories and dependencies required to
-// fetch and enable plugins.
-
-buildscript {
-  repositories {
-    maven { url offlineRepositoryRoot }
-    mavenLocal()
-  }
-
-  dependencies {
-    classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
-    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
-    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
-    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
-    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
-    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
-    classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
-    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
-    classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
-    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
-    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
-
-    // Plugins which require online access should not be enabled when running in offline mode.
-    if (!gradle.startParameter.isOffline()) {
-      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
-    }
-  }
-}
-
-/******************************************************************************/
 // Configure the worker root project
 
 configurations {
@@ -211,13 +176,13 @@ dependencies {
     }
   }
 
-  compile "org.apache.beam:beam-model-fn-execution:$beamVersion"
-  compile "org.apache.beam:beam-model-pipeline:$beamVersion"
-  compile "org.apache.beam:beam-runners-core-construction-java:$beamVersion"
-  compile "org.apache.beam:beam-runners-core-java:$beamVersion"
-  compile "org.apache.beam:beam-runners-java-fn-execution:$beamVersion"
-  compile "org.apache.beam:beam-sdks-java-fn-execution:$beamVersion"
-  compile project(path: "beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+  compile "org.apache.beam:beam-model-fn-execution:$version"
+  compile "org.apache.beam:beam-model-pipeline:$version"
+  compile "org.apache.beam:beam-runners-core-construction-java:$version"
+  compile "org.apache.beam:beam-runners-core-java:$version"
+  compile "org.apache.beam:beam-runners-java-fn-execution:$version"
+  compile "org.apache.beam:beam-sdks-java-fn-execution:$version"
+  compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
 
   compile library.java.guava
   compile library.java.slf4j_api
@@ -232,10 +197,10 @@ dependencies {
 
   sourceFile "javax.servlet:javax.servlet-api:3.1.0:sources"
 
-  testCompile "org.apache.beam:beam-runners-core-java:$beamVersion:tests"
-  testCompile "org.apache.beam:beam-runners-direct-java:$beamVersion"
-  testCompile "org.apache.beam:beam-sdks-java-core:$beamVersion:tests"
-  testCompile "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$beamVersion:tests"
+  testCompile "org.apache.beam:beam-runners-core-java:$version:tests"
+  testCompile "org.apache.beam:beam-runners-direct-java:$version"
+  testCompile "org.apache.beam:beam-sdks-java-core:$version:tests"
+  testCompile "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version:tests"
 
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
@@ -258,19 +223,15 @@ task extractSourceFiles(type: Copy) {
 }
 shadowJar.dependsOn extractSourceFiles
 
-/******************************************************************************/
-// Override Gradle plugin configurations with correct file path.
-
-tasks.withType(Checkstyle) {
-  configFile file("build-tools/src/main/resources/beam/checkstyle.xml")
-  configProperties = ["checkstyle.suppressions.file": file("build-tools/src/main/resources/beam/suppressions.xml")]
+project.tasks.withType(Checkstyle) {
+  exclude '**/*.java'
 }
 
-findbugs {
-  excludeFilter = file('build-tools/src/main/resources/beam/findbugs-filter.xml')
+project.tasks.withType(FindBugs) {
+  exclude '**/*.java'
+  classes  = project.files([])
 }
 
-// Disable strict doclint tool in Javadoc8
-tasks.withType(Javadoc) {
-    options.addStringOption("Xdoclint:none", "-quiet")
+project.tasks.withType(Javadoc) {
+  exclude '**/*.java'
 }
