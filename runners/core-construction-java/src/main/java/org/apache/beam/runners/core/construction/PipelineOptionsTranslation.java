@@ -88,4 +88,16 @@ public class PipelineOptionsTranslation {
         MAPPER.writeValueAsString(ImmutableMap.of("options", mapWithoutUrns)),
         PipelineOptions.class);
   }
+
+  /** Converts the provided Json{@link String} into {@link PipelineOptions}. */
+  public static PipelineOptions fromJson(String optionsJson) throws IOException {
+    Struct.Builder builder = Struct.newBuilder();
+    JsonFormat.parser().merge(optionsJson, builder);
+    return fromProto(builder.build());
+  }
+
+  /** Converts the provided {@link PipelineOptions} into Json{@link String}. */
+  public static String toJson(PipelineOptions options) throws IOException {
+    return JsonFormat.printer().print(toProto(options));
+  }
 }
