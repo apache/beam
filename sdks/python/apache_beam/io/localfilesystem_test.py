@@ -28,6 +28,8 @@ import tempfile
 import unittest
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
@@ -150,17 +152,40 @@ class LocalFileSystemTest(unittest.TestCase):
       self.fs.match([None])
     self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
-  def test_match_glob(self):
-    path1 = os.path.join(self.tmpdir, 'f1')
-    path2 = os.path.join(self.tmpdir, 'f2')
-    open(path1, 'a').close()
-    open(path2, 'a').close()
+  @parameterized.expand([
+      param('*',
+            files=['a', 'b', 'c/x'],
+            expected=['a', 'b']),
+      param('**',
+            files=['a', 'b/x', 'c/x'],
+            expected=['a', 'b/x', 'c/x']),
+      param('*/*',
+            files=['a', 'b/x', 'c/x', 'd/x/y'],
+            expected=['b/x', 'c/x']),
+      param('**/*',
+            files=['a', 'b/x', 'c/x', 'd/x/y'],
+            expected=['b/x', 'c/x', 'd/x/y']),
+  ])
+  def test_match_glob(self, pattern, files, expected):
+    for filename in files:
+      full_path = os.path.join(self.tmpdir, filename)
+      dirname = os.path.dirname(full_path)
+      if not dirname == full_path:
+        # Make sure we don't go outside the tmpdir
+        assert os.path.commonprefix([self.tmpdir, full_path]) == self.tmpdir
+        try:
+          self.fs.mkdirs(dirname)
+        except IOError:
+          # Directory exists
+          pass
+
+      open(full_path, 'a').close()  # create empty file
 
     # Match both the files in the directory
-    path = os.path.join(self.tmpdir, '*')
-    result = self.fs.match([path])[0]
-    files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    full_pattern = os.path.join(self.tmpdir, pattern)
+    result = self.fs.match([full_pattern])[0]
+    files = [os.path.relpath(f.path, self.tmpdir) for f in result.metadata_list]
+    self.assertItemsEqual(files, expected)
 
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
