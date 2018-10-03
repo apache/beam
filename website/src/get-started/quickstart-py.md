@@ -207,7 +207,7 @@ sequentially in the format `counts-0000-of-0001`.
 ## Next Steps
 
 * Learn more about the [Beam SDK for Python]({{ site.baseurl }}/documentation/sdks/python/)
-  and look through the [Python SDK API reference]({{ site.baseurl }}/documentation/sdks/pydoc).
+  and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.

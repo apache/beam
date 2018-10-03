@@ -106,7 +106,7 @@ asynchronous "job" (or equivalent) on that back-end.
 
 The `Pipeline` abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class="language-java">[Pipeline]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
+<span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
 object, and then using that object as the basis for creating the pipeline's data
 sets as `PCollection`s and its operations as `Transform`s.
@@ -234,7 +234,7 @@ Now your pipeline can accept `--myCustomOption=value` as a command-line argument
 
 ## 3. PCollections {#pcollections}
 
-The <span class="language-java">[PCollection]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
+The <span class="language-java">[PCollection](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
 <span class="language-py">`PCollection`</span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as
@@ -924,7 +924,7 @@ The formatted data looks like this:
 
 #### 4.2.4. Combine {#combine}
 
-<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
+<span class="language-java">[`Combine`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
 <span class="language-py">[`Combine`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for combining collections of elements or values in your
 data. `Combine` has variants that work on entire `PCollection`s, and some that
@@ -1153,7 +1153,7 @@ player_accuracies = ...
 
 #### 4.2.5. Flatten {#flatten}
 
-<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
+<span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
 <span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
@@ -1202,7 +1202,7 @@ pipeline is constructed.
 
 #### 4.2.6. Partition {#partition}
 
-<span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
+<span class="language-java">[`Partition`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
 <span class="language-py">[`Partition`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data
 type. `Partition` splits a single `PCollection` into a fixed number of smaller
@@ -1587,8 +1587,8 @@ transform can make your code more modular and easier to understand.
 
 The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:
-  * [Pre-written Beam transforms for Java]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
-  * [Pre-written Beam transforms for Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
+  * [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
+  * [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
 
 #### 4.6.1. An example composite transform {#composite-transform-example}
 
@@ -2164,7 +2164,7 @@ all the elements are by default part of a single, global window.
 To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a `ParDo` transform with a
 `DoFn` that outputs each element with a new timestamp (for example, the
-[WithTimestamps]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
+[WithTimestamps](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
 transform in the Beam SDK for Java).
 
 To illustrate how windowing with a bounded `PCollection` can affect how your

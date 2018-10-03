@@ -567,7 +567,7 @@ One of the artifacts created in the release contains the Javadoc for the
 website. To update the website, you must unpack this jar file from the release
 candidate into the source tree of the website.
 
-Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
+Add the new Javadoc to [SDK API Reference page](https://beam.apache.org/releases/javadoc/) page, as follows:
 
 * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
 * Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${RELEASE}`.
@@ -575,7 +575,7 @@ Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 ##### Create Pydoc
-Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
+Add the new Pydoc to [SDK API Reference page](https://beam.apache.org/releases/pydoc/) page, as follows:
 
 * Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${RELEASE}`.
 * Remove `.doctrees` directory.
@@ -595,7 +595,7 @@ Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide)
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/), and publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/).
+1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -958,7 +958,7 @@ Create and push a new signed tag for the released version by copying the tag for
 
 ### Merge website pull request
 
-Merge the website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/), publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/), and the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) created earlier.
+Merge the website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), and the [Java API reference manual](https://beam.apache.org/releases/javadoc/) created earlier.
 
 ### Mark the version as released in JIRA
 
@@ -973,7 +973,7 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-* Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) merged
+* Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
