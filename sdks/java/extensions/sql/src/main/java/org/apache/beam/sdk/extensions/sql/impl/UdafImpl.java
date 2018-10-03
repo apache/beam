@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.calcite.adapter.enumerable.AggImplementor;
 import org.apache.calcite.rel.type.RelDataType;
@@ -30,11 +32,13 @@ import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.ImplementableAggFunction;
 
 /** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
+@Experimental
+@Internal
 public final class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
-  public UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
+  UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
   }
 
