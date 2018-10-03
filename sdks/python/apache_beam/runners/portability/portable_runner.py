@@ -205,7 +205,8 @@ class PipelineResult(runner.PipelineResult):
     self._messages = []
 
   def cancel(self):
-    self._job_service.Cancel()
+    self._job_service.Cancel(beam_job_api_pb2.CancelJobRequest(
+        job_id=self._job_id))
 
   @property
   def state(self):
