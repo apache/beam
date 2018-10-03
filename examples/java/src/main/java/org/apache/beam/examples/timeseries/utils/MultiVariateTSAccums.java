@@ -157,10 +157,10 @@ public class MultiVariateTSAccums {
           return row;
         }
       case DOUBLE_VAL:
-      {
-        row.set(rowName, data.getDoubleVal());
-        return row;
-      }
+        {
+          row.set(rowName, data.getDoubleVal());
+          return row;
+        }
       default:
         //String rowNameWithSuffix = rowName + UNKNOWN_SUFFIX;
         //row.set(rowNameWithSuffix, data.toString());

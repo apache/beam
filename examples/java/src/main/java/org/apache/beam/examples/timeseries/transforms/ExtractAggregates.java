@@ -62,9 +62,7 @@ public class ExtractAggregates
         .apply(new GetWindowData());
   }
 
-  /**
-   * Creates a down sampled accumulator for all data types.
-   */
+  /** Creates a down sampled accumulator for all data types. */
   public static class DownSampleCombinerGen
       extends CombineFn<
           TimeSeriesData.TSDataPoint, TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
@@ -75,7 +73,8 @@ public class ExtractAggregates
     }
 
     @Override
-    public TimeSeriesData.TSAccum addInput(TimeSeriesData.TSAccum accumulator, TimeSeriesData.TSDataPoint dataPoint) {
+    public TimeSeriesData.TSAccum addInput(
+        TimeSeriesData.TSAccum accumulator, TimeSeriesData.TSDataPoint dataPoint) {
 
       TimeSeriesData.TSAccum.Builder accumBuilder = TimeSeriesData.TSAccum.newBuilder(accumulator);
 

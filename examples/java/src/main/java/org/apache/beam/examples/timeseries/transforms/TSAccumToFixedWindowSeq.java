@@ -21,9 +21,9 @@ package org.apache.beam.examples.timeseries.transforms;
 import com.google.common.collect.Lists;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
@@ -58,8 +58,8 @@ public class TSAccumToFixedWindowSeq
     this.fixedWindowDuration = fixedWindowDuration;
   }
 
-  public TSAccumToFixedWindowSeq(@Nullable String name, TSConfiguration configuration,
-      Duration fixedWindowDuration) {
+  public TSAccumToFixedWindowSeq(
+      @Nullable String name, TSConfiguration configuration, Duration fixedWindowDuration) {
     super(name);
     this.configuration = configuration;
     this.fixedWindowDuration = fixedWindowDuration;
@@ -111,29 +111,33 @@ public class TSAccumToFixedWindowSeq
                                 : accum.getLowerWindowBoundary());
                       }
 
-                        upperBoundary =
+                      upperBoundary =
                           (Timestamps.comparator()
                                       .compare(upperBoundary, accum.getUpperWindowBoundary())
                                   > 0
                               ? upperBoundary
                               : accum.getUpperWindowBoundary());
 
-                      if(configuration.fillOption() != TSConfiguration.BFillOptions.NONE){
-                        Optional.ofNullable(testPrev).ifPresent(x-> {
+                      if (configuration.fillOption() != TSConfiguration.BFillOptions.NONE) {
+                        Optional.ofNullable(testPrev)
+                            .ifPresent(
+                                x -> {
+                                  if (Durations.toMillis(
+                                          Timestamps.between(
+                                              x.getUpperWindowBoundary(),
+                                              accum.getLowerWindowBoundary()))
+                                      != 0) {
 
-                          if(Durations.toMillis(Timestamps.between(x.getUpperWindowBoundary(), accum.getLowerWindowBoundary())) !=0){
-
-                            LOG.warn("Gap detected in sequence but Back Fill Option is not set to NONE");
-                          }
-
-                        });
+                                    LOG.warn(
+                                        "Gap detected in sequence but Back Fill Option is not set to NONE");
+                                  }
+                                });
                       }
-
 
                       seq.addAccums(accum);
                     }
 
-                    if(lowerBoundary==null ){
+                    if (lowerBoundary == null) {
                       lowerBoundary = com.google.protobuf.Timestamp.newBuilder().build();
                     }
 

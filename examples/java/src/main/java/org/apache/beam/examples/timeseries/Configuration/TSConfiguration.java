@@ -17,18 +17,14 @@
  */
 package org.apache.beam.examples.timeseries.configuration;
 
-import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.joda.time.Duration;
 
 /** configuration options for the timeseries pipeline. */
 @SuppressWarnings("serial")
 @Experimental
-public class TSConfiguration implements Serializable{
+public class TSConfiguration implements Serializable {
 
   /**
    * Used to determine the backfill operation type. NONE : Do not backfill NULL : Do not set a value
@@ -40,10 +36,10 @@ public class TSConfiguration implements Serializable{
     LAST_KNOWN_VALUE
   }
 
-  private  BFillOptions fillOption = BFillOptions.LAST_KNOWN_VALUE;
+  private BFillOptions fillOption = BFillOptions.LAST_KNOWN_VALUE;
 
   // The down sample period which must be set.
-  private  Duration downSampleDuration = Duration.standardSeconds(1);
+  private Duration downSampleDuration = Duration.standardSeconds(1);
 
   // Once a key is observed we will generate a value during periods when the key has not been observed if the
   // fillOption is set to anything other than NONE.
@@ -52,40 +48,47 @@ public class TSConfiguration implements Serializable{
   // Set if this is a streaming pipeline.
   private boolean isStreaming = false;
 
-  public  BFillOptions fillOption() {return  fillOption;};
+  public BFillOptions fillOption() {
+    return fillOption;
+  };
 
   // The down sample period which must be set.
-  public  Duration downSampleDuration() { return downSampleDuration;};
+  public Duration downSampleDuration() {
+    return downSampleDuration;
+  };
 
   // Once a key is observed we will generate a value during periods when the key has not been observed if the
   // fillOption is set to anything other than NONE.
-  public Duration timeToLive() {return timeToLive;};
+  public Duration timeToLive() {
+    return timeToLive;
+  };
 
   // Set if this is a streaming pipeline.
-  public boolean isStreaming() {return this.isStreaming;};
+  public boolean isStreaming() {
+    return this.isStreaming;
+  };
 
-  public static TSConfiguration builder(){
-    return new TSConfiguration() ;
+  public static TSConfiguration builder() {
+    return new TSConfiguration();
   }
 
-
-  public TSConfiguration fillOption(BFillOptions bFillOptions){
-    this.fillOption=bFillOptions;
+  public TSConfiguration fillOption(BFillOptions bFillOptions) {
+    this.fillOption = bFillOptions;
     return this;
   };
 
-  public TSConfiguration downSampleDuration(Duration downSampleDuration){
-    this.downSampleDuration=downSampleDuration;
+  public TSConfiguration downSampleDuration(Duration downSampleDuration) {
+    this.downSampleDuration = downSampleDuration;
     return this;
   };
 
-  public TSConfiguration timeToLive(Duration timeToLive){
-    this.timeToLive=timeToLive;
+  public TSConfiguration timeToLive(Duration timeToLive) {
+    this.timeToLive = timeToLive;
     return this;
   };
 
-  public TSConfiguration isStreaming(boolean isStreaming){
-    this.isStreaming=isStreaming;
+  public TSConfiguration isStreaming(boolean isStreaming) {
+    this.isStreaming = isStreaming;
     return this;
   };
 

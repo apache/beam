@@ -71,13 +71,15 @@ public class TSAccumSequences {
                 LOWER_WINDOW_BOUNDARY,
                 Feature.newBuilder()
                     .setFloatList(
-                FloatList.newBuilder().addValue(Timestamps.toMillis(sequence.getLowerWindowBoundary())))
+                        FloatList.newBuilder()
+                            .addValue(Timestamps.toMillis(sequence.getLowerWindowBoundary())))
                     .build())
             .putFeature(
                 UPPER_WINDOW_BOUNDARY,
                 Feature.newBuilder()
                     .setFloatList(
-                        FloatList.newBuilder().addValue(Timestamps.toMillis(sequence.getUpperWindowBoundary())))
+                        FloatList.newBuilder()
+                            .addValue(Timestamps.toMillis(sequence.getUpperWindowBoundary())))
                     .build()));
 
     FeatureList.Builder sum = FeatureList.newBuilder();
@@ -147,7 +149,7 @@ public class TSAccumSequences {
     return downSampleType.name() + "_PREV";
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable **/
+  /** Push to tf Examples generated from TSAccum's to BigTable * */
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccumSequence>, PCollection<Mutation>> {
 
@@ -160,7 +162,6 @@ public class TSAccumSequences {
 
     public static class WriteTFAccumToBigTable
         extends DoFn<TimeSeriesData.TSAccumSequence, Mutation> {
-
 
       // Create key structure of majorkey-duration(ms)-lowerWindow-upperWindow
       // Minor key becomes column

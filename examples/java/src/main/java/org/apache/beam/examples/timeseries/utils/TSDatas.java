@@ -31,13 +31,15 @@ public class TSDatas {
   public static String getStringValue(TimeSeriesData.Data data) {
 
     switch (data.getDataPointCase()) {
-      case INT_VAL: {
-        return String.valueOf(data.getIntVal());
-      }
-      case DOUBLE_VAL: {
-        return String.valueOf(data.getDoubleVal());
-      }
-        case LONG_VAL:
+      case INT_VAL:
+        {
+          return String.valueOf(data.getIntVal());
+        }
+      case DOUBLE_VAL:
+        {
+          return String.valueOf(data.getDoubleVal());
+        }
+      case LONG_VAL:
         {
           return String.valueOf(data.getLongVal());
         }
@@ -52,10 +54,10 @@ public class TSDatas {
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
       case INT_VAL:
-      {
-        Integer sum = a.getIntVal() + b.getIntVal();
-        return data.setIntVal(sum).build();
-      }
+        {
+          Integer sum = a.getIntVal() + b.getIntVal();
+          return data.setIntVal(sum).build();
+        }
       case DOUBLE_VAL:
         {
           Double sum = a.getDoubleVal() + b.getDoubleVal();
@@ -68,8 +70,8 @@ public class TSDatas {
         }
       case FLOAT_VAL:
         {
-        Float sum = a.getFloatVal() + b.getFloatVal();
-        return data.setFloatVal(sum).build();
+          Float sum = a.getFloatVal() + b.getFloatVal();
+          return data.setFloatVal(sum).build();
         }
       default:
         {
@@ -121,9 +123,9 @@ public class TSDatas {
 
     switch (getCaseFromTwoTSDataValues(a, b)) {
       case INT_VAL:
-      {
-        return (a.getIntVal() < b.getIntVal()) ? a : b;
-      }
+        {
+          return (a.getIntVal() < b.getIntVal()) ? a : b;
+        }
       case DOUBLE_VAL:
         {
           return (a.getDoubleVal() < b.getDoubleVal()) ? a : b;
@@ -157,23 +159,23 @@ public class TSDatas {
       return a;
     }
 
-
     switch (getCaseFromTwoTSDataValues(a, b)) {
       case DOUBLE_VAL:
         {
-          return  (a.getDoubleVal() > b.getDoubleVal()) ? a : b;
+          return (a.getDoubleVal() > b.getDoubleVal()) ? a : b;
         }
       case LONG_VAL:
         {
-          return  (a.getLongVal() > b.getLongVal()) ? a : b;
+          return (a.getLongVal() > b.getLongVal()) ? a : b;
         }
       case INT_VAL:
         {
           return (a.getIntVal() > b.getIntVal()) ? a : b;
         }
-      case FLOAT_VAL: {
-        return (a.getFloatVal() > b.getFloatVal()) ? a : b;
-      }
+      case FLOAT_VAL:
+        {
+          return (a.getFloatVal() > b.getFloatVal()) ? a : b;
+        }
       default:
         return a;
     }
@@ -236,18 +238,18 @@ public class TSDatas {
     return (Timestamps.comparator().compare(a.getTimestamp(), b.getTimestamp()) > 0) ? a : b;
   }
 
-  public static  <T extends Number> TimeSeriesData.Data createData(T data){
+  public static <T extends Number> TimeSeriesData.Data createData(T data) {
 
-    if(data instanceof Double){
-      return TimeSeriesData.Data.newBuilder().setDoubleVal((Double)data).build();
+    if (data instanceof Double) {
+      return TimeSeriesData.Data.newBuilder().setDoubleVal((Double) data).build();
     }
 
-    if(data instanceof Integer){
-      return TimeSeriesData.Data.newBuilder().setIntVal((Integer)data).build();
+    if (data instanceof Integer) {
+      return TimeSeriesData.Data.newBuilder().setIntVal((Integer) data).build();
     }
 
-    if(data instanceof Float){
-      return TimeSeriesData.Data.newBuilder().setFloatVal((Float)data).build();
+    if (data instanceof Float) {
+      return TimeSeriesData.Data.newBuilder().setFloatVal((Float) data).build();
     }
 
     throw new IllegalArgumentException("Must be Double, Integer or Float");

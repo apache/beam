@@ -249,7 +249,6 @@ public class TSAccums {
     }
   }
 
-
   /** Push to tf Examples generated from TSAccum's to BigTable */
   public static class OutputAccumWithTimestamp
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<TimeSeriesData.TSAccum>> {
@@ -259,43 +258,42 @@ public class TSAccums {
       return input.apply(ParDo.of(new ExtractTimestamp()));
     }
 
-    public static class ExtractTimestamp extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
+    public static class ExtractTimestamp
+        extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
 
       @ProcessElement
-      public void processElement(DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c)
-          throws Exception {
-        c.outputWithTimestamp(c.element(),new Instant(Timestamps.toMillis(c.element().getLowerWindowBoundary())));
-
+      public void processElement(
+          DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c) throws Exception {
+        c.outputWithTimestamp(
+            c.element(), new Instant(Timestamps.toMillis(c.element().getLowerWindowBoundary())));
       }
     }
-
   }
 
-
-  /**
-   * This utility class stores Raw TSAccum protos into TFRecord container.
-   */
-  public static class StoreRawTFAccumInTFRecordContainer extends PTransform<PCollection<TimeSeriesData.TSAccum>, PDone>{
+  /** This utility class stores Raw TSAccum protos into TFRecord container. */
+  public static class StoreRawTFAccumInTFRecordContainer
+      extends PTransform<PCollection<TimeSeriesData.TSAccum>, PDone> {
 
     String directoryLocation;
 
     public StoreRawTFAccumInTFRecordContainer(String directoryLocation) {
       this.directoryLocation = directoryLocation;
-
     }
 
-    @Override public PDone expand(PCollection<TimeSeriesData.TSAccum> input) {
+    @Override
+    public PDone expand(PCollection<TimeSeriesData.TSAccum> input) {
 
-    return input.apply(ParDo.of(new DoFn<TimeSeriesData.TSAccum, byte[]>() {
+      return input
+          .apply(
+              ParDo.of(
+                  new DoFn<TimeSeriesData.TSAccum, byte[]>() {
 
-         @ProcessElement
-         public void process(ProcessContext c){
-           c.output(c.element().toByteArray());
-
-         }
-      }))
-       .apply(TFRecordIO.write().to(directoryLocation));
-
+                    @ProcessElement
+                    public void process(ProcessContext c) {
+                      c.output(c.element().toByteArray());
+                    }
+                  }))
+          .apply(TFRecordIO.write().to(directoryLocation));
     }
   }
 
@@ -317,11 +315,15 @@ public class TSAccums {
       TimeSeriesData.TSKey key = c.element().getKey();
       TimeSeriesData.TSAccum accum = c.element();
 
-      c.output(KV.of(String.join("-",key.getMajorKey(),
-          key.getMinorKeyString(),
-          Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-          Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary())))
-          , accum));
+      c.output(
+          KV.of(
+              String.join(
+                  "-",
+                  key.getMajorKey(),
+                  key.getMinorKeyString(),
+                  Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
+                  Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))),
+              accum));
     }
   }
 
@@ -338,53 +340,90 @@ public class TSAccums {
     }
   }
 
-  public static String getTSAccumMajorMinorKeyAsString(TimeSeriesData.TSAccum accum){
+  public static String getTSAccumMajorMinorKeyAsString(TimeSeriesData.TSAccum accum) {
 
     TimeSeriesData.TSKey key = accum.getKey();
 
-    return String.join("-",key.getMajorKey(),
-        key.getMinorKeyString());
+    return String.join("-", key.getMajorKey(), key.getMinorKeyString());
   }
 
-  public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum){
+  public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum) {
 
     TimeSeriesData.TSKey key = accum.getKey();
 
-    return String.join("-",key.getMajorKey(),
+    return String.join(
+        "-",
+        key.getMajorKey(),
         key.getMinorKeyString(),
         Timestamps.toString(accum.getLowerWindowBoundary()),
         Timestamps.toString(accum.getUpperWindowBoundary()));
   }
 
-  public static String debugDetectOutputDiffBetweenTwoAccums(TimeSeriesData.TSAccum accum1, TimeSeriesData.TSAccum accum2){
+  public static String debugDetectOutputDiffBetweenTwoAccums(
+      TimeSeriesData.TSAccum accum1, TimeSeriesData.TSAccum accum2) {
 
     StringBuilder sb = new StringBuilder();
-    if(!accum1.getKey().toByteString().equals(accum2.getKey().toByteString())){
-      sb.append(String.format(" Accum 1 had Key %s while Accum 2 has key %s", accum1.getKey(), accum2.getKey()));
+    if (!accum1.getKey().toByteString().equals(accum2.getKey().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had Key %s while Accum 2 has key %s", accum1.getKey(), accum2.getKey()));
     }
 
-    if(!accum1.getLowerWindowBoundary().toByteString().equals(accum2.getLowerWindowBoundary().toByteString())){
-      sb.append(String.format(" Accum 1 had LowerWindowBoundary %s while Accum 2 has LowerWindowBoundary %s", accum1.getLowerWindowBoundary(), accum2.getLowerWindowBoundary()));
+    if (!accum1
+        .getLowerWindowBoundary()
+        .toByteString()
+        .equals(accum2.getLowerWindowBoundary().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had LowerWindowBoundary %s while Accum 2 has LowerWindowBoundary %s",
+              accum1.getLowerWindowBoundary(), accum2.getLowerWindowBoundary()));
     }
 
-    if(!accum1.getUpperWindowBoundary().toByteString().equals(accum2.getUpperWindowBoundary().toByteString())){
-      sb.append(String.format(" Accum 1 had UpperWindowBoundary %s while Accum 2 has UpperWindowBoundary %s", accum1.getUpperWindowBoundary(), accum2.getUpperWindowBoundary()));
+    if (!accum1
+        .getUpperWindowBoundary()
+        .toByteString()
+        .equals(accum2.getUpperWindowBoundary().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had UpperWindowBoundary %s while Accum 2 has UpperWindowBoundary %s",
+              accum1.getUpperWindowBoundary(), accum2.getUpperWindowBoundary()));
     }
 
-    if(!accum1.getPreviousWindowValue().toByteString().equals(accum2.getPreviousWindowValue().toByteString())){
-      sb.append(String.format(" Accum 1  & Accum 2 had difference in PreviousWindowValue accum 1 %s accum 2 %s ", accum1.getPreviousWindowValue(), accum2.getPreviousWindowValue() ));
+    if (!accum1
+        .getPreviousWindowValue()
+        .toByteString()
+        .equals(accum2.getPreviousWindowValue().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1  & Accum 2 had difference in PreviousWindowValue accum 1 %s accum 2 %s ",
+              accum1.getPreviousWindowValue(), accum2.getPreviousWindowValue()));
     }
 
-    if(!accum1.getDataAccum().toByteString().equals(accum2.getDataAccum().toByteString())){
-      sb.append(String.format(" Accum 1 had DataAccum %s while Accum 2 has DataAccum %s", accum1.getDataAccum(), accum2.getDataAccum()));
+    if (!accum1.getDataAccum().toByteString().equals(accum2.getDataAccum().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had DataAccum %s while Accum 2 has DataAccum %s",
+              accum1.getDataAccum(), accum2.getDataAccum()));
     }
 
-    if(!accum1.getFirstTimeStamp().toByteString().equals(accum2.getFirstTimeStamp().toByteString())){
-      sb.append(String.format(" Accum 1 had FirstTimeStamp %s while Accum 2 has FirstTimeStamp %s", accum1.getFirstTimeStamp(), accum2.getFirstTimeStamp()));
+    if (!accum1
+        .getFirstTimeStamp()
+        .toByteString()
+        .equals(accum2.getFirstTimeStamp().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had FirstTimeStamp %s while Accum 2 has FirstTimeStamp %s",
+              accum1.getFirstTimeStamp(), accum2.getFirstTimeStamp()));
     }
 
-    if(!accum1.getLastTimeStamp().toByteString().equals(accum2.getLastTimeStamp().toByteString())){
-      sb.append(String.format(" Accum 1 had LastTimeStamp %s while Accum 2 has LastTimeStamp %s", accum1.getLastTimeStamp(), accum2.getLastTimeStamp()));
+    if (!accum1
+        .getLastTimeStamp()
+        .toByteString()
+        .equals(accum2.getLastTimeStamp().toByteString())) {
+      sb.append(
+          String.format(
+              " Accum 1 had LastTimeStamp %s while Accum 2 has LastTimeStamp %s",
+              accum1.getLastTimeStamp(), accum2.getLastTimeStamp()));
     }
 
     return sb.toString();

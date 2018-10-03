@@ -21,11 +21,8 @@ package org.apache.beam.examples.timeseries.transforms;
 import com.google.common.collect.Lists;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
-
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.beam.examples.timeseries.TimeSeriesOptions;
 import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.utils.TSAccums;
@@ -51,8 +48,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Create ordered output from the fixed windowed aggregations. */
-@SuppressWarnings("serial") public class OrderOutput extends
-    PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
+@SuppressWarnings("serial")
+public class OrderOutput
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>,
         PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(OrderOutput.class);
@@ -63,26 +62,29 @@ import org.slf4j.LoggerFactory;
     this.configuration = configuration;
   }
 
-  @Override public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
+  @Override
+  public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
-
 
     // Move into Global Time Domain, this allows Keyed State to retain its value across windows.
     // Late Data is dropped at this stage.
 
-    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> windowNoLateData = input
-        .apply("Global Window",
+    PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> windowNoLateData =
+        input.apply(
+            "Global Window",
             Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(new GlobalWindows())
                 .withAllowedLateness(Duration.ZERO));
 
-    return windowNoLateData.apply(ParDo.of(new GetPreviousData(configuration)))
-        .apply("Re Window post Global",
+    return windowNoLateData
+        .apply(ParDo.of(new GetPreviousData(configuration)))
+        .apply(
+            "Re Window post Global",
             Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(
-                FixedWindows.of(configuration.downSampleDuration()))
+                    FixedWindows.of(configuration.downSampleDuration()))
                 // TODO: DirectRunner not showing results with exact late date match
                 //.withAllowedLateness(configuration.downSampleDuration().plus(configuration.downSampleDuration()))
-                .withAllowedLateness(Duration.standardDays(1)).discardingFiredPanes());
-
+                .withAllowedLateness(Duration.standardDays(1))
+                .discardingFiredPanes());
   }
 
   /**
@@ -105,9 +107,11 @@ import org.slf4j.LoggerFactory;
    * before the timer fires, we will also hold a List of elements If the list of elements is > 0
    * then we loop through the core logic until the list is exhausted
    */
-  @Experimental public static class GetPreviousData extends
-      DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, KV<TimeSeriesData.TSKey,
-          TimeSeriesData.TSAccum>> {
+  @Experimental
+  public static class GetPreviousData
+      extends DoFn<
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>,
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
 
     TSConfiguration configuration;
 
@@ -117,15 +121,16 @@ import org.slf4j.LoggerFactory;
 
     // Setup our state objects
 
-    @StateId("lastKnownState") private final StateSpec<ValueState<TimeSeriesData.TSAccum>>
-        lastKnownState = StateSpecs
-        .value(ProtoCoder.of(TimeSeriesData.TSAccum.class));
+    @StateId("lastKnownState")
+    private final StateSpec<ValueState<TimeSeriesData.TSAccum>> lastKnownState =
+        StateSpecs.value(ProtoCoder.of(TimeSeriesData.TSAccum.class));
 
-    @StateId("holdingList") private final StateSpec<BagState<TimeSeriesData.TSAccum>>
-        holdingList = StateSpecs
-        .bag(ProtoCoder.of(TimeSeriesData.TSAccum.class));
+    @StateId("holdingList")
+    private final StateSpec<BagState<TimeSeriesData.TSAccum>> holdingList =
+        StateSpecs.bag(ProtoCoder.of(TimeSeriesData.TSAccum.class));
 
-    @TimerId("alarm") private final TimerSpec alarm = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    @TimerId("alarm")
+    private final TimerSpec alarm = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     /**
      * This is the simple path... A new element is here so we add it to the list of elements and set
@@ -135,7 +140,9 @@ import org.slf4j.LoggerFactory;
      * @param holdingList
      * @param timer
      */
-    @ProcessElement public void processElement(ProcessContext c,
+    @ProcessElement
+    public void processElement(
+        ProcessContext c,
         @StateId("holdingList") BagState<TimeSeriesData.TSAccum> holdingList,
         @TimerId("alarm") Timer timer) {
 
@@ -160,7 +167,9 @@ import org.slf4j.LoggerFactory;
      * @param timer
      * @param lastKnownState
      */
-    @OnTimer("alarm") public void onTimer(OnTimerContext c,
+    @OnTimer("alarm")
+    public void onTimer(
+        OnTimerContext c,
         @StateId("holdingList") BagState<TimeSeriesData.TSAccum> holdingList,
         @TimerId("alarm") Timer timer,
         @StateId("lastKnownState") ValueState<TimeSeriesData.TSAccum> lastKnownState) {
@@ -182,32 +191,38 @@ import org.slf4j.LoggerFactory;
         if (lastAccum != null) {
           // Set the last known state without previous window value
 
-          TimeSeriesData.TSAccum.Builder heartBeatValue = generateHeartBeatAccum(lastAccum,
-              configuration);
+          TimeSeriesData.TSAccum.Builder heartBeatValue =
+              generateHeartBeatAccum(lastAccum, configuration);
 
           lastKnownState.write(heartBeatValue.build());
 
-          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput = setPrevAndOutPutAccum(
-              heartBeatValue, lastAccum, c.timestamp());
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput =
+              setPrevAndOutPutAccum(heartBeatValue, lastAccum, c.timestamp());
 
-          c.outputWithTimestamp(hbOutput,
+          c.outputWithTimestamp(
+              hbOutput,
               new Instant(Timestamps.toMillis(hbOutput.getValue().getLowerWindowBoundary())));
-
         }
 
         // Check if this timer has already passed the time to live duration since the last call.
 
         // Check if we are within the TTL for a key to emit.
 
-        if (Timestamps.toMillis(Timestamps.add(lastAccum.getUpperWindowBoundary(), Durations
-            .fromMillis(
-                configuration.downSampleDuration().plus(configuration.timeToLive()).getMillis())))
+        if (Timestamps.toMillis(
+                Timestamps.add(
+                    lastAccum.getUpperWindowBoundary(),
+                    Durations.fromMillis(
+                        configuration
+                            .downSampleDuration()
+                            .plus(configuration.timeToLive())
+                            .getMillis())))
             >= c.timestamp().getMillis()) {
           return;
         }
 
-        Instant alarm = new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
-            .plus(configuration.downSampleDuration());
+        Instant alarm =
+            new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
+                .plus(configuration.downSampleDuration());
 
         timer.set(alarm);
 
@@ -236,9 +251,9 @@ import org.slf4j.LoggerFactory;
 
           checkAccumState(output, c.timestamp());
 
-          c.outputWithTimestamp(KV.of(output.getKey(), output),
+          c.outputWithTimestamp(
+              KV.of(output.getKey(), output),
               new Instant(Timestamps.toMillis(output.getLowerWindowBoundary())));
-
         }
 
         // Work through other elements
@@ -250,27 +265,32 @@ import org.slf4j.LoggerFactory;
           // If there are gaps in the data points then we will fill with heartbeat values.
 
           while (Timestamps.comparator()
-              .compare(next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary()) != 0) {
+                  .compare(next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary())
+              != 0) {
 
-            LOG.debug(String.format("GAP FOUND! upper %s lower %s", next.getLowerWindowBoundary(),
-                lastAccum.getUpperWindowBoundary()));
+            LOG.debug(
+                String.format(
+                    "GAP FOUND! upper %s lower %s",
+                    next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary()));
 
-            TimeSeriesData.TSAccum.Builder heartBeat = generateHeartBeatAccum(lastAccum,
-                configuration);
+            TimeSeriesData.TSAccum.Builder heartBeat =
+                generateHeartBeatAccum(lastAccum, configuration);
 
-            KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput = setPrevAndOutPutAccum(
-                heartBeat, lastAccum, c.timestamp());
+            KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput =
+                setPrevAndOutPutAccum(heartBeat, lastAccum, c.timestamp());
 
-            c.outputWithTimestamp(hbOutput,
+            c.outputWithTimestamp(
+                hbOutput,
                 new Instant(Timestamps.toMillis(hbOutput.getValue().getLowerWindowBoundary())));
 
             lastAccum = heartBeat.build();
           }
 
-          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput = setPrevAndOutPutAccum(
-              next.toBuilder(), lastAccum, c.timestamp());
+          KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput =
+              setPrevAndOutPutAccum(next.toBuilder(), lastAccum, c.timestamp());
 
-          c.outputWithTimestamp(hbOutput,
+          c.outputWithTimestamp(
+              hbOutput,
               new Instant(Timestamps.toMillis(hbOutput.getValue().getLowerWindowBoundary())));
 
           lastAccum = next;
@@ -283,18 +303,23 @@ import org.slf4j.LoggerFactory;
 
         // Check if we are within the TTL for a key to emit.
 
-        if (Timestamps.toMillis(Timestamps.add(lastAccum.getUpperWindowBoundary(), Durations
-            .fromMillis(
-                configuration.downSampleDuration().plus(configuration.timeToLive()).getMillis())))
+        if (Timestamps.toMillis(
+                Timestamps.add(
+                    lastAccum.getUpperWindowBoundary(),
+                    Durations.fromMillis(
+                        configuration
+                            .downSampleDuration()
+                            .plus(configuration.timeToLive())
+                            .getMillis())))
             >= c.timestamp().getMillis()) {
           return;
         }
 
-        Instant alarm = new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
-            .plus(configuration.downSampleDuration());
+        Instant alarm =
+            new Instant(Timestamps.toMillis(lastAccum.getUpperWindowBoundary()))
+                .plus(configuration.downSampleDuration());
 
         timer.set(alarm);
-
       }
     }
   }
@@ -307,12 +332,14 @@ import org.slf4j.LoggerFactory;
       return;
     }
 
-    if (Timestamps.toMillis(accum.getLowerWindowBoundary()) < Timestamps
-        .toMillis(accum.getPreviousWindowValue().getUpperWindowBoundary())) {
+    if (Timestamps.toMillis(accum.getLowerWindowBoundary())
+        < Timestamps.toMillis(accum.getPreviousWindowValue().getUpperWindowBoundary())) {
 
-      LOG.error(String
-          .format("Timer Timestamp is %s Current Value is %s previous is %s value of old is %s",
-              timestamp, Timestamps.toString(accum.getLowerWindowBoundary()),
+      LOG.error(
+          String.format(
+              "Timer Timestamp is %s Current Value is %s previous is %s value of old is %s",
+              timestamp,
+              Timestamps.toString(accum.getLowerWindowBoundary()),
               Timestamps.toString(accum.getPreviousWindowValue().getUpperWindowBoundary()),
               accum.getKey()));
 
@@ -323,12 +350,13 @@ import org.slf4j.LoggerFactory;
 
   /**
    * Move the lower and upper boundary of the TS Accum by the configuration amount.
+   *
    * @param accum accum that forms bases of heart beat.
    * @param configuration configuration to be used for options in heart beat creation.
    * @return TimeSeriesData.TSAccum.Builder
    */
-  public static TimeSeriesData.TSAccum.Builder generateHeartBeatAccum(TimeSeriesData.TSAccum accum,
-      TSConfiguration configuration) {
+  public static TimeSeriesData.TSAccum.Builder generateHeartBeatAccum(
+      TimeSeriesData.TSAccum accum, TSConfiguration configuration) {
 
     TimeSeriesData.TSAccum.Builder outputPartial;
 
@@ -342,23 +370,26 @@ import org.slf4j.LoggerFactory;
 
     outputPartial.putMetadata(TSConfiguration.HEARTBEAT, "");
     outputPartial.setLowerWindowBoundary(accum.getUpperWindowBoundary());
-    outputPartial.setUpperWindowBoundary(Timestamps.add(accum.getUpperWindowBoundary(),
-        Durations.fromMillis(configuration.downSampleDuration().getMillis())));
+    outputPartial.setUpperWindowBoundary(
+        Timestamps.add(
+            accum.getUpperWindowBoundary(),
+            Durations.fromMillis(configuration.downSampleDuration().getMillis())));
 
     return outputPartial;
   }
 
   public static KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> setPrevAndOutPutAccum(
-      TimeSeriesData.TSAccum.Builder currentAccum, TimeSeriesData.TSAccum prevAccum,
+      TimeSeriesData.TSAccum.Builder currentAccum,
+      TimeSeriesData.TSAccum prevAccum,
       Instant timeStamp) {
 
-    TimeSeriesData.TSAccum output = TimeSeriesData.TSAccum.newBuilder(currentAccum.build())
-        .setPreviousWindowValue(prevAccum).build();
+    TimeSeriesData.TSAccum output =
+        TimeSeriesData.TSAccum.newBuilder(currentAccum.build())
+            .setPreviousWindowValue(prevAccum)
+            .build();
 
     checkAccumState(output, timeStamp);
 
     return KV.of(output.getKey(), output);
-
   }
-
 }

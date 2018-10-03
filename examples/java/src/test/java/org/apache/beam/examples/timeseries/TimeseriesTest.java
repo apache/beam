@@ -21,6 +21,9 @@ package org.apache.beam.examples.timeseries;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import java.io.Serializable;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
 import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
 import org.apache.beam.examples.timeseries.transforms.ExtractAggregates;
@@ -46,14 +49,9 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-import java.util.*;
-import java.util.stream.Collectors;
-
-/**
- * Tests for Timeseries examples.
- */
-@RunWith(JUnit4.class) public class TimeseriesTest implements Serializable {
+/** Tests for Timeseries examples. */
+@RunWith(JUnit4.class)
+public class TimeseriesTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(TimeseriesTest.class);
 
   @Rule public transient TestPipeline p = TestPipeline.create();
@@ -63,17 +61,12 @@ import java.util.stream.Collectors;
   private static final int ACCUM_COUNT = 6;
   private static final int WINDOW_DURATION = 10;
 
-
   // Create tuple tags for the value types in each collection.
-  private static final TupleTag<TimeSeriesData.TSAccum> tag1 = new TupleTag<TimeSeriesData.TSAccum>(
-      "main") {
+  private static final TupleTag<TimeSeriesData.TSAccum> tag1 =
+      new TupleTag<TimeSeriesData.TSAccum>("main") {};
 
-  };
-
-  private static final TupleTag<TimeSeriesData.TSAccum> tag2 = new TupleTag<TimeSeriesData.TSAccum>(
-      "manual") {
-
-  };
+  private static final TupleTag<TimeSeriesData.TSAccum> tag2 =
+      new TupleTag<TimeSeriesData.TSAccum>("manual") {};
 
   @Test
   /*
@@ -84,81 +77,87 @@ import java.util.stream.Collectors;
    * This should generate 6 TSAccums
    */ public void checkAggregationIntDoubleFloat() throws Exception {
 
-    TSConfiguration configuration = TSConfiguration.builder()
-        .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION))
-        .timeToLive(Duration.standardSeconds(5))
-        .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE).build();
+    TSConfiguration configuration =
+        TSConfiguration.builder()
+            .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION))
+            .timeToLive(Duration.standardSeconds(5))
+            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
+            .build();
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> output = p
-        .apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-        .apply(new ExtractAggregates(configuration))
-        .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> output =
+        p.apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
+            .apply(new ExtractAggregates(configuration))
+            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums = p
-        .apply("Get Check Data", Create.of(manualAccumListCreation()))
-        .apply(new TSAccums.OutputAccumWithTimestamp())
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply(Window.into(FixedWindows.of(configuration.downSampleDuration())));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums =
+        p.apply("Get Check Data", Create.of(manualAccumListCreation()))
+            .apply(new TSAccums.OutputAccumWithTimestamp())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(Window.into(FixedWindows.of(configuration.downSampleDuration())));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output
-        .apply(ParDo.of(new GetValueFromKV<>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
 
     PAssert.that(results).containsInAnyOrder(manualAccumListCreation());
 
     p.run();
-
   }
 
   @Test
   /*
    * This test will use data that has no missing ticks.
-   */ public void checkEndToEndNoHeartBeat()  {
-    TSConfiguration configuration = TSConfiguration.builder()
-        .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION)).build();
+   */ public void checkEndToEndNoHeartBeat() {
+    TSConfiguration configuration =
+        TSConfiguration.builder()
+            .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION))
+            .build();
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> output = p
-        .apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-        .apply(new ExtractAggregates(configuration)).apply(new OrderOutput(configuration))
-        .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-1", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> output =
+        p.apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
+            .apply(new ExtractAggregates(configuration))
+            .apply(new OrderOutput(configuration))
+            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-1", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums = p
-        .apply("Get Check Data", Create.of(loadPreviousValues(manualAccumListCreation())))
-        .apply(new TSAccums.OutputAccumWithTimestamp())
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums =
+        p.apply("Get Check Data", Create.of(loadPreviousValues(manualAccumListCreation())))
+            .apply(new TSAccums.OutputAccumWithTimestamp())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output
-        .apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results =
+        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
 
-    PAssert.that(results)
-
-        .containsInAnyOrder(loadPreviousValues(manualAccumListCreation()));
+    PAssert.that(results).containsInAnyOrder(loadPreviousValues(manualAccumListCreation()));
 
     p.run();
-
   }
 
   @Test
@@ -169,50 +168,65 @@ import java.util.stream.Collectors;
    * TSAccum[1] Should have the values from TSAccum[0,3] inserted.
    */ public void checkEndToEndWithHeartBeat() {
 
-    final Timestamp[] HEART_BEAT_VALUES = new Timestamp[] {
-        Timestamps.add(Timestamps.fromMillis(NOW.getMillis()),
-            Durations.fromSeconds(WINDOW_DURATION)) };
+    final Timestamp[] HEART_BEAT_VALUES =
+        new Timestamp[] {
+          Timestamps.add(
+              Timestamps.fromMillis(NOW.getMillis()), Durations.fromSeconds(WINDOW_DURATION))
+        };
 
-    TSConfiguration configuration = TSConfiguration.builder()
-        .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
-        .timeToLive(Duration.standardSeconds(0))
-        .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION)).build();
+    TSConfiguration configuration =
+        TSConfiguration.builder()
+            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
+            .timeToLive(Duration.standardSeconds(0))
+            .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION))
+            .build();
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> output = p
-        .apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-        .apply(new ExtractAggregates(configuration)).apply(new OrderOutput(configuration))
-        .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-1", Window.into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> output =
+        p.apply(
+                "Get Test Data",
+                Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
+            .apply(new ExtractAggregates(configuration))
+            .apply(new OrderOutput(configuration))
+            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply("Global-1", Window.into(new GlobalWindows()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums = p.apply("Get Check Data",
-        Create.of(removeTickRangesForHBTests(loadPreviousValues(manualAccumListCreation()),
-            TSConfiguration.BFillOptions.LAST_KNOWN_VALUE, HEART_BEAT_VALUES)))
-        .apply(new TSAccums.OutputAccumWithTimestamp())
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums =
+        p.apply(
+                "Get Check Data",
+                Create.of(
+                    removeTickRangesForHBTests(
+                        loadPreviousValues(manualAccumListCreation()),
+                        TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                        HEART_BEAT_VALUES)))
+            .apply(new TSAccums.OutputAccumWithTimestamp())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output
-        .apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results =
+        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
 
     PAssert.that(results)
-
         .containsInAnyOrder(
-            removeTickRangesForHBTests(loadPreviousValues(manualAccumListCreation()),
-                TSConfiguration.BFillOptions.LAST_KNOWN_VALUE, HEART_BEAT_VALUES));
+            removeTickRangesForHBTests(
+                loadPreviousValues(manualAccumListCreation()),
+                TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                HEART_BEAT_VALUES));
 
     p.run();
-
   }
 
   @Test
@@ -223,57 +237,68 @@ import java.util.stream.Collectors;
    * TSAccum[1,2,4] Should have the values from TSAccum[0,3] inserted.
    */ public void checkEndToEndWithMultipleHeartBeat() {
 
-     Timestamp missing1 =
-         Timestamps.add(Timestamps.fromMillis(NOW.getMillis()),
-             Durations.fromSeconds(WINDOW_DURATION)) ;
+    Timestamp missing1 =
+        Timestamps.add(
+            Timestamps.fromMillis(NOW.getMillis()), Durations.fromSeconds(WINDOW_DURATION));
 
+    Timestamp missing2 = Timestamps.add(missing1, Durations.fromSeconds(WINDOW_DURATION));
 
-     Timestamp missing2 = Timestamps.add(missing1, Durations.fromSeconds(WINDOW_DURATION));
+    Timestamp[] HEART_BEAT_VALUES = new Timestamp[] {missing1, missing2};
 
-     Timestamp[] HEART_BEAT_VALUES = new Timestamp[] {missing1,missing2};
+    TSConfiguration configuration =
+        TSConfiguration.builder()
+            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
+            .timeToLive(Duration.standardSeconds(0))
+            .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION))
+            .build();
 
-    TSConfiguration configuration = TSConfiguration.builder()
-        .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE)
-        .timeToLive(Duration.standardSeconds(0))
-        .downSampleDuration(Duration.standardSeconds(WINDOW_DURATION)).build();
-
-    PCollection<KV<String, TimeSeriesData.TSAccum>> output = p
-        .apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
-        .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-        .apply(new ExtractAggregates(configuration)).apply(new OrderOutput(configuration))
-        .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-1", Window.into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> output =
+        p.apply(
+                "Get Test Data",
+                Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
+            .apply(new ExtractAggregates(configuration))
+            .apply(new OrderOutput(configuration))
+            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply("Global-1", Window.into(new GlobalWindows()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
-    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums = p.apply("Get Check Data",
-        Create.of(removeTickRangesForHBTests(loadPreviousValues(manualAccumListCreation()),
-            TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,HEART_BEAT_VALUES)))
-        .apply(new TSAccums.OutputAccumWithTimestamp())
-        .apply("OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
-            ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-        .apply("Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums =
+        p.apply(
+                "Get Check Data",
+                Create.of(
+                    removeTickRangesForHBTests(
+                        loadPreviousValues(manualAccumListCreation()),
+                        TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                        HEART_BEAT_VALUES)))
+            .apply(new TSAccums.OutputAccumWithTimestamp())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output
-        .apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results =
+        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
 
     PAssert.that(results)
-
         .containsInAnyOrder(
-            removeTickRangesForHBTests(loadPreviousValues(manualAccumListCreation()),
-                TSConfiguration.BFillOptions.LAST_KNOWN_VALUE, HEART_BEAT_VALUES));
+            removeTickRangesForHBTests(
+                loadPreviousValues(manualAccumListCreation()),
+                TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                HEART_BEAT_VALUES));
 
     p.run();
-
   }
-
 
   /** Simple data generator that creates some dummy test data for the timeseries examples. */
   private static class SampleTimeseriesDataWithGaps {
@@ -286,7 +311,7 @@ import java.util.stream.Collectors;
     All ticks between time range +10s and +20s as well as ticks between +40s and +50s will be omitted
      */
     private static List<TimeSeriesData.TSMultiVariateDataPoint> generateData(
-        boolean withOutDeletion,Timestamp[] hbTimestamps) {
+        boolean withOutDeletion, Timestamp[] hbTimestamps) {
 
       List<TimeSeriesData.TSMultiVariateDataPoint> dataPoints = new ArrayList<>();
 
@@ -299,13 +324,15 @@ import java.util.stream.Collectors;
           Instant dataPointTimeStamp = now.plus(Duration.standardSeconds(i));
           double y = (double) i;
 
-          TimeSeriesData.TSMultiVariateDataPoint mvts = TimeSeriesData.TSMultiVariateDataPoint
-              .newBuilder()
-              .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Test-" + k).build())
-              .putData("x-int", TimeSeriesData.Data.newBuilder().setIntVal(i).build())
-              .putData("x-double", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())
-              .putData("x-float", TimeSeriesData.Data.newBuilder().setFloatVal((float) y).build())
-              .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis())).build();
+          TimeSeriesData.TSMultiVariateDataPoint mvts =
+              TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
+                  .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Test-" + k).build())
+                  .putData("x-int", TimeSeriesData.Data.newBuilder().setIntVal(i).build())
+                  .putData("x-double", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())
+                  .putData(
+                      "x-float", TimeSeriesData.Data.newBuilder().setFloatVal((float) y).build())
+                  .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
+                  .build();
 
           dataPoints.add(mvts);
         }
@@ -318,8 +345,8 @@ import java.util.stream.Collectors;
           for (Timestamp t : hbTimestamps) {
             long dpt = Timestamps.toMillis(dataPoint.getTimestamp());
             long start = Timestamps.toMillis(t);
-            long end = Timestamps
-                .toMillis(Timestamps.add(t, Durations.fromSeconds(WINDOW_DURATION)));
+            long end =
+                Timestamps.toMillis(Timestamps.add(t, Durations.fromSeconds(WINDOW_DURATION)));
             if (dpt >= start && dpt < end) {
               delete = true;
             }
@@ -332,7 +359,6 @@ import java.util.stream.Collectors;
       } else {
         return dataPoints;
       }
-
     }
   }
 
@@ -344,14 +370,21 @@ import java.util.stream.Collectors;
 
     // Generate all timestamps
     for (int i = 0; i < ACCUM_COUNT; i++) {
-      Timestamp lower = Timestamps
-          .add(Timestamps.fromMillis(NOW.getMillis()), Durations.fromSeconds(i * WINDOW_DURATION));
-      Timestamp upper = Timestamps.add(Timestamps.fromMillis(NOW.getMillis()),
-          Durations.fromSeconds((i + 1) * WINDOW_DURATION));
+      Timestamp lower =
+          Timestamps.add(
+              Timestamps.fromMillis(NOW.getMillis()), Durations.fromSeconds(i * WINDOW_DURATION));
+      Timestamp upper =
+          Timestamps.add(
+              Timestamps.fromMillis(NOW.getMillis()),
+              Durations.fromSeconds((i + 1) * WINDOW_DURATION));
 
-      accumTimelist.add(TimeSeriesData.TSAccum.newBuilder().setFirstTimeStamp(lower)
-          .setLastTimeStamp(Timestamps.subtract(upper, Durations.fromSeconds(1)))
-          .setUpperWindowBoundary(upper).setLowerWindowBoundary(lower).build());
+      accumTimelist.add(
+          TimeSeriesData.TSAccum.newBuilder()
+              .setFirstTimeStamp(lower)
+              .setLastTimeStamp(Timestamps.subtract(upper, Durations.fromSeconds(1)))
+              .setUpperWindowBoundary(upper)
+              .setLowerWindowBoundary(lower)
+              .build());
     }
 
     // Generate typed values
@@ -368,22 +401,41 @@ import java.util.stream.Collectors;
       int min = i * WINDOW_DURATION;
       int sum = (int) (((double) (max + min) / 2d) * (double) WINDOW_DURATION);
 
-      accumInt.add(accumTimelist.get(i).toBuilder().setDataAccum(
-          TimeSeriesData.Accum.newBuilder().setCount(TSDatas.createData(countInWindow))
-              .setMaxValue(TSDatas.createData(max)).setMinValue(TSDatas.createData(min))
-              .setSum(TSDatas.createData(sum))).build());
+      accumInt.add(
+          accumTimelist
+              .get(i)
+              .toBuilder()
+              .setDataAccum(
+                  TimeSeriesData.Accum.newBuilder()
+                      .setCount(TSDatas.createData(countInWindow))
+                      .setMaxValue(TSDatas.createData(max))
+                      .setMinValue(TSDatas.createData(min))
+                      .setSum(TSDatas.createData(sum)))
+              .build());
 
-      accumDouble.add(accumTimelist.get(i).toBuilder().setDataAccum(
-          TimeSeriesData.Accum.newBuilder().setCount(TSDatas.createData(countInWindow))
-              .setMaxValue(TSDatas.createData((double) max))
-              .setMinValue(TSDatas.createData((double) min))
-              .setSum(TSDatas.createData((double) sum))).build());
+      accumDouble.add(
+          accumTimelist
+              .get(i)
+              .toBuilder()
+              .setDataAccum(
+                  TimeSeriesData.Accum.newBuilder()
+                      .setCount(TSDatas.createData(countInWindow))
+                      .setMaxValue(TSDatas.createData((double) max))
+                      .setMinValue(TSDatas.createData((double) min))
+                      .setSum(TSDatas.createData((double) sum)))
+              .build());
 
-      accumFloat.add(accumTimelist.get(i).toBuilder().setDataAccum(
-          TimeSeriesData.Accum.newBuilder().setCount(TSDatas.createData(countInWindow))
-              .setMaxValue(TSDatas.createData((float) max))
-              .setMinValue(TSDatas.createData((float) min)).setSum(TSDatas.createData((float) sum)))
-          .build());
+      accumFloat.add(
+          accumTimelist
+              .get(i)
+              .toBuilder()
+              .setDataAccum(
+                  TimeSeriesData.Accum.newBuilder()
+                      .setCount(TSDatas.createData(countInWindow))
+                      .setMaxValue(TSDatas.createData((float) max))
+                      .setMinValue(TSDatas.createData((float) min))
+                      .setSum(TSDatas.createData((float) sum)))
+              .build());
     }
 
     // Set keys and First / Last values
@@ -393,29 +445,35 @@ import java.util.stream.Collectors;
     for (int i = 0; i < MAJOR_KEY_COUNT; i++) {
 
       for (TimeSeriesData.TSAccum accum : accumInt) {
-        TimeSeriesData.TSKey key = TimeSeriesData.TSKey.newBuilder().setMajorKey("Test-" + i)
-            .setMinorKeyString("x-int").build();
+        TimeSeriesData.TSKey key =
+            TimeSeriesData.TSKey.newBuilder()
+                .setMajorKey("Test-" + i)
+                .setMinorKeyString("x-int")
+                .build();
 
         allValues.add(setFirstAndLastValues(accum, key));
-
       }
 
       for (TimeSeriesData.TSAccum accum : accumDouble) {
 
-        TimeSeriesData.TSKey key = TimeSeriesData.TSKey.newBuilder().setMajorKey("Test-" + i)
-            .setMinorKeyString("x-double").build();
+        TimeSeriesData.TSKey key =
+            TimeSeriesData.TSKey.newBuilder()
+                .setMajorKey("Test-" + i)
+                .setMinorKeyString("x-double")
+                .build();
 
         // As the values are sequential in the Test data the following holds true
         allValues.add(setFirstAndLastValues(accum, key));
-
       }
 
       for (TimeSeriesData.TSAccum accum : accumFloat) {
-        TimeSeriesData.TSKey key = TimeSeriesData.TSKey.newBuilder().setMajorKey("Test-" + i)
-            .setMinorKeyString("x-float").build();
+        TimeSeriesData.TSKey key =
+            TimeSeriesData.TSKey.newBuilder()
+                .setMajorKey("Test-" + i)
+                .setMinorKeyString("x-float")
+                .build();
 
         allValues.add(setFirstAndLastValues(accum, key));
-
       }
     }
 
@@ -448,8 +506,8 @@ import java.util.stream.Collectors;
     return output;
   }
 
-  private static TimeSeriesData.TSAccum setFirstAndLastValues(TimeSeriesData.TSAccum accumValue,
-      TimeSeriesData.TSKey key) {
+  private static TimeSeriesData.TSAccum setFirstAndLastValues(
+      TimeSeriesData.TSAccum accumValue, TimeSeriesData.TSKey key) {
 
     TimeSeriesData.TSAccum.Builder accum = accumValue.toBuilder();
 
@@ -463,10 +521,18 @@ import java.util.stream.Collectors;
 
     // Set the First & Last values in accum
 
-    TimeSeriesData.TSDataPoint first = TimeSeriesData.TSDataPoint.newBuilder().setData(minData)
-        .setTimestamp(minTimeStamp).setKey(key).build();
-    TimeSeriesData.TSDataPoint last = TimeSeriesData.TSDataPoint.newBuilder().setData(maxData)
-        .setTimestamp(maxTimeStamp).setKey(key).build();
+    TimeSeriesData.TSDataPoint first =
+        TimeSeriesData.TSDataPoint.newBuilder()
+            .setData(minData)
+            .setTimestamp(minTimeStamp)
+            .setKey(key)
+            .build();
+    TimeSeriesData.TSDataPoint last =
+        TimeSeriesData.TSDataPoint.newBuilder()
+            .setData(maxData)
+            .setTimestamp(maxTimeStamp)
+            .setKey(key)
+            .build();
 
     accum.setDataAccum(accum.getDataAccum().toBuilder().setFirst(first).setLast(last));
 
@@ -474,16 +540,20 @@ import java.util.stream.Collectors;
   }
 
   private static List<TimeSeriesData.TSAccum> removeTickRangesForHBTests(
-      List<TimeSeriesData.TSAccum> accums, TSConfiguration.BFillOptions fillOptions, Timestamp[] hbTimestamps) {
+      List<TimeSeriesData.TSAccum> accums,
+      TSConfiguration.BFillOptions fillOptions,
+      Timestamp[] hbTimestamps) {
 
     List<TimeSeriesData.TSAccum> output = new ArrayList<>();
 
     for (Timestamp t : hbTimestamps) {
 
       output.clear();
-      output.addAll(accums.stream()
-          .filter(x -> (Timestamps.comparator().compare(t, x.getLowerWindowBoundary()) != 0))
-          .collect(Collectors.toList()));
+      output.addAll(
+          accums
+              .stream()
+              .filter(x -> (Timestamps.comparator().compare(t, x.getLowerWindowBoundary()) != 0))
+              .collect(Collectors.toList()));
 
       accums.clear();
       accums.addAll(output);
@@ -509,7 +579,8 @@ import java.util.stream.Collectors;
         TimeSeriesData.TSAccum next = accumIterator.next();
 
         while (Timestamps.comparator()
-            .compare(next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary()) > 0) {
+                .compare(next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary())
+            > 0) {
 
           TimeSeriesData.TSAccum.Builder outputPartial;
 
@@ -519,8 +590,8 @@ import java.util.stream.Collectors;
 
           } else {
 
-            outputPartial = lastAccum.toBuilder().clearDataAccum().clearFirstTimeStamp()
-                .clearLastTimeStamp();
+            outputPartial =
+                lastAccum.toBuilder().clearDataAccum().clearFirstTimeStamp().clearLastTimeStamp();
           }
 
           // Set the previous value but only to depth n=1
@@ -530,19 +601,21 @@ import java.util.stream.Collectors;
 
           outputPartial.setLowerWindowBoundary(lastAccum.getUpperWindowBoundary());
 
-          outputPartial.setUpperWindowBoundary(Timestamps
-              .add(lastAccum.getUpperWindowBoundary(), Durations.fromSeconds(WINDOW_DURATION)));
+          outputPartial.setUpperWindowBoundary(
+              Timestamps.add(
+                  lastAccum.getUpperWindowBoundary(), Durations.fromSeconds(WINDOW_DURATION)));
 
           output.add(outputPartial.build());
 
           lastAccum = outputPartial.build();
-
         }
 
         // Switch out previous window and assign
         if (lastAccum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT)) {
-          TimeSeriesData.TSAccum changePreviousWindow = next.toBuilder()
-              .setPreviousWindowValue(lastAccum.toBuilder().clearPreviousWindowValue()).build();
+          TimeSeriesData.TSAccum changePreviousWindow =
+              next.toBuilder()
+                  .setPreviousWindowValue(lastAccum.toBuilder().clearPreviousWindowValue())
+                  .build();
           lastAccum = changePreviousWindow;
           output.add(changePreviousWindow);
         } else {
@@ -564,7 +637,8 @@ import java.util.stream.Collectors;
 
     PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums;
 
-    public MatcheResults(TupleTag<TimeSeriesData.TSAccum> tag1,
+    public MatcheResults(
+        TupleTag<TimeSeriesData.TSAccum> tag1,
         TupleTag<TimeSeriesData.TSAccum> tag2,
         PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums) {
       this.tag1 = tag1;
@@ -572,13 +646,13 @@ import java.util.stream.Collectors;
       this.manualCreatedAccums = manualCreatedAccums;
     }
 
-    @Override public PDone expand(PCollection<KV<String, TimeSeriesData.TSAccum>> input) {
+    @Override
+    public PDone expand(PCollection<KV<String, TimeSeriesData.TSAccum>> input) {
 
       // Merge collection values into a CoGbkResult collection.
       PCollection<KV<String, CoGbkResult>> coGbkResultCollection =
-
-          KeyedPCollectionTuple.of(tag1, input).and(tag2, manualCreatedAccums)
-
+          KeyedPCollectionTuple.of(tag1, input)
+              .and(tag2, manualCreatedAccums)
               .apply(CoGroupByKey.<String>create());
 
       coGbkResultCollection.apply(ParDo.of(new Match(tag1, tag2)));
@@ -586,9 +660,7 @@ import java.util.stream.Collectors;
       return PDone.in(input.getPipeline());
     }
 
-    /**
-     * Use join to isolate missing items from Manual Test set and pipeline output.
-     */
+    /** Use join to isolate missing items from Manual Test set and pipeline output. */
     private static class Match extends DoFn<KV<String, CoGbkResult>, String> {
 
       TupleTag<TimeSeriesData.TSAccum> pipelineOutput;
@@ -600,7 +672,8 @@ import java.util.stream.Collectors;
         this.manualDataset = tag2;
       }
 
-      @ProcessElement public void processElement(ProcessContext c, BoundedWindow w) {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow w) {
 
         KV<String, CoGbkResult> e = c.element();
 
@@ -614,25 +687,28 @@ import java.util.stream.Collectors;
             TimeSeriesData.TSAccum tsAccum2 = pt2Val.next();
             if (!accum.toByteString().equals(tsAccum2.toByteString())) {
 
-              LOG.info(String.format(
-                  " Deep check failed with key %s manual value as accum 1 and pipeline value as accum  \n %s ",
-                  e.getKey(), TSAccums.debugDetectOutputDiffBetweenTwoAccums(accum, tsAccum2)));
+              LOG.info(
+                  String.format(
+                      " Deep check failed with key %s manual value as accum 1 and pipeline value as accum  \n %s ",
+                      e.getKey(), TSAccums.debugDetectOutputDiffBetweenTwoAccums(accum, tsAccum2)));
             }
 
             // If match found then no need to check for pipeline object
             return;
 
           } else {
-            LOG.info(String
-                .format(" No match found for Manual Dataset Item: %s  window %s Accum %s",
+            LOG.info(
+                String.format(
+                    " No match found for Manual Dataset Item: %s  window %s Accum %s",
                     e.getKey(), w, accum.toString()));
           }
         }
         // We will only be hear if there was no Manual pipeline option
         for (TimeSeriesData.TSAccum accum : e.getValue().getAll(pipelineOutput)) {
-          LOG.info(String
-              .format(" No match found for Pipline Item: %s window %s Accum %s", e.getKey(), w,
-                  accum.toString()));
+          LOG.info(
+              String.format(
+                  " No match found for Pipline Item: %s window %s Accum %s",
+                  e.getKey(), w, accum.toString()));
         }
       }
     }
@@ -660,5 +736,3 @@ import java.util.stream.Collectors;
     return keyMap;
   }
 }
-
-

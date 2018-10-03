@@ -56,9 +56,7 @@ public class TimeSeriesExampleToBigTable {
 
   static final String FILE_LOCATION = "/tmp/tf/";
 
-  /**
-   * Push Timeseries data into BigTable
-   */
+  /** Push Timeseries data into BigTable */
   public static void main(String[] args) {
 
     // Create pipeline
@@ -70,7 +68,6 @@ public class TimeSeriesExampleToBigTable {
             .downSampleDuration(Duration.standardSeconds(5))
             .timeToLive(Duration.standardMinutes(1))
             .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
-
 
     Pipeline p = Pipeline.create(options);
 
@@ -107,7 +104,6 @@ public class TimeSeriesExampleToBigTable {
     weHaveOrder.apply(new DebugSortedResult());
     // Write to Bigtable
 
-    
     // tf.Example output
     weHaveOrder
         .apply(ParDo.of(new GetValueFromKV<>()))
@@ -116,19 +112,25 @@ public class TimeSeriesExampleToBigTable {
 
     // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
-        .apply( new TSAccumToFixedWindowSeq("Sequence of 1 Min", configuration, Duration.standardMinutes(1)))
+        .apply(
+            new TSAccumToFixedWindowSeq(
+                "Sequence of 1 Min", configuration, Duration.standardMinutes(1)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply( new TSAccumToFixedWindowSeq("Sequence of 5 Min", configuration, Duration.standardMinutes(5)))
+        .apply(
+            new TSAccumToFixedWindowSeq(
+                "Sequence of 5 Min", configuration, Duration.standardMinutes(5)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq("Sequence of 15 Min", configuration, Duration.standardMinutes(15)))
+        .apply(
+            new TSAccumToFixedWindowSeq(
+                "Sequence of 15 Min", configuration, Duration.standardMinutes(15)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
