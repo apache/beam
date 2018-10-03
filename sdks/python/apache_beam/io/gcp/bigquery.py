@@ -681,7 +681,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       logger.error(
           "The query %r references tables in different locations: %r. "
           "Tables and locations: %r",
-          query,
+          self.source.query,
           locations,
           referenced_locations)
       return None
