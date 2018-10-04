@@ -142,6 +142,7 @@ public class FlinkBatchPortablePipelineTranslator
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
     translatorMap.put(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
+        // https://issues.apache.org/jira/browse/BEAM-5649
         // Need to support this via a NOOP until the primitive is removed
         (PTransformNode transform,
             RunnerApi.Pipeline pipeline,
