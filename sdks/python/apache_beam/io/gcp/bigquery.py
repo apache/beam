@@ -685,10 +685,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           self.source.query,
           self.source.use_legacy_sql)
     else:
-      logging.error(
-          "Unable to get source location for %r as it has neither "
-          "table nor query.", self.source)
-      return None
+      # Enforce the "modes" enforced by BigQuerySource.__init__.
+      # If this exception has been raised, the BigQuerySource "modes" have
+      # changed and this method will need to be updated as well.
+      raise ValueError("BigQuerySource must have either a table or query")
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
