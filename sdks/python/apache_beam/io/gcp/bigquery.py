@@ -160,8 +160,6 @@ __all__ = [
     'WriteToBigQuery',
     ]
 
-logger = logging.getLogger(__name__)
-
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 
@@ -661,52 +659,41 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       self.query = self.source.query
 
-  def _get_source_query_location(self):
-    referenced_locations = self.client.get_referenced_locations(
-        self.executing_project,
-        self.source.query,
-        use_legacy_sql=self.source.use_legacy_sql)
+  def _get_source_location(self):
+    """
+    Get the source location (e.g. ``"EU"`` or ``"US"``) from either
 
-    logger.debug("Referenced locations: %r", referenced_locations)
+    - :data:`source.table_reference`
+      or
+    - The first referenced table in :data:`source.query`
 
-    locations = set(referenced_locations.values())
+    See Also:
+      - :meth:`BigQueryWrapper.get_query_location`
+      - :meth:`BigQueryWrapper.get_table_location`
 
-    if len(locations) > 1:
-      logger.error(
-          "The query %r references tables in different locations: %r. "
-          "Tables and locations: %r",
+    Returns:
+      Optional[str]: The source location, if any.
+    """
+    if self.source.table_reference is not None:
+      tr = self.source.table_reference
+      return self.client.get_table_location(
+          tr.projectId if tr.projectId is not None else self.executing_project,
+          tr.datasetId, tr.tableId)
+    elif self.source.query is not None:
+      return self.client.get_query_location(
+          self.executing_project,
           self.source.query,
-          locations,
-          referenced_locations)
-      return None
-    elif len(locations) == 1:
-      location = next(iter(locations))
-      logger.info("Using location of referenced tables: %r", location)
-      return location
-
-    logger.debug("Query does not reference any tables.")
-    return None
-
-  def _get_source_table_location(self):
-    tr = self.source.table_reference
-    if tr is None:  # it's a query source
-      return self._get_source_query_location()
-
-    if tr.projectId is None:
-      source_project_id = self.executing_project
+          self.source.use_legacy_sql)
     else:
-      source_project_id = tr.projectId
-
-    source_dataset_id = tr.datasetId
-    source_table_id = tr.tableId
-    source_location = self.client.get_table_location(
-        source_project_id, source_dataset_id, source_table_id)
-    return source_location
+      logging.error(
+          "Unable to get source location for %r as it has neither "
+          "table nor query.")
+      return None
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
     self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_table_location())
+        self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -829,10 +816,13 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_referenced_locations(self, project_id, query, use_legacy_sql):
+  def get_query_location(self, project_id, query, use_legacy_sql):
     """
-    Get locations of tables referenced in a query as a mapping of
-    TableReference -> location.
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first referenced table in the query
+    and depends on the BigQuery service to provide error handling for
+    queries that reference tables in multiple locations.
     """
     reference = bigquery.JobReference(jobId=uuid.uuid4().hex,
                                       projectId=project_id)
@@ -850,12 +840,18 @@ class BigQueryWrapper(object):
     response = self.client.jobs.Insert(request)
 
     referenced_tables = response.statistics.query.referencedTables
-    referenced_locations = {
-      table: self.get_table_location(
-          table.projectId, table.datasetId, table.tableId)
-      for table in referenced_tables
-    }
-    return referenced_locations
+    if referenced_tables:  # Guards against both non-empty and non-None
+      table = referenced_tables[0]
+      location = self.get_table_location(
+          table.projectId,
+          table.datasetId,
+          table.tableId)
+      logging.info("Using location %r from table %r referenced by query %s",
+                   location, table, query)
+      return location
+
+    logging.debug("Query %s does not reference any tables.", query)
+    return None
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
