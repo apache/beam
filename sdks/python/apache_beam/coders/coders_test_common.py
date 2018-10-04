@@ -197,6 +197,15 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
         (timestamp.Timestamp.of(27), b'abc'))
 
+  def test_timer_coder(self):
+    self.check_coder(coders._TimerCoder(coders.BytesCoder()),
+                     *[{'timestamp': timestamp.Timestamp(micros=x),
+                        'payload': b'xyz'}
+                       for x in range(-3, 3)])
+    self.check_coder(
+        coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()),)),
+        ({'timestamp': timestamp.Timestamp.of(37), 'payload': 389},))
+
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
     # Verify cloud object representation
