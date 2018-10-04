@@ -20,23 +20,18 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ObjectArrays;
-import java.io.Serializable;
-import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
+import org.apache.beam.sdk.transforms.Failure.TaggedExceptionsList;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
@@ -178,105 +173,43 @@ public class MapElements<InputT, OutputT>
   }
 
   /**
-   * Wraps an input value together with the exception that it caused.
-   * Invocations of the {@code withFailureTag} method will lead to outputs of type
-   * {@code PCollection<Failure<InputT>>}.
-   */
-  public static class Failure<InputT> implements Serializable {
-    private final Exception exception;
-    private final InputT value;
-
-    private Failure(Exception exception, InputT value) {
-      this.exception = exception;
-      this.value = value;
-    }
-
-    public static <InputT> Failure<InputT> of(Exception exception, InputT value) {
-      return new Failure<>(exception, value);
-    }
-
-    public Exception getException() {
-      return exception;
-    }
-
-    public InputT getValue() {
-      return value;
-    }
-  }
-
-  /**
-   * Wraps a TupleTag together with the exceptions types that should be routed to it.
-   */
-  private static class TaggedExceptions<InputT> implements Serializable {
-    private final TupleTag<Failure<InputT>> tag;
-    private final Class[] exceptionsToCatch;
-
-    private TaggedExceptions(TupleTag<Failure<InputT>> tag, Class[] exceptionsToCatch) {
-      this.tag = tag;
-      this.exceptionsToCatch = exceptionsToCatch;
-    }
-
-    public static <InputT> TaggedExceptions<InputT> of (TupleTag<Failure<InputT>> tag,
-        Class[] exceptionsToCatch) {
-      return new TaggedExceptions<>(tag, exceptionsToCatch);
-    }
-
-    public TupleTag<Failure<InputT>> getTag() {
-      return tag;
-    }
-
-    public Class[] getExceptionsToCatch() {
-      return exceptionsToCatch;
-    }
-  }
-
-  /**
-   * Return this {@link MapElements} instance as a {@link WithFailures} that outputs
-   * a {@link PCollectionTuple} containing successes tagged with the given tag and one or
-   * more failure collections defined by calls to {@code catching}.
+   * Output a {@link PCollectionTuple} with the collection of successfully mapped elements
+   * associated with the given tag. This allows you to make subsequent
+   * {@link WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown
+   * exceptions in additional failure collections.
    */
   public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
-    return new WithFailures(successTag, ImmutableList.of());
+    return new WithFailures(successTag, TaggedExceptionsList.empty());
   }
 
   /**
-   * Variant of {@link MapElements} that results from a call to {@link #withSuccessTag(TupleTag)}.
+   * Variant of {@link MapElements} that that can handle exceptions and output one or more
+   * failure collections wrapped in a {@link PCollectionTuple}.
    * Specify how to handle exceptions by calling {@link #withFailureTag(TupleTag, Class, Class[])}.
    */
   public class WithFailures extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
-    private final TupleTag<OutputT> successesTag;
-    private final List<TaggedExceptions<InputT>> taggedExceptionsList;
+    private final TupleTag<OutputT> successTag;
+    private final TaggedExceptionsList<InputT> taggedExceptionsList;
 
-    private WithFailures(TupleTag<OutputT> successesTag,
-        List<TaggedExceptions<InputT>> taggedExceptionsList) {
-      this.successesTag = successesTag;
+    WithFailures(TupleTag<OutputT> successTag, TaggedExceptionsList<InputT> taggedExceptionsList) {
+      this.successTag = successTag;
       this.taggedExceptionsList = taggedExceptionsList;
     }
 
     /**
-     * Specify a {@link TupleTag} the {@link Exception} subclasses that should route to it.
+     * Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it.
      */
     public WithFailures withFailureTag(
         TupleTag<Failure<InputT>> tag,
         Class exceptionToCatch, Class... additionalExceptions) {
-      final ImmutableList<TaggedExceptions<InputT>> newList = ImmutableList
-          .<TaggedExceptions<InputT>>builder()
-          .addAll(taggedExceptionsList)
-          .add(TaggedExceptions.of(tag,
-              ObjectArrays.concat(exceptionToCatch, additionalExceptions)))
-          .build();
-      return new WithFailures(successesTag, newList);
+      return new WithFailures(successTag,
+          taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
     }
 
     @Override
     public PCollectionTuple expand(PCollection<? extends InputT> input) {
       checkNotNull(fn, "Must specify a function on MapElements using .via()");
-      final TupleTagList failureTags = TupleTagList.of(
-          taggedExceptionsList
-              .stream()
-              .map(TaggedExceptions::getTag)
-              .collect(Collectors.toList()));
-      return input.apply(
+      PCollectionTuple pcs = input.apply(
           "MapWithFailures",
           ParDo.of(
               new DoFn<InputT, OutputT>() {
@@ -285,18 +218,10 @@ public class MapElements<InputT, OutputT>
                     @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
                     throws Exception {
                   try {
-                    receiver.get(successesTag).output(
+                    receiver.get(successTag).output(
                         fn.getClosure().apply(element, Context.wrapProcessContext(c)));
                   } catch (RuntimeException e) {
-                    for (TaggedExceptions<InputT> taggedExceptions : taggedExceptionsList) {
-                      for (Class cls : taggedExceptions.getExceptionsToCatch()) {
-                        if (cls.isInstance(e)) {
-                          receiver.get(taggedExceptions.tag).output(Failure.of(e, element));
-                          return;
-                        }
-                      }
-                    }
-                    throw e;
+                    taggedExceptionsList.outputOrRethrow(e, element, receiver);
                   }
                 }
 
@@ -316,8 +241,10 @@ public class MapElements<InputT, OutputT>
                   return outputType;
                 }
               })
-              .withOutputTags(successesTag, failureTags)
+              .withOutputTags(successTag, taggedExceptionsList.tupleTagList())
               .withSideInputs(fn.getRequirements().getSideInputs()));
+      taggedExceptionsList.applyFailureCoders(pcs);
+      return pcs;
     }
   }
 
