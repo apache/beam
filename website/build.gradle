@@ -38,6 +38,22 @@ def shell = { cmd ->
   } 
 }
 
+
+def envdir = "${buildDir}/gradleenv"
+
+task setupVirtualenv {
+  doLast {
+    exec {
+      commandLine 'virtualenv', "${envdir}"
+    }
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install beautifulsoup4"
+    }
+  }
+  outputs.dirs(envdir)
+}
+
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
   commandLine 'docker', 'build', '-t', dockerImageTag, '.'
@@ -80,10 +96,12 @@ task cleanWebsite(type: Delete) {
 clean.dependsOn cleanWebsite
 
 task buildWebsite(type: Exec) {
+  def baseurlFlag = project.findProperty('githubPullRequestId') ? "--baseurl=/${project.findProperty('githubPullRequestId')}" : ''
   dependsOn startDockerContainer, setupBuildDir
   finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
+  inputs.property 'baseurl', baseurlFlag
   outputs.dir "$buildDir/.sass-cache"
   outputs.dir buildContentDir
   commandLine 'docker', 'exec',
@@ -91,7 +109,7 @@ task buildWebsite(type: Exec) {
     """cd $dockerWorkDir/build/website && \
       bundle exec jekyll build \
       --config $dockerWorkDir/website/_config.yml \
-      --incremental \
+      --incremental ${baseurlFlag} \
       --source $dockerWorkDir/website/src
       """
 }
@@ -183,3 +201,33 @@ task publishWebsite << {
 
 commitWebsite.dependsOn testWebsite
 publishWebsite.dependsOn commitWebsite
+
+/*
+ * Stages a pull request on GCS
+ * For example:
+ *   ./gradlew :beam-website:stageWebsite -PgithubPullRequestId=${ghprbPullId} -PwebsiteBucket=foo
+ */
+task stageWebsite << {
+  assert project.hasProperty('githubPullRequestId')
+  assert githubPullRequestId.isInteger()
+
+  def gcs_bucket = project.findProperty('websiteBucket') ?: 'apache-beam-website-pull-requests'
+  def gcs_path = "gs://${gcs_bucket}/${githubPullRequestId}"
+
+  // Remove current site if it exists.
+  shell "gsutil -m rm -r -f ${gcs_path} || true"
+
+  // Fixup the links to index.html files
+  shell "cd ${buildDir} && ln -s generated-content content || true"
+  shell ". ${envdir}/bin/activate && cd ${buildDir} && " +
+        "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
+
+  // Copy the build website to GCS
+  shell "gsutil -m cp -r ${buildContentDir} ${gcs_path}"
+
+  println "Website published to http://${gcs_bucket}." +
+      "storage.googleapis.com/${githubPullRequestId}/index.html"
+}
+
+stageWebsite.dependsOn setupVirtualenv
+stageWebsite.dependsOn buildWebsite
