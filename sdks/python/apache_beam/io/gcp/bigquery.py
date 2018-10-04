@@ -687,7 +687,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       logging.error(
           "Unable to get source location for %r as it has neither "
-          "table nor query.")
+          "table nor query.", self.source)
       return None
 
   def __enter__(self):
