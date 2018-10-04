@@ -566,7 +566,7 @@ collection of log files, or a database table. The capabilities are:
  * timestamps to associate with each element read
  * `splitAtFraction` for dynamic splitting to enable work stealing, and other
    methods to support it - see the [Beam blog post on dynamic work
-   rebalancing](https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html)
+   rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)
 
 The `BoundedSource` does not report a watermark currently. Most of the time, reading
 from a bounded source can be parallelized in ways that result in utterly out-of-order

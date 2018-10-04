@@ -162,7 +162,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {:.runner-dataflow}
 ```
-Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
@@ -213,7 +213,7 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {:.runner-dataflow}
 ```
-Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
 
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=<your-gcp-project> `

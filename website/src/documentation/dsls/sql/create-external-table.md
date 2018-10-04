@@ -24,7 +24,7 @@ limitations under the License.
 # CREATE EXTERNAL TABLE
 
 Beam SQL's `CREATE EXTERNAL TABLE` statement registers a virtual table that maps to an
-[external storage system](https://beam.apache.org/documentation/io/built-in/).
+[external storage system]({{ site.baseurl }}/documentation/io/built-in/).
 For some storage systems, `CREATE EXTERNAL TABLE` does not create a physical table until
 a write occurs. After the physical table exists, you can access the table with
 the `SELECT`, `JOIN`, and `INSERT INTO` statements.
@@ -50,7 +50,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     ignores the statement instead of returning an error.
 *   `tableName`: The case sensitive name of the table to create and register,
     specified as an
-    [Identifier](https://beam.apache.org/documentation/dsls/sql/lexical/#identifiers).
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers).
     The table name does not need to match the name in the underlying data
     storage system.
 *   `tableElement`: `columnName` `fieldType` `[ NOT NULL ]`
@@ -65,7 +65,7 @@ tableElement: columnName fieldType [ NOT NULL ]
         *   `ROW<tableElement [, tableElement ]*>`
     *   `NOT NULL`: Optional. Indicates that the column is not nullable.
 *   `type`: The I/O transform that backs the virtual table, specified as an
-    [Identifier](https://beam.apache.org/documentation/dsls/sql/lexical/#identifiers)
+    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/lexical/#identifiers)
     with one of the following values:
     *   `bigquery`
     *   `pubsub`
@@ -73,11 +73,11 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
-    Literal](https://beam.apache.org/documentation/dsls/sql/lexical/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/lexical/#string-literals).
     See the I/O specific sections for `location` format requirements.
 *   `tblProperties`: The I/O specific quoted key value JSON object with extra
     configuration, specified as a [String
-    Literal](https://beam.apache.org/documentation/dsls/sql/lexical/#string-literals).
+    Literal]({{ site.baseurl }}/documentation/dsls/sql/lexical/#string-literals).
     See the I/O specific sections for `tblProperties` format requirements.
 
 ## BigQuery
