@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,7 +41,7 @@ public class BeamSortRelTest extends BaseRelTest {
   public void prepare() {
     registerTable(
         "ORDER_DETAILS",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
                 Schema.FieldType.DOUBLE, "price",
@@ -89,7 +89,7 @@ public class BeamSortRelTest extends BaseRelTest {
                 new DateTime(9)));
     registerTable(
         "SUB_ORDER_RAM",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
             Schema.builder()
                 .addField("order_id", Schema.FieldType.INT64)
                 .addField("site_id", Schema.FieldType.INT32)
@@ -164,9 +164,9 @@ public class BeamSortRelTest extends BaseRelTest {
 
     registerTable(
         "ORDER_DETAILS",
-        MockedBoundedTable.of(schema)
+        TestBoundedTable.of(schema)
             .addRows(1L, 2, 1.0, 1L, null, 2.0, 2L, 1, 3.0, 2L, null, 4.0, 5L, 5, 5.0));
-    registerTable("SUB_ORDER_RAM", MockedBoundedTable.of(schema));
+    registerTable("SUB_ORDER_RAM", TestBoundedTable.of(schema));
 
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
@@ -194,9 +194,9 @@ public class BeamSortRelTest extends BaseRelTest {
 
     registerTable(
         "ORDER_DETAILS",
-        MockedBoundedTable.of(schema)
+        TestBoundedTable.of(schema)
             .addRows(1L, 2, 1.0, 1L, null, 2.0, 2L, 1, 3.0, 2L, null, 4.0, 5L, 5, 5.0));
-    registerTable("SUB_ORDER_RAM", MockedBoundedTable.of(schema));
+    registerTable("SUB_ORDER_RAM", TestBoundedTable.of(schema));
 
     String sql =
         "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
