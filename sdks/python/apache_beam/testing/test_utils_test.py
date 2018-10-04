@@ -74,13 +74,13 @@ class TestUtilsTest(unittest.TestCase):
     with utils.TempDir() as tempdir:
       filename = tempdir.create_temp_file(
           suffix='.txt',
-          lines=['line1\n', 'line2\n', 'line3\n'])
+          lines=[b'line1\n', b'line2\n', b'line3\n'])
       self.assertTrue(filename.endswith('.txt'))
 
       with open(filename, 'rb') as f:
-        self.assertEqual(f.readline(), 'line1\n')
-        self.assertEqual(f.readline(), 'line2\n')
-        self.assertEqual(f.readline(), 'line3\n')
+        self.assertEqual(f.readline(), b'line1\n')
+        self.assertEqual(f.readline(), b'line2\n')
+        self.assertEqual(f.readline(), b'line3\n')
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_for_subscriptions_created_fails(self, patched_time_sleep):
