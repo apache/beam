@@ -65,6 +65,7 @@ class WordCountIT(unittest.TestCase):
                                               sleep_secs)]
     extra_opts = {'output': output,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
+    extra_opts.update(opts)
 
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [output + '*'])
