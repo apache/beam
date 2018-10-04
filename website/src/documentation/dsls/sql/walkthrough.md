@@ -27,10 +27,9 @@ This page illustrates the usage of Beam SQL with example code.
 Before applying a SQL query to a `PCollection`, the data in the collection must
 be in `Row` format. A `Row` represents a single, immutable record in a Beam SQL
 `PCollection`. The names and types of the fields/columns in the row are defined
-by its associated [Schema]({{ site.baseurl }}/documentation/sdks/javadoc/{{
+by its associated [Schema](https://beam.apache.org/releases/javadoc/{{
 site.release_latest }}/index.html?org/apache/beam/sdk/schemas/Schema.html).
-You can use the [Schema.builder()]({{ site.baseurl
-}}/documentation/sdks/javadoc/{{ site.release_latest
+You can use the [Schema.builder()](https://beam.apache.org/releases/javadoc/{{ site.release_latest
 }}/index.html?org/apache/beam/sdk/schemas/Schema.html) to create
 `Schemas`. See [Data
 Types]({{ site.baseurl }}/documentation/dsls/sql/data-types) for more details on supported primitive data types.
@@ -111,7 +110,7 @@ Once you have a `PCollection<Row>` in hand, you may use `SqlTransform` to apply 
 
 ## SqlTransform
 
-[`SqlTransform.query(queryString)`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html) method is the only API to create a `PTransform`
+[`SqlTransform.query(queryString)`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html) method is the only API to create a `PTransform`
 from a string representation of the SQL query. You can apply this `PTransform`
 to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 `PCollections`:
