@@ -5,8 +5,8 @@ require 'etc'
 task :test do
   HTMLProofer.check_directory("./generated-content", {
     :typhoeus => {
-      :timeout => 60,
-      :connecttimeout => 40 },
+      :timeout => 120,
+      :connecttimeout => 90 },
     :allow_hash_href => true,
     :check_html => true,
     :file_ignore => [/v2/],
@@ -18,6 +18,6 @@ task :test do
         /www.se-radio.net/, # BEAM-5611: Can fail with rate limit HTTP 508 error
         /beam.apache.org\/releases/ # BEAM-4499 remove once publishing is migrated
     ],
-    :parallel => { :in_processes => Etc.nprocessors },
+    :parallel => { :in_processes => 4 },
     }).run
 end
