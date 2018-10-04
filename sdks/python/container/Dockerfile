@@ -34,7 +34,7 @@ RUN apt-get update && \
 # SDK dependencies not listed in base_image_requirements.txt will be installed when we install SDK
 # in the next RUN statement.
 
-COPY base_image_requirements.txt /tmp/base_image_requirements.txt
+COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 RUN \
     pip install -r /tmp/base_image_requirements.txt && \
     # Check that the fast implementation of protobuf is used.
@@ -43,11 +43,11 @@ RUN \
     rm -rf /root/.cache/pip
 
 
-COPY apache-beam.tar.gz /opt/apache/beam/tars/
+COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
-ADD linux_amd64/boot /opt/apache/beam/
+ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
