@@ -44,7 +44,6 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy, dependsOn: build) {
   from configurations.sdkSourceTarball
-  from file("build/launcher")
   from file("./base_image_requirements.txt")
   into "build/target"
   configurations.sdkSourceTarball.stopExecutionIfEmpty()
@@ -55,17 +54,17 @@ golang {
   build {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
-    outputLocation = './build/launcher/${GOOS}_${GOARCH}/boot'
+    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
   }
 }
 
 docker {
   name containerImageName(name: "python")
-  files "./build/target"
+  files "./build"
 }
 
 artifacts {
-  sdkHarnessLauncher file: file('./build/launcher'), builtBy: build
+  sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: build
 }
 
 // Ensure that making the docker image builds any required artifacts
