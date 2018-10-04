@@ -157,8 +157,7 @@ configurations {
 
   // Ban these dependencies from all configurations
   all {
-    // Ban the usage of AppleJavaExtensions in findbugs since it can't be
-    // imported to google3 due to license issue.
+    // Ban the usage of AppleJavaExtensions in findbugs.
     exclude group: "com.apple", module: "AppleJavaExtensions"
   }
 }
@@ -223,15 +222,10 @@ task extractSourceFiles(type: Copy) {
 }
 shadowJar.dependsOn extractSourceFiles
 
-project.tasks.withType(Checkstyle) {
-  exclude '**/*.java'
-}
-
-project.tasks.withType(FindBugs) {
-  exclude '**/*.java'
-  classes  = project.files([])
-}
-
-project.tasks.withType(Javadoc) {
-  exclude '**/*.java'
-}
+//TODO(BEAM-5657): checktyle task should be enabled in the future.
+checkstyleMain.enabled = false
+checkstyleTest.enabled = false
+//TODO(BEAM-5658): fingbugs task should be enabled in the future.
+findbugsMain.enabled = false
+//TODO(BEAM-5659): javadoc task should be enabled in the future.
+javadoc.enabled = false
