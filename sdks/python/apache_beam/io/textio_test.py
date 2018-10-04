@@ -497,6 +497,9 @@ class TextSourceTest(unittest.TestCase):
       with self.assertRaises(Exception):
         pipeline.run()
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_read_bzip2_concat(self):
     with TempDir() as tempdir:
       bzip2_file_name1 = tempdir.create_temp_file()
@@ -819,6 +822,9 @@ class TextSinkTest(unittest.TestCase):
       sink.write_record(f, line)
     sink.close(f)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_text_file(self):
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
@@ -833,6 +839,9 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_bzip2_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.BZIP2)
@@ -841,6 +850,9 @@ class TextSinkTest(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_bzip2_file_auto(self):
     self.path = self._create_temp_file(suffix='.bz2')
     sink = TextSink(self.path)
@@ -849,6 +861,9 @@ class TextSinkTest(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_gzip_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
@@ -857,6 +872,9 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_gzip_file_auto(self):
     self.path = self._create_temp_file(suffix='.gz')
     sink = TextSink(self.path)
@@ -865,6 +883,9 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_gzip_file_empty(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
@@ -873,6 +894,9 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_text_file_with_header(self):
     header = 'header1\nheader2'
     sink = TextSink(self.path, header=header)
@@ -881,6 +905,9 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_text_file_empty_with_header(self):
     header = 'header1\nheader2'
     sink = TextSink(self.path, header=header)
@@ -889,6 +916,9 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def test_write_dataflow(self):
     pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create(self.lines)

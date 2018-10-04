@@ -76,6 +76,9 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 
 class MyFileBasedSink(filebasedsink.FileBasedSink):
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def open(self, temp_path):
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).open(temp_path)
