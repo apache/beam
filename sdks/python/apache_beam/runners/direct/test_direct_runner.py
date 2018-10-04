@@ -52,5 +52,6 @@ class TestDirectRunner(DirectRunner):
     finally:
       if not PipelineState.is_terminal(self.result.state):
         self.result.cancel()
+        self.result.wait_until_finish()
 
     return self.result
