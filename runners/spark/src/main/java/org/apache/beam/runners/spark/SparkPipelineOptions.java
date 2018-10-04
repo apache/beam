@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark;
 
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -99,11 +100,15 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
-  @Description("Bundle Size for splitting BoundedSources.")
+  @Description(
+      "If set bundleSize will be used for splitting BoundedSources, otherwise default to "
+          + "splitting BoundedSources on Spark defaultParallelism. Most effective when used with "
+          + "Spark dynamicAllocation.")
   @Default.Long(0)
-  long getBundleSize();
+  Long getBundleSize();
 
-  void setBundleSize(long value);
+  @Experimental
+  void setBundleSize(Long value);
 
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)

@@ -131,14 +131,17 @@ public final class TransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         // --- group by key only.
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey;
-        if (context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize()
-            > 0) {
-          groupedByKey =
-              GroupCombineFunctions.groupByKeyOnlyDefaultPartitioner(inRDD, keyCoder, wvCoder);
-        } else {
-          groupedByKey = GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
-        }
+        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
+            GroupCombineFunctions.groupByKeyOnly(
+                inRDD,
+                keyCoder,
+                wvCoder,
+                context
+                        .getSerializableOptions()
+                        .get()
+                        .as(SparkPipelineOptions.class)
+                        .getBundleSize()
+                    > 0);
 
         // --- now group also by window.
         // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -431,7 +434,7 @@ public final class TransformTranslator {
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, true);
 
     return groupRDD
         .map(
