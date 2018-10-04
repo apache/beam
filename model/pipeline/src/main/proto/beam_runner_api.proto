@@ -41,8 +41,7 @@ message BeamConstants {
     // One standard day is subtracted from TIMESTAMP_MAX_VALUE to make sure
     // the maxTimestamp is smaller than TIMESTAMP_MAX_VALUE even after rounding up
     // to seconds or minutes. See also GlobalWindow in the Java SDK.
-    // Value is represented in hex.
-    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 0 [(beam_constant) = "20c49ba0bcf7f7"];
+    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 0 [(beam_constant) = "9223371950454775"];
   }
 }
 

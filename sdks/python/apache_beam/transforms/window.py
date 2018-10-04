@@ -320,8 +320,7 @@ class GlobalWindow(BoundedWindow):
   @staticmethod
   def _getTimestampFromProto():
     ts_millis = int(
-        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant,
-        16)
+        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant)
     return Timestamp(micros=ts_millis*1000)
 
 

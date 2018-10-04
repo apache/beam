@@ -83,14 +83,13 @@ public class GlobalWindow extends BoundedWindow {
     private Coder() {}
   }
 
-  /** Parses the max timestamp for global windows represented in hex from the proto. */
+  /** Parses the max timestamp for global windows from the proto. */
   private static Instant extractMaxTimestampFromProto() {
     return new Instant(
         Long.parseLong(
             RunnerApi.BeamConstants.Constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS
                 .getValueDescriptor()
                 .getOptions()
-                .getExtension(RunnerApi.beamConstant),
-            16));
+                .getExtension(RunnerApi.beamConstant)));
   }
 }
