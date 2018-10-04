@@ -683,7 +683,7 @@ via the <a href="#the-fn-api">Fn API</a> may manifest as another implementation 
 
 <p><strong>Python</strong></p>
 
-<p>See the <a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner">DoFnRunner pydoc</a>.</p>
+<p>See the <a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner">DoFnRunner pydoc</a>.</p>
 
 <h4 id="side-inputs">Side Inputs</h4>
 
@@ -730,7 +730,7 @@ is used to implement this.</p>
 
 <p><strong>Python</strong></p>
 
-<p>In Python, <a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap"><code class="highlighter-rouge">SideInputMap</code></a> maps
+<p>In Python, <a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap"><code class="highlighter-rouge">SideInputMap</code></a> maps
 windows to side input values. The <code class="highlighter-rouge">WindowMappingFn</code> manifests as a simple
 function. See
 <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sideinputs.py">sideinputs.py</a>.</p>
@@ -786,9 +786,9 @@ have some special knowledge of the types involved.</p>
 <p>The elements you are processing will be key-value pairs, and you’ll need to extract
 the keys. For this reason, the format of key-value pairs is standardized and
 shared across all SDKS. See either
-<a href="https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html"><code class="highlighter-rouge">KvCoder</code></a>
+<a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html"><code class="highlighter-rouge">KvCoder</code></a>
 in Java or
-<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder"><code class="highlighter-rouge">TupleCoder</code></a>
+<a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder"><code class="highlighter-rouge">TupleCoder</code></a>
 in Python for documentation on the binary format.</p>
 
 <h4 id="window-merging">Window Merging</h4>
@@ -957,9 +957,9 @@ it into primitives for your engine. The general pattern is to write a visitor
 that builds a job specification as it walks the graph of <code class="highlighter-rouge">PTransforms</code>.</p>
 
 <p>The entry point for this in Java is
-<a href="https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-"><code class="highlighter-rouge">Pipeline.traverseTopologically</code></a>
+<a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-"><code class="highlighter-rouge">Pipeline.traverseTopologically</code></a>
 and
-<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit"><code class="highlighter-rouge">Pipeline.visit</code></a>
+<a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit"><code class="highlighter-rouge">Pipeline.visit</code></a>
 in Python. See the generated documentation for details.</p>
 
 <h3 id="altering-a-pipeline">Altering a pipeline</h3>
@@ -983,7 +983,7 @@ your runner</li>
 of work. In Python, support code is still under development.</p>
 
 <p>All pipeline alteration is done via
-<a href="https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-"><code class="highlighter-rouge">Pipeline.replaceAll(PTransformOverride)</code></a>
+<a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-"><code class="highlighter-rouge">Pipeline.replaceAll(PTransformOverride)</code></a>
 method. A
 <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverride.java"><code class="highlighter-rouge">PTransformOverride</code></a>
 is a pair of a
@@ -1030,7 +1030,7 @@ want the users of that SDK (such as Python) to use it.</p>
 <h4 id="allowing-users-to-pass-options-to-your-runner">Allowing users to pass options to your runner</h4>
 
 <p>The mechanism for configuration is
-<a href="https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/options/PipelineOptions.html"><code class="highlighter-rouge">PipelineOptions</code></a>,
+<a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/options/PipelineOptions.html"><code class="highlighter-rouge">PipelineOptions</code></a>,
 an interface that works completely differently than normal Java objects. Forget
 what you know, and follow the rules, and <code class="highlighter-rouge">PipelineOptions</code> will treat you well.</p>
 

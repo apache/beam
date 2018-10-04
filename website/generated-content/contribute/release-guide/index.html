@@ -1089,7 +1089,7 @@ svn commit
 website. To update the website, you must unpack this jar file from the release
 candidate into the source tree of the website.</p>
 
-<p>Add the new Javadoc to <a href="/documentation/sdks/javadoc/">SDK API Reference page</a> page, as follows:</p>
+<p>Add the new Javadoc to <a href="https://beam.apache.org/releases/javadoc/">SDK API Reference page</a> page, as follows:</p>
 
 <ul>
   <li>Unpack the Maven artifact <code class="highlighter-rouge">org.apache.beam:beam-sdks-java-javadoc</code> into some temporary location. Call this <code class="highlighter-rouge">${JAVADOC_TMP}</code>.</li>
@@ -1099,7 +1099,7 @@ candidate into the source tree of the website.</p>
 </ul>
 
 <h5 id="create-pydoc">Create Pydoc</h5>
-<p>Add the new Pydoc to <a href="/documentation/sdks/pydoc/">SDK API Reference page</a> page, as follows:</p>
+<p>Add the new Pydoc to <a href="https://beam.apache.org/releases/pydoc/">SDK API Reference page</a> page, as follows:</p>
 
 <ul>
   <li>Copy the generated Pydoc into the website repository: <code class="highlighter-rouge">cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${RELEASE}</code>.</li>
@@ -1122,7 +1122,7 @@ candidate into the source tree of the website.</p>
 <ol>
   <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a></li>
   <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
-  <li>Website pull request proposed to list the <a href="/get-started/downloads/">release</a>, publish the <a href="/documentation/sdks/javadoc/">Java API reference manual</a>, and publish the <a href="/documentation/sdks/pydoc/">Python API reference manual</a>.</li>
+  <li>Website pull request proposed to list the <a href="/get-started/downloads/">release</a>, publish the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a>, and publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>.</li>
 </ol>
 
 <p>You can (optionally) also do additional verification by:</p>
@@ -1558,7 +1558,7 @@ git push github "$VERSION_TAG"
 
 <h3 id="merge-website-pull-request">Merge website pull request</h3>
 
-<p>Merge the website pull request to <a href="/get-started/downloads/">list the release</a>, publish the <a href="/documentation/sdks/pydoc/">Python API reference manual</a>, and the <a href="/documentation/sdks/javadoc/">Java API reference manual</a> created earlier.</p>
+<p>Merge the website pull request to <a href="/get-started/downloads/">list the release</a>, publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>, and the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a> created earlier.</p>
 
 <h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA</h3>
 
@@ -1574,7 +1574,7 @@ git push github "$VERSION_TAG"
   <li>Maven artifacts released and indexed in the <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a></li>
   <li>Source distribution available in the release repository of <a href="https://dist.apache.org/repos/dist/release/beam/">dist.apache.org</a></li>
   <li>Source distribution removed from the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
-  <li>Website pull request to <a href="/get-started/downloads/">list the release</a> and publish the <a href="/documentation/sdks/javadoc/">API reference manual</a> merged</li>
+  <li>Website pull request to <a href="/get-started/downloads/">list the release</a> and publish the <a href="https://beam.apache.org/releases/javadoc/">API reference manual</a> merged</li>
   <li>Release tagged in the source code repository</li>
   <li>Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)</li>
   <li>Release version is listed at reporter.apache.org</li>
