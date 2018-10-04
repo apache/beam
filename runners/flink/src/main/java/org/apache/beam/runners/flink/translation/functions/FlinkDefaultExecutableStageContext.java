@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -40,7 +41,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
             jobInfo,
             ImmutableMap.of(
                 BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
-                new DockerEnvironmentFactory.Provider(),
+                new DockerEnvironmentFactory.Provider(
+                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
                 BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
                 new ProcessEnvironmentFactory.Provider(),
                 Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
