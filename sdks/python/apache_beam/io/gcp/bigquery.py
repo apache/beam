@@ -839,6 +839,13 @@ class BigQueryWrapper(object):
 
     response = self.client.jobs.Insert(request)
 
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      logging.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
     referenced_tables = response.statistics.query.referencedTables
     if referenced_tables:  # Guards against both non-empty and non-None
       table = referenced_tables[0]
