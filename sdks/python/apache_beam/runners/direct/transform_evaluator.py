@@ -377,20 +377,44 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
 
 class _PubSubSubscriptionWrapper(object):
-  """Wrapper for garbage-collecting temporary PubSub subscriptions."""
+  """Wrapper for managing temporary PubSub subscriptions."""
 
-  def __init__(self, subscription, should_cleanup):
-    self.subscription = subscription
-    self.should_cleanup = should_cleanup
+  def __init__(self, project, short_topic_name, short_sub_name):
+    """Initialize subscription wrapper.
+
+    If sub_name is None, will create a temporary subscription to topic_name.
+
+    Args:
+      project: GCP project name for topic and subscription. May be None.
+        Required if sub_name is None.
+      short_topic_name: Valid topic name without
+        'projects/{project}/topics/' prefix. May be None.
+        Required if sub_name is None.
+      short_sub_name: Valid subscription name without
+        'projects/{project}/subscriptions/' prefix. May be None.
+    """
+    from google.cloud import pubsub
+    self.sub_client = pubsub.SubscriberClient()
+
+    if short_sub_name is None:
+      self.sub_name = self.sub_client.subscription_path(
+          project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+      topic_name = self.sub_client.topic_path(project, short_topic_name)
+      self.sub_client.create_subscription(self.sub_name, topic_name)
+      self._should_cleanup = True
+    else:
+      self.sub_name = self.sub_client.subscription_path(project, short_sub_name)
+      self._should_cleanup = False
 
   def __del__(self):
-    if self.should_cleanup:
-      self.subscription.delete()
+    if self._should_cleanup:
+      self.sub_client.delete_subscription(self.sub_name)
 
 
 class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
+  # A mapping of transform to _PubSubSubscriptionWrapper.
   _subscription_cache = {}
 
   def __init__(self, evaluation_context, applied_ptransform,
@@ -404,26 +428,16 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
-    self._subscription = _PubSubReadEvaluator.get_subscription(
+    self._sub_name = _PubSubReadEvaluator.get_subscription(
         self._applied_ptransform, self.source.project, self.source.topic_name,
         self.source.subscription_name)
 
   @classmethod
-  def get_subscription(cls, transform, project, topic, subscription_name):
+  def get_subscription(cls, transform, project, topic, short_sub_name):
     if transform not in cls._subscription_cache:
-      from google.cloud import pubsub
-      should_create = not subscription_name
-      if should_create:
-        subscription_name = 'beam_%d_%x' % (
-            int(time.time()), random.randrange(1 << 32))
-      wrapper = _PubSubSubscriptionWrapper(
-          pubsub.Client(project=project).topic(topic).subscription(
-              subscription_name),
-          should_create)
-      if should_create:
-        wrapper.subscription.create()
+      wrapper = _PubSubSubscriptionWrapper(project, topic, short_sub_name)
       cls._subscription_cache[transform] = wrapper
-    return cls._subscription_cache[transform].subscription
+    return cls._subscription_cache[transform].sub_name
 
   def start_bundle(self):
     pass
@@ -438,28 +452,34 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     # evaluator fails with an exception before emitting a bundle. However,
     # the DirectRunner currently doesn't retry work items anyway, so the
     # pipeline would enter an inconsistent state on any error.
-    with pubsub.subscription.AutoAck(
-        self._subscription, return_immediately=True,
-        max_messages=10) as results:
-      def _get_element(message):
-        parsed_message = PubsubMessage._from_message(message)
-        if (timestamp_attribute and
-            timestamp_attribute in parsed_message.attributes):
-          rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
+    sub_client = pubsub.SubscriberClient()
+    response = sub_client.pull(self._sub_name, max_messages=10,
+                               return_immediately=True)
+
+    def _get_element(message):
+      parsed_message = PubsubMessage._from_message(message)
+      if (timestamp_attribute and
+          timestamp_attribute in parsed_message.attributes):
+        rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
+        try:
+          timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+        except ValueError:
           try:
-            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
-          except ValueError:
-            try:
-              timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
-            except ValueError as e:
-              raise ValueError('Bad timestamp value: %s' % e)
-        else:
-          timestamp = Timestamp.from_rfc3339(message.service_timestamp)
+            timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+          except ValueError as e:
+            raise ValueError('Bad timestamp value: %s' % e)
+      else:
+        timestamp = Timestamp(message.publish_time.seconds,
+                              message.publish_time.nanos // 1000)
 
-        return timestamp, parsed_message
+      return timestamp, parsed_message
 
-      return [_get_element(message)
-              for unused_ack_id, message in iteritems(results)]
+    results = [_get_element(rm.message) for rm in response.received_messages]
+    ack_ids = [rm.ack_id for rm in response.received_messages]
+    if ack_ids:
+      sub_client.acknowledge(self._sub_name, ack_ids)
+
+    return results
 
   def finish_bundle(self):
     data = self._read_from_pubsub(self.source.timestamp_attribute)
