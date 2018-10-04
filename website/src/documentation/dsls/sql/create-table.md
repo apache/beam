@@ -212,7 +212,7 @@ TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PR
         The attribute key is configured by the `timestampAttributeKey` field of
         the `tblProperties` blob. The value of the attribute should conform to
         the [requirements of
-        PubsubIO](https://beam.apache.org/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.Read.html#withTimestampAttribute-java.lang.String-),
+        PubsubIO](https://beam.apache.org/releases/javadoc/2.4.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.Read.html#withTimestampAttribute-java.lang.String-),
         which is either millis since Unix epoch or [RFC 339
         ](https://www.ietf.org/rfc/rfc3339.txt)date string.
 *   `attributes`: The user-provided attributes map from the Pub/Sub message;
