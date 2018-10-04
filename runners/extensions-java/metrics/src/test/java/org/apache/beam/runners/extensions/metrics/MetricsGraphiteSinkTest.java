@@ -48,7 +48,7 @@ public class MetricsGraphiteSinkTest {
   }
 
   @Before
-  public void before(){
+  public void before() {
     graphiteServer.clear();
   }
 
@@ -58,8 +58,7 @@ public class MetricsGraphiteSinkTest {
   }
 
   @Test
-  public void testWriteMetrics() throws Exception {
-    //TODO deal with unsupported committed metrics
+  public void testWriteMetricsWithCommittedSupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(true);
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setMetricsGraphitePort(port);
@@ -78,6 +77,27 @@ public class MetricsGraphiteSinkTest {
             + "beam.distribution.ns1.n2.committed.count 2 [0-9]+\\n"
             + "beam.distribution.ns1.n2.committed.sum 10 [0-9]+\\n"
             + "beam.distribution.ns1.n2.committed.mean 5.0 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.attempted.min 3 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.attempted.max 9 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.attempted.count 4 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.attempted.sum 25 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.attempted.mean 6.25 [0-9]+";
+    assertTrue(join.matches(regexpr));
+  }
+
+  @Test
+  public void testWriteMetricsWithCommittedUnSupported() throws Exception {
+    MetricQueryResults metricQueryResults = new CustomMetricQueryResults(false);
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    pipelineOptions.setMetricsGraphitePort(port);
+    pipelineOptions.setMetricsGraphiteHost("127.0.0.1");
+    MetricsGraphiteSink metricsGraphiteSink = new MetricsGraphiteSink(pipelineOptions);
+    metricsGraphiteSink.writeMetrics(metricQueryResults);
+    Thread.sleep(2000L);
+    String join = String.join("\n", graphiteServer.getMessages());
+    String regexpr =
+        "beam.counter.ns1.n1.attempted.value 20 [0-9]+\\n"
+            + "beam.gauge.ns1.n3.attempted.value 120 [0-9]+\\n"
             + "beam.distribution.ns1.n2.attempted.min 3 [0-9]+\\n"
             + "beam.distribution.ns1.n2.attempted.max 9 [0-9]+\\n"
             + "beam.distribution.ns1.n2.attempted.count 4 [0-9]+\\n"

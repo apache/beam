@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.extensions.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.net.InetAddress;
@@ -38,16 +39,16 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * timestamp (seconds from epoch) when the push to the sink was done (except with gauges that
  * already have a timestamp value). The graphite metric name will be in the form of
  * beam.metricType.metricNamespace.metricName.[committed|attempted].metricValueType For example:
- * {@code beam.counter.throughput.nbRecords.attempted.value} Or
- * {@code beam.distribution.throughput.nbRecordsPerSec.attempted.mean}
+ * {@code beam.counter.throughput.nbRecords.attempted.value} Or {@code
+ * beam.distribution.throughput.nbRecordsPerSec.attempted.mean}
  */
 public class MetricsGraphiteSink implements MetricsSink {
-  private final String address;
-  private final int port;
-  private final Charset charset;
   private static final Charset UTF_8 = Charset.forName("UTF-8");
   private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
   private static final String SPACE_REPLACEMENT = "_";
+  private final String address;
+  private final int port;
+  private final Charset charset;
 
   public MetricsGraphiteSink(PipelineOptions pipelineOptions) {
     this.address = pipelineOptions.getMetricsGraphiteHost();
@@ -69,17 +70,37 @@ public class MetricsGraphiteSink implements MetricsSink {
         metricQueryResults.getDistributions();
 
     for (MetricResult<Long> counter : counters) {
-      messagePayload.append(createCounterGraphiteMessage(metricTimestamp, counter, true));
+      // if committed metrics are not supported, exception is thrown and we don't append the message
+      try {
+        messagePayload.append(createCounterGraphiteMessage(metricTimestamp, counter, true));
+      } catch (UnsupportedOperationException e) {
+        if (!e.getMessage().contains("committed metrics")) {
+          throw e;
+        }
+      }
       messagePayload.append(createCounterGraphiteMessage(metricTimestamp, counter, false));
     }
 
     for (MetricResult<GaugeResult> gauge : gauges) {
-      messagePayload.append(createGaugeGraphiteMessage(gauge, true));
+      try {
+        messagePayload.append(createGaugeGraphiteMessage(gauge, true));
+      } catch (UnsupportedOperationException e) {
+        if (!e.getMessage().contains("committed metrics")) {
+          throw e;
+        }
+      }
       messagePayload.append(createGaugeGraphiteMessage(gauge, false));
     }
 
     for (MetricResult<DistributionResult> distribution : distributions) {
-      messagePayload.append(createDistributionGraphiteMessage(metricTimestamp, distribution, true));
+      try {
+        messagePayload.append(
+            createDistributionGraphiteMessage(metricTimestamp, distribution, true));
+      } catch (UnsupportedOperationException e) {
+        if (!e.getMessage().contains("committed metrics")) {
+          throw e;
+        }
+      }
       messagePayload.append(
           createDistributionGraphiteMessage(metricTimestamp, distribution, false));
     }
@@ -89,6 +110,10 @@ public class MetricsGraphiteSink implements MetricsSink {
     socket.close();
   }
 
+  @SuppressFBWarnings(
+    value = "VA_FORMAT_STRING_USES_NEWLINE",
+    justification = "\\n is part of graphite protocol"
+  )
   private String createCounterGraphiteMessage(
       long metricTimestamp, MetricResult<Long> counter, boolean committedValue) {
     String metricMessage;
@@ -106,13 +131,18 @@ public class MetricsGraphiteSink implements MetricsSink {
           String.format(
               Locale.US,
               "%s %s %s\n",
-              createNormalizedMetricName(counter, "counter", "value", CommittedOrAttemped.ATTEMPED),
+              createNormalizedMetricName(
+                  counter, "counter", "value", CommittedOrAttemped.ATTEMPTED),
               counter.getAttempted(),
               metricTimestamp);
     }
     return metricMessage;
   }
 
+  @SuppressFBWarnings(
+    value = "VA_FORMAT_STRING_USES_NEWLINE",
+    justification = "\\n is part of graphite protocol"
+  )
   private String createGaugeGraphiteMessage(
       MetricResult<GaugeResult> gauge, boolean committedValue) {
     String metricMessage;
@@ -129,13 +159,17 @@ public class MetricsGraphiteSink implements MetricsSink {
           String.format(
               Locale.US,
               "%s %s %s\n",
-              createNormalizedMetricName(gauge, "gauge", "value", CommittedOrAttemped.ATTEMPED),
+              createNormalizedMetricName(gauge, "gauge", "value", CommittedOrAttemped.ATTEMPTED),
               gauge.getAttempted().getValue(),
               gauge.getAttempted().getTimestamp().getMillis() / 1000L);
     }
     return metricMessage;
   }
 
+  @SuppressFBWarnings(
+    value = "VA_FORMAT_STRING_USES_NEWLINE",
+    justification = "\\n is part of graphite protocol"
+  )
   private String createDistributionGraphiteMessage(
       long metricTimestamp, MetricResult<DistributionResult> distribution, boolean committedValue) {
     StringBuilder messagePayload = new StringBuilder();
@@ -192,7 +226,7 @@ public class MetricsGraphiteSink implements MetricsSink {
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  distribution, "distribution", "min", CommittedOrAttemped.ATTEMPED),
+                  distribution, "distribution", "min", CommittedOrAttemped.ATTEMPTED),
               distribution.getAttempted().getMin(),
               metricTimestamp);
       messagePayload.append(metricMessage);
@@ -201,7 +235,7 @@ public class MetricsGraphiteSink implements MetricsSink {
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  distribution, "distribution", "max", CommittedOrAttemped.ATTEMPED),
+                  distribution, "distribution", "max", CommittedOrAttemped.ATTEMPTED),
               distribution.getAttempted().getMax(),
               metricTimestamp);
       messagePayload.append(metricMessage);
@@ -210,7 +244,7 @@ public class MetricsGraphiteSink implements MetricsSink {
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  distribution, "distribution", "count", CommittedOrAttemped.ATTEMPED),
+                  distribution, "distribution", "count", CommittedOrAttemped.ATTEMPTED),
               distribution.getAttempted().getCount(),
               metricTimestamp);
       messagePayload.append(metricMessage);
@@ -219,7 +253,7 @@ public class MetricsGraphiteSink implements MetricsSink {
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  distribution, "distribution", "sum", CommittedOrAttemped.ATTEMPED),
+                  distribution, "distribution", "sum", CommittedOrAttemped.ATTEMPTED),
               distribution.getAttempted().getSum(),
               metricTimestamp);
       messagePayload.append(metricMessage);
@@ -228,7 +262,7 @@ public class MetricsGraphiteSink implements MetricsSink {
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  distribution, "distribution", "mean", CommittedOrAttemped.ATTEMPED),
+                  distribution, "distribution", "mean", CommittedOrAttemped.ATTEMPTED),
               distribution.getAttempted().getMean(),
               metricTimestamp);
       messagePayload.append(metricMessage);
@@ -255,7 +289,7 @@ public class MetricsGraphiteSink implements MetricsSink {
 
   private enum CommittedOrAttemped {
     COMMITTED("committed"),
-    ATTEMPED("attempted");
+    ATTEMPTED("attempted");
 
     private final String committedOrAttempted;
 
