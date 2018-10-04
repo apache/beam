@@ -269,6 +269,29 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
                   equal_to(expected))
 
+  def test_pardo_timers(self):
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+    class TimerDoFn(beam.DoFn):
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
+        unused_key, ts = element
+        timer.set(ts)
+        timer.set(2 * ts)
+
+      @userstate.on_timer(timer_spec)
+      def process_timer(self):
+        yield 'fired'
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create([('k1', 10), ('k2', 100)])
+          | beam.ParDo(TimerDoFn())
+          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
+
+      expected = [('fired', ts) for ts in (20, 200)]
+      assert_that(actual, equal_to(expected))
+
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
