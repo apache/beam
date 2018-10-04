@@ -42,7 +42,7 @@ task copyDockerfileDependencies(type: Copy) {
 
 docker {
   name containerImageName(name: "python3")
-  files "./build/target"
+  files "./build"
 }
 
 dockerPrepare.dependsOn copyDockerfileDependencies
