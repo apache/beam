@@ -22,7 +22,7 @@ import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -83,14 +83,14 @@ public class BeamComplexTypeTest {
           "test_provider",
           ImmutableMap.of(
               "arrayWithRowTestTable",
-              MockedBoundedTable.of(FieldType.array(FieldType.row(innerRowSchema)), "col")
+              TestBoundedTable.of(FieldType.array(FieldType.row(innerRowSchema)), "col")
                   .addRows(
                       Arrays.asList(Row.withSchema(innerRowSchema).addValues("str", 1L).build())),
               "nestedArrayTestTable",
-              MockedBoundedTable.of(FieldType.array(FieldType.array(FieldType.INT64)), "col")
+              TestBoundedTable.of(FieldType.array(FieldType.array(FieldType.INT64)), "col")
                   .addRows(Arrays.asList(Arrays.asList(1L, 2L, 3L), Arrays.asList(4L, 5L))),
               "nestedRowTestTable",
-              MockedBoundedTable.of(Schema.FieldType.row(nestedRowSchema), "col")
+              TestBoundedTable.of(Schema.FieldType.row(nestedRowSchema), "col")
                   .addRows(
                       Row.withSchema(nestedRowSchema)
                           .addValues(
@@ -100,10 +100,10 @@ public class BeamComplexTypeTest {
                               Row.withSchema(innerRowSchema).addValues("inner_str_two", 3L).build())
                           .build()),
               "basicRowTestTable",
-              MockedBoundedTable.of(Schema.FieldType.row(innerRowSchema), "col")
+              TestBoundedTable.of(Schema.FieldType.row(innerRowSchema), "col")
                   .addRows(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build()),
               "rowWithArrayTestTable",
-              MockedBoundedTable.of(Schema.FieldType.row(rowWithArraySchema), "col")
+              TestBoundedTable.of(Schema.FieldType.row(rowWithArraySchema), "col")
                   .addRows(
                       Row.withSchema(rowWithArraySchema)
                           .addValues("str", 4L, Arrays.asList(5L, 6L))

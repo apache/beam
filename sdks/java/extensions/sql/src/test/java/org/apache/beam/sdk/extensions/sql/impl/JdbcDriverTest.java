@@ -43,9 +43,9 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -82,7 +82,7 @@ public class JdbcDriverTest {
           "test",
           ImmutableMap.of(
               "test",
-              MockedBoundedTable.of(
+              TestBoundedTable.of(
                       Schema.FieldType.INT32, "id",
                       Schema.FieldType.STRING, "name")
                   .addRows(1, "first")));
@@ -375,7 +375,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")
@@ -414,7 +414,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedUnboundedTable.of(
+                TestUnboundedTable.of(
                         Schema.FieldType.INT32, "order_id",
                         Schema.FieldType.INT32, "site_id",
                         Schema.FieldType.INT32, "price",

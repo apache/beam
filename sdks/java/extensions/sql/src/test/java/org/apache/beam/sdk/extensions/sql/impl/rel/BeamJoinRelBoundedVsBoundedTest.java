@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,15 +33,15 @@ import org.junit.Test;
 public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  public static final MockedBoundedTable ORDER_DETAILS1 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS1 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
-  public static final MockedBoundedTable ORDER_DETAILS2 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS2 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")

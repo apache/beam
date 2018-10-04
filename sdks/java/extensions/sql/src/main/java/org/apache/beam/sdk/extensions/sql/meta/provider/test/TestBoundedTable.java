@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.mock;
-
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlSchema;
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildRows;
+package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,13 +33,14 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /** Mocked table for bounded data sources. */
-public class MockedBoundedTable extends MockedTable {
+@Experimental
+public class TestBoundedTable extends TestTable {
   /** rows written to this table. */
   private static final ConcurrentLinkedQueue<Row> CONTENT = new ConcurrentLinkedQueue<>();
   /** rows flow out from this table. */
   private final List<Row> rows = new ArrayList<>();
 
-  public MockedBoundedTable(Schema beamSchema) {
+  public TestBoundedTable(Schema beamSchema) {
     super(beamSchema);
   }
 
@@ -51,20 +50,20 @@ public class MockedBoundedTable extends MockedTable {
    * <p>e.g.
    *
    * <pre>{@code
-   * MockedUnboundedTable
+   * TestUnboundedTable
    *   .of(Types.BIGINT, "order_id",
    *       Types.INTEGER, "site_id",
    *       Types.DOUBLE, "price",
    *       Types.TIMESTAMP, "order_time")
    * }</pre>
    */
-  public static MockedBoundedTable of(final Object... args) {
-    return new MockedBoundedTable(buildBeamSqlSchema(args));
+  public static TestBoundedTable of(final Object... args) {
+    return new TestBoundedTable(TestTableUtils.buildBeamSqlSchema(args));
   }
 
   /** Build a mocked bounded table with the specified type. */
-  public static MockedBoundedTable of(final Schema type) {
-    return new MockedBoundedTable(type);
+  public static TestBoundedTable of(final Schema type) {
+    return new TestBoundedTable(type);
   }
 
   /**
@@ -80,8 +79,8 @@ public class MockedBoundedTable extends MockedTable {
    * )
    * }</pre>
    */
-  public MockedBoundedTable addRows(Object... args) {
-    List<Row> rows = buildRows(getSchema(), Arrays.asList(args));
+  public TestBoundedTable addRows(Object... args) {
+    List<Row> rows = TestTableUtils.buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }
