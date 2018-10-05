@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.OperatorTests;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.OperatorTestUtils;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
@@ -35,7 +35,7 @@ public class SplitTest {
   @Test
   public void testBuild() {
     final String opName = "split";
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
 
     final Split.Output<String> split =
         Split.named(opName).of(dataset).using((UnaryPredicate<String>) what -> true).output();
@@ -50,7 +50,7 @@ public class SplitTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Split.Output<String> split =
         Split.of(dataset).using((UnaryPredicate<String>) what -> true).output();
 
@@ -67,7 +67,8 @@ public class SplitTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testBuild_NegatedPredicate() {
-    final Dataset<Integer> dataset = OperatorTests.createMockDataset(TypeDescriptors.integers());
+    final Dataset<Integer> dataset =
+        OperatorTestUtils.createMockDataset(TypeDescriptors.integers());
     final Split.Output<Integer> split =
         Split.of(dataset).using((UnaryPredicate<Integer>) what -> what % 2 == 0).output();
 

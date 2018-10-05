@@ -111,7 +111,7 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
     private Factory() {}
 
     /**
-     * Before running another test, clear method must be called to delete metrics snapshots
+     * Before running another test, clear method must be called to delete metrics snapshots.
      *
      * @return SingleJvmAccumulatorFactory
      */

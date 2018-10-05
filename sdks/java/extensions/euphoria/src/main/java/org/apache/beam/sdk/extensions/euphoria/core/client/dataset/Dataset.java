@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -53,8 +54,8 @@ public class Dataset<T> implements PValue {
   private Dataset(PCollection<T> pCollection, @Nullable Operator producer) {
     this.pCollection = pCollection;
     this.producer = producer;
-    if(pCollection.getTypeDescriptor() == null){
-      pCollection.setTypeDescriptor(TypeAwares.orObjects(Optional.empty()));
+    if (pCollection.getTypeDescriptor() == null) {
+      pCollection.setTypeDescriptor(TypeAwareness.orObjects(Optional.empty()));
     }
   }
 
@@ -63,10 +64,14 @@ public class Dataset<T> implements PValue {
     return pCollection.getName();
   }
 
+  /**
+   * @deprecated Not intended to be expanded.
+   * @return empty map
+   */
   @Deprecated
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return null;
+    return Collections.emptyMap();
   }
 
   @Override

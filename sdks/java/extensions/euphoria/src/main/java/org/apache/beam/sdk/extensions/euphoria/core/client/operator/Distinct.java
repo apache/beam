@@ -96,14 +96,14 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     return new Builder(name);
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for the 'mapped' step */
+  /** Builder for the 'mapped' step. */
   public interface MappedBuilder<InputT, OutputT> extends WindowByBuilder<OutputT> {
 
     /**
@@ -125,7 +125,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
         UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType);
   }
 
-  /** Builder for the 'windowBy' step */
+  /** Builder for the 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
           OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
@@ -141,7 +141,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     }
   }
 
-  /** Builder for the 'triggeredBy' step */
+  /** Builder for the 'triggeredBy' step. */
   public interface TriggerByBuilder<OutputT>
       extends Builders.TriggeredBy<AccumulationModeBuilder<OutputT>> {
 
@@ -149,7 +149,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger);
   }
 
-  /** Builder for the 'accumulationMode' step */
+  /** Builder for the 'accumulationMode' step. */
   public interface AccumulationModeBuilder<OutputT>
       extends Builders.AccumulationMode<WindowedOutputBuilder<OutputT>> {
 
@@ -158,11 +158,11 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
         WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
 
-  /** Builder for the 'output' step */
+  /** Builder for the 'output' step. */
   public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
   private static class Builder<InputT, OutputT>

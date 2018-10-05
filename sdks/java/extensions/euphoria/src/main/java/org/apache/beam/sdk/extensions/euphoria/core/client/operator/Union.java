@@ -105,7 +105,7 @@ public class Union<InputT> extends Operator<InputT> {
     return new Builder<>(name);
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public abstract static class OfBuilder {
 
     /**

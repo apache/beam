@@ -38,7 +38,7 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted =
         SumByKey.named("SumByKey1").of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
@@ -51,7 +51,7 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted = SumByKey.of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
     final SumByKey sum = (SumByKey) counted.getProducer().get();
@@ -60,7 +60,7 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted =
         SumByKey.of(dataset)
             .keyBy(s -> s)
@@ -84,7 +84,7 @@ public class SumByKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted =
         SumByKey.of(dataset)
             .keyBy(s -> s)

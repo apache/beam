@@ -70,7 +70,7 @@ public class SingleJvmAccumulatorProviderTest {
     // collector.getTimer() <- not yet supported
   }
 
-  /** need to delete all metrics from accumulator before running another test */
+  /** We need to delete all metrics from accumulator before running another test. */
   @After
   public void cleanUp() {
     accFactory.clear();
