@@ -65,8 +65,12 @@ task createDockerContainer(type: Exec) {
   ext.containerId = {
     return standardOutput.toString().trim()
   }
+  def extraOptions = ''
+  if (project.hasProperty('publishJekyllPort')) {
+    extraOptions = '-p 127.0.0.1:4000:4000'
+  }
   commandLine '/bin/bash', '-c',
-    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) -p 127.0.0.1:4000:4000 $dockerImageTag"
+    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
 }
 
 task startDockerContainer(type: Exec) {
