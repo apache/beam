@@ -225,7 +225,7 @@ class PipelineOptions(HasDisplayData):
       # repeat parsing with unknown options added
       known_args, unknown_args = parser.parse_known_args(self._flags)
       if unknown_args:
-        logging.warn("Discarding unparseable args: %s", unknown_args)
+        logging.warning("Discarding unparseable args: %s", unknown_args)
 
     result = vars(known_args)
 
