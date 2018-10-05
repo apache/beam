@@ -124,7 +124,7 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
-    'typing>=3.6.0,<3.7.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
