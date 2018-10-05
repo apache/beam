@@ -91,6 +91,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     registerFunctions(sqlEnv);
 
+    // overwrite BeamSQL's planner constructor.
+    sqlEnv.setPlannerConstructor(input.getPipeline().getOptions());
+
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
 

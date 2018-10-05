@@ -18,9 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.common.collect.ImmutableList;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -56,6 +60,7 @@ class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
   private final FrameworkConfig config;
+  private Constructor plannerImplConstructor;
 
   BeamQueryPlanner(CalciteConnection connection) {
     final CalciteConnectionConfig config = connection.config();
@@ -97,6 +102,24 @@ class BeamQueryPlanner {
             .typeSystem(connection.getTypeFactory().getTypeSystem())
             .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
             .build();
+
+    plannerImplConstructor =
+        getPlannerConstructorFromPipelineOptions(PipelineOptionsFactory.create());
+  }
+
+  public static Constructor getPlannerConstructorFromPipelineOptions(PipelineOptions options) {
+    String plannerImplClassName = null;
+    try {
+      plannerImplClassName = options.as(BeamSqlPipelineOptions.class).getPlannerImplClassName();
+      return Class.forName(plannerImplClassName).getConstructor(FrameworkConfig.class);
+    } catch (NoSuchMethodException | ClassNotFoundException e) {
+      throw new RuntimeException(
+          "Cannot initialize plannerImplConstructor by " + plannerImplClassName, e);
+    }
+  }
+
+  public void setPlannerConstructor(Constructor constructor) {
+    this.plannerImplConstructor = constructor;
   }
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
@@ -142,6 +165,11 @@ class BeamQueryPlanner {
   }
 
   private Planner getPlanner() {
-    return Frameworks.getPlanner(config);
+    try {
+      return (Planner) plannerImplConstructor.newInstance(config);
+    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new IllegalArgumentException(
+          "Using an illegal plannerImplConstructor: " + plannerImplConstructor.toString(), e);
+    }
   }
 }

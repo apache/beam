@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -81,6 +82,11 @@ public class BeamSqlEnv {
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
+  }
+
+  public void setPlannerConstructor(PipelineOptions options) {
+    planner.setPlannerConstructor(
+        BeamQueryPlanner.getPlannerConstructorFromPipelineOptions(options));
   }
 
   /**
