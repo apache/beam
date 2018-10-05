@@ -168,8 +168,9 @@ please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mi
 #### Website development setup
 
 Updating the Beam website requires submitting PRs to both the main `apache/beam`
-repo and the `apache/beam-site` repo. The first contains most of the website
-sources, while the second contains reference manual generated from SDK code.
+repo and the `apache/beam-site` repo. The first contains reference manuals
+generated from SDK code, while the second updates the current release version
+number.
 
 You should already have setup a local clone of `apache/beam`. Setting up a clone
 of `apache/beam-site` is similar:
@@ -601,15 +602,9 @@ This pull request is against the `apache/beam` repo, on the `master` branch.
 * Update the `release_latest` version flag in `/website/_config.yml`, and list
   the new release in `/website/src/get-started/downloads.md`, linking to the
   source code download and the Release Notes in JIRA.
-* Update the `RedirectMatch` rule in `/website/src/.htaccess` to point to the
-  new release.
-
-  ```
-  For example, change:
-    RedirectMatch "/releases/([^/]+)/current(.*)" "https://beam.apache.org/releases/$1/2.6.0$2"
-  to
-    RedirectMatch "/releases/([^/]+)/current(.*)" "https://beam.apache.org/releases/$1/2.7.0$2"
-  ```
+* Update the `RedirectMatch` rule in
+  [/website/src/.htaccess](https://github.com/apache/beam/blob/master/website/src/.htaccess)
+  to point to the new release. See file history for examples.
 
 #### Build and stage python wheels
 
