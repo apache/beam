@@ -139,8 +139,7 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     # oauth2client >=4 only works with google-apitools>=0.5.18.
     'google-apitools>=0.5.18,<=0.5.20',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
+    'google-cloud-datastore>=1.00,<=2.0.0dev',
     'google-cloud-pubsub==0.26.0',
     'proto-google-cloud-pubsub-v1==0.15.4',
     # GCP packages required by tests
