@@ -76,14 +76,14 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     return new Builder(name);
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> ByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for the 'by' step */
+  /** Builder for the 'by' step. */
   public interface ByBuilder<InputT> {
 
     /**
@@ -96,6 +96,7 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     Builders.Output<InputT> by(UnaryPredicate<InputT> predicate);
   }
 
+  /** Builder for 'output' step. */
   public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
 
   private static class Builder<InputT>

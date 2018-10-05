@@ -22,7 +22,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.CollectorAdapter;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -53,7 +53,7 @@ public class FlatMapTranslator<InputT, OutputT>
             operator.getEventTimeExtractor().orElse(null));
     return OperatorTranslators.getSingleInput(inputs)
         .apply("mapper", ParDo.of(mapper))
-        .setTypeDescriptor(TypeAwares.orObjects(operator.getOutputType()));
+        .setTypeDescriptor(TypeAwareness.orObjects(operator.getOutputType()));
   }
 
   private static class Mapper<InputT, OutputT> extends DoFn<InputT, OutputT> {

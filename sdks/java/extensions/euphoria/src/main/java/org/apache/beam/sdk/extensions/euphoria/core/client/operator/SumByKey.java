@@ -33,7 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -104,14 +104,14 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     return new Builder(name);
   }
 
-  /** Builder for 'of' step */
+  /** Builder for 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for 'keyBy' step */
+  /** Builder for 'keyBy' step. */
   public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
 
     @Override
@@ -124,13 +124,13 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     }
   }
 
-  /** Builder for 'valueBy' step */
+  /** Builder for 'valueBy' step. */
   public interface ValueByBuilder<InputT, KeyT> extends WindowByBuilder<KeyT> {
 
     WindowByBuilder<KeyT> valueBy(UnaryFunction<InputT, Long> valueExtractor);
   }
 
-  /** Builder for 'windowBy' step */
+  /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<KeyT>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT>>,
           OptionalMethodBuilder<WindowByBuilder<KeyT>, OutputBuilder<KeyT>>,
@@ -146,7 +146,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     }
   }
 
-  /** Builder for 'triggeredBy' step */
+  /** Builder for 'triggeredBy' step. */
   public interface TriggeredByBuilder<KeyT>
       extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT>> {
 
@@ -154,7 +154,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     AccumulationModeBuilder<KeyT> triggeredBy(Trigger trigger);
   }
 
-  /** Builder for 'accumulationMode' step */
+  /** Builder for 'accumulationMode' step. */
   public interface AccumulationModeBuilder<KeyT>
       extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT>> {
 
@@ -163,11 +163,11 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
         WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>, OutputBuilder<KeyT> {}
 
-  /** Builder for 'output' step */
+  /** Builder for 'output' step. */
   public interface OutputBuilder<KeyT> extends Builders.Output<KV<KeyT, Long>> {}
 
   /**
@@ -279,7 +279,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
               valueExtractor,
               windowBuilder.getWindow().orElse(null),
               TypeUtils.keyValues(
-                  TypeAwares.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
+                  TypeAwareness.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
       return OperatorTransform.apply(sbk, Collections.singletonList(input));
     }
   }

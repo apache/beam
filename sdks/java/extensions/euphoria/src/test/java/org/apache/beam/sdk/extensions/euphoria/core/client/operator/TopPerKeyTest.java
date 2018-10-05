@@ -38,7 +38,7 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
     final Dataset<Triple<String, Long, Long>> result =
@@ -71,7 +71,7 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset).keyBy(s -> s).valueBy(s -> 1L).scoreBy(s -> 1L).output();
     assertTrue(result.getProducer().isPresent());
@@ -81,7 +81,7 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset)
             .keyBy(s -> s)
@@ -104,7 +104,7 @@ public class TopPerKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset)
             .keyBy(s -> s)

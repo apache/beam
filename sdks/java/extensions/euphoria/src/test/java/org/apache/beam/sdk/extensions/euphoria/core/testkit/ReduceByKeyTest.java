@@ -645,6 +645,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       return true;
     }
 
+    /**
+     * @param other
+     * @return
+     * @deprecated deprecated in super class
+     */
     @Deprecated
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
@@ -756,6 +761,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
     }
 
+    /**
+     * @param other
+     * @return
+     * @deprecated deprecated in super class
+     */
     @Deprecated
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {

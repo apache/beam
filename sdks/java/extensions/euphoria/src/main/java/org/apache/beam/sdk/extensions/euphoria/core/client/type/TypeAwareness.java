@@ -20,7 +20,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 import java.util.Optional;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-public class TypeAwares {
+/** Utility methods related to type awareness. */
+public class TypeAwareness {
 
   private static final TypeDescriptor<Object> OBJECT_TYPE = new TypeDescriptor<Object>() {};
 

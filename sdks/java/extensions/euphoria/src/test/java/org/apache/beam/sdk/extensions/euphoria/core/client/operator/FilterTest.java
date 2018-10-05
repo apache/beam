@@ -31,7 +31,7 @@ public class FilterTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> filtered =
         Filter.named("Filter1").of(dataset).by(s -> !s.equals("")).output();
     assertTrue(filtered.getProducer().isPresent());
@@ -43,7 +43,7 @@ public class FilterTest {
 
   @Test
   public void testBuild_implicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
     assertTrue(filtered.getProducer().isPresent());
     final Filter filter = (Filter) filtered.getProducer().get();

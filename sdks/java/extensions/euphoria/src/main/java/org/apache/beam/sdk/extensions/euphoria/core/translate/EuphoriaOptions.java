@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 /** Pipeline options related to Euphoria DSL translation. */
 public interface EuphoriaOptions extends PipelineOptions {
 
+  /** {@link DefaultValueFactory} of {@link TranslatorProvider}. */
   class DefaultTranslatorProviderFactory implements DefaultValueFactory<TranslatorProvider> {
 
     @Override
@@ -44,6 +45,7 @@ public interface EuphoriaOptions extends PipelineOptions {
     }
   }
 
+  /** {@link DefaultValueFactory} of {@link AccumulatorProvider.Factory}. */
   class DefaultAccumulatorProviderFactory
       implements DefaultValueFactory<AccumulatorProvider.Factory> {
 

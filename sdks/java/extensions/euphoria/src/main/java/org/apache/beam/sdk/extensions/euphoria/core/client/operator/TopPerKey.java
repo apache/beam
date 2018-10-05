@@ -110,14 +110,14 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     return new Builder<>(name);
   }
 
-  /** Builder for 'of' step */
+  /** Builder for 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for 'keyBy' step */
+  /** Builder for 'keyBy' step. */
   public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
 
     @Override
@@ -130,7 +130,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
   }
 
-  /** Builder for 'valueBy' step */
+  /** Builder for 'valueBy' step. */
   public interface ValueByBuilder<InputT, KeyT> {
 
     default <ValueT> ScoreBy<InputT, KeyT, ValueT> valueBy(
@@ -142,7 +142,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
         UnaryFunction<InputT, ValueT> valueExtractor, @Nullable TypeDescriptor<ValueT> valueType);
   }
 
-  /** Builder for 'scoreBy' step */
+  /** Builder for 'scoreBy' step. */
   public interface ScoreBy<InputT, KeyT, ValueT> {
 
     default <ScoreT extends Comparable<ScoreT>> WindowByBuilder<KeyT, ValueT, ScoreT> scoreBy(
@@ -154,7 +154,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
         UnaryFunction<InputT, ScoreT> scoreFn, @Nullable TypeDescriptor<ScoreT> scoreType);
   }
 
-  /** Builder for 'windowBy' step */
+  /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT, ValueT, ScoreT>>,
           OptionalMethodBuilder<
@@ -174,7 +174,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
   }
 
-  /** Builder for 'triggeredBy' step */
+  /** Builder for 'triggeredBy' step. */
   public interface TriggeredByBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
       extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, ValueT, ScoreT>> {
 
@@ -182,7 +182,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     AccumulationModeBuilder<KeyT, ValueT, ScoreT> triggeredBy(Trigger trigger);
   }
 
-  /** Builder for 'accumulationMode' step */
+  /** Builder for 'accumulationMode' step. */
   public interface AccumulationModeBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
       extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, ValueT, ScoreT>> {
 
@@ -191,12 +191,12 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
         WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
       extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, ValueT, ScoreT>>,
           OutputBuilder<KeyT, ValueT, ScoreT> {}
 
-  /** Builder for 'output' step */
+  /** Builder for 'output' step. */
   public interface OutputBuilder<KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
       extends Builders.Output<Triple<KeyT, ValueT, ScoreT>> {}
 

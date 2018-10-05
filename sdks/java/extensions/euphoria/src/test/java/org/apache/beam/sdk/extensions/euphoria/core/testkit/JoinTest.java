@@ -792,6 +792,11 @@ public class JoinTest extends AbstractOperatorTest {
       // no merging
     }
 
+    /**
+     * @param other
+     * @return
+     * @deprecated deprecated in super class
+     */
     @Deprecated
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
