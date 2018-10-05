@@ -97,7 +97,7 @@ Python:
 
 ### Implementing unit tests {#implementing-unit-tests}
 
-A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
+A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
 
 If you are using the `Source` API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java">`SourceTestUtils`</span><span class="language-py">`source_test_utils`</span> - it is a key piece of testing `Source` implementations.
 
@@ -164,13 +164,13 @@ Prerequisites:
 
 You won’t need to invoke PerfKit Benchmarker directly. Run `./gradlew performanceTest` task in project's root directory, passing kubernetes scripts of your choice (located in .test_infra/kubernetes directory). It will setup PerfKitBenchmarker for you.  
 
-Example run with the [Direct](https://beam.apache.org/documentation/runners/direct/) runner:
+Example run with the [Direct]({{ site.baseurl }}/documentation/runners/direct/) runner:
 ```
 ./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=direct
 ```
 
 
-Example run with the [Google Cloud Dataflow](https://beam.apache.org/documentation/runners/dataflow/) runner:
+Example run with the [Google Cloud Dataflow]({{ site.baseurl }}/documentation/runners/dataflow/) runner:
 ```
 ./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=dataflow
 ```
