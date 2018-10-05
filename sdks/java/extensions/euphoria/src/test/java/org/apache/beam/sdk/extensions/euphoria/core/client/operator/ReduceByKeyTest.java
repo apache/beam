@@ -43,7 +43,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
     final Dataset<KV<String, Long>> reduced =
@@ -77,7 +77,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_OutputValues() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Long> reduced =
         ReduceByKey.named("ReduceByKeyValues")
             .of(dataset)
@@ -94,7 +94,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -108,7 +108,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_ReduceBy() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -122,7 +122,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -148,7 +148,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_sortedValues() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -166,7 +166,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testBuild_sortedValuesWithNoWindowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -181,7 +181,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -207,7 +207,7 @@ public class ReduceByKeyTest {
 
   @Test
   public void testWindow_applyIfNot() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> reduced =
         ReduceByKey.of(dataset)
             .keyBy(s -> s)
@@ -228,7 +228,7 @@ public class ReduceByKeyTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testTypeHints_typePropagation() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final TypeDescriptor<String> keyType = TypeDescriptors.strings();
     final TypeDescriptor<Long> valueType = TypeDescriptors.longs();
     final TypeDescriptor<Long> outputType = TypeDescriptors.longs();

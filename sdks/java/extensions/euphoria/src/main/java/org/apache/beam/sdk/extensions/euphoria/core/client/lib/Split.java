@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.lib;
 
-import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
@@ -75,7 +74,7 @@ public class Split {
   }
 
   /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
-  public static class OutputBuilder<InputT> implements Serializable {
+  public static class OutputBuilder<InputT> {
     private final String name;
     private final Dataset<InputT> input;
     private final UnaryPredicate<InputT> predicate;

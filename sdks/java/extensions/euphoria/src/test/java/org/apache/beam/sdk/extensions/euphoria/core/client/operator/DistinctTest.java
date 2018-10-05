@@ -36,7 +36,7 @@ public class DistinctTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
     final Dataset<String> uniq =
@@ -63,7 +63,7 @@ public class DistinctTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> uniq = Distinct.of(dataset).output();
     assertTrue(uniq.getProducer().isPresent());
     final Distinct distinct = (Distinct) uniq.getProducer().get();
@@ -72,7 +72,7 @@ public class DistinctTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> uniq =
         Distinct.of(dataset)
             .windowBy(FixedWindows.of(org.joda.time.Duration.standardHours(1)))
@@ -91,7 +91,7 @@ public class DistinctTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> uniq =
         Distinct.of(dataset)
             .applyIf(

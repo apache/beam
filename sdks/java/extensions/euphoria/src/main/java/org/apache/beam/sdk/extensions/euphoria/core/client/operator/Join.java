@@ -33,7 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -104,13 +104,13 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     FULL
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public interface OfBuilder {
 
     <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
   }
 
-  /** Builder for the 'by' step */
+  /** Builder for the 'by' step. */
   public interface ByBuilder<LeftT, RightT> {
 
     <K> UsingBuilder<LeftT, RightT, K> by(
@@ -124,7 +124,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
   }
 
-  /** Builder for the 'using' step */
+  /** Builder for the 'using' step. */
   public interface UsingBuilder<LeftT, RightT, KeyT> {
 
     <OutputT> WindowByBuilder<KeyT, OutputT> using(
@@ -137,7 +137,7 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
   }
 
-  /** Builder for the 'windowBy' step */
+  /** Builder for the 'windowBy' step. */
   public interface WindowByBuilder<KeyT, OutputT>
       extends OptionalMethodBuilder<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>>,
           Builders.WindowBy<TriggeredByBuilder<KeyT, OutputT>>,
@@ -151,15 +151,15 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
   }
 
-  /** Builder for the 'triggeredBy' step */
+  /** Builder for the 'triggeredBy' step. */
   public interface TriggeredByBuilder<KeyT, OutputT>
       extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, OutputT>> {}
 
-  /** Builder for the 'accumulatorMode' step */
+  /** Builder for the 'accumulatorMode' step. */
   public interface AccumulationModeBuilder<KeyT, OutputT>
       extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, OutputT>> {}
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT, OutputT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, OutputT>>,
           OutputBuilder<KeyT, OutputT> {}
@@ -200,9 +200,10 @@ public class Join<LeftT, RightT, KeyT, OutputT>
     }
 
     @Override
-    public <T, S> ByBuilder<T, S> of(Dataset<T> left, Dataset<S> right) {
+    public <LeftElT, RightElT> ByBuilder<LeftElT, RightElT> of(
+        Dataset<LeftElT> left, Dataset<RightElT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<T, S, ?, ?> casted = (Builder) this;
+      final Builder<LeftElT, RightElT, ?, ?> casted = (Builder) this;
       casted.left = requireNonNull(left);
       casted.right = requireNonNull(right);
       return casted;
@@ -288,8 +289,8 @@ public class Join<LeftT, RightT, KeyT, OutputT>
               keyType,
               joinFunc,
               TypeDescriptors.kvs(
-                  TypeAwares.orObjects(Optional.ofNullable(keyType)),
-                  TypeAwares.orObjects(Optional.ofNullable(outputType))),
+                  TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+                  TypeAwareness.orObjects(Optional.ofNullable(outputType))),
               windowBuilder.getWindow().orElse(null));
       @SuppressWarnings("unchecked")
       final List<Dataset<Object>> inputs = Arrays.asList((Dataset) left, (Dataset) right);

@@ -83,7 +83,7 @@ public class SingleValueCollectorTest {
     // collector.getTimer() <- not yet supported
   }
 
-  /** need to delete all metrics from accumulator before running another test */
+  /** need to delete all metrics from accumulator before running another test. */
   @After
   public void cleanUp() {
     accumulatorFactory.clear();

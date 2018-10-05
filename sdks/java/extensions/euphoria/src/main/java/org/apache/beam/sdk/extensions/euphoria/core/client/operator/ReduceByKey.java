@@ -39,7 +39,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -120,14 +120,14 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     return new Builder(name);
   }
 
-  /** Builder for 'of' step */
+  /** Builder for 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for 'keyBy' step */
+  /** Builder for 'keyBy' step. */
   public interface KeyByBuilder<InputT> extends Builders.KeyBy<InputT> {
 
     @Override
@@ -141,7 +141,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
   }
 
-  /** Builder for 'reduceBy' step */
+  /** Builder for 'reduceBy' step. */
   public interface ReduceByBuilder<KeyT, ValueT> {
 
     /**
@@ -201,7 +201,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
   }
 
-  /** Builder for 'valueBy' / 'reduceBy' step */
+  /** Builder for 'valueBy' / 'reduceBy' step. */
   public interface ValueByReduceByBuilder<InputT, KeyT, ValueT>
       extends ReduceByBuilder<KeyT, ValueT> {
 
@@ -223,7 +223,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
   }
 
-  /** Builder for 'withSortedValues' step */
+  /** Builder for 'withSortedValues' step. */
   public interface WithSortedValuesBuilder<KeyT, ValueT, OutputT>
       extends WindowByBuilder<KeyT, OutputT> {
 
@@ -237,7 +237,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
         BinaryFunction<ValueT, ValueT, Integer> comparator);
   }
 
-  /** Internal builder for 'windowBy' step */
+  /** Internal builder for 'windowBy' step. */
   @Internal
   public interface WindowByInternalBuilder<InputT, KeyT, OutputT> {
 
@@ -251,7 +251,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     OutputBuilder<KeyT, OutputT> windowBy(Window<InputT> window);
   }
 
-  /** Builder for 'windowBy' step */
+  /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<KeyT, OutputT>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT, OutputT>>,
           OptionalMethodBuilder<WindowByBuilder<KeyT, OutputT>, OutputBuilder<KeyT, OutputT>>,
@@ -270,7 +270,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
   }
 
-  /** Builder for 'triggeredBy' step */
+  /** Builder for 'triggeredBy' step. */
   public interface TriggeredByBuilder<KeyT, OutputT>
       extends Builders.TriggeredBy<AccumulationModeBuilder<KeyT, OutputT>> {
 
@@ -278,7 +278,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     AccumulationModeBuilder<KeyT, OutputT> triggeredBy(Trigger trigger);
   }
 
-  /** Builder for 'accumulationMode' step */
+  /** Builder for 'accumulationMode' step. */
   public interface AccumulationModeBuilder<KeyT, OutputT>
       extends Builders.AccumulationMode<WindowedOutputBuilder<KeyT, OutputT>> {
 
@@ -287,12 +287,12 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
         WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT, OutputT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT, OutputT>>,
           OutputBuilder<KeyT, OutputT> {}
 
-  /** Builder for 'output' step */
+  /** Builder for 'output' step. */
   public interface OutputBuilder<KeyT, OutputT>
       extends Builders.Output<KV<KeyT, OutputT>>, Builders.OutputValues<KeyT, OutputT> {}
 
@@ -448,8 +448,8 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
               valueComparator,
               windowBuilder.getWindow().orElse(null),
               TypeDescriptors.kvs(
-                  TypeAwares.orObjects(Optional.ofNullable(keyType)),
-                  TypeAwares.orObjects(Optional.ofNullable(outputType))));
+                  TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+                  TypeAwareness.orObjects(Optional.ofNullable(outputType))));
       return OperatorTransform.apply(rbk, Collections.singletonList(input));
     }
 

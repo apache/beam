@@ -39,7 +39,7 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
     final Dataset<KV<String, Long>> counted =
@@ -66,7 +66,7 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted = CountByKey.of(dataset).keyBy(s -> s).output();
     assertTrue(counted.getProducer().isPresent());
     final CountByKey count = (CountByKey) counted.getProducer().get();
@@ -75,7 +75,7 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
@@ -95,7 +95,7 @@ public class CountByKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
     final Dataset<KV<String, Long>> counted =
@@ -115,7 +115,7 @@ public class CountByKeyTest {
 
   @Test
   public void testBuildTypePropagation() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final TypeDescriptor<String> keyType = TypeDescriptors.strings();
     final Dataset<KV<String, Long>> counted =
         CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s, keyType).output();

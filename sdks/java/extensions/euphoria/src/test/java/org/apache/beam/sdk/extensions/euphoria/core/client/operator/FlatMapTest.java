@@ -33,7 +33,7 @@ public class FlatMapTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped =
         FlatMap.named("FlatMap1")
             .of(dataset)
@@ -49,7 +49,7 @@ public class FlatMapTest {
 
   @Test
   public void testBuild_EventTimeExtractor() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<BigDecimal> mapped =
         FlatMap.named("FlatMap2")
             .of(dataset)
@@ -66,7 +66,7 @@ public class FlatMapTest {
 
   @Test
   public void testBuild_WithCounters() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped =
         FlatMap.named("FlatMap1")
             .of(dataset)
@@ -85,7 +85,7 @@ public class FlatMapTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped =
         FlatMap.of(dataset).using((String s, Collector<String> c) -> c.collect(s)).output();
     assertTrue(mapped.getProducer().isPresent());

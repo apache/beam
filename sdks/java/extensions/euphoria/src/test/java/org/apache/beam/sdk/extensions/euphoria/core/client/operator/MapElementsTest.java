@@ -33,7 +33,7 @@ public class MapElementsTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
     assertTrue(mapped.getProducer().isPresent());
     final MapElements map = (MapElements) mapped.getProducer().get();
@@ -44,7 +44,7 @@ public class MapElementsTest {
 
   @Test
   public void testBuild_WithCounters() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped =
         MapElements.named("Map1")
             .of(dataset)
@@ -66,7 +66,7 @@ public class MapElementsTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
     assertTrue(mapped.getProducer().isPresent());
     final MapElements map = (MapElements) mapped.getProducer().get();
@@ -76,7 +76,7 @@ public class MapElementsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testTypePropagation() {
-    final Dataset<Integer> input = OperatorTests.createMockDataset(TypeDescriptors.integers());
+    final Dataset<Integer> input = OperatorTestUtils.createMockDataset(TypeDescriptors.integers());
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
     final Dataset<String> mapped =
         MapElements.named("Int2Str").of(input).using(String::valueOf, outputType).output();

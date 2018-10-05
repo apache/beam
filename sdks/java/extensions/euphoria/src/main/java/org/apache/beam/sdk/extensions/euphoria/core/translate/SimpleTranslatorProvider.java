@@ -37,6 +37,7 @@ public class SimpleTranslatorProvider implements TranslatorProvider {
     return new Builder();
   }
 
+  /** {@link SimpleTranslatorProvider} builder. */
   public static class Builder {
 
     private final Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators =
