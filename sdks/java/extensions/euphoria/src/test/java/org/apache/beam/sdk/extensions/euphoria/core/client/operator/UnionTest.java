@@ -31,11 +31,11 @@ public class UnionTest {
 
   @Test
   public void testBuild() {
-    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
     final Dataset<String> unioned = Union.named("Union1").of(left, right).output();
 
@@ -47,19 +47,19 @@ public class UnionTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testBuild_OneDataSet() {
-    final Dataset<String> first = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> first = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     Union.named("Union1").of(first).output();
   }
 
   @Test
   public void testBuild_ThreeDataSet() {
-    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> first =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> second =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> third =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
     final Dataset<String> unioned = Union.named("Union1").of(first, second, third).output();
 
@@ -71,11 +71,11 @@ public class UnionTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final TestPipeline pipeline = OperatorTests.createTestPipeline();
+    final TestPipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> unioned = Union.of(left, right).output();
     assertTrue(unioned.getProducer().isPresent());
     final Union union = (Union) unioned.getProducer().get();

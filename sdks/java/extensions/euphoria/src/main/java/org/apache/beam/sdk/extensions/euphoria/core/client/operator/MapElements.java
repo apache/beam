@@ -78,7 +78,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     return new Builder<>(name);
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override

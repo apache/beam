@@ -26,7 +26,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
 import org.apache.beam.sdk.transforms.Combine;
@@ -72,8 +72,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
             .apply("extract-keys", extractor)
             .setTypeDescriptor(
                 TypeDescriptors.kvs(
-                    TypeAwares.orObjects(operator.getKeyType()),
-                    TypeAwares.orObjects(operator.getValueType())));
+                    TypeAwareness.orObjects(operator.getKeyType()),
+                    TypeAwareness.orObjects(operator.getValueType())));
 
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(AccumulatorProvider.of(inputs.getPipeline()));
@@ -97,8 +97,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
         .apply("group", GroupByKey.create())
         .setTypeDescriptor(
             TypeDescriptors.kvs(
-                TypeAwares.orObjects(operator.getKeyType()),
-                TypeDescriptors.iterables(TypeAwares.orObjects(operator.getValueType()))))
+                TypeAwareness.orObjects(operator.getKeyType()),
+                TypeDescriptors.iterables(TypeAwareness.orObjects(operator.getValueType()))))
         .apply(
             "reduce",
             ParDo.of(new ReduceDoFn<>(reducer, accumulators, operator.getName().orElse(null))))

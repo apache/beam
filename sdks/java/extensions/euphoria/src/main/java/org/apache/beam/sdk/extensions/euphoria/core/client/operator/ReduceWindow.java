@@ -105,14 +105,14 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     return new Builder(name);
   }
 
-  /** Builder for 'of' step */
+  /** Builder for 'of' step. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
     <InputT> ValueByReduceByBuilder<InputT, InputT> of(Dataset<InputT> input);
   }
 
-  /** Builder for 'reduceBy' step */
+  /** Builder for 'reduceBy' step. */
   public interface ReduceByBuilder<ValueT> {
 
     /**
@@ -172,7 +172,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     }
   }
 
-  /** Builder for 'valueBy' / 'reduceBy' step */
+  /** Builder for 'valueBy' / 'reduceBy' step. */
   public interface ValueByReduceByBuilder<InputT, ValueT> extends ReduceByBuilder<ValueT> {
 
     /**
@@ -193,19 +193,19 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     }
   }
 
-  /** Builder for 'withSortedValues' step */
+  /** Builder for 'withSortedValues' step. */
   public interface WithSortedValuesBuilder<ValueT, OutputT> extends WindowByBuilder<OutputT> {
 
     /**
      * Sort values going to `reduceBy` function by given comparator.
      *
      * @param comparator function with contract defined by {@code java.util.Comparator#compare}.
-     * @return next step builder
+     * @return next step.builder
      */
     WindowByBuilder<OutputT> withSortedValues(BinaryFunction<ValueT, ValueT, Integer> comparator);
   }
 
-  /** Builder for 'windowBy' step */
+  /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggeredByBuilder<OutputT>>,
           OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
@@ -222,7 +222,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     }
   }
 
-  /** Builder for 'triggeredBy' step */
+  /** Builder for 'triggeredBy' step. */
   public interface TriggeredByBuilder<OutputT>
       extends Builders.TriggeredBy<AccumulationModeBuilder<OutputT>> {
 
@@ -230,7 +230,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger);
   }
 
-  /** Builder for 'accumulationMode' step */
+  /** Builder for 'accumulationMode' step. */
   public interface AccumulationModeBuilder<OutputT>
       extends Builders.AccumulationMode<WindowedOutputBuilder<OutputT>> {
 
@@ -239,10 +239,11 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
         WindowingStrategy.AccumulationMode accumulationMode);
   }
 
-  /** Builder for 'windowed output' step */
+  /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
       extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
 
+  /** Last 'output' builder. */
   public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
   /**

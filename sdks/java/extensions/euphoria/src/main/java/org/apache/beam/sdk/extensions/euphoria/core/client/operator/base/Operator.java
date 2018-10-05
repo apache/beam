@@ -31,7 +31,7 @@ public abstract class Operator<OutputT> implements Serializable, TypeAware.Outpu
   /** Name of the operator. */
   @Nullable private final String name;
 
-  /** The type of output elements */
+  /** The type of output elements. */
   @Nullable private final TypeDescriptor<OutputT> outputType;
 
   protected Operator(@Nullable String name, @Nullable TypeDescriptor<OutputT> outputType) {
@@ -40,7 +40,7 @@ public abstract class Operator<OutputT> implements Serializable, TypeAware.Outpu
   }
 
   /**
-   * Returns user provided name of the operator
+   * Returns user provided name of the operator.
    *
    * @return maybe name
    */

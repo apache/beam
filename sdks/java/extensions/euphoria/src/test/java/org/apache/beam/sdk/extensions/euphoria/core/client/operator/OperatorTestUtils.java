@@ -21,7 +21,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTranslator;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider;
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Utility class for easier creating input data sets for operator testing. */
-public class OperatorTests {
+public class OperatorTestUtils {
 
   private static class PrimitiveOutputTranslatorProvider implements TranslatorProvider {
 
@@ -49,7 +49,7 @@ public class OperatorTests {
                       inputs.get(0).getWindowingStrategy(),
                       inputs.get(0).isBounded(),
                       null)
-                  .setTypeDescriptor(TypeAwares.orObjects(operator.getOutputType())));
+                  .setTypeDescriptor(TypeAwareness.orObjects(operator.getOutputType())));
     }
   }
 

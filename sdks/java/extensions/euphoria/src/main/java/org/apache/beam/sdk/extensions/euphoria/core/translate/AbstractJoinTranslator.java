@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
-import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwares;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -41,12 +41,12 @@ abstract class AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT>
         left.apply(
             "extract-keys-left",
             new ExtractKey<>(
-                operator.getLeftKeyExtractor(), TypeAwares.orObjects(operator.getKeyType())));
+                operator.getLeftKeyExtractor(), TypeAwareness.orObjects(operator.getKeyType())));
     PCollection<KV<KeyT, RightT>> rightKeyed =
         right.apply(
             "extract-keys-right",
             new ExtractKey<>(
-                operator.getRightKeyExtractor(), TypeAwares.orObjects(operator.getKeyType())));
+                operator.getRightKeyExtractor(), TypeAwareness.orObjects(operator.getKeyType())));
     // apply windowing if specified
     if (operator.getWindow().isPresent()) {
       @SuppressWarnings("unchecked")

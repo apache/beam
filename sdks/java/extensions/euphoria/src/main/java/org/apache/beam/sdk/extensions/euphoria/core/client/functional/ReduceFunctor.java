@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 public interface ReduceFunctor<InputT, OutputT> extends UnaryFunctor<Stream<InputT>, OutputT> {
 
   /**
-   * Create reduce functor from combinable function
+   * Create reduce functor from combinable function.
    *
    * @param combinableFunction combinable function
    * @param <V> value type

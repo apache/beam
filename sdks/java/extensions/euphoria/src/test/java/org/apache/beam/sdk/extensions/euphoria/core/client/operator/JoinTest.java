@@ -47,11 +47,11 @@ public class JoinTest {
 
   @Test
   public void testBuild() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
@@ -73,11 +73,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_OutputValues() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
 
     final Dataset<String> joined =
         Join.named("JoinValues")
@@ -96,11 +96,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_WithCounters() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
@@ -123,11 +123,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         Join.of(left, right)
             .by(String::length, String::length)
@@ -143,11 +143,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_LeftJoin() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         LeftJoin.named("Join1")
             .of(left, right)
@@ -164,11 +164,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_RightJoin() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         RightJoin.named("Join1")
             .of(left, right)
@@ -185,11 +185,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_FullJoin() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         FullJoin.named("Join1")
             .of(left, right)
@@ -205,11 +205,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_Windowing() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
@@ -234,11 +234,11 @@ public class JoinTest {
 
   @Test
   public void testBuild_OptionalWindowing() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<KV<Integer, String>> joined =
         Join.named("Join1")
             .of(left, right)
@@ -264,11 +264,11 @@ public class JoinTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testBuildTypePropagation() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
     final Dataset<KV<Integer, String>> joined =
@@ -289,11 +289,11 @@ public class JoinTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testBuild_LeftJoinTypePropagation() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     TypeDescriptor<String> outputType = TypeDescriptors.strings();
     final Dataset<KV<Integer, String>> joined =
@@ -314,11 +314,11 @@ public class JoinTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testBuild_RightJoinTypePropagation() {
-    final Pipeline pipeline = OperatorTests.createTestPipeline();
+    final Pipeline pipeline = OperatorTestUtils.createTestPipeline();
     final Dataset<String> left =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final Dataset<String> right =
-        OperatorTests.createMockDataset(pipeline, TypeDescriptors.strings());
+        OperatorTestUtils.createMockDataset(pipeline, TypeDescriptors.strings());
     final TypeDescriptor<Integer> keyType = TypeDescriptors.integers();
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
     final Dataset<KV<Integer, String>> joined =

@@ -40,7 +40,7 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuild() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Long> output =
         ReduceWindow.of(dataset).valueBy(e -> "").reduceBy(e -> 1L).output();
     assertTrue(output.getProducer().isPresent());
@@ -52,7 +52,7 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithoutValue() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
@@ -81,7 +81,7 @@ public class ReduceWindowTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleBuildWithValueSorted() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)
@@ -97,7 +97,7 @@ public class ReduceWindowTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTests.createMockDataset(TypeDescriptors.strings());
+    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
     final Dataset<Long> output =
         ReduceWindow.of(dataset)
             .reduceBy(e -> 1L)

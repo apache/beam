@@ -140,22 +140,22 @@ public class Builders {
   }
 
   /**
-   * Builder for window optional parameters
+   * Builder for window optional parameters.
    *
    * @param <T> output builder type
    */
   public interface WindowedOutput<T extends WindowedOutput<T>> {
 
-    /** {@link Window#withAllowedLateness(Duration)} */
+    /** {@link Window#withAllowedLateness(Duration)}. */
     T withAllowedLateness(Duration allowedLateness);
 
-    /** {@link Window#withAllowedLateness(Duration, Window.ClosingBehavior)} */
+    /** {@link Window#withAllowedLateness(Duration, Window.ClosingBehavior)}. */
     T withAllowedLateness(Duration allowedLateness, Window.ClosingBehavior closingBehavior);
 
-    /** {@link Window#withTimestampCombiner(TimestampCombiner)} */
+    /** {@link Window#withTimestampCombiner(TimestampCombiner)}. */
     T withTimestampCombiner(TimestampCombiner timestampCombiner);
 
-    /** {@link Window#withOnTimeBehavior(Window.OnTimeBehavior)} */
+    /** {@link Window#withOnTimeBehavior(Window.OnTimeBehavior)}. */
     T withOnTimeBehavior(Window.OnTimeBehavior behavior);
   }
 

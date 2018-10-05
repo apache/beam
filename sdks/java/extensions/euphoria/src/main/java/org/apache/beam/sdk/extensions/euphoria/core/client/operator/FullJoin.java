@@ -80,13 +80,13 @@ public class FullJoin {
     return new Builder<>(name);
   }
 
-  /** Builder for the 'of' step */
+  /** Builder for the 'of' step. */
   public interface OfBuilder {
 
     <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
   }
 
-  /** Builder for the 'by' step */
+  /** Builder for the 'by' step. */
   public interface ByBuilder<LeftT, RightT> {
 
     <KeyT> UsingBuilder<LeftT, RightT, KeyT> by(
@@ -101,7 +101,7 @@ public class FullJoin {
     }
   }
 
-  /** Builder for the 'using' step */
+  /** Builder for the 'using' step. */
   public interface UsingBuilder<LeftT, RightT, KeyT> {
 
     <OutputT> Join.WindowByBuilder<KeyT, OutputT> using(
@@ -129,9 +129,10 @@ public class FullJoin {
     }
 
     @Override
-    public <T, S> ByBuilder<T, S> of(Dataset<T> left, Dataset<S> right) {
+    public <LeftElT, RightElT> ByBuilder<LeftElT, RightElT> of(
+        Dataset<LeftElT> left, Dataset<RightElT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<T, S, ?> casted = (Builder) this;
+      final Builder<LeftElT, RightElT, ?> casted = (Builder) this;
       casted.left = requireNonNull(left);
       casted.right = requireNonNull(right);
       return casted;

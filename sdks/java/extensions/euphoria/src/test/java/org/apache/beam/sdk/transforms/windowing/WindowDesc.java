@@ -21,7 +21,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
 /**
- * Exposes window package private properties for testing
+ * Exposes window package private properties for testing.
  *
  * @param <T> type of input element
  */
@@ -38,7 +38,7 @@ public class WindowDesc<T> {
   }
 
   /**
-   * {@link Window#getWindowFn()}
+   * {@link Window#getWindowFn()}.
    *
    * @return windowFn
    */
@@ -48,7 +48,7 @@ public class WindowDesc<T> {
   }
 
   /**
-   * {@link Window#getTrigger()}
+   * {@link Window#getTrigger()}.
    *
    * @return trigger
    */
@@ -57,7 +57,7 @@ public class WindowDesc<T> {
   }
 
   /**
-   * {@link Window#getAccumulationMode()}
+   * {@link Window#getAccumulationMode()}.
    *
    * @return accumulation mode
    */
@@ -66,7 +66,7 @@ public class WindowDesc<T> {
   }
 
   /**
-   * {@link Window#getAllowedLateness()}
+   * {@link Window#getAllowedLateness()}.
    *
    * @return allowed lateness
    */

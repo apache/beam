@@ -86,7 +86,7 @@ public class DocumentationExamplesTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Before
-  public void setup(){
+  public void setup() {
     KryoCoderProvider.of(k -> {}).registerTo(pipeline);
   }
 
@@ -107,7 +107,7 @@ public class DocumentationExamplesTest {
             .setTypeDescriptor(TypeDescriptor.of(String.class));
 
     // Transform PCollection to euphoria's Dataset.
-    Dataset<String> lines =  Dataset.of(input);
+    Dataset<String> lines = Dataset.of(input);
 
     // FlatMap processes one input element at a time and allows user code to emit
     // zero, one, or more output elements. From input lines we will get data set of words.
@@ -200,39 +200,40 @@ public class DocumentationExamplesTest {
   }
 
   @Test
-  public void codersAndTypesSection() { //TODO uncomment when https://github.com/seznam/beam/pull/40 is merged
-//    final PipelineOptions options = PipelineOptionsFactory.create();
-//    Pipeline pipeline = Pipeline.create(options);
-//
-//    KryoCoder<AnotherElementType> beamCoder = KryoCoder.withoutClassRegistration();
-//    KryoCoder<ParametrizedTestDataType<String>> typeParametrizedCoder =
-//        KryoCoder.withoutClassRegistration();
-//
-//    RegisterCoders.to(flow)
-//        .setKryoClassRegistrar(
-//            (kryo) -> {
-//              kryo.register(KryoSerializedElementType.class); //other may follow
-//            })
-//        .registerCoder(AnotherElementType.class, beamCoder)
-//        .registerCoder(
-//            new TypeDescriptor<ParametrizedTestDataType<String>>() {}, typeParametrizedCoder)
-//        .done();
-//
-//    Dataset<Integer> input = Util.createMockDataset(flow, 1);
-//
-//    MapElements.named("Int2Str")
-//        .of(input)
-//        .using(String::valueOf, TypeDescriptors.strings())
-//        .output();
+  public void
+      codersAndTypesSection() { //TODO uncomment when https://github.com/seznam/beam/pull/40 is merged
+    //    final PipelineOptions options = PipelineOptionsFactory.create();
+    //    Pipeline pipeline = Pipeline.create(options);
+    //
+    //    KryoCoder<AnotherElementType> beamCoder = KryoCoder.withoutClassRegistration();
+    //    KryoCoder<ParametrizedTestDataType<String>> typeParametrizedCoder =
+    //        KryoCoder.withoutClassRegistration();
+    //
+    //    RegisterCoders.to(flow)
+    //        .setKryoClassRegistrar(
+    //            (kryo) -> {
+    //              kryo.register(KryoSerializedElementType.class); //other may follow
+    //            })
+    //        .registerCoder(AnotherElementType.class, beamCoder)
+    //        .registerCoder(
+    //            new TypeDescriptor<ParametrizedTestDataType<String>>() {}, typeParametrizedCoder)
+    //        .done();
+    //
+    //    Dataset<Integer> input = Util.createMockDataset(flow, 1);
+    //
+    //    MapElements.named("Int2Str")
+    //        .of(input)
+    //        .using(String::valueOf, TypeDescriptors.strings())
+    //        .output();
   }
 
   @Test
   public void windowingSection() {
     //TODO this part needs revision, some windowing options may be missing
 
-
     Dataset<Integer> input =
-    Dataset.of(pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers()));
+        Dataset.of(
+            pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers()));
 
     Dataset<KV<Integer, Long>> countedElements =
         CountByKey.of(input)
@@ -277,7 +278,8 @@ public class DocumentationExamplesTest {
 
     Dataset<KV<Integer, Long>> keyValueInput =
         Dataset.of(
-            pipeline.apply("keyValueInput",
+            pipeline.apply(
+                "keyValueInput",
                 Create.of(
                     KV.of(1, 100L),
                     KV.of(3, 100_000L),
@@ -298,10 +300,10 @@ public class DocumentationExamplesTest {
   @Test
   public void batchJoinOperator() {
 
-    Dataset<Integer> left = Dataset.of(pipeline.apply("left",Create.of(1, 2, 3, 0, 4, 3, 1)));
+    Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
     Dataset<String> right =
         Dataset.of(
-            pipeline.apply("right",Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+            pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
@@ -335,7 +337,8 @@ public class DocumentationExamplesTest {
 
     Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
     Dataset<String> right =
-        Dataset.of((pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
+        Dataset.of(
+            (pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
@@ -374,7 +377,8 @@ public class DocumentationExamplesTest {
 
     Dataset<Integer> left = Dataset.of((pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))));
     Dataset<String> right =
-        Dataset.of((pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
+        Dataset.of(
+            (pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
@@ -413,7 +417,8 @@ public class DocumentationExamplesTest {
 
     Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
     Dataset<String> right =
-        Dataset.of(pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+        Dataset.of(
+            pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
@@ -466,8 +471,7 @@ public class DocumentationExamplesTest {
   @Test
   public void flatMapOperator() {
 
-    Dataset<String> words =
-        Dataset.of(pipeline.apply(Create.of(asList("Brown", "fox", ".", ""))));
+    Dataset<String> words = Dataset.of(pipeline.apply(Create.of(asList("Brown", "fox", ".", ""))));
 
     // suppose words contain: ["Brown", "fox", ".", ""]
     Dataset<String> letters =
@@ -492,7 +496,9 @@ public class DocumentationExamplesTest {
   public void flatMapWithTimeExtractorOperator() {
 
     Dataset<SomeEventObject> events =
-        Dataset.of(pipeline.apply(Create.of(
+        Dataset.of(
+            pipeline.apply(
+                Create.of(
                     new SomeEventObject(0),
                     new SomeEventObject(1),
                     new SomeEventObject(2),
@@ -695,7 +701,8 @@ public class DocumentationExamplesTest {
         Dataset.of(pipeline.apply("cats", Create.of(asList("cheetah", "cat", "lynx", "jaguar"))));
 
     Dataset<String> rodents =
-        Dataset.of(pipeline.apply("rodents", Create.of("squirrel", "mouse", "rat", "lemming", "beaver")));
+        Dataset.of(
+            pipeline.apply("rodents", Create.of("squirrel", "mouse", "rat", "lemming", "beaver")));
 
     //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
     //suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
@@ -713,13 +720,15 @@ public class DocumentationExamplesTest {
   public void testAssignEventTimeOperator() {
 
     Dataset<SomeEventObject> events =
-        Dataset.of(pipeline.apply(Create.of(
-                asList(
-                    new SomeEventObject(0),
-                    new SomeEventObject(1),
-                    new SomeEventObject(2),
-                    new SomeEventObject(3),
-                    new SomeEventObject(4)))));
+        Dataset.of(
+            pipeline.apply(
+                Create.of(
+                    asList(
+                        new SomeEventObject(0),
+                        new SomeEventObject(1),
+                        new SomeEventObject(2),
+                        new SomeEventObject(3),
+                        new SomeEventObject(4)))));
 
     // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
     Dataset<SomeEventObject> timeStampedEvents =
@@ -779,8 +788,7 @@ public class DocumentationExamplesTest {
   @Test
   public void testReduceWithWindowOperator() {
 
-    Dataset<Integer> input =
-        Dataset.of(pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8))));
+    Dataset<Integer> input = Dataset.of(pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8))));
 
     //suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
     //lets assign time-stamp to each input element
@@ -804,7 +812,9 @@ public class DocumentationExamplesTest {
   public void testTopPerKeyOperator() {
 
     Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of(
+        Dataset.of(
+            pipeline.apply(
+                Create.of(
                     "mouse",
                     "elk",
                     "rat",
