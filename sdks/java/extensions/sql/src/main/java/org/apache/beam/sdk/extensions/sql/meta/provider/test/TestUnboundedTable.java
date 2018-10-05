@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.mock;
+package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -34,13 +34,14 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A mocked unbounded table. */
-public class MockedUnboundedTable extends MockedTable {
+@Experimental
+public class TestUnboundedTable extends TestTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
 
-  private MockedUnboundedTable(Schema beamSchema) {
+  private TestUnboundedTable(Schema beamSchema) {
     super(beamSchema);
   }
 
@@ -50,18 +51,18 @@ public class MockedUnboundedTable extends MockedTable {
    * <p>e.g.
    *
    * <pre>{@code
-   * MockedUnboundedTable
+   * TestUnboundedTable
    *   .of(Types.BIGINT, "order_id",
    *       Types.INTEGER, "site_id",
    *       Types.DOUBLE, "price",
    *       Types.TIMESTAMP, "order_time")
    * }</pre>
    */
-  public static MockedUnboundedTable of(final Object... args) {
-    return new MockedUnboundedTable(TestUtils.buildBeamSqlSchema(args));
+  public static TestUnboundedTable of(final Object... args) {
+    return new TestUnboundedTable(TestTableUtils.buildBeamSqlSchema(args));
   }
 
-  public MockedUnboundedTable timestampColumnIndex(int idx) {
+  public TestUnboundedTable timestampColumnIndex(int idx) {
     this.timestampField = idx;
     return this;
   }
@@ -80,8 +81,8 @@ public class MockedUnboundedTable extends MockedTable {
    * )
    * }</pre>
    */
-  public MockedUnboundedTable addRows(Duration duration, Object... args) {
-    List<Row> rows = TestUtils.buildRows(getSchema(), Arrays.asList(args));
+  public TestUnboundedTable addRows(Duration duration, Object... args) {
+    List<Row> rows = TestTableUtils.buildRows(getSchema(), Arrays.asList(args));
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
