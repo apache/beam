@@ -15,6 +15,7 @@ task :test do
     :url_ignore => [
         /jstorm.io/,
         /datatorrent.com/,
+        /atrato.io/, # BEAM-5665 atrato.io seems to be down
         /ai.google/ # https://issues.apache.org/jira/browse/INFRA-16527
     ],
     :parallel => { :in_processes => Etc.nprocessors },
