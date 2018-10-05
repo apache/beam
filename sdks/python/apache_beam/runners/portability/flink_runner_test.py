@@ -81,6 +81,9 @@ if __name__ == '__main__':
     def test_pardo_state_only(self):
       raise unittest.SkipTest("BEAM-2918 - User state not yet supported.")
 
+    def test_pardo_timers(self):
+      raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
+
     # Inherits all other tests.
 
   # Run the tests.
