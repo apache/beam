@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ObjectArrays;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -26,53 +25,47 @@ public abstract class Failure<T> implements Serializable {
   }
 
   public abstract Exception exception();
+
   public abstract T value();
 
-  /**
-   * Wraps a TupleTag together with the exceptions types that should be routed to it.
-   */
+  /** Wraps a TupleTag together with the exceptions types that should be routed to it. */
   @AutoValue
-  static abstract class TaggedExceptions<T> implements Serializable {
+  abstract static class TaggedExceptions<T> implements Serializable {
     static <T> TaggedExceptions<T> of(TupleTag<Failure<T>> tag, List<Class<?>> exceptionsToCatch) {
       return new AutoValue_Failure_TaggedExceptions<>(tag, exceptionsToCatch);
     }
 
-    static <T> TaggedExceptions<T> of
-        (TupleTag<Failure<T>> tag, Class exceptionToCatch, Class<?>[] additionalExceptions) {
-      return of(tag,
-          ImmutableList.copyOf(ObjectArrays.concat(exceptionToCatch, additionalExceptions)));
+    static <T> TaggedExceptions<T> of(
+        TupleTag<Failure<T>> tag, Class exceptionToCatch, Class<?>[] additionalExceptions) {
+      return of(
+          tag, ImmutableList.copyOf(ObjectArrays.concat(exceptionToCatch, additionalExceptions)));
     }
 
     abstract TupleTag<Failure<T>> tag();
-    abstract List<Class<?>> exceptionsToCatch();
 
+    abstract List<Class<?>> exceptionsToCatch();
   }
 
   @AutoValue
-  static abstract class TaggedExceptionsList<T> implements Serializable {
+  abstract static class TaggedExceptionsList<T> implements Serializable {
     abstract ImmutableList<TupleTag<Failure<T>>> tags();
+
     abstract ImmutableList<List<Class<?>>> exceptionLists();
 
     static <T> TaggedExceptionsList<T> empty() {
-      return new AutoValue_Failure_TaggedExceptionsList<>(
-          ImmutableList.of(),
-          ImmutableList.of()
-      );
+      return new AutoValue_Failure_TaggedExceptionsList<>(ImmutableList.of(), ImmutableList.of());
     }
 
     TaggedExceptionsList<T> and(
-        TupleTag<Failure<T>> tag,
-        Class<?> exceptionToCatch, Class<?>[] additionalExceptions) {
-      final ImmutableList<TupleTag<Failure<T>>> newTags = ImmutableList
-          .<TupleTag<Failure<T>>>builder()
-          .addAll(tags())
-          .add(tag)
-          .build();
-      final ImmutableList<List<Class<?>>> newExceptionLists = ImmutableList
-          .<List<Class<?>>>builder()
-          .addAll(exceptionLists())
-          .add(ImmutableList.copyOf(ObjectArrays.concat(exceptionToCatch, additionalExceptions)))
-          .build();
+        TupleTag<Failure<T>> tag, Class<?> exceptionToCatch, Class<?>[] additionalExceptions) {
+      final ImmutableList<TupleTag<Failure<T>>> newTags =
+          ImmutableList.<TupleTag<Failure<T>>>builder().addAll(tags()).add(tag).build();
+      final ImmutableList<List<Class<?>>> newExceptionLists =
+          ImmutableList.<List<Class<?>>>builder()
+              .addAll(exceptionLists())
+              .add(
+                  ImmutableList.copyOf(ObjectArrays.concat(exceptionToCatch, additionalExceptions)))
+              .build();
       return new AutoValue_Failure_TaggedExceptionsList<>(newTags, newExceptionLists);
     }
 

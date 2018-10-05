@@ -61,18 +61,19 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     return newTransform;
   }
 
-  private SimpleFunction<InputT, String> parseFn = new SimpleFunction<InputT, String>() {
-    @Override
-    public String apply(InputT input) {
-      try {
-        ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-        return mapper.writeValueAsString(input);
-      } catch (IOException e) {
-        throw new UncheckedIOException(
-            "Failed to serialize " + inputClass.getName() + " value: " + input, e);
-      }
-    }
-  };
+  private SimpleFunction<InputT, String> parseFn =
+      new SimpleFunction<InputT, String>() {
+        @Override
+        public String apply(InputT input) {
+          try {
+            ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
+            return mapper.writeValueAsString(input);
+          } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Failed to serialize " + inputClass.getName() + " value: " + input, e);
+          }
+        }
+      };
 
   @Override
   public PCollection<String> expand(PCollection<InputT> input) {
@@ -80,11 +81,11 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
   }
 
   /**
-   * Sets a {@link TupleTag} to associate with serialization failures, converting this
-   * {@link PTransform} into one that returns a {@link PCollectionTuple}.
+   * Sets a {@link TupleTag} to associate with serialization failures, converting this {@link
+   * PTransform} into one that returns a {@link PCollectionTuple}.
    *
-   * <p>Successes will be associated with static tag {@link AsJsons#successTag}
-   * since all {@code AsJsons} outputs are of the same type ({@code String}).
+   * <p>Successes will be associated with static tag {@link AsJsons#successTag} since all {@code
+   * AsJsons} outputs are of the same type ({@code String}).
    *
    * <p>Example:
    *
@@ -115,11 +116,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
 
     @Override
     public PCollectionTuple expand(PCollection<InputT> input) {
-      return input.apply(MapElements
-          .via(parseFn)
-          .withSuccessTag(successTag)
-          .withFailureTag(failureTag, UncheckedIOException.class));
+      return input.apply(
+          MapElements.via(parseFn)
+              .withSuccessTag(successTag)
+              .withFailureTag(failureTag, UncheckedIOException.class));
     }
   }
-
 }

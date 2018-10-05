@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -366,10 +366,10 @@ public class MapElementsTest implements Serializable {
     }
   }
 
-  /** Basic test of {@link MapElements.WithFailures}. **/
+  /** Basic test of {@link MapElements.WithFailures}. * */
   @Test
   @Category(NeedsRunner.class)
-  public void testWithFailures() throws Exception {
+  public void testMapWithFailures() throws Exception {
     TupleTag<Integer> successTag = new TupleTag<>();
     TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
     TupleTag<Failure<Integer>> failureTag2 = new TupleTag<>();
@@ -381,43 +381,49 @@ public class MapElementsTest implements Serializable {
                 MapElements
                     // Note that the type annotation is required.
                     .into(TypeDescriptors.integers())
-                    .via((Integer i) -> {
-                      if (i == 1) throw new IntegerException1();
-                      if (i == 2) throw new IntegerException2();
-                      return i * 2;
-                    })
+                    .via(
+                        (Integer i) -> {
+                          if (i == 1) throw new IntegerException1();
+                          if (i == 2) throw new IntegerException2();
+                          return i * 2;
+                        })
                     .withSuccessTag(successTag)
                     .withFailureTag(failureTag1, IntegerException1.class)
-                    .withFailureTag(failureTag2, IntegerException2.class)
-            );
+                    .withFailureTag(failureTag2, IntegerException2.class));
 
     PAssert.that(pcs.get(successTag)).containsInAnyOrder(6, 8);
-    PAssert.that(pcs.get(failureTag1)).satisfies(failures -> {
-          failures.forEach((Failure<Integer> failure) -> {
-            assertTrue(failure.exception() instanceof IntegerException1);
-            assertEquals(1, failure.value().intValue());
-          });
-          return null;
-        });
-    PAssert.that(pcs.get(failureTag2)).satisfies(failures -> {
-      failures.forEach((Failure<Integer> failure) -> {
-        assertTrue(failure.exception() instanceof IntegerException2);
-        assertEquals(2, failure.value().intValue());
-      });
-      return null;
-    });
+    PAssert.that(pcs.get(failureTag1))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  (Failure<Integer> failure) -> {
+                    assertTrue(failure.exception() instanceof IntegerException1);
+                    assertEquals(1, failure.value().intValue());
+                  });
+              return null;
+            });
+    PAssert.that(pcs.get(failureTag2))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  (Failure<Integer> failure) -> {
+                    assertTrue(failure.exception() instanceof IntegerException2);
+                    assertEquals(2, failure.value().intValue());
+                  });
+              return null;
+            });
 
     pipeline.run();
   }
 
-  /** Basic test of {@link MapElements.WithFailures}. **/
+  /** Basic test of {@link MapElements.WithFailures}. * */
   @Test
   @Category(NeedsRunner.class)
-  public void testWithFailuresThrowsUncaught() throws Exception {
+  public void testMapWithFailuresThrowsUncaught() throws Exception {
     TupleTag<Integer> successTag = new TupleTag<>();
     TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
 
-    final IntegerException2 integerException2 = new IntegerException2();
+    IntegerException2 integerException2 = new IntegerException2();
 
     PCollectionTuple pcs =
         pipeline
@@ -426,20 +432,20 @@ public class MapElementsTest implements Serializable {
                 MapElements
                     // Note that the type annotation is required.
                     .into(TypeDescriptors.integers())
-                    .via((Integer i) -> {
-                      if (i == 1) throw new IntegerException1();
-                      if (i == 2) throw integerException2;
-                      return i * 2;
-                    })
+                    .via(
+                        (Integer i) -> {
+                          if (i == 1) throw new IntegerException1();
+                          if (i == 2) throw integerException2;
+                          return i * 2;
+                        })
                     .withSuccessTag(successTag)
-                    .withFailureTag(failureTag1, IntegerException1.class)
-            );
+                    .withFailureTag(failureTag1, IntegerException1.class));
 
     thrown.expectCause(is(integerException2));
     pipeline.run();
   }
 
   private static class IntegerException1 extends RuntimeException {}
-  private static class IntegerException2 extends RuntimeException {}
 
+  private static class IntegerException2 extends RuntimeException {}
 }

@@ -59,18 +59,19 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     return newTransform;
   }
 
-  private SimpleFunction<String, OutputT> parseFn = new SimpleFunction<String, OutputT>() {
-    @Override
-    public OutputT apply(String input) {
-      try {
-        ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
-        return mapper.readValue(input, outputClass);
-      } catch (IOException e) {
-        throw new UncheckedIOException(
-            "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
-      }
-    }
-  };
+  private SimpleFunction<String, OutputT> parseFn =
+      new SimpleFunction<String, OutputT>() {
+        @Override
+        public OutputT apply(String input) {
+          try {
+            ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
+            return mapper.readValue(input, outputClass);
+          } catch (IOException e) {
+            throw new UncheckedIOException(
+                "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
+          }
+        }
+      };
 
   @Override
   public PCollection<OutputT> expand(PCollection<String> input) {
@@ -78,11 +79,11 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
   }
 
   /**
-   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform}
-   * into one that returns a {@link PCollectionTuple}.
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple}.
    *
-   * <p>Failures will be associated with static tag {@link ParseJsons#failureTag}
-   * since all {@code ParseJsons} inputs are of the same type ({@code String}).
+   * <p>Failures will be associated with static tag {@link ParseJsons#failureTag} since all {@code
+   * ParseJsons} inputs are of the same type ({@code String}).
    *
    * <p>Example:
    *
@@ -113,11 +114,10 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
 
     @Override
     public PCollectionTuple expand(PCollection<? extends String> input) {
-      return input.apply(MapElements
-          .via(parseFn)
-          .withSuccessTag(successTag)
-          .withFailureTag(failureTag, UncheckedIOException.class));
+      return input.apply(
+          MapElements.via(parseFn)
+              .withSuccessTag(successTag)
+              .withFailureTag(failureTag, UncheckedIOException.class));
     }
   }
-
 }

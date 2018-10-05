@@ -174,18 +174,18 @@ public class MapElements<InputT, OutputT>
 
   /**
    * Output a {@link PCollectionTuple} with the collection of successfully mapped elements
-   * associated with the given tag. This allows you to make subsequent
-   * {@link WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown
-   * exceptions in additional failure collections.
+   * associated with the given tag. This allows you to make subsequent {@link
+   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions in
+   * additional failure collections.
    */
   public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
     return new WithFailures(successTag, TaggedExceptionsList.empty());
   }
 
   /**
-   * Variant of {@link MapElements} that that can handle exceptions and output one or more
-   * failure collections wrapped in a {@link PCollectionTuple}.
-   * Specify how to handle exceptions by calling {@link #withFailureTag(TupleTag, Class, Class[])}.
+   * Variant of {@link MapElements} that that can handle exceptions and output one or more failure
+   * collections wrapped in a {@link PCollectionTuple}. Specify how to handle exceptions by calling
+   * {@link #withFailureTag(TupleTag, Class, Class[])}.
    */
   public class WithFailures extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     private final TupleTag<OutputT> successTag;
@@ -196,56 +196,55 @@ public class MapElements<InputT, OutputT>
       this.taggedExceptionsList = taggedExceptionsList;
     }
 
-    /**
-     * Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it.
-     */
+    /** Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it. */
     public WithFailures withFailureTag(
-        TupleTag<Failure<InputT>> tag,
-        Class exceptionToCatch, Class... additionalExceptions) {
-      return new WithFailures(successTag,
-          taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
+        TupleTag<Failure<InputT>> tag, Class exceptionToCatch, Class... additionalExceptions) {
+      return new WithFailures(
+          successTag, taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
     }
 
     @Override
     public PCollectionTuple expand(PCollection<? extends InputT> input) {
       checkNotNull(fn, "Must specify a function on MapElements using .via()");
-      PCollectionTuple pcs = input.apply(
-          "MapWithFailures",
-          ParDo.of(
-              new DoFn<InputT, OutputT>() {
-                @ProcessElement
-                public void processElement(
-                    @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
-                    throws Exception {
-                  try {
-                    receiver.get(successTag).output(
-                        fn.getClosure().apply(element, Context.wrapProcessContext(c)));
-                  } catch (RuntimeException e) {
-                    taggedExceptionsList.outputOrRethrow(e, element, receiver);
-                  }
-                }
+      PCollectionTuple pcs =
+          input.apply(
+              "MapWithFailures",
+              ParDo.of(
+                      new DoFn<InputT, OutputT>() {
+                        @ProcessElement
+                        public void processElement(
+                            @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
+                            throws Exception {
+                          try {
+                            receiver
+                                .get(successTag)
+                                .output(
+                                    fn.getClosure().apply(element, Context.wrapProcessContext(c)));
+                          } catch (RuntimeException e) {
+                            taggedExceptionsList.outputOrRethrow(e, element, receiver);
+                          }
+                        }
 
-                @Override
-                public void populateDisplayData(Builder builder) {
-                  builder.delegate(WithFailures.this);
-                }
+                        @Override
+                        public void populateDisplayData(Builder builder) {
+                          builder.delegate(WithFailures.this);
+                        }
 
-                @Override
-                public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                  return inputType;
-                }
+                        @Override
+                        public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                          return inputType;
+                        }
 
-                @Override
-                public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                  checkOutputType();
-                  return outputType;
-                }
-              })
-              .withOutputTags(successTag, taggedExceptionsList.tupleTagList())
-              .withSideInputs(fn.getRequirements().getSideInputs()));
+                        @Override
+                        public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                          checkOutputType();
+                          return outputType;
+                        }
+                      })
+                  .withOutputTags(successTag, taggedExceptionsList.tupleTagList())
+                  .withSideInputs(fn.getRequirements().getSideInputs()));
       taggedExceptionsList.applyFailureCoders(pcs);
       return pcs;
     }
   }
-
 }
