@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import logging
 import math
 import queue
+import sys
 import threading
 from builtins import range
 
@@ -53,19 +54,23 @@ class FnApiLogRecordHandler(logging.Handler):
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
     # Make sure the channel is ready to avoid [BEAM-4649]
+    self._log_entry_queue = queue.Queue()
+
     ch = grpc.insecure_channel(log_service_descriptor.url)
     grpc.channel_ready_future(ch).result(timeout=60)
     self._log_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
-    self._log_entry_queue = queue.Queue()
 
-    log_control_messages = self._logging_stub.Logging(self._write_log_entries())
+    log_control_messages = self.connect()
     self._reader = threading.Thread(
         target=lambda: self._read_log_control_messages(log_control_messages),
         name='read_log_control_messages')
     self._reader.daemon = True
     self._reader.start()
+
+  def connect(self):
+    return self._logging_stub.Logging(self._write_log_entries())
 
   def emit(self, record):
     log_entry = beam_fn_api_pb2.LogEntry()
@@ -108,5 +113,16 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def _read_log_control_messages(self, log_control_iterator):
     # TODO(vikasrk): Handle control messages.
-    for _ in log_control_iterator:
-      pass
+    while True:
+      try:
+        for _ in log_control_iterator:
+          pass
+        # iterator is closed
+        return
+      except Exception as ex:
+        # reset the stream
+        print >> sys.stderr, "Logging client failed: {}... resetting".format(ex)
+        self.acquire()
+        log_control_iterator = self.connect()
+        self.release()
+
