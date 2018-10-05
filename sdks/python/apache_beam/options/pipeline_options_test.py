@@ -54,8 +54,7 @@ class PipelineOptionsTest(unittest.TestCase):
               'mock_flag': False, 'mock_option': None,
               'mock_multi_option': None,
               'unknown_arg': 'unknown_value',
-              'unknown_flag': None
-           },
+              'unknown_flag': None},
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
