@@ -59,17 +59,17 @@ The shell converts the queries into Beam pipelines, runs them using `DirectRunne
 
 ## Declaring Tables
 
-Before reading data from a source or writing data to a destination, you must declare a virtual table using the `CREATE TABLE` statement. For example, if you have a local CSV file `"test-file.csv"` in the current folder, you can create a table with the following statement:
+Before reading data from a source or writing data to a destination, you must declare a virtual table using the `CREATE EXTERNAL TABLE` statement. For example, if you have a local CSV file `"test-file.csv"` in the current folder, you can create a table with the following statement:
 
 ```
-0: BeamSQL> CREATE TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
+0: BeamSQL> CREATE EXTERNAL TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
 
 No rows affected (0.042 seconds)
 ```
 
-The `CREATE TABLE` statement registers the CSV file as a table in Beam SQL and specifies the table's schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.
+The `CREATE EXTERNAL TABLE` statement registers the CSV file as a table in Beam SQL and specifies the table's schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.
 
-_For more information about `CREATE TABLE` syntax and supported table types, see the [CREATE TABLE reference page]({{ site.baseurl }}/documentation/dsls/sql/create-table/)._
+_For more information about `CREATE EXTERNAL TABLE` syntax and supported table types, see the [CREATE EXTERNAL TABLE reference page]({{ site.baseurl }}/documentation/dsls/sql/create-external-table/)._
 
 ## Reading and Writing Data
 
