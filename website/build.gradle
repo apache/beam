@@ -199,7 +199,7 @@ task publishWebsite << {
   shell "git push ${gitboxUrl} asf-site"
 }
 
-commitWebsite.dependsOn testWebsite
+commitWebsite.dependsOn buildWebsite
 publishWebsite.dependsOn commitWebsite
 
 /*
