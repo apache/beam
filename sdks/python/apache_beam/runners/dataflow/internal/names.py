@@ -95,6 +95,7 @@ class PropertyNames(object):
   FILE_NAME_SUFFIX = 'filename_suffix'
   FORMAT = 'format'
   INPUTS = 'inputs'
+  IMPULSE_ELEMENT = 'impulse_element'
   NON_PARALLEL_INPUTS = 'non_parallel_inputs'
   NUM_SHARDS = 'num_shards'
   OUT = 'out'
