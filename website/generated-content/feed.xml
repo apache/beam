@@ -20,6 +20,92 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam 2.7.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.7.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#270-2018-10-02&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.7.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12343654&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
+
+&lt;h3 id=&quot;new-ios&quot;&gt;New I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;KuduIO&lt;/li&gt;
+  &lt;li&gt;Amazon SNS sink&lt;/li&gt;
+  &lt;li&gt;Amazon SqsIO&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Apache Calcite dependency upgraded to 1.17.0&lt;/li&gt;
+  &lt;li&gt;Apache Derby dependency upgraded to 10.14.2.0&lt;/li&gt;
+  &lt;li&gt;Apache HTTP components upgraded (see release notes).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Experimental support for Python on local Flink runner for simple
+examples, see latest information here:
+/contribute/portability/#status.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;KinesisIO, fixed dependency issue&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following 72 people contributed
+to the 2.7.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alan Myrvold, Alexey Romanenko, Aljoscha Krettek,
+Andrew Pilloud, Ankit Jhalaria, Ankur Goenka, Anton Kedin, Boyuan
+Zhang, Carl McGraw, Carlos Alonso, cclauss, Chamikara Jayalath,
+Charles Chen, Cory Brzycki, Daniel Oliveira, Dariusz Aniszewski,
+devinduan, Eric Beach, Etienne Chauchot, Eugene Kirpichov, Garrett
+Jones, Gene Peters, Gleb Kanterov, Henning Rohde, Henry Suryawirawan,
+Holden Karau, Huygaa Batsaikhan, Ismaël Mejía, Jason Kuster, Jean-
+Baptiste Onofré, Joachim van der Herten, Jozef Vilcek, jxlewis, Kai
+Jiang, Katarzyna Kucharczyk, Kenn Knowles, Krzysztof Trubalski, Kyle
+Winkelman, Leen Toelen, Luis Enrique Ortíz Ramirez, Lukasz Cwik,
+Łukasz Gajowy, Luke Cwik, Mark Liu, Matthias Feys, Maximilian Michels,
+Melissa Pashniak, Mikhail Gryzykhin, Mikhail Sokolov, mingmxu, Norbert
+Chen, Pablo Estrada, Prateek Chanda, Raghu Angadi, Ravi Pathak, Reuven
+Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ryan Williams, Sindy Li,
+Thomas Weise, Tim Robertson, Tormod Haavi, Udi Meiri, Vaclav Plajt,
+Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 03 Oct 2018 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Beam Summit Europe 2018</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -125,7 +211,7 @@ limitations under the License.
    &lt;/td&gt;
    &lt;td&gt;Local&lt;br /&gt;(Using the &lt;code&gt;file://&lt;/code&gt; URI)
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/TextIO.html&quot;&gt;TextIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/TextIO.html&quot;&gt;TextIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-&quot;&gt;textFileStream&lt;/a&gt;&lt;br /&gt;(Spark treats most Unix systems as HDFS-compatible, but the location should be accessible from all nodes)
    &lt;/td&gt;
@@ -133,7 +219,7 @@ limitations under the License.
   &lt;tr&gt;
    &lt;td&gt;HDFS&lt;br /&gt;(Using the &lt;code&gt;hdfs://&lt;/code&gt; URI)
    &lt;/td&gt;
-    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html&quot;&gt;HadoopFileSystemOptions&lt;/a&gt;
+    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html&quot;&gt;HadoopFileSystemOptions&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html&quot;&gt;HdfsUtils&lt;/a&gt;
    &lt;/td&gt;
@@ -143,7 +229,7 @@ limitations under the License.
    &lt;/td&gt;
    &lt;td&gt;Cloud Storage&lt;br /&gt;(Using the &lt;code&gt;gs://&lt;/code&gt; URI)
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html&quot;&gt;GcsOptions&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html&quot;&gt;GcsOptions&lt;/a&gt;
    &lt;/td&gt;
    &lt;td rowspan=&quot;2&quot;&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--&quot;&gt;hadoopConfiguration&lt;/a&gt;
 and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-&quot;&gt;textFileStream&lt;/a&gt;
@@ -152,7 +238,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;S3&lt;br /&gt;(Using the &lt;code&gt;s3://&lt;/code&gt; URI)
    &lt;/td&gt;
-    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/aws/options/S3Options.html&quot;&gt;S3Options&lt;/a&gt;
+    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/aws/options/S3Options.html&quot;&gt;S3Options&lt;/a&gt;
    &lt;/td&gt;
   &lt;/tr&gt;
   &lt;tr&gt;
@@ -160,7 +246,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
    &lt;/td&gt;
    &lt;td&gt;Kafka
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/kafka/KafkaIO.html&quot;&gt;KafkaIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/kafka/KafkaIO.html&quot;&gt;KafkaIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html&quot;&gt;spark-streaming-kafka&lt;/a&gt;
    &lt;/td&gt;
@@ -168,7 +254,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;Kinesis
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html&quot;&gt;KinesisIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html&quot;&gt;KinesisIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-kinesis-integration.html&quot;&gt;spark-streaming-kinesis&lt;/a&gt;
    &lt;/td&gt;
@@ -176,7 +262,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;Cloud Pub/Sub
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html&quot;&gt;PubsubIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html&quot;&gt;PubsubIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://github.com/apache/bahir/tree/master/streaming-pubsub&quot;&gt;spark-streaming-pubsub&lt;/a&gt; from &lt;a href=&quot;http://bahir.apache.org&quot;&gt;Apache Bahir&lt;/a&gt;
    &lt;/td&gt;
@@ -217,7 +303,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
    &lt;/td&gt;
    &lt;td&gt;Local
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.textio.html&quot;&gt;io.textio&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.textio.html&quot;&gt;io.textio&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
    &lt;/td&gt;
@@ -225,7 +311,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;HDFS
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.hadoopfilesystem.html&quot;&gt;io.hadoopfilesystem&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.hadoopfilesystem.html&quot;&gt;io.hadoopfilesystem&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--&quot;&gt;hadoopConfiguration&lt;/a&gt; (Access through &lt;code&gt;sc._jsc&lt;/code&gt; with Py4J)
 and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
@@ -236,7 +322,7 @@ and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.stre
    &lt;/td&gt;
    &lt;td&gt;Google Cloud Storage
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.gcp.gcsio.html&quot;&gt;io.gcp.gcsio&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.gcsio.html&quot;&gt;io.gcp.gcsio&lt;/a&gt;
    &lt;/td&gt;
    &lt;td rowspan=&quot;2&quot;&gt;&lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
    &lt;/td&gt;
@@ -268,7 +354,7 @@ and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.stre
   &lt;tr&gt;
    &lt;td&gt;Cloud Pub/Sub
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.gcp.pubsub.html&quot;&gt;io.gcp.pubsub&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.pubsub.html&quot;&gt;io.gcp.pubsub&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;N/A
    &lt;/td&gt;
@@ -442,7 +528,7 @@ please check the detailed release notes.&lt;/p&gt;
 &lt;h1 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h1&gt;
 
 &lt;h2 id=&quot;go-sdk-support&quot;&gt;Go SDK support&lt;/h2&gt;
-&lt;p&gt;The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are &lt;a href=&quot;https://beam.apache.org/documentation/sdks/go/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are &lt;a href=&quot;/documentation/sdks/go/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2 id=&quot;parquet-support&quot;&gt;Parquet support&lt;/h2&gt;
 &lt;p&gt;Support for Apache Parquet format was added. It uses Parquet 1.10 release which, thanks to AvroParquerWriter’s API changes, allows FileIO.Sink implementation.&lt;/p&gt;
@@ -1408,22 +1494,22 @@ has other limitations that make it insufficient for this task&lt;/em&gt;).&lt;/p
 &lt;h2 id=&quot;beam-source-api&quot;&gt;Beam Source API&lt;/h2&gt;
 
 &lt;p&gt;Apache Beam historically provides a Source API
-(&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
+(&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
 and
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
 
 &lt;p&gt;The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
 API provides advanced features such as progress reporting and &lt;a href=&quot;/blog/2016/05/18/splitAtFraction-method.html&quot;&gt;dynamic
 rebalancing&lt;/a&gt;
 (which together enable autoscaling), and
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.6.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
 reporting the source’s watermark and backlog &lt;em&gt;(until SDF, we believed that
 “batch” and “streaming” data sources are fundamentally different and thus
 require fundamentally different APIs)&lt;/em&gt;.&lt;/p&gt;
@@ -2019,94 +2105,6 @@ limitations under the License.
         <pubDate>Wed, 17 May 2017 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Python SDK released in Apache Beam 0.6.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;Apache Beam’s latest release, version &lt;a href=&quot;/get-started/downloads/&quot;&gt;0.6.0&lt;/a&gt;, introduces a new SDK – this time, for the Python programming language. The Python SDK joins the Java SDK as the second implementation of the Beam programming model.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;The Python SDK incorporates all of the main concepts of the Beam model, including ParDo, GroupByKey, Windowing, and others. It features extensible IO APIs for writing bounded sources and sinks, and provides built-in implementation for reading and writing Text, Avro, and TensorFlow record files, as well as connectors to Google BigQuery and Google Cloud Datastore.&lt;/p&gt;
-
-&lt;p&gt;There are two runners capable of executing pipelines written with the Python SDK today: &lt;a href=&quot;/documentation/runners/direct/&quot;&gt;Direct Runner&lt;/a&gt; and &lt;a href=&quot;/documentation/runners/dataflow/&quot;&gt;Dataflow Runner&lt;/a&gt;, both of which are currently limited to batch execution only. Upcoming features will shortly bring the benefits of the Python SDK to additional runners.&lt;/p&gt;
-
-&lt;h4 id=&quot;try-the-apache-beam-python-sdk&quot;&gt;Try the Apache Beam Python SDK&lt;/h4&gt;
-
-&lt;p&gt;If you would like to try out the Python SDK, a good place to start is the &lt;a href=&quot;/get-started/quickstart-py/&quot;&gt;Quickstart&lt;/a&gt;. After that, you can take a look at additional &lt;a href=&quot;https://github.com/apache/beam/tree/v0.6.0/sdks/python/apache_beam/examples&quot;&gt;examples&lt;/a&gt;, and deep dive into the &lt;a href=&quot;https://beam.apache.org/releases/pydoc/&quot;&gt;API reference&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Let’s take a look at a quick example together. First, install the &lt;code class=&quot;highlighter-rouge&quot;&gt;apache-beam&lt;/code&gt; package from PyPI and start your Python interpreter.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ pip install apache-beam
-$ python
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We will harness the power of Apache Beam to estimate Pi in honor of the recently passed Pi Day.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import random
-import apache_beam as beam
-
-def run_trials(count):
-  &quot;&quot;&quot;Throw darts into unit square and count how many fall into unit circle.&quot;&quot;&quot;
-  inside = 0
-  for _ in xrange(count):
-    x, y = random.uniform(0, 1), random.uniform(0, 1)
-    inside += 1 if x*x + y*y &amp;lt;= 1.0 else 0
-  return count, inside
-
-def combine_results(results):
-  &quot;&quot;&quot;Given all the trial results, estimate pi.&quot;&quot;&quot;
-  total, inside = sum(r[0] for r in results), sum(r[1] for r in results)
-  return total, inside, 4 * float(inside) / total if total &amp;gt; 0 else 0
-
-p = beam.Pipeline()
-(p | beam.Create([500] * 10)  # Create 10 experiments with 500 samples each.
-   | beam.Map(run_trials)     # Run experiments in parallel.
-   | beam.CombineGlobally(combine_results)      # Combine the results.
-   | beam.io.WriteToText('./pi_estimate.txt'))  # Write PI estimate to a file.
-
-p.run()
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;This example estimates Pi by throwing random darts into the unit square and keeping track of the fraction of those darts that fell into the unit circle (see the full &lt;a href=&quot;https://github.com/apache/beam/blob/v0.6.0/sdks/python/apache_beam/examples/complete/estimate_pi.py&quot;&gt;example&lt;/a&gt; for details). If you are curious, you can check the result of our estimation by looking at the output file.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cat pi_estimate.txt*
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;roadmap&quot;&gt;Roadmap&lt;/h4&gt;
-
-&lt;p&gt;The first thing on the Python SDK’s roadmap is to address two of its limitations. First, the existing runners are currently limited to bounded PCollections, and we are looking forward to extending the SDK to support unbounded PCollections (“streaming”). Additionally, we are working on extending support to more Apache Beam runners, and the upcoming Fn API will do the heavy lifting.&lt;/p&gt;
-
-&lt;p&gt;Both of these improvements will enable the Python SDK to fulfill the mission of Apache Beam: a unified programming model for batch and streaming data processing that can run on any execution engine.&lt;/p&gt;
-
-&lt;h4 id=&quot;join-us&quot;&gt;Join us!&lt;/h4&gt;
-
-&lt;p&gt;Please consider joining us, whether as a user or a contributor, as we work towards our first release with API stability. If you’d like to try out Apache Beam today, check out the latest &lt;a href=&quot;/get-started/downloads/&quot;&gt;0.6.0&lt;/a&gt; release. We welcome contributions and participation from anyone through our mailing lists, issue tracker, pull requests, and events.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 16 Mar 2017 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2017/03/16/python-sdk-release.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2017/03/16/python-sdk-release.html</guid>
         
         
         <category>blog</category>

@@ -385,7 +385,7 @@ limitations under the License.
 
 <h3 id="implementing-unit-tests">Implementing unit tests</h3>
 
-<p>A general guide to writing Unit Tests for all transforms can be found in the <a href="https://beam.apache.org/contribute/ptransform-style-guide/#testing">PTransform Style Guide</a>. We have expanded on a few important points below.</p>
+<p>A general guide to writing Unit Tests for all transforms can be found in the <a href="/contribute/ptransform-style-guide/#testing">PTransform Style Guide</a>. We have expanded on a few important points below.</p>
 
 <p>If you are using the <code class="highlighter-rouge">Source</code> API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java"><code class="highlighter-rouge">SourceTestUtils</code></span><span class="language-py"><code class="highlighter-rouge">source_test_utils</code></span> - it is a key piece of testing <code class="highlighter-rouge">Source</code> implementations.</p>
 
@@ -453,12 +453,12 @@ limitations under the License.
 
 <p>You won’t need to invoke PerfKit Benchmarker directly. Run <code class="highlighter-rouge">./gradlew performanceTest</code> task in project’s root directory, passing kubernetes scripts of your choice (located in .test_infra/kubernetes directory). It will setup PerfKitBenchmarker for you.</p>
 
-<p>Example run with the <a href="https://beam.apache.org/documentation/runners/direct/">Direct</a> runner:</p>
+<p>Example run with the <a href="/documentation/runners/direct/">Direct</a> runner:</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=direct
 </code></pre>
 </div>
 
-<p>Example run with the <a href="https://beam.apache.org/documentation/runners/dataflow/">Google Cloud Dataflow</a> runner:</p>
+<p>Example run with the <a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a> runner:</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew performanceTest -DpkbLocation="/Users/me/PerfKitBenchmarker/pkb.py" -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET"]' -DitModule=sdks/java/io/jdbc/ -DintegrationTest=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DkubernetesScripts="/Users/me/beam/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml" -DbeamITOptions="/Users/me/beam/.test-infra/kubernetes/postgres/pkb-config-local.yml" -DintegrationTestRunner=dataflow
 </code></pre>
 </div>

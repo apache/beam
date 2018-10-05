@@ -336,13 +336,13 @@ desired configurations.</p>
 <p>NeedsRunner is a category of tests that require a Beam runner. To run
 NeedsRunner tests:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :runners:direct-java:needsRunnerTests
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew beam-runners-direct-java:needsRunnerTests
 </code></pre>
 </div>
 
 <p>To run a single NeedsRunner test use the <code class="highlighter-rouge">test</code> property, e.g.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :runners:direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew beam-runners-direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
 </code></pre>
 </div>
 
@@ -352,7 +352,7 @@ NeedsRunner tests:</p>
 <code class="highlighter-rouge">sdks/java/io/google-cloud-platform</code>) can be executed with the <code class="highlighter-rouge">gradle test</code>
 command:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew sdks:java:io:google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew beam-sdks-java-io-google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
 </code></pre>
 </div>
 

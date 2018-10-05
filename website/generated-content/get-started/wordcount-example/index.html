@@ -1375,7 +1375,7 @@ unbounded datasets. If your dataset has a fixed number of elements, it is a boun
 dataset and all of the data can be processed together. For bounded datasets,
 the question to ask is “Do I have all of the data?” If data continuously
 arrives (such as an endless stream of game scores in the
-<a href="https://beam.apache.org/get-started/mobile-gaming-example/">Mobile gaming example</a>,
+<a href="/get-started/mobile-gaming-example/">Mobile gaming example</a>,
 it is an unbounded dataset. An unbounded dataset is never available for
 processing at any one time, so the data must be processed using a streaming
 pipeline that runs continuously. The dataset will only be complete up to a
@@ -1614,7 +1614,7 @@ python -m apache_beam.examples.streaming_wordcount \
 
 <p>This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-<a href="https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub"><code class="highlighter-rouge">beam.io.ReadStringsFromPubSub</code></a>.</p>
+<a href="https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub"><code class="highlighter-rouge">beam.io.ReadStringsFromPubSub</code></a>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// This example is not currently available for the Beam SDK for Java.</span>
 </code></pre>
@@ -1640,7 +1640,7 @@ outputs.</p>
 
 <p>This example uses an unbounded <code class="highlighter-rouge">PCollection</code> and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using <a href="https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub"><code class="highlighter-rouge">beam.io.WriteStringsToPubSub</code></a>.</p>
+using <a href="https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub"><code class="highlighter-rouge">beam.io.WriteStringsToPubSub</code></a>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// This example is not currently available for the Beam SDK for Java.</span>
 </code></pre>

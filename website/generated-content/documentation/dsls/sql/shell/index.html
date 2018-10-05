@@ -142,7 +142,7 @@
   <span class="section-nav-list-title">Java</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.6.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -156,7 +156,7 @@
   <span class="section-nav-list-title">Python</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.6.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/pydoc/2.7.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -190,7 +190,7 @@
       <ul class="section-nav-list">
         <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
         <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-table/">CREATE TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
         <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
         <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
         <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
@@ -292,17 +292,17 @@ limitations under the License.
 
 <h2 id="declaring-tables">Declaring Tables</h2>
 
-<p>Before reading data from a source or writing data to a destination, you must declare a virtual table using the <code class="highlighter-rouge">CREATE TABLE</code> statement. For example, if you have a local CSV file <code class="highlighter-rouge">"test-file.csv"</code> in the current folder, you can create a table with the following statement:</p>
+<p>Before reading data from a source or writing data to a destination, you must declare a virtual table using the <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement. For example, if you have a local CSV file <code class="highlighter-rouge">"test-file.csv"</code> in the current folder, you can create a table with the following statement:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; CREATE TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
+<div class="highlighter-rouge"><pre class="highlight"><code>0: BeamSQL&gt; CREATE EXTERNAL TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
 
 No rows affected (0.042 seconds)
 </code></pre>
 </div>
 
-<p>The <code class="highlighter-rouge">CREATE TABLE</code> statement registers the CSV file as a table in Beam SQL and specifies the table’s schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.</p>
+<p>The <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement registers the CSV file as a table in Beam SQL and specifies the table’s schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.</p>
 
-<p><em>For more information about <code class="highlighter-rouge">CREATE TABLE</code> syntax and supported table types, see the <a href="/documentation/dsls/sql/create-table/">CREATE TABLE reference page</a>.</em></p>
+<p><em>For more information about <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> syntax and supported table types, see the <a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE reference page</a>.</em></p>
 
 <h2 id="reading-and-writing-data">Reading and Writing Data</h2>
 

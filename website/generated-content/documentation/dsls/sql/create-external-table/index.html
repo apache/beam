@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam SQL: Overview</title>
+  <title>Beam SQL: CREATE EXTERNAL TABLE Statement</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/overview/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/create-external-table/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -222,6 +222,47 @@
 
 
 
+<ul class="nav">
+  <li><a href="#syntax">Syntax</a></li>
+  <li><a href="#bigquery">BigQuery</a>
+    <ul>
+      <li><a href="#syntax-1">Syntax</a></li>
+      <li><a href="#read-mode">Read Mode</a></li>
+      <li><a href="#write-mode">Write Mode</a></li>
+      <li><a href="#schema">Schema</a></li>
+      <li><a href="#example">Example</a></li>
+    </ul>
+  </li>
+  <li><a href="#pubsub">Pub/Sub</a>
+    <ul>
+      <li><a href="#syntax-2">Syntax</a></li>
+      <li><a href="#read-mode-1">Read Mode</a></li>
+      <li><a href="#write-mode-1">Write Mode</a></li>
+      <li><a href="#schema-1">Schema</a></li>
+      <li><a href="#supported-payload">Supported Payload</a></li>
+      <li><a href="#example-1">Example</a></li>
+    </ul>
+  </li>
+  <li><a href="#kafka">Kafka</a>
+    <ul>
+      <li><a href="#syntax-3">Syntax</a></li>
+      <li><a href="#read-mode-2">Read Mode</a></li>
+      <li><a href="#write-mode-2">Write Mode</a></li>
+      <li><a href="#supported-payload-1">Supported Payload</a></li>
+      <li><a href="#schema-2">Schema</a></li>
+    </ul>
+  </li>
+  <li><a href="#text">Text</a>
+    <ul>
+      <li><a href="#syntax-4">Syntax</a></li>
+      <li><a href="#read-mode-3">Read Mode</a></li>
+      <li><a href="#write-mode-3">Write Mode</a></li>
+      <li><a href="#supported-payload-2">Supported Payload</a></li>
+      <li><a href="#schema-3">Schema</a></li>
+      <li><a href="#example-2">Example</a></li>
+    </ul>
+  </li>
+</ul>
 
 
       </nav>
@@ -241,30 +282,388 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-sql-overview">Beam SQL: Overview</h1>
+<h1 id="create-external-table">CREATE EXTERNAL TABLE</h1>
 
-<p>Beam SQL allows a Beam user (currently only available in Beam Java) to query
-bounded and unbounded <code class="highlighter-rouge">PCollections</code> with SQL statements. Your SQL query
-is translated to a <code class="highlighter-rouge">PTransform</code>, an encapsulated segment of a Beam pipeline.
-You can freely mix SQL <code class="highlighter-rouge">PTransforms</code> and other <code class="highlighter-rouge">PTransforms</code> in your pipeline.</p>
+<p>Beam SQL’s <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement registers a virtual table that maps to an
+<a href="/documentation/io/built-in/">external storage system</a>.
+For some storage systems, <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> does not create a physical table until
+a write occurs. After the physical table exists, you can access the table with
+the <code class="highlighter-rouge">SELECT</code>, <code class="highlighter-rouge">JOIN</code>, and <code class="highlighter-rouge">INSERT INTO</code> statements.</p>
 
-<p>There are three main things you will need to know to use SQL in your pipeline:</p>
+<p>The <code class="highlighter-rouge">CREATE EXTERNAL TABLE</code> statement includes a schema and extended clauses.</p>
+
+<h2 id="syntax">Syntax</h2>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE type
+[LOCATION location]
+[TBLPROPERTIES tblProperties]
+
+simpleType: TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL | BOOLEAN | DATE | TIME | TIMESTAMP | CHAR | VARCHAR
+
+fieldType: simpleType | MAP&lt;simpleType, fieldType&gt; | ARRAY&lt;fieldType&gt; | ROW&lt;tableElement [, tableElement ]*&gt;
+
+tableElement: columnName fieldType [ NOT NULL ]
+</code></pre>
+</div>
 
 <ul>
-  <li><a href="http://calcite.apache.org">Apache Calcite</a>: a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. We have added additional extensions to
-make it easy to leverage Beam’s unified batch/streaming model and support
-for complex data types.</li>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html">SqlTransform</a>: 
-the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/index.html?org/apache/beam/sdk/values/Row.html">Row</a>:
-the type of elements that Beam SQL operates on. A <code class="highlighter-rouge">PCollection&lt;Row&gt;</code> plays the role of a table.</li>
+  <li><code class="highlighter-rouge">IF NOT EXISTS</code>: Optional. If the table is already registered, Beam SQL
+ignores the statement instead of returning an error.</li>
+  <li><code class="highlighter-rouge">tableName</code>: The case sensitive name of the table to create and register,
+specified as an
+<a href="/documentation/dsls/sql/lexical/#identifiers">Identifier</a>.
+The table name does not need to match the name in the underlying data
+storage system.</li>
+  <li><code class="highlighter-rouge">tableElement</code>: <code class="highlighter-rouge">columnName</code> <code class="highlighter-rouge">fieldType</code> <code class="highlighter-rouge">[ NOT NULL ]</code>
+    <ul>
+      <li><code class="highlighter-rouge">columnName</code>: The case sensitive name of the column, specified as a
+backtick_quoted_expression.</li>
+      <li><code class="highlighter-rouge">fieldType</code>: The field’s type, specified as one of the following types:
+        <ul>
+          <li><code class="highlighter-rouge">simpleType</code>: <code class="highlighter-rouge">TINYINT</code>, <code class="highlighter-rouge">SMALLINT</code>, <code class="highlighter-rouge">INTEGER</code>, <code class="highlighter-rouge">BIGINT</code>, <code class="highlighter-rouge">FLOAT</code>,
+<code class="highlighter-rouge">DOUBLE</code>, <code class="highlighter-rouge">DECIMAL</code>, <code class="highlighter-rouge">BOOLEAN</code>, <code class="highlighter-rouge">DATE</code>, <code class="highlighter-rouge">TIME</code>, <code class="highlighter-rouge">TIMESTAMP</code>, <code class="highlighter-rouge">CHAR</code>,
+<code class="highlighter-rouge">VARCHAR</code></li>
+          <li><code class="highlighter-rouge">MAP&lt;simpleType, fieldType&gt;</code></li>
+          <li><code class="highlighter-rouge">ARRAY&lt;fieldType&gt;</code></li>
+          <li><code class="highlighter-rouge">ROW&lt;tableElement [, tableElement ]*&gt;</code></li>
+        </ul>
+      </li>
+      <li><code class="highlighter-rouge">NOT NULL</code>: Optional. Indicates that the column is not nullable.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">type</code>: The I/O transform that backs the virtual table, specified as an
+<a href="/documentation/dsls/sql/lexical/#identifiers">Identifier</a>
+with one of the following values:
+    <ul>
+      <li><code class="highlighter-rouge">bigquery</code></li>
+      <li><code class="highlighter-rouge">pubsub</code></li>
+      <li><code class="highlighter-rouge">kafka</code></li>
+      <li><code class="highlighter-rouge">text</code></li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">location</code>: The I/O specific location of the underlying table, specified as
+a <a href="/documentation/dsls/sql/lexical/#string-literals">String
+Literal</a>.
+See the I/O specific sections for <code class="highlighter-rouge">location</code> format requirements.</li>
+  <li><code class="highlighter-rouge">tblProperties</code>: The I/O specific quoted key value JSON object with extra
+configuration, specified as a <a href="/documentation/dsls/sql/lexical/#string-literals">String
+Literal</a>.
+See the I/O specific sections for <code class="highlighter-rouge">tblProperties</code> format requirements.</li>
 </ul>
 
-<p>The <a href="/documentation/dsls/sql/walkthrough">SQL pipeline walkthrough</a> works through how you use
-these.</p>
+<h2 id="bigquery">BigQuery</h2>
 
+<h3 id="syntax-1">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE bigquery
+LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">LOCATION:</code>Location of the table in the BigQuery CLI format.
+    <ul>
+      <li><code class="highlighter-rouge">PROJECT_ID</code>: ID of the Google Cloud Project</li>
+      <li><code class="highlighter-rouge">DATASET</code>: BigQuery Dataset ID</li>
+      <li><code class="highlighter-rouge">TABLE</code>: BigQuery Table ID within the Dataset</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="read-mode">Read Mode</h3>
+
+<p>Beam SQL supports reading columns with simple types (<code class="highlighter-rouge">simpleType</code>) and arrays of simple
+types (<code class="highlighter-rouge">ARRAY&lt;simpleType&gt;</code>).</p>
+
+<h3 id="write-mode">Write Mode</h3>
+
+<p>if the table does not exist, Beam creates the table specified in location when
+the first record is written. If the table does exist, the specified columns must
+match the existing table.</p>
+
+<h3 id="schema">Schema</h3>
+
+<p>Schema-related errors will cause the pipeline to crash. The Map type is not
+supported. Beam SQL types map to <a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types">BigQuery Standard SQL
+types</a>
+as follows:</p>
+
+<table>
+  <tr>
+   <td>Beam SQL Type
+   </td>
+   <td>BigQuery Standard SQL Type
+   </td>
+  </tr>
+  <tr>
+   <td>TINYINT, SMALLINT, INTEGER, BIGINT &nbsp;
+   </td>
+   <td>INT64
+   </td>
+  </tr>
+  <tr>
+   <td>FLOAT, DOUBLE, DECIMAL
+   </td>
+   <td>FLOAT64
+   </td>
+  </tr>
+  <tr>
+   <td>BOOLEAN
+   </td>
+   <td>BOOL
+   </td>
+  </tr>
+  <tr>
+   <td>DATE
+   </td>
+   <td>DATE
+   </td>
+  </tr>
+  <tr>
+   <td>TIME
+   </td>
+   <td>TIME
+   </td>
+  </tr>
+  <tr>
+   <td>TIMESTAMP
+   </td>
+   <td>TIMESTAMP
+   </td>
+  </tr>
+  <tr>
+   <td>CHAR, VARCHAR
+   </td>
+   <td>STRING
+   </td>
+  </tr>
+  <tr>
+   <td>MAP
+   </td>
+   <td>(not supported)
+   </td>
+  </tr>
+  <tr>
+   <td>ARRAY
+   </td>
+   <td>ARRAY
+   </td>
+  </tr>
+  <tr>
+   <td>ROW
+   </td>
+   <td>STRUCT
+   </td>
+  </tr>
+</table>
+
+<h3 id="example">Example</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
+TYPE bigquery
+LOCATION 'testing-integration:apache.users'
+</code></pre>
+</div>
+
+<h2 id="pubsub">Pub/Sub</h2>
+
+<h3 id="syntax-2">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
+  (
+   event_timestamp TIMESTAMP,
+   attributes MAP&lt;VARCHAR, VARCHAR&gt;,
+   payload ROW&lt;tableElement [, tableElement ]*&gt;
+  )
+TYPE pubsub
+LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
+TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]"}'
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">event_timestamp</code>: The event timestamp associated with the Pub/Sub message
+by PubsubIO. It can be one of the following:
+    <ul>
+      <li>Message publish time, which is provided by Pub/Sub. This is the default
+value if no extra configuration is provided.</li>
+      <li>A timestamp specified in one of the user-provided message attributes.
+The attribute key is configured by the <code class="highlighter-rouge">timestampAttributeKey</code> field of
+the <code class="highlighter-rouge">tblProperties</code> blob. The value of the attribute should conform to
+the <a href="https://beam.apache.org/releases/javadoc/2.4.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.Read.html#withTimestampAttribute-java.lang.String-">requirements of
+PubsubIO</a>,
+which is either millis since Unix epoch or <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 339
+</a>date string.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">attributes</code>: The user-provided attributes map from the Pub/Sub message;</li>
+  <li><code class="highlighter-rouge">payload</code>: The schema of the JSON payload of the Pub/Sub message. No other
+payload formats are currently supported by Beam SQL. If a record can’t be
+unmarshalled, the record is written to the topic specified in the
+<code class="highlighter-rouge">deadLeaderQueue</code> field of the <code class="highlighter-rouge">tblProperties</code> blob. If no dead-letter queue
+is specified in this case, an exception is thrown and the pipeline will
+crash.</li>
+  <li><code class="highlighter-rouge">LOCATION</code>:
+    <ul>
+      <li><code class="highlighter-rouge">PROJECT</code>: ID of the Google Cloud Project</li>
+      <li><code class="highlighter-rouge">TOPIC</code>: The Pub/Sub topic name. A subscription will be created
+automatically, but the subscription is not cleaned up automatically.
+Specifying an existing subscription is not supported.</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">TBLPROPERTIES</code>:
+    <ul>
+      <li><code class="highlighter-rouge">timestampAttributeKey</code>: Optional. The key which contains the event
+timestamp associated with the Pub/Sub message. If not specified, the
+message publish timestamp is used as an event timestamp for
+windowing/watermarking.</li>
+      <li><code class="highlighter-rouge">deadLetterQueue</code>: The topic into which messages are written if the
+payload was not parsed. If not specified, an exception is thrown for
+parsing failures.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="read-mode-1">Read Mode</h3>
+
+<p>PubsubIO is currently limited to read access only.</p>
+
+<h3 id="write-mode-1">Write Mode</h3>
+
+<p>Not supported. PubSubIO is currently limited to read access only in Beam SQL.</p>
+
+<h3 id="schema-1">Schema</h3>
+
+<p>Pub/Sub messages have metadata associated with them, and you can reference this
+metadata in your queries. For each message, Pub/Sub exposes its publish time and
+a map of user-provided attributes in addition to the payload (unstructured in
+the general case). This information must be preserved and accessible from the
+SQL statements. Currently, this means that PubsubIO tables require you to
+declare a special set of columns, as shown below.</p>
+
+<h3 id="supported-payload">Supported Payload</h3>
+
+<ul>
+  <li>JSON Objects
+    <ul>
+      <li>Beam only supports querying messages with payload containing JSON
+objects. Beam attempts to parse JSON to match the schema of the
+<code class="highlighter-rouge">payload</code> field.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="example-1">Example</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP&lt;VARCHAR, VARCHAR&gt;, payload ROW&lt;id INTEGER, location VARCHAR&gt;)
+TYPE pubsub
+LOCATION 'projects/testing-integration/topics/user-location'
+</code></pre>
+</div>
+
+<h2 id="kafka">Kafka</h2>
+
+<p>KafkaIO is experimental in Beam SQL.</p>
+
+<h3 id="syntax-3">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE kafka
+LOCATION 'kafka://localhost:2181/brokers'
+TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">LOCATION</code>: The Kafka topic URL.</li>
+  <li><code class="highlighter-rouge">TBLPROPERTIES</code>:
+    <ul>
+      <li><code class="highlighter-rouge">bootstrap.servers</code>: Optional. Allows you to specify the bootstrap
+server.</li>
+      <li><code class="highlighter-rouge">topics</code>: Optional. Allows you to specify specific topics.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="read-mode-2">Read Mode</h3>
+
+<p>Read Mode supports reading from a topic.</p>
+
+<h3 id="write-mode-2">Write Mode</h3>
+
+<p>Write Mode supports writing to a topic.</p>
+
+<h3 id="supported-payload-1">Supported Payload</h3>
+
+<ul>
+  <li>CSV
+    <ul>
+      <li>Beam parses the messages, attempting to parse fields according to the
+types specified in the schema.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="schema-2">Schema</h3>
+
+<p>Only simple types are supported.</p>
+
+<h2 id="text">Text</h2>
+
+<p>TextIO is experimental in Beam SQL. Read Mode and Write Mode do not currently
+access the same underlying data.</p>
+
+<h3 id="syntax-4">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE text
+LOCATION '/home/admin/orders'
+TBLPROPERTIES '{"format: "Excel"}'
+</code></pre>
+</div>
+
+<ul>
+  <li><code class="highlighter-rouge">LOCATION</code>: The path to the file for Read Mode. The prefix for Write Mode.</li>
+  <li><code class="highlighter-rouge">TBLPROPERTIES</code>:
+    <ul>
+      <li><code class="highlighter-rouge">format</code>: Optional. Allows you to specify the
+<a href="https://commons.apache.org/proper/commons-csv/archives/1.5/apidocs/org/apache/commons/csv/CSVFormat.Predefined.html">CSVFormat</a>.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="read-mode-3">Read Mode</h3>
+
+<p>Read Mode supports reading from a file.</p>
+
+<h3 id="write-mode-3">Write Mode</h3>
+
+<p>Write Mode supports writing to a set of files. TextIO creates file on writes.</p>
+
+<h3 id="supported-payload-2">Supported Payload</h3>
+
+<ul>
+  <li>CSV
+    <ul>
+      <li>Beam parses the messages, attempting to parse fields according to the
+types specified in the schema using org.apache.commons.csv.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="schema-3">Schema</h3>
+
+<p>Only simple types are supported.</p>
+
+<h3 id="example-2">Example</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
+TYPE text
+LOCATION '/home/admin/orders'
+</code></pre>
+</div>
 
       </div>
     </div>

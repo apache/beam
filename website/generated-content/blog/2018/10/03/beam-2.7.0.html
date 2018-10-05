@@ -28,9 +28,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam SQL: Overview</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam 2.7.0</title>
+  <meta name="description" content="We are happy to present the new 2.7.0 release of Beam. This release includes both improvements and new functionality.See the download page for this release.">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
@@ -39,7 +38,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/overview/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/blog/2018/10/03/beam-2.7.0.html" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -52,7 +51,7 @@
   </script>
 </head>
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  <body class="body ">
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -119,96 +118,8 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<li><span class="section-nav-list-main-title">SDKS</span></li>
-
-<li>
-  <span class="section-nav-list-title">Java</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
-    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="/documentation/sdks/java/nexmark/">Nexmark benchmark suite</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Python</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.7.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
-    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
-    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
-    <li><a href="/documentation/sdks/python-custom-io/">Creating new sources and sinks</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Go SDK</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
-    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">SQL</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/dsls/sql/overview/">Overview</a></li>
-    <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
-    <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">SQL Reference</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
-        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
-        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
-        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
-      </ul>
-    </li>
-  </ul>
-</li>
-
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
+    <div class="body__contained">
+      <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -222,12 +133,18 @@
 
 
 
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam 2.7.0</h1>
+    <p class="post-meta"><time datetime="2018-10-03T01:00:01-07:00" itemprop="datePublished">Oct 3, 2018</time> •
+       Charles Chen 
+      
+    </p>
+  </header>
 
-      </nav>
-
-      <div class="body__contained body__section-nav">
-        <!--
+  <div class="post-content" itemprop="articleBody">
+    <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -241,32 +158,71 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="beam-sql-overview">Beam SQL: Overview</h1>
+<p>We are happy to present the new 2.7.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href="/get-started/downloads/#270-2018-10-02">download page</a> for this release.<!--more-->
+For more information on changes in 2.7.0, check out the
+<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12343654">detailed release notes</a>.</p>
 
-<p>Beam SQL allows a Beam user (currently only available in Beam Java) to query
-bounded and unbounded <code class="highlighter-rouge">PCollections</code> with SQL statements. Your SQL query
-is translated to a <code class="highlighter-rouge">PTransform</code>, an encapsulated segment of a Beam pipeline.
-You can freely mix SQL <code class="highlighter-rouge">PTransforms</code> and other <code class="highlighter-rouge">PTransforms</code> in your pipeline.</p>
+<h2 id="new-features--improvements">New Features / Improvements</h2>
 
-<p>There are three main things you will need to know to use SQL in your pipeline:</p>
+<h3 id="new-ios">New I/Os</h3>
 
 <ul>
-  <li><a href="http://calcite.apache.org">Apache Calcite</a>: a widespread SQL dialect used in
-big data processing with some streaming enhancements. Calcite provides the
-basic dialect underlying Beam SQL. We have added additional extensions to
-make it easy to leverage Beam’s unified batch/streaming model and support
-for complex data types.</li>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html">SqlTransform</a>: 
-the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/index.html?org/apache/beam/sdk/values/Row.html">Row</a>:
-the type of elements that Beam SQL operates on. A <code class="highlighter-rouge">PCollection&lt;Row&gt;</code> plays the role of a table.</li>
+  <li>KuduIO</li>
+  <li>Amazon SNS sink</li>
+  <li>Amazon SqsIO</li>
 </ul>
 
-<p>The <a href="/documentation/dsls/sql/walkthrough">SQL pipeline walkthrough</a> works through how you use
-these.</p>
+<h3 id="dependency-upgrades">Dependency Upgrades</h3>
 
+<ul>
+  <li>Apache Calcite dependency upgraded to 1.17.0</li>
+  <li>Apache Derby dependency upgraded to 10.14.2.0</li>
+  <li>Apache HTTP components upgraded (see release notes).</li>
+</ul>
 
-      </div>
+<h3 id="portability">Portability</h3>
+
+<ul>
+  <li>Experimental support for Python on local Flink runner for simple
+examples, see latest information here:
+/contribute/portability/#status.</li>
+</ul>
+
+<h2 id="miscellaneous-fixes">Miscellaneous Fixes</h2>
+
+<h3 id="ios">I/Os</h3>
+
+<ul>
+  <li>KinesisIO, fixed dependency issue</li>
+</ul>
+
+<h2 id="list-of-contributors">List of Contributors</h2>
+
+<p>According to git shortlog, the following 72 people contributed
+to the 2.7.0 release. Thank you to all contributors!</p>
+
+<p>Ahmet Altay, Alan Myrvold, Alexey Romanenko, Aljoscha Krettek,
+Andrew Pilloud, Ankit Jhalaria, Ankur Goenka, Anton Kedin, Boyuan
+Zhang, Carl McGraw, Carlos Alonso, cclauss, Chamikara Jayalath,
+Charles Chen, Cory Brzycki, Daniel Oliveira, Dariusz Aniszewski,
+devinduan, Eric Beach, Etienne Chauchot, Eugene Kirpichov, Garrett
+Jones, Gene Peters, Gleb Kanterov, Henning Rohde, Henry Suryawirawan,
+Holden Karau, Huygaa Batsaikhan, Ismaël Mejía, Jason Kuster, Jean-
+Baptiste Onofré, Joachim van der Herten, Jozef Vilcek, jxlewis, Kai
+Jiang, Katarzyna Kucharczyk, Kenn Knowles, Krzysztof Trubalski, Kyle
+Winkelman, Leen Toelen, Luis Enrique Ortíz Ramirez, Lukasz Cwik,
+Łukasz Gajowy, Luke Cwik, Mark Liu, Matthias Feys, Maximilian Michels,
+Melissa Pashniak, Mikhail Gryzykhin, Mikhail Sokolov, mingmxu, Norbert
+Chen, Pablo Estrada, Prateek Chanda, Raghu Angadi, Ravi Pathak, Reuven
+Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ryan Williams, Sindy Li,
+Thomas Weise, Tim Robertson, Tormod Haavi, Udi Meiri, Vaclav Plajt,
+Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.</p>
+
+  </div>
+
+</article>
+
     </div>
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");

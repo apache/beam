@@ -142,7 +142,7 @@
   <span class="section-nav-list-title">Java</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.6.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/javadoc/2.7.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -156,7 +156,7 @@
   <span class="section-nav-list-title">Python</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.6.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/pydoc/2.7.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -190,7 +190,7 @@
       <ul class="section-nav-list">
         <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
         <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
-        <li><a href="/documentation/dsls/sql/create-table/">CREATE TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
         <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
         <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
         <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
@@ -222,6 +222,75 @@
 
 
 
+<ul class="nav">
+  <li><a href="#sql-syntax">SQL Syntax</a></li>
+  <li><a href="#select-list">SELECT list</a>
+    <ul>
+      <li><a href="#select-">SELECT *</a></li>
+      <li><a href="#select-expression">SELECT <code class="highlighter-rouge">expression</code></a></li>
+      <li><a href="#select-expression_1">SELECT <code class="highlighter-rouge">expression.*</code></a></li>
+      <li><a href="#select-modifiers">SELECT modifiers</a></li>
+      <li><a href="#aliases">Aliases</a></li>
+    </ul>
+  </li>
+  <li><a href="#from-clause">FROM clause</a>
+    <ul>
+      <li><a href="#syntax">Syntax</a></li>
+      <li><a href="#subqueries">Subqueries</a></li>
+      <li><a href="#aliases_1">Aliases</a></li>
+    </ul>
+  </li>
+  <li><a href="#join-types">JOIN types</a>
+    <ul>
+      <li><a href="#syntax_1">Syntax</a></li>
+      <li><a href="#inner-join">[INNER] JOIN</a></li>
+      <li><a href="#cross-join">CROSS JOIN</a></li>
+      <li><a href="#full-outer-join">FULL [OUTER] JOIN</a></li>
+      <li><a href="#left-outer-join">LEFT [OUTER] JOIN</a></li>
+      <li><a href="#right-outer-join">RIGHT [OUTER] JOIN</a></li>
+      <li><a href="#on-clause">ON clause</a></li>
+      <li><a href="#using-clause">USING clause</a></li>
+      <li><a href="#sequences-of-joins">Sequences of JOINs</a></li>
+    </ul>
+  </li>
+  <li><a href="#where-clause">WHERE clause</a>
+    <ul>
+      <li><a href="#syntax_2">Syntax</a></li>
+    </ul>
+  </li>
+  <li><a href="#group-by-clause">GROUP BY clause</a>
+    <ul>
+      <li><a href="#syntax_3">Syntax</a></li>
+    </ul>
+  </li>
+  <li><a href="#having-clause">HAVING clause</a>
+    <ul>
+      <li><a href="#syntax_4">Syntax</a></li>
+    </ul>
+  </li>
+  <li><a href="#set-operators">Set operators</a>
+    <ul>
+      <li><a href="#syntax_6">Syntax</a></li>
+      <li><a href="#union">UNION</a></li>
+      <li><a href="#intersect">INTERSECT</a></li>
+      <li><a href="#except">EXCEPT</a></li>
+    </ul>
+  </li>
+  <li><a href="#limit-clause-and-offset-clause">LIMIT clause and OFFSET clause</a>
+    <ul>
+      <li><a href="#syntax_7">Syntax</a></li>
+    </ul>
+  </li>
+  <li><a href="#with-clause">WITH clause</a></li>
+  <li><a href="#aliases_2">Aliases</a>
+    <ul>
+      <li><a href="#explicit-alias-syntax">Explicit alias syntax</a></li>
+      <li><a href="#explicit-alias-visibility">Explicit alias visibility</a></li>
+      <li><a href="#ambiguous-aliases">Ambiguous aliases</a></li>
+      <li><a href="#implicit-aliases">Implicit aliases</a></li>
+    </ul>
+  </li>
+</ul>
 
 
       </nav>
@@ -256,62 +325,736 @@ batch/streaming model:</p>
   <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing &amp; Triggering</a></li>
 </ul>
 
-<p>Below is a curated grammar of the supported syntax in Beam SQL</p>
+<p>Query statements scan one or more tables or expressions and return the computed
+result rows. This topic describes the syntax for SQL queries in Beam.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>query:
-	{
-          select
-      |   query UNION [ ALL ] query
-      |   query MINUS [ ALL ] query
-      |   query INTERSECT [ ALL ] query
-	}
-    [ ORDER BY orderItem [, orderItem ]* LIMIT count [OFFSET offset] ]
+<h2 id="sql-syntax">SQL Syntax</h2>
 
-orderItem:
-      expression [ ASC | DESC ]
+<div class="highlighter-rouge"><pre class="highlight"><code>query_statement:
+    [ WITH with_query_name AS ( query_expr ) [, ...] ]
+    query_expr
+
+query_expr:
+    { select | ( query_expr ) | query_expr set_op query_expr }
+    [ LIMIT count [ OFFSET skip_rows ] ]
 
 select:
-      SELECT
-          { * | projectItem [, projectItem ]* }
-      FROM tableExpression
-      [ WHERE booleanExpression ]
-      [ GROUP BY { groupItem [, groupItem ]* } ]
-      [ HAVING booleanExpression ]
+    SELECT  [{ ALL | DISTINCT }]
+        { [ expression. ]* [ EXCEPT ( column_name [, ...] ) ]
+            [ REPLACE ( expression [ AS ] column_name [, ...] ) ]
+        | expression [ [ AS ] alias ] } [, ...]
+    [ FROM from_item  [, ...] ]
+    [ WHERE bool_expression ]
+    [ GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) } ]
+    [ HAVING bool_expression ]
 
-projectItem:
-      expression [ [ AS ] columnAlias ]
-  |   tableAlias . *
+set_op:
+    UNION { ALL | DISTINCT } | INTERSECT DISTINCT | EXCEPT DISTINCT
 
-tableExpression:
-      tableReference [, tableReference ]*
-  |   tableExpression [ ( LEFT | RIGHT ) [ OUTER ] ] JOIN tableExpression [ joinCondition ]
+from_item: {
+    table_name [ [ AS ] alias ] |
+    join |
+    ( query_expr ) [ [ AS ] alias ]
+    with_query_name [ [ AS ] alias ]
+}
 
-booleanExpression:
-    expression [ IS NULL | IS NOT NULL ]
-  | expression [ &gt; | &gt;= | = | &lt; | &lt;= | &lt;&gt; ] expression
-  | booleanExpression [ AND | OR ] booleanExpression
-  | NOT booleanExpression
-  | '(' booleanExpression ')'
+join:
+    from_item [ join_type ] JOIN from_item
+    [ { ON bool_expression | USING ( join_column [, ...] ) } ]
 
-joinCondition:
-      ON booleanExpression
-
-tableReference:
-      tableName [ [ AS ] alias ]
-
-values:
-      VALUES expression [, expression ]*
-
-groupItem:
-      expression
-  |   '(' expression [, expression ]* ')'
-  |   HOP '(' expression [, expression ]* ')'
-  |   TUMBLE '(' expression [, expression ]* ')'
-  |   SESSION '(' expression [, expression ]* ')'
-
+join_type:
+    { INNER | CROSS | FULL [OUTER] | LEFT [OUTER] | RIGHT [OUTER] }
 </code></pre>
 </div>
 
+<p>Notation:</p>
+
+<ul>
+  <li>Square brackets “[ ]” indicate optional clauses.</li>
+  <li>Parentheses “( )” indicate literal parentheses.</li>
+  <li>
+    <table>
+      <tbody>
+        <tr>
+          <td>The vertical bar “</td>
+          <td>” indicates a logical OR.</td>
+        </tr>
+      </tbody>
+    </table>
+  </li>
+  <li>Curly braces “{ }” enclose a set of options.</li>
+  <li>A comma followed by an ellipsis within square brackets “[, … ]”
+indicates that the preceding item can repeat in a comma-separated list.</li>
+</ul>
+
+<h2 id="select-list">SELECT list</h2>
+
+<p>Syntax:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT  [{ ALL | DISTINCT }]
+    { [ expression. ]*
+    | expression [ [ AS ] alias ] } [, ...]
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">SELECT</code> list defines the columns that the query will return. Expressions in
+the <code class="highlighter-rouge">SELECT</code> list can refer to columns in any of the <code class="highlighter-rouge">from_item</code>s in its
+corresponding <code class="highlighter-rouge">FROM</code> clause.</p>
+
+<p>Each item in the <code class="highlighter-rouge">SELECT</code> list is one of:</p>
+
+<ul>
+  <li>*</li>
+  <li><code class="highlighter-rouge">expression</code></li>
+  <li><code class="highlighter-rouge">expression.*</code></li>
+</ul>
+
+<h3 id="select-">SELECT *</h3>
+
+<p><code class="highlighter-rouge">SELECT *</code>, often referred to as <em>select star</em>, produces one output column for
+each column that is visible after executing the full query.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM (SELECT 'apple' AS fruit, 'carrot' AS vegetable);
+
++-------+-----------+
+| fruit | vegetable |
++-------+-----------+
+| apple | carrot    |
++-------+-----------+
+</code></pre>
+</div>
+
+<h3 id="select-expression">SELECT <code class="highlighter-rouge">expression</code></h3>
+
+<p>Items in a <code class="highlighter-rouge">SELECT</code> list can be expressions. These expressions evaluate to a
+single value and produce one output column, with an optional explicit <code class="highlighter-rouge">alias</code>.</p>
+
+<p>If the expression does not have an explicit alias, it receives an implicit alias
+according to the rules for <a href="#implicit-aliases">implicit aliases</a>, if possible.
+Otherwise, the column is anonymous and you cannot refer to it by name elsewhere
+in the query.</p>
+
+<h3 id="select-expression_1">SELECT <code class="highlighter-rouge">expression.*</code></h3>
+
+<p>An item in a <code class="highlighter-rouge">SELECT</code> list can also take the form of <code class="highlighter-rouge">expression.*</code>. This
+produces one output column for each column or top-level field of <code class="highlighter-rouge">expression</code>.
+The expression must be a table alias.</p>
+
+<p>The following query produces one output column for each column in the table
+<code class="highlighter-rouge">groceries</code>, aliased as <code class="highlighter-rouge">g</code>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>WITH groceries AS
+  (SELECT 'milk' AS dairy,
+   'eggs' AS protein,
+   'bread' AS grain)
+SELECT g.*
+FROM groceries AS g;
+
++-------+---------+-------+
+| dairy | protein | grain |
++-------+---------+-------+
+| milk  | eggs    | bread |
++-------+---------+-------+
+</code></pre>
+</div>
+
+<h3 id="select-modifiers">SELECT modifiers</h3>
+
+<p>You can modify the results returned from a <code class="highlighter-rouge">SELECT</code> query, as follows.</p>
+
+<h4 id="select-distinct">SELECT DISTINCT</h4>
+
+<p>A <code class="highlighter-rouge">SELECT DISTINCT</code> statement discards duplicate rows and returns only the
+remaining rows. <code class="highlighter-rouge">SELECT DISTINCT</code> cannot return columns of the following types:</p>
+
+<ul>
+  <li>STRUCT</li>
+  <li>ARRAY</li>
+</ul>
+
+<h4 id="select-all">SELECT ALL</h4>
+
+<p>A <code class="highlighter-rouge">SELECT ALL</code> statement returns all rows, including duplicate rows. <code class="highlighter-rouge">SELECT
+ALL</code> is the default behavior of <code class="highlighter-rouge">SELECT</code>.</p>
+
+<h3 id="aliases">Aliases</h3>
+
+<p>See <a href="#aliases_2">Aliases</a> for information on syntax and visibility for
+<code class="highlighter-rouge">SELECT</code> list aliases.</p>
+
+<h2 id="from-clause">FROM clause</h2>
+
+<p>The <code class="highlighter-rouge">FROM</code> clause indicates the table or tables from which to retrieve rows, and
+specifies how to join those rows together to produce a single stream of rows for
+processing in the rest of the query.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>from_item: {
+    table_name [ [ AS ] alias ] |
+    join |
+    ( query_expr ) [ [ AS ] alias ] |
+    with_query_name [ [ AS ] alias ]
+}
+</code></pre>
+</div>
+
+<h4 id="table_name">table_name</h4>
+
+<p>The name (optionally qualified) of an existing table.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster;
+SELECT * FROM beam.Roster;
+</code></pre>
+</div>
+
+<h4 id="join">join</h4>
+
+<p>See <a href="#join-types">JOIN Types</a> below and <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+
+<h4 id="select_1">select</h4>
+
+<p><code class="highlighter-rouge">( select ) [ [ AS ] alias ]</code> is a table <a href="#subqueries">subquery</a>.</p>
+
+<h4 id="with_query_name">with_query_name</h4>
+
+<p>The query names in a <code class="highlighter-rouge">WITH</code> clause (see <a href="#with-clause">WITH Clause</a>) act like
+names of temporary tables that you can reference anywhere in the <code class="highlighter-rouge">FROM</code> clause.
+In the example below, <code class="highlighter-rouge">subQ1</code> and <code class="highlighter-rouge">subQ2</code> are <code class="highlighter-rouge">with_query_names</code>.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>WITH
+  subQ1 AS (SELECT * FROM Roster WHERE SchoolID = 52),
+  subQ2 AS (SELECT SchoolID FROM subQ1)
+SELECT DISTINCT * FROM subQ2;
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">WITH</code> clause hides any permanent tables with the same name for the duration
+of the query, unless you qualify the table name, e.g. <code class="highlighter-rouge">beam.Roster</code>.</p>
+
+<h3 id="subqueries">Subqueries</h3>
+
+<p>A subquery is a query that appears inside another statement, and is written
+inside parentheses. These are also referred to as “sub-SELECTs” or “nested
+SELECTs”. The full <code class="highlighter-rouge">SELECT</code> syntax is valid in subqueries.</p>
+
+<p>There are two types of subquery:</p>
+
+<ul>
+  <li>Expression Subqueries
+which you can use in a query wherever expressions are valid. Expression
+subqueries return a single value.</li>
+  <li>Table subqueries, which you can use only in a <code class="highlighter-rouge">FROM</code> clause. The outer query
+treats the result of the subquery as a table.</li>
+</ul>
+
+<p>Note that there must be parentheses around both types of subqueries.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT AVG ( PointsScored )
+FROM
+( SELECT PointsScored
+  FROM Stats
+  WHERE SchoolID = 77 )
+</code></pre>
+</div>
+
+<p>Optionally, a table subquery can have an alias.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT r.LastName
+FROM
+( SELECT * FROM Roster) AS r;
+</code></pre>
+</div>
+
+<h3 id="aliases_1">Aliases</h3>
+
+<p>See <a href="#aliases_2">Aliases</a> for information on syntax and visibility for
+<code class="highlighter-rouge">FROM</code> clause aliases.</p>
+
+<h2 id="join-types">JOIN types</h2>
+
+<p>Also see <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+
+<h3 id="syntax_1">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>join:
+    from_item [ join_type ] JOIN from_item
+    [ ON bool_expression | USING ( join_column [, ...] ) ]
+
+join_type:
+    { INNER | CROSS | FULL [OUTER] | LEFT [OUTER] | RIGHT [OUTER] }
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">JOIN</code> clause merges two <code class="highlighter-rouge">from_item</code>s so that the <code class="highlighter-rouge">SELECT</code> clause can query
+them as one source. The <code class="highlighter-rouge">join_type</code> and <code class="highlighter-rouge">ON</code> or <code class="highlighter-rouge">USING</code> clause (a “join
+condition”) specify how to combine and discard rows from the two <code class="highlighter-rouge">from_item</code>s to
+form a single source.</p>
+
+<p>All <code class="highlighter-rouge">JOIN</code> clauses require a <code class="highlighter-rouge">join_type</code>.</p>
+
+<p>A <code class="highlighter-rouge">JOIN</code> clause requires a join condition unless one of the following conditions
+is true:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">join_type</code> is <code class="highlighter-rouge">CROSS</code>.</li>
+  <li>One or both of the <code class="highlighter-rouge">from_item</code>s is not a table, e.g. an <code class="highlighter-rouge">array_path</code> or
+<code class="highlighter-rouge">field_path</code>.</li>
+</ul>
+
+<h3 id="inner-join">[INNER] JOIN</h3>
+
+<p>An <code class="highlighter-rouge">INNER JOIN</code>, or simply <code class="highlighter-rouge">JOIN</code>, effectively calculates the Cartesian product
+of the two <code class="highlighter-rouge">from_item</code>s and discards all rows that do not meet the join
+condition. “Effectively” means that it is possible to implement an <code class="highlighter-rouge">INNER JOIN</code>
+without actually calculating the Cartesian product.</p>
+
+<h3 id="cross-join">CROSS JOIN</h3>
+
+<p><code class="highlighter-rouge">CROSS JOIN</code> is generally not yet supported.</p>
+
+<h3 id="full-outer-join">FULL [OUTER] JOIN</h3>
+
+<p>A <code class="highlighter-rouge">FULL OUTER JOIN</code> (or simply <code class="highlighter-rouge">FULL JOIN</code>) returns all fields for all rows in
+both <code class="highlighter-rouge">from_item</code>s that meet the join condition.</p>
+
+<p><code class="highlighter-rouge">FULL</code> indicates that <em>all rows</em> from both <code class="highlighter-rouge">from_item</code>s are returned, even if
+they do not meet the join condition. For streaming jobs, all rows that are
+not late according to default trigger and belonging to the same window
+if there’s non-global window applied.</p>
+
+<p><code class="highlighter-rouge">OUTER</code> indicates that if a given row from one <code class="highlighter-rouge">from_item</code> does not join to any
+row in the other <code class="highlighter-rouge">from_item</code>, the row will return with NULLs for all columns
+from the other <code class="highlighter-rouge">from_item</code>.</p>
+
+<p>Also see <a href="/documentation/dsls/sql/joins">Joins</a>.</p>
+
+<h3 id="left-outer-join">LEFT [OUTER] JOIN</h3>
+
+<p>The result of a <code class="highlighter-rouge">LEFT OUTER JOIN</code> (or simply <code class="highlighter-rouge">LEFT JOIN</code>) for two <code class="highlighter-rouge">from_item</code>s
+always retains all rows of the left <code class="highlighter-rouge">from_item</code> in the <code class="highlighter-rouge">JOIN</code> clause, even if no
+rows in the right <code class="highlighter-rouge">from_item</code> satisfy the join predicate.</p>
+
+<p><code class="highlighter-rouge">LEFT</code> indicates that all rows from the <em>left</em> <code class="highlighter-rouge">from_item</code> are returned; if a
+given row from the left <code class="highlighter-rouge">from_item</code> does not join to any row in the <em>right</em>
+<code class="highlighter-rouge">from_item</code>, the row will return with NULLs for all columns from the right
+<code class="highlighter-rouge">from_item</code>. Rows from the right <code class="highlighter-rouge">from_item</code> that do not join to any row in the
+left <code class="highlighter-rouge">from_item</code> are discarded.</p>
+
+<h3 id="right-outer-join">RIGHT [OUTER] JOIN</h3>
+
+<p>The result of a <code class="highlighter-rouge">RIGHT OUTER JOIN</code> (or simply <code class="highlighter-rouge">RIGHT JOIN</code>) is similar and
+symmetric to that of <code class="highlighter-rouge">LEFT OUTER JOIN</code>.</p>
+
+<h3 id="on-clause">ON clause</h3>
+
+<p>The <code class="highlighter-rouge">ON</code> clause contains a <code class="highlighter-rouge">bool_expression</code>. A combined row (the result of
+joining two rows) meets the join condition if <code class="highlighter-rouge">bool_expression</code> returns TRUE.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+ON Roster.LastName = PlayerStats.LastName;
+</code></pre>
+</div>
+
+<h3 id="using-clause">USING clause</h3>
+
+<p>The <code class="highlighter-rouge">USING</code> clause requires a <code class="highlighter-rouge">column_list</code> of one or more columns which occur
+in both input tables. It performs an equality comparison on that column, and the
+rows meet the join condition if the equality comparison returns TRUE.</p>
+
+<p>In most cases, a statement with the <code class="highlighter-rouge">USING</code> keyword is equivalent to using the
+<code class="highlighter-rouge">ON</code> keyword. For example, the statement:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT FirstName
+FROM Roster INNER JOIN PlayerStats
+USING (LastName);
+</code></pre>
+</div>
+
+<p>is equivalent to:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT FirstName
+FROM Roster INNER JOIN PlayerStats
+ON Roster.LastName = PlayerStats.LastName;
+</code></pre>
+</div>
+
+<p>The results from queries with <code class="highlighter-rouge">USING</code> do differ from queries that use <code class="highlighter-rouge">ON</code> when
+you use <code class="highlighter-rouge">SELECT *</code>. To illustrate this, consider the query:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+USING (LastName);
+</code></pre>
+</div>
+
+<p>This statement returns the rows from <code class="highlighter-rouge">Roster</code> and <code class="highlighter-rouge">PlayerStats</code> where
+<code class="highlighter-rouge">Roster.LastName</code> is the same as <code class="highlighter-rouge">PlayerStats.LastName</code>. The results include a
+single <code class="highlighter-rouge">LastName</code> column.</p>
+
+<p>By contrast, consider the following query:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN PlayerStats
+ON Roster.LastName = PlayerStats.LastName;
+</code></pre>
+</div>
+
+<p>This statement returns the rows from <code class="highlighter-rouge">Roster</code> and <code class="highlighter-rouge">PlayerStats</code> where
+<code class="highlighter-rouge">Roster.LastName</code> is the same as <code class="highlighter-rouge">PlayerStats.LastName</code>. The results include two
+<code class="highlighter-rouge">LastName</code> columns; one from <code class="highlighter-rouge">Roster</code> and one from <code class="highlighter-rouge">PlayerStats</code>.</p>
+
+<h3 id="sequences-of-joins">Sequences of JOINs</h3>
+
+<p>The <code class="highlighter-rouge">FROM</code> clause can contain multiple <code class="highlighter-rouge">JOIN</code> clauses in sequence.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM a LEFT JOIN b ON TRUE LEFT JOIN c ON TRUE;
+</code></pre>
+</div>
+
+<p>where <code class="highlighter-rouge">a</code>, <code class="highlighter-rouge">b</code>, and <code class="highlighter-rouge">c</code> are any <code class="highlighter-rouge">from_item</code>s. JOINs are bound from left to
+right, but you can insert parentheses to group them in a different order.</p>
+
+<h2 id="where-clause">WHERE clause</h2>
+
+<h3 id="syntax_2">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>WHERE bool_expression
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">WHERE</code> clause filters out rows by evaluating each row against
+<code class="highlighter-rouge">bool_expression</code>, and discards all rows that do not return TRUE (that is, rows
+that return FALSE or NULL).</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster
+WHERE SchoolID = 52;
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">bool_expression</code> can contain multiple sub-conditions.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster
+WHERE LastName LIKE 'Mc%' OR LastName LIKE 'Mac%';
+</code></pre>
+</div>
+
+<p>You cannot reference column aliases from the <code class="highlighter-rouge">SELECT</code> list in the <code class="highlighter-rouge">WHERE</code>
+clause.</p>
+
+<p>Expressions in an <code class="highlighter-rouge">INNER JOIN</code> have an equivalent expression in the <code class="highlighter-rouge">WHERE</code>
+clause. For example, a query using <code class="highlighter-rouge">INNER</code> <code class="highlighter-rouge">JOIN</code> and <code class="highlighter-rouge">ON</code> has an equivalent
+expression using <code class="highlighter-rouge">CROSS JOIN</code> and <code class="highlighter-rouge">WHERE</code>.</p>
+
+<p>Example - this query:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster INNER JOIN TeamMascot
+ON Roster.SchoolID = TeamMascot.SchoolID;
+</code></pre>
+</div>
+
+<p>is equivalent to:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT * FROM Roster CROSS JOIN TeamMascot
+WHERE Roster.SchoolID = TeamMascot.SchoolID;
+</code></pre>
+</div>
+
+<h2 id="group-by-clause">GROUP BY clause</h2>
+
+<p>Also see <a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing &amp; Triggering</a></p>
+
+<h3 id="syntax_3">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>GROUP BY { expression [, ...] | ROLLUP ( expression [, ...] ) }
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">GROUP BY</code> clause groups together rows in a table with non-distinct values
+for the <code class="highlighter-rouge">expression</code> in the <code class="highlighter-rouge">GROUP BY</code> clause. For multiple rows in the source
+table with non-distinct values for <code class="highlighter-rouge">expression</code>, the <code class="highlighter-rouge">GROUP BY</code> clause produces
+a single combined row. <code class="highlighter-rouge">GROUP BY</code> is commonly used when aggregate functions are
+present in the <code class="highlighter-rouge">SELECT</code> list, or to eliminate redundancy in the output.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SUM(PointsScored), LastName
+FROM PlayerStats
+GROUP BY LastName;
+</code></pre>
+</div>
+
+<h2 id="having-clause">HAVING clause</h2>
+
+<h3 id="syntax_4">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>HAVING bool_expression
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">HAVING</code> clause is similar to the <code class="highlighter-rouge">WHERE</code> clause: it filters out rows that
+do not return TRUE when they are evaluated against the <code class="highlighter-rouge">bool_expression</code>.</p>
+
+<p>As with the <code class="highlighter-rouge">WHERE</code> clause, the <code class="highlighter-rouge">bool_expression</code> can be any expression that
+returns a boolean, and can contain multiple sub-conditions.</p>
+
+<p>The <code class="highlighter-rouge">HAVING</code> clause differs from the <code class="highlighter-rouge">WHERE</code> clause in that:</p>
+
+<ul>
+  <li>The <code class="highlighter-rouge">HAVING</code> clause requires <code class="highlighter-rouge">GROUP BY</code> or aggregation to be present in the
+query.</li>
+  <li>The <code class="highlighter-rouge">HAVING</code> clause occurs after <code class="highlighter-rouge">GROUP BY</code> and aggregation.
+This means that the <code class="highlighter-rouge">HAVING</code> clause is evaluated once for every
+aggregated row in the result set. This differs from the <code class="highlighter-rouge">WHERE</code> clause,
+which is evaluated before <code class="highlighter-rouge">GROUP BY</code> and aggregation.</li>
+</ul>
+
+<p>The <code class="highlighter-rouge">HAVING</code> clause can reference columns available via the <code class="highlighter-rouge">FROM</code> clause, as
+well as <code class="highlighter-rouge">SELECT</code> list aliases. Expressions referenced in the <code class="highlighter-rouge">HAVING</code> clause
+must either appear in the <code class="highlighter-rouge">GROUP BY</code> clause or they must be the result of an
+aggregate function:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT LastName
+FROM Roster
+GROUP BY LastName
+HAVING SUM(PointsScored) &gt; 15;
+</code></pre>
+</div>
+
+<h2 id="set-operators">Set operators</h2>
+
+<h3 id="syntax_6">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>UNION { ALL | DISTINCT } | INTERSECT DISTINCT | EXCEPT DISTINCT
+</code></pre>
+</div>
+
+<p>Set operators combine results from two or more input queries into a single
+result set. You must specify <code class="highlighter-rouge">ALL</code> or <code class="highlighter-rouge">DISTINCT</code>; if you specify <code class="highlighter-rouge">ALL</code>, then all
+rows are retained. If <code class="highlighter-rouge">DISTINCT</code> is specified, duplicate rows are discarded.</p>
+
+<p>If a given row R appears exactly m times in the first input query and n times in
+the second input query (m &gt;= 0, n &gt;= 0):</p>
+
+<ul>
+  <li>For <code class="highlighter-rouge">UNION ALL</code>, R appears exactly m + n times in the result.</li>
+  <li>For <code class="highlighter-rouge">UNION DISTINCT</code>, the <code class="highlighter-rouge">DISTINCT</code> is computed after the <code class="highlighter-rouge">UNION</code> is
+computed, so R appears exactly one time.</li>
+  <li>For <code class="highlighter-rouge">INTERSECT DISTINCT</code>, the <code class="highlighter-rouge">DISTINCT</code> is computed after the result above
+is computed.</li>
+  <li>For <code class="highlighter-rouge">EXCEPT DISTINCT</code>, row R appears once in the output if m &gt; 0 and
+n = 0.</li>
+  <li>If there are more than two input queries, the above operations generalize
+and the output is the same as if the inputs were combined incrementally from
+left to right.</li>
+</ul>
+
+<p>The following rules apply:</p>
+
+<ul>
+  <li>For set operations other than <code class="highlighter-rouge">UNION ALL</code>, all column types must support
+equality comparison.</li>
+  <li>The input queries on each side of the operator must return the same number
+of columns.</li>
+  <li>The operators pair the columns returned by each input query according to the
+columns’ positions in their respective <code class="highlighter-rouge">SELECT</code> lists. That is, the first
+column in the first input query is paired with the first column in the
+second input query.</li>
+  <li>The result set always uses the column names from the first input query.</li>
+  <li>The result set always uses the supertypes of input types in corresponding
+columns, so paired columns must also have either the same data type or a
+common supertype.</li>
+  <li>You must use parentheses to separate different set operations; for this
+purpose, set operations such as <code class="highlighter-rouge">UNION ALL</code> and <code class="highlighter-rouge">UNION DISTINCT</code> are
+different. If the statement only repeats the same set operation, parentheses
+are not necessary.</li>
+</ul>
+
+<p>Examples:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>query1 UNION ALL (query2 UNION DISTINCT query3)
+query1 UNION ALL query2 UNION ALL query3
+</code></pre>
+</div>
+
+<p>Invalid:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>query1 UNION ALL query2 UNION DISTINCT query3
+query1 UNION ALL query2 INTERSECT ALL query3;  // INVALID.
+</code></pre>
+</div>
+
+<h3 id="union">UNION</h3>
+
+<p>The <code class="highlighter-rouge">UNION</code> operator combines the result sets of two or more input queries by
+pairing columns from the result set of each query and vertically concatenating
+them.</p>
+
+<h3 id="intersect">INTERSECT</h3>
+
+<p>The <code class="highlighter-rouge">INTERSECT</code> operator returns rows that are found in the result sets of both
+the left and right input queries. Unlike <code class="highlighter-rouge">EXCEPT</code>, the positioning of the input
+queries (to the left vs. right of the <code class="highlighter-rouge">INTERSECT</code> operator) does not matter.</p>
+
+<h3 id="except">EXCEPT</h3>
+
+<p>The <code class="highlighter-rouge">EXCEPT</code> operator returns rows from the left input query that are not
+present in the right input query.</p>
+
+<h2 id="limit-clause-and-offset-clause">LIMIT clause and OFFSET clause</h2>
+
+<h3 id="syntax_7">Syntax</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>LIMIT count [ OFFSET skip_rows ]
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">LIMIT</code> specifies a non-negative <code class="highlighter-rouge">count</code> of type INTEGER, and no more than <code class="highlighter-rouge">count</code>
+rows will be returned. <code class="highlighter-rouge">LIMIT</code> <code class="highlighter-rouge">0</code> returns 0 rows. If there is a set operation,
+<code class="highlighter-rouge">LIMIT</code> is applied after the set operation is evaluated.</p>
+
+<p><code class="highlighter-rouge">OFFSET</code> specifies a non-negative <code class="highlighter-rouge">skip_rows</code> of type INTEGER, and only rows from
+that offset in the table will be considered.</p>
+
+<p>These clauses accept only literal or parameter values.</p>
+
+<p>The rows that are returned by <code class="highlighter-rouge">LIMIT</code> and <code class="highlighter-rouge">OFFSET</code> is unspecified.</p>
+
+<h2 id="with-clause">WITH clause</h2>
+
+<p>The <code class="highlighter-rouge">WITH</code> clause contains one or more named subqueries which execute every time
+a subsequent <code class="highlighter-rouge">SELECT</code> statement references them. Any clause or subquery can
+reference subqueries you define in the <code class="highlighter-rouge">WITH</code> clause. This includes any <code class="highlighter-rouge">SELECT</code>
+statements on either side of a set operator, such as <code class="highlighter-rouge">UNION</code>.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>WITH subQ1 AS (SELECT SchoolID FROM Roster),
+     subQ2 AS (SELECT OpponentID FROM PlayerStats)
+SELECT * FROM subQ1
+UNION ALL
+SELECT * FROM subQ2;
+</code></pre>
+</div>
+
+<h2 id="aliases_2">Aliases</h2>
+
+<p>An alias is a temporary name given to a table, column, or expression present in
+a query. You can introduce explicit aliases in the <code class="highlighter-rouge">SELECT</code> list or <code class="highlighter-rouge">FROM</code>
+clause, or Beam will infer an implicit alias for some expressions.
+Expressions with neither an explicit nor implicit alias are anonymous and the
+query cannot reference them by name.</p>
+
+<h3 id="explicit-alias-syntax">Explicit alias syntax</h3>
+
+<p>You can introduce explicit aliases in either the <code class="highlighter-rouge">FROM</code> clause or the <code class="highlighter-rouge">SELECT</code>
+list.</p>
+
+<p>In a <code class="highlighter-rouge">FROM</code> clause, you can introduce explicit aliases for any item, including
+tables, arrays, subqueries, and <code class="highlighter-rouge">UNNEST</code> clauses, using <code class="highlighter-rouge">[AS] alias</code>. The <code class="highlighter-rouge">AS</code>
+keyword is optional.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT s.FirstName, s2.SongName
+FROM Singers AS s JOIN Songs AS s2 ON s.SingerID = s2.SingerID;
+</code></pre>
+</div>
+
+<p>You can introduce explicit aliases for any expression in the <code class="highlighter-rouge">SELECT</code> list using
+<code class="highlighter-rouge">[AS] alias</code>. The <code class="highlighter-rouge">AS</code> keyword is optional.</p>
+
+<p>Example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT s.FirstName AS name, LOWER(s.FirstName) AS lname
+FROM Singers s;
+</code></pre>
+</div>
+
+<h3 id="explicit-alias-visibility">Explicit alias visibility</h3>
+
+<p>After you introduce an explicit alias in a query, there are restrictions on
+where else in the query you can reference that alias. These restrictions on
+alias visibility are the result of Beam’s name scoping rules.</p>
+
+<h4 id="from-clause-aliases">FROM clause aliases</h4>
+
+<p>Beam processes aliases in a <code class="highlighter-rouge">FROM</code> clause from left to right, and aliases
+are visible only to subsequent <code class="highlighter-rouge">JOIN</code> clauses.</p>
+
+<h3 id="ambiguous-aliases">Ambiguous aliases</h3>
+
+<p>Beam provides an error if a name is ambiguous, meaning it can resolve to
+more than one unique object.</p>
+
+<p>Examples:</p>
+
+<p>This query contains column names that conflict between tables, since both
+<code class="highlighter-rouge">Singers</code> and <code class="highlighter-rouge">Songs</code> have a column named <code class="highlighter-rouge">SingerID</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT SingerID
+FROM Singers, Songs;
+</code></pre>
+</div>
+
+<h3 id="implicit-aliases">Implicit aliases</h3>
+
+<p>In the <code class="highlighter-rouge">SELECT</code> list, if there is an expression that does not have an explicit
+alias, Beam assigns an implicit alias according to the following rules.
+There can be multiple columns with the same alias in the <code class="highlighter-rouge">SELECT</code> list.</p>
+
+<ul>
+  <li>For identifiers, the alias is the identifier. For example, <code class="highlighter-rouge">SELECT abc</code>
+implies <code class="highlighter-rouge">AS abc</code>.</li>
+  <li>For path expressions, the alias is the last identifier in the path. For
+example, <code class="highlighter-rouge">SELECT abc.def.ghi</code> implies <code class="highlighter-rouge">AS ghi</code>.</li>
+  <li>For field access using the “dot” member field access operator, the alias is
+the field name. For example, <code class="highlighter-rouge">SELECT (struct_function()).fname</code> implies <code class="highlighter-rouge">AS
+fname</code>.</li>
+</ul>
+
+<p>In all other cases, there is no implicit alias, so the column is anonymous and
+cannot be referenced by name. The data from that column will still be returned
+and the displayed query results may have a generated label for that column, but
+the label cannot be used like an alias.</p>
+
+<p>In a <code class="highlighter-rouge">FROM</code> clause, <code class="highlighter-rouge">from_item</code>s are not required to have an alias. The
+following rules apply:</p>
+
+<p>If there is an expression that does not have an explicit alias, Beam assigns
+an implicit alias in these cases:</p>
+
+<ul>
+  <li>For identifiers, the alias is the identifier. For example, <code class="highlighter-rouge">FROM abc</code>
+implies <code class="highlighter-rouge">AS abc</code>.</li>
+  <li>For path expressions, the alias is the last identifier in the path. For
+example, <code class="highlighter-rouge">FROM abc.def.ghi</code> implies <code class="highlighter-rouge">AS ghi</code></li>
+</ul>
+
+<p>Table subqueries do not have implicit aliases.</p>
+
+<p><code class="highlighter-rouge">FROM UNNEST(x)</code> does not have an implicit alias.</p>
+
+<blockquote>
+  <p>Portions of this page are modifications based on
+<a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax">work</a>
+created and
+<a href="https://developers.google.com/terms/site-policies">shared by Google</a>
+and used according to terms described in the <a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons 3.0
+Attribution License</a>.</p>
+</blockquote>
 
       </div>
     </div>

@@ -232,7 +232,7 @@ limitations under the License.
 <div class="shell-unix highlighter-rouge"><pre class="highlight"><code>$ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=2.6.0 \
+      -DarchetypeVersion=2.7.0 \
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion="0.1" \
@@ -244,7 +244,7 @@ limitations under the License.
 <div class="shell-PowerShell highlighter-rouge"><pre class="highlight"><code>PS&gt; mvn archetype:generate `
  -D archetypeGroupId=org.apache.beam `
  -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
- -D archetypeVersion=2.6.0 `
+ -D archetypeVersion=2.7.0 `
  -D groupId=org.example `
  -D artifactId=word-count-beam `
  -D version="0.1" `
@@ -342,7 +342,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; \
@@ -386,7 +386,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; `
