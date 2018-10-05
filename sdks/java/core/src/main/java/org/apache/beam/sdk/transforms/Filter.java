@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.transforms.Failure.TaggedExceptionsList;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * {@code PTransform}s for filtering from a {@code PCollection} the elements satisfying a predicate,
@@ -212,5 +215,70 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("predicate", predicateDescription).withLabel("Filter Predicate"));
+  }
+
+  /**
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple}. This allows you to make subsequent
+   * {@link WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown
+   * exceptions to failure collections.
+   */
+  public WithFailures withSuccessTag(TupleTag<T> successTag) {
+    return new WithFailures(successTag, TaggedExceptionsList.empty());
+  }
+
+  /**
+   * Variant of {@link Filter} that that can handle exceptions and output one or more failure
+   * collections wrapped in a {@link PCollectionTuple}. Specify how to handle exceptions by calling
+   * {@link #withFailureTag(TupleTag, Class, Class[])}.
+   */
+  public class WithFailures extends PTransform<PCollection<T>, PCollectionTuple> {
+    private final TupleTag<T> successTag;
+    private final TaggedExceptionsList<T> taggedExceptionsList;
+
+    WithFailures(TupleTag<T> successTag, TaggedExceptionsList<T> taggedExceptionsList) {
+      this.successTag = successTag;
+      this.taggedExceptionsList = taggedExceptionsList;
+    }
+
+    /** Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it. */
+    public WithFailures withFailureTag(
+        TupleTag<Failure<T>> tag, Class exceptionToCatch, Class... additionalExceptions) {
+      return new WithFailures(
+          successTag, taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<T> input) {
+      PCollectionTuple pcs =
+          input.apply(
+              ParDo.of(
+                      new DoFn<T, T>() {
+                        @ProcessElement
+                        public void processElement(@Element T element, MultiOutputReceiver receiver)
+                            throws Exception {
+                          Boolean accepted = null;
+                          try {
+                            accepted = predicate.apply(element);
+                          } catch (Exception e) {
+                            taggedExceptionsList.outputOrRethrow(e, element, receiver);
+                          }
+                          if (accepted != null && accepted) {
+                            receiver.get(successTag).output(element);
+                          }
+                        }
+                      })
+                  .withOutputTags(successTag, taggedExceptionsList.tupleTagList()));
+      pcs.get(successTag).setCoder(input.getCoder());
+      taggedExceptionsList.applyFailureCoders(pcs);
+      return pcs;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item("predicate", predicateDescription).withLabel("Filter Predicate"));
+    }
   }
 }

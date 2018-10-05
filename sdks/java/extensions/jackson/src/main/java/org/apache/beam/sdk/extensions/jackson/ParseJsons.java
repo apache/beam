@@ -18,12 +18,19 @@
 package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Optional;
+import org.apache.beam.sdk.transforms.Contextful;
+import org.apache.beam.sdk.transforms.Failure;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * {@link PTransform} for parsing JSON {@link String Strings}. Parse {@link PCollection} of {@link
@@ -32,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollection<OutputT>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();
+  private static final TupleTag<Failure<String>> FAILURE_TAG = new TupleTag<>();
 
   private final Class<? extends OutputT> outputClass;
   private ObjectMapper customMapper;
@@ -55,22 +63,84 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     return newTransform;
   }
 
+  private OutputT readValue(String input) throws IOException {
+    ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
+    return mapper.readValue(input, outputClass);
+  }
+
   @Override
   public PCollection<OutputT> expand(PCollection<String> input) {
-    return input.apply(
-        MapElements.via(
-            new SimpleFunction<String, OutputT>() {
-              @Override
-              public OutputT apply(String input) {
-                try {
-                  ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-                  return mapper.readValue(input, outputClass);
-                } catch (IOException e) {
-                  throw new RuntimeException(
-                      "Failed to parse a " + outputClass.getName() + " from JSON value: " + input,
-                      e);
-                }
-              }
-            }));
+    return input.apply(MapElements.via(new SimpleFunction<String, OutputT>() {
+      @Override
+      public OutputT apply(String input) {
+        try {
+          return readValue(input);
+        } catch (IOException e) {
+          throw new UncheckedIOException(
+              "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
+        }
+      }
+    }));
+  }
+
+  /** Return the {@link TupleTag} associated with parsing failures. */
+  public static TupleTag<Failure<String>> failureTag() {
+    return FAILURE_TAG;
+  }
+
+  /**
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple} and catches any {@link IOException} raised while
+   * parsing JSON.
+   *
+   * <p>Because the input type is static ({@code String}), the failure type is also static and users
+   * do not need to supply a failure tag. Instead, failures are always associated with the tag
+   * returned by static method {@link ParseJsons#failureTag()}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * PCollection<String> strings = ...;
+   * TupleTag<Foo> parsedFoosTag = new TupleTag<>();
+   *
+   * PCollection<Foo> foos = strings
+   *   .apply(ParseJsons
+   *     .of(Foo.class)
+   *     .withSuccessTag(parsedFoosTag))
+   *   .apply(PTransform.compose((PCollectionTuple pcs) -> {
+   *     pcs.get(ParseJsons.failureTag()).apply(new MyErrorOutputTransform());
+   *     return pcs.get(parsedFoosTag);
+   *   }));
+   * }</pre>
+   */
+  public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
+    return new WithFailures(successTag);
+  }
+
+  /**
+   * Variant of {@link ParseJsons} that that catches {@link IOException} raised while parsing JSON,
+   * wrapping success and failure collections in a {@link PCollectionTuple}.
+   */
+  public class WithFailures extends PTransform<PCollection<? extends String>, PCollectionTuple> {
+    private final TupleTag<OutputT> successTag;
+
+    public WithFailures(TupleTag<OutputT> successTag) {
+      this.successTag = successTag;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends String> input) {
+      return input.apply(
+          MapElements
+              .into(new TypeDescriptor<OutputT>() {})
+              .via(Contextful.fn(new Contextful.Fn<String, OutputT>() {
+                    @Override
+                    public OutputT apply(String input, Contextful.Fn.Context c) throws IOException {
+                      return readValue(input);
+                    }
+                  }, Requirements.empty()))
+              .withSuccessTag(successTag)
+              .withFailureTag(FAILURE_TAG, IOException.class));
+    }
   }
 }

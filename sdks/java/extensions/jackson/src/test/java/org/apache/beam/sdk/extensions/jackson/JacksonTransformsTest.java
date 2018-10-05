@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.jackson;
 
+import static org.junit.Assert.assertTrue;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +33,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Failure;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -78,6 +87,36 @@ public class JacksonTransformsTest {
             .setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(output).containsInAnyOrder(POJOS);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void collectInvalidJsons() {
+    TupleTag<MyPojo> successTag = new TupleTag<>();
+
+    PCollectionTuple pcs =
+        pipeline
+            .apply(Create.of(Iterables.concat(VALID_JSONS, INVALID_JSONS)))
+            .apply(ParseJsons.of(MyPojo.class).withSuccessTag(successTag));
+
+    pcs.get(successTag).setCoder(SerializableCoder.of(MyPojo.class));
+
+    PAssert.that(pcs.get(successTag)).containsInAnyOrder(POJOS);
+    PAssert.that(pcs.get(ParseJsons.failureTag()))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  (Failure<String> failure) -> {
+                    assertTrue(failure.exception() instanceof IOException);
+                  });
+              return null;
+            });
+
+    PCollection<String> failureValues =
+        pcs.get(ParseJsons.failureTag())
+            .apply(MapElements.into(TypeDescriptors.strings()).via(Failure::value));
+    PAssert.that(failureValues).containsInAnyOrder(INVALID_JSONS);
 
     pipeline.run();
   }
@@ -130,6 +169,34 @@ public class JacksonTransformsTest {
         .apply(Create.of(EMPTY_BEANS))
         .apply(AsJsons.of(MyEmptyBean.class))
         .setCoder(StringUtf8Coder.of());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void collectWriteFailuresWithoutCustomMapper() {
+    TupleTag<Failure<MyEmptyBean>> failureTag = new TupleTag<>();
+
+    final PCollectionTuple pcs =
+        pipeline
+            .apply(Create.of(EMPTY_BEANS))
+            .apply(AsJsons.of(MyEmptyBean.class).withFailureTag(failureTag));
+
+    pcs.get(AsJsons.successTag()).setCoder(StringUtf8Coder.of());
+    PAssert.that(pcs.get(AsJsons.successTag())).empty();
+
+    PAssert.that(pcs.get(failureTag))
+        .satisfies(
+            failures -> {
+              failures.forEach(
+                  failure -> assertTrue(failure.exception() instanceof IOException));
+              return null;
+            });
+
+    PCollection<MyEmptyBean> failureValues =
+        pcs.get(failureTag)
+            .apply(MapElements.into(TypeDescriptor.of(MyEmptyBean.class)).via(Failure::value));
+    PAssert.that(failureValues).containsInAnyOrder(EMPTY_BEANS);
 
     pipeline.run();
   }
