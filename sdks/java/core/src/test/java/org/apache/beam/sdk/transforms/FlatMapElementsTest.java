@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +33,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -287,22 +288,26 @@ public class FlatMapElementsTest implements Serializable {
 
     PCollectionTuple pcs =
         pipeline
-            .apply(Create.of(1, 2, 3))
+            .apply(Create.of(1, 2, 3, 4))
             .apply(
                 FlatMapElements
                     // Note that the input type annotation is required.
                     .into(TypeDescriptors.integers())
                     .via(
                         (Integer i) -> {
-                          if (i == 1) throw new IntegerException1();
-                          if (i == 2) throw new IntegerException2();
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
                           return ImmutableList.of(i, -i);
                         })
                     .withSuccessTag(successTag)
                     .withFailureTag(failureTag1, IntegerException1.class)
                     .withFailureTag(failureTag2, IntegerException2.class));
 
-    PAssert.that(pcs.get(successTag)).containsInAnyOrder(3, -3);
+    PAssert.that(pcs.get(successTag)).containsInAnyOrder(3, -4, -3, 4);
     PAssert.that(pcs.get(failureTag1))
         .satisfies(
             failures -> {
@@ -334,25 +339,28 @@ public class FlatMapElementsTest implements Serializable {
     TupleTag<Integer> successTag = new TupleTag<>();
     TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
 
-    IntegerException2 integerException2 = new IntegerException2();
-
     PCollectionTuple pcs =
         pipeline
-            .apply(Create.of(1, 2, 3))
+            .apply(Create.of(1, 2, 3, 4))
             .apply(
                 FlatMapElements
                     // Note that the input type annotation is required.
                     .into(TypeDescriptors.integers())
                     .via(
                         (Integer i) -> {
-                          if (i == 1) throw new IntegerException1();
-                          if (i == 2) throw integerException2;
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
                           return ImmutableList.of(i, -i);
                         })
                     .withSuccessTag(successTag)
                     .withFailureTag(failureTag1, IntegerException1.class));
 
-    thrown.expectCause(is(integerException2));
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IntegerException2.class));
     pipeline.run();
   }
 

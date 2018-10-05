@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Optional;
+import org.apache.beam.sdk.transforms.Failure;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -38,7 +39,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
 
   private final Class<? extends OutputT> outputClass;
   private ObjectMapper customMapper;
-  public static final TupleTag<MapElements.Failure<String>> failureTag = new TupleTag<>();
+  public static final TupleTag<Failure<String>> failureTag = new TupleTag<>();
 
   /**
    * Creates a {@link ParseJsons} {@link PTransform} that will parse JSON {@link String Strings}

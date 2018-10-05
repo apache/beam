@@ -23,13 +23,14 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -383,8 +384,12 @@ public class MapElementsTest implements Serializable {
                     .into(TypeDescriptors.integers())
                     .via(
                         (Integer i) -> {
-                          if (i == 1) throw new IntegerException1();
-                          if (i == 2) throw new IntegerException2();
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
                           return i * 2;
                         })
                     .withSuccessTag(successTag)
@@ -423,8 +428,6 @@ public class MapElementsTest implements Serializable {
     TupleTag<Integer> successTag = new TupleTag<>();
     TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
 
-    IntegerException2 integerException2 = new IntegerException2();
-
     PCollectionTuple pcs =
         pipeline
             .apply(Create.of(1, 2, 3, 4))
@@ -434,14 +437,19 @@ public class MapElementsTest implements Serializable {
                     .into(TypeDescriptors.integers())
                     .via(
                         (Integer i) -> {
-                          if (i == 1) throw new IntegerException1();
-                          if (i == 2) throw integerException2;
+                          if (i == 1) {
+                            throw new IntegerException1();
+                          }
+                          if (i == 2) {
+                            throw new IntegerException2();
+                          }
                           return i * 2;
                         })
                     .withSuccessTag(successTag)
                     .withFailureTag(failureTag1, IntegerException1.class));
 
-    thrown.expectCause(is(integerException2));
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IntegerException2.class));
     pipeline.run();
   }
 
