@@ -218,10 +218,10 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   /**
-   * Output a {@link PCollectionTuple} with the collection of successfully filtered elements
-   * associated with the given tag. This allows you to make subsequent {@link
-   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions in
-   * additional failure collections.
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple}. This allows you to make subsequent
+   * {@link WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown
+   * exceptions to failure collections.
    */
   public WithFailures withSuccessTag(TupleTag<T> successTag) {
     return new WithFailures(successTag, TaggedExceptionsList.empty());
@@ -260,7 +260,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
                           Boolean accepted = null;
                           try {
                             accepted = predicate.apply(element);
-                          } catch (RuntimeException e) {
+                          } catch (Exception e) {
                             taggedExceptionsList.outputOrRethrow(e, element, receiver);
                           }
                           if (accepted != null && accepted) {
@@ -272,6 +272,13 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
       pcs.get(successTag).setCoder(input.getCoder());
       taggedExceptionsList.applyFailureCoders(pcs);
       return pcs;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item("predicate", predicateDescription).withLabel("Filter Predicate"));
     }
   }
 }

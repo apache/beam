@@ -28,24 +28,12 @@ public abstract class Failure<T> implements Serializable {
 
   public abstract T value();
 
-  /** Wraps a TupleTag together with the exceptions types that should be routed to it. */
-  @AutoValue
-  abstract static class TaggedExceptions<T> implements Serializable {
-    static <T> TaggedExceptions<T> of(TupleTag<Failure<T>> tag, List<Class<?>> exceptionsToCatch) {
-      return new AutoValue_Failure_TaggedExceptions<>(tag, exceptionsToCatch);
-    }
-
-    static <T> TaggedExceptions<T> of(
-        TupleTag<Failure<T>> tag, Class exceptionToCatch, Class<?>[] additionalExceptions) {
-      return of(
-          tag, ImmutableList.copyOf(ObjectArrays.concat(exceptionToCatch, additionalExceptions)));
-    }
-
-    abstract TupleTag<Failure<T>> tag();
-
-    abstract List<Class<?>> exceptionsToCatch();
-  }
-
+  /**
+   * Internal class for collecting tuple tags associated with collections of {@link Exception}
+   * classes that should route to them. Also contains helper methods to simplify implementation
+   * of the {@code WithFailures} nested classes of {@link MapElements}, {@link FlatMapElements},
+   * etc.
+   */
   @AutoValue
   abstract static class TaggedExceptionsList<T> implements Serializable {
     abstract ImmutableList<TupleTag<Failure<T>>> tags();
@@ -56,6 +44,7 @@ public abstract class Failure<T> implements Serializable {
       return new AutoValue_Failure_TaggedExceptionsList<>(ImmutableList.of(), ImmutableList.of());
     }
 
+    /** Return a new list with new tuple tag and exceptions appended. */
     TaggedExceptionsList<T> and(
         TupleTag<Failure<T>> tag, Class<?> exceptionToCatch, Class<?>[] additionalExceptions) {
       final ImmutableList<TupleTag<Failure<T>>> newTags =
@@ -69,6 +58,7 @@ public abstract class Failure<T> implements Serializable {
       return new AutoValue_Failure_TaggedExceptionsList<>(newTags, newExceptionLists);
     }
 
+    /** Return the internal typed list of tags as an untyped {@link TupleTagList}. */
     TupleTagList tupleTagList() {
       TupleTagList l = TupleTagList.empty();
       for (TupleTag<?> tag : tags()) {
@@ -77,6 +67,11 @@ public abstract class Failure<T> implements Serializable {
       return l;
     }
 
+    /**
+     * Check the registered exception classes to see if the exception passed in here matches.
+     * If it does, wrap the value in a {@link Failure} and send to output receiver with the
+     * appropriate tag. If not, rethrow so processing stops on the unexpected failure.
+     */
     void outputOrRethrow(Exception e, T value, MultiOutputReceiver receiver) throws Exception {
       for (int i = 0; i < tags().size(); i++) {
         for (Class<?> cls : exceptionLists().get(i)) {
@@ -89,6 +84,9 @@ public abstract class Failure<T> implements Serializable {
       throw e;
     }
 
+    /**
+     * Set appropriate coders on all the failure collections in the given {@link PCollectionTuple}.
+     */
     PCollectionTuple applyFailureCoders(PCollectionTuple pcs) {
       final SerializableCoder<Failure<T>> failureCoder =
           SerializableCoder.of(new TypeDescriptor<Failure<T>>() {});

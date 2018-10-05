@@ -18,16 +18,19 @@
 package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Optional;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Failure;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * {@link PTransform} for serializing objects to JSON {@link String Strings}. Transforms a {@code
@@ -36,17 +39,17 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection<String>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();
+  private static final TupleTag<String> SUCCESS_TAG = new TupleTag<>();
 
   private final Class<? extends InputT> inputClass;
   private ObjectMapper customMapper;
-  public static final TupleTag<String> successTag = new TupleTag<>();
 
   /**
    * Creates a {@link AsJsons} {@link PTransform} that will transform a {@code PCollection<InputT>}
    * into a {@link PCollection} of JSON {@link String Strings} representing those objects using a
    * Jackson {@link ObjectMapper}.
    */
-  public static <OutputT> AsJsons<OutputT> of(Class<? extends OutputT> inputClass) {
+  public static <InputT> AsJsons<InputT> of(Class<? extends InputT> inputClass) {
     return new AsJsons<>(inputClass);
   }
 
@@ -61,31 +64,38 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     return newTransform;
   }
 
-  private SimpleFunction<InputT, String> parseFn =
-      new SimpleFunction<InputT, String>() {
-        @Override
-        public String apply(InputT input) {
-          try {
-            ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-            return mapper.writeValueAsString(input);
-          } catch (IOException e) {
-            throw new UncheckedIOException(
-                "Failed to serialize " + inputClass.getName() + " value: " + input, e);
-          }
-        }
-      };
+  private String writeValue(InputT input) throws IOException {
+    ObjectMapper mapper = Optional.ofNullable(customMapper).orElse(DEFAULT_MAPPER);
+    return mapper.writeValueAsString(input);
+  }
 
   @Override
   public PCollection<String> expand(PCollection<InputT> input) {
-    return input.apply(MapElements.via(parseFn));
+    return input.apply(MapElements.via(new SimpleFunction<InputT, String>() {
+      @Override
+      public String apply(InputT input) {
+        try {
+          return writeValue(input);
+        } catch (IOException e) {
+          throw new UncheckedIOException(
+              "Failed to serialize " + inputClass.getName() + " value: " + input, e);
+        }
+      }
+    }));
+  }
+
+  /** Return the {@link TupleTag} associated with successfully written JSON strings. */
+  public static TupleTag<String> successTag() {
+    return SUCCESS_TAG;
   }
 
   /**
    * Sets a {@link TupleTag} to associate with serialization failures, converting this {@link
    * PTransform} into one that returns a {@link PCollectionTuple}.
    *
-   * <p>Successes will be associated with static tag {@link AsJsons#successTag} since all {@code
-   * AsJsons} outputs are of the same type ({@code String}).
+   * <p>Because the success output type is static ({@code String}), users do not need to supply a
+   * success tag. Instead, successes are always associated with the tag returned by static method
+   * {@link AsJsons#successTag()}.
    *
    * <p>Example:
    *
@@ -96,10 +106,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * PCollection<String> strings = foos
    *   .apply(AsJsons
    *     .of(Foo.class)
-   *     .withSuccessTag(unserializedFoosTag))
+   *     .withFailureTag(unserializedFoosTag))
    *   .apply(PTransform.compose((PCollectionTuple pcs) -> {
    *     pcs.get(unserializedFoosTag).apply(new MyErrorOutputTransform());
-   *     return pcs.get(AsJsons.successTag);
+   *     return pcs.get(AsJsons.successTag());
    *   }));
    * }</pre>
    */
@@ -107,6 +117,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     return new WithFailures(failureTag);
   }
 
+  /**
+   * Variant of {@link AsJsons} that that catches {@link IOException} raised while writing JSON,
+   * wrapping success and failure collections in a {@link PCollectionTuple}.
+   */
   public class WithFailures extends PTransform<PCollection<InputT>, PCollectionTuple> {
     private final TupleTag<Failure<InputT>> failureTag;
 
@@ -117,9 +131,16 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     @Override
     public PCollectionTuple expand(PCollection<InputT> input) {
       return input.apply(
-          MapElements.via(parseFn)
-              .withSuccessTag(successTag)
-              .withFailureTag(failureTag, UncheckedIOException.class));
+          MapElements
+              .into(TypeDescriptors.strings())
+              .via(Contextful.fn(new Contextful.Fn<InputT, String>() {
+                @Override
+                public String apply(InputT input, Contextful.Fn.Context c) throws IOException {
+                  return writeValue(input);
+                }
+              }, Requirements.empty()))
+              .withSuccessTag(SUCCESS_TAG)
+              .withFailureTag(failureTag, IOException.class));
     }
   }
 }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -102,18 +103,18 @@ public class JacksonTransformsTest {
     pcs.get(successTag).setCoder(SerializableCoder.of(MyPojo.class));
 
     PAssert.that(pcs.get(successTag)).containsInAnyOrder(POJOS);
-    PAssert.that(pcs.get(ParseJsons.failureTag))
+    PAssert.that(pcs.get(ParseJsons.failureTag()))
         .satisfies(
             failures -> {
               failures.forEach(
                   (Failure<String> failure) -> {
-                    assertTrue(failure.exception() instanceof RuntimeException);
+                    assertTrue(failure.exception() instanceof IOException);
                   });
               return null;
             });
 
     PCollection<String> failureValues =
-        pcs.get(ParseJsons.failureTag)
+        pcs.get(ParseJsons.failureTag())
             .apply(MapElements.into(TypeDescriptors.strings()).via(Failure::value));
     PAssert.that(failureValues).containsInAnyOrder(INVALID_JSONS);
 
@@ -181,14 +182,14 @@ public class JacksonTransformsTest {
             .apply(Create.of(EMPTY_BEANS))
             .apply(AsJsons.of(MyEmptyBean.class).withFailureTag(failureTag));
 
-    pcs.get(AsJsons.successTag).setCoder(StringUtf8Coder.of());
-    PAssert.that(pcs.get(AsJsons.successTag)).empty();
+    pcs.get(AsJsons.successTag()).setCoder(StringUtf8Coder.of());
+    PAssert.that(pcs.get(AsJsons.successTag())).empty();
 
     PAssert.that(pcs.get(failureTag))
         .satisfies(
             failures -> {
               failures.forEach(
-                  failure -> assertTrue(failure.exception() instanceof RuntimeException));
+                  failure -> assertTrue(failure.exception() instanceof IOException));
               return null;
             });
 

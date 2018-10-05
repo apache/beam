@@ -184,10 +184,10 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /**
-   * Output a {@link PCollectionTuple} with the collection of successfully mapped elements
-   * associated with the given tag. This allows you to make subsequent {@link
-   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions in
-   * additional failure collections.
+   * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
+   * one that returns a {@link PCollectionTuple}. This allows you to make subsequent
+   * {@link WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown
+   * exceptions to failure collections.
    */
   public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
     return new WithFailures(successTag, TaggedExceptionsList.empty());
@@ -231,7 +231,7 @@ public class FlatMapElements<InputT, OutputT>
                             res =
                                 fn.getClosure()
                                     .apply(c.element(), Fn.Context.wrapProcessContext(c));
-                          } catch (RuntimeException e) {
+                          } catch (Exception e) {
                             taggedExceptionsList.outputOrRethrow(e, element, receiver);
                           }
                           if (res != null) {
@@ -261,6 +261,15 @@ public class FlatMapElements<InputT, OutputT>
                   .withSideInputs(fn.getRequirements().getSideInputs()));
       taggedExceptionsList.applyFailureCoders(pcs);
       return pcs;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
+      if (originalFnForDisplayData instanceof HasDisplayData) {
+        builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+      }
     }
   }
 }
