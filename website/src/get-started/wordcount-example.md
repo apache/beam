@@ -1148,7 +1148,7 @@ unbounded datasets. If your dataset has a fixed number of elements, it is a boun
 dataset and all of the data can be processed together. For bounded datasets,
 the question to ask is "Do I have all of the data?" If data continuously
 arrives (such as an endless stream of game scores in the
-[Mobile gaming example](https://beam.apache.org/get-started/mobile-gaming-example/),
+[Mobile gaming example]({{ site.baseurl }}/get-started/mobile-gaming-example/),
 it is an unbounded dataset. An unbounded dataset is never available for
 processing at any one time, so the data must be processed using a streaming
 pipeline that runs continuously. The dataset will only be complete up to a

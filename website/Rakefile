@@ -16,7 +16,8 @@ task :test do
         /ai.google/, # https://issues.apache.org/jira/browse/INFRA-16527
         /globenewswire.com/, # https://issues.apache.org/jira/browse/BEAM-5518
         /www.se-radio.net/, # BEAM-5611: Can fail with rate limit HTTP 508 error
-        /beam.apache.org\/releases/ # BEAM-4499 remove once publishing is migrated
+        /beam.apache.org\/releases/, # BEAM-4499 remove once publishing is migrated
+        /atrato.io/ # BEAM-5665 atrato.io seems to be down
     ],
     :parallel => { :in_processes => 4 },
     }).run

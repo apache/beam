@@ -49,8 +49,7 @@ When a post-commit test fails, follow the provided steps for your situation.
 
 ### I found a test failure {#found-failing-test}
 
-1.  Create a [JIRA issue](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20test-failures)
-    and assign it to yourself.
+1.  Create a [JIRA issue](https://s.apache.org/beam-test-failure) and assign it to yourself.
 1.  Do high level triage of the failure.
 1.  [Assign the JIRA issue to a relevant person]({{ site.baseurl }}/contribute/postcommits-guides/index.html#find_specialist).
 

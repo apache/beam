@@ -196,8 +196,9 @@ When contributors resolve an issue in JIRA, they are tagging it with a release t
 
 __Attention__: Only PMC has permission to perform this. If you are not a PMC, please ask for help in dev@ mailing list.
 
-1. In JIRA, navigate to the [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
-1. Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the `Start Date`, and choose `Add`.
+1. In JIRA, navigate to [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
+1. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
+1. At the end of the release, go to the same page and mark the recently released version as released. Use the `...` menu and choose `Release`.
 
 ### Triage release-blocking issues in JIRA
 
