@@ -646,7 +646,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
 
-    if self.source.query is None:
+    if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
       # project.
       project_id = self.source.table_reference.projectId
@@ -656,8 +656,13 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           project_id,
           self.source.table_reference.datasetId,
           self.source.table_reference.tableId)
-    else:
+    elif self.source.query is not None:
       self.query = self.source.query
+    else:
+      # Enforce the "modes" enforced by BigQuerySource.__init__.
+      # If this exception has been raised, the BigQuerySource "modes" have
+      # changed and this method will need to be updated as well.
+      raise ValueError("BigQuerySource must have either a table or query")
 
   def _get_source_location(self):
     """
@@ -679,16 +684,11 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       return self.client.get_table_location(
           tr.projectId if tr.projectId is not None else self.executing_project,
           tr.datasetId, tr.tableId)
-    elif self.source.query is not None:
+    else:  # It's a query source
       return self.client.get_query_location(
           self.executing_project,
           self.source.query,
           self.source.use_legacy_sql)
-    else:
-      # Enforce the "modes" enforced by BigQuerySource.__init__.
-      # If this exception has been raised, the BigQuerySource "modes" have
-      # changed and this method will need to be updated as well.
-      raise ValueError("BigQuerySource must have either a table or query")
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
