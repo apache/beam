@@ -65,8 +65,12 @@ task createDockerContainer(type: Exec) {
   ext.containerId = {
     return standardOutput.toString().trim()
   }
+  def extraOptions = ''
+  if (project.hasProperty('publishJekyllPort')) {
+    extraOptions = '-p 127.0.0.1:4000:4000'
+  }
   commandLine '/bin/bash', '-c',
-    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $dockerImageTag"
+    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
 }
 
 task startDockerContainer(type: Exec) {
@@ -114,6 +118,24 @@ task buildWebsite(type: Exec) {
       """
 }
 build.dependsOn buildWebsite
+
+task serveWebsite(type: Exec) {
+  dependsOn startDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
+  inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.dir 'src'
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir buildContentDir
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll serve \
+      --config $dockerWorkDir/website/_config.yml \
+      --incremental \
+      --source $dockerWorkDir/website/src \
+      --host 0.0.0.0
+      """
+}
 
 task testWebsite(type: Exec) {
   dependsOn startDockerContainer, buildWebsite
