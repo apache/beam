@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.kryo.KryoCoderProvider;
+import org.apache.beam.sdk.extensions.kryo.KryoOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -57,6 +58,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -200,36 +203,34 @@ public class DocumentationExamplesTest {
   }
 
   @Test
-  public void
-      codersAndTypesSection() { //TODO uncomment when https://github.com/seznam/beam/pull/40 is merged
-    //    final PipelineOptions options = PipelineOptionsFactory.create();
-    //    Pipeline pipeline = Pipeline.create(options);
-    //
-    //    KryoCoder<AnotherElementType> beamCoder = KryoCoder.withoutClassRegistration();
-    //    KryoCoder<ParametrizedTestDataType<String>> typeParametrizedCoder =
-    //        KryoCoder.withoutClassRegistration();
-    //
-    //    RegisterCoders.to(flow)
-    //        .setKryoClassRegistrar(
-    //            (kryo) -> {
-    //              kryo.register(KryoSerializedElementType.class); //other may follow
-    //            })
-    //        .registerCoder(AnotherElementType.class, beamCoder)
-    //        .registerCoder(
-    //            new TypeDescriptor<ParametrizedTestDataType<String>>() {}, typeParametrizedCoder)
-    //        .done();
-    //
-    //    Dataset<Integer> input = Util.createMockDataset(flow, 1);
-    //
-    //    MapElements.named("Int2Str")
-    //        .of(input)
-    //        .using(String::valueOf, TypeDescriptors.strings())
-    //        .output();
+  public void codersAndTypesSection() {
+    final PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline pipeline = Pipeline.create(options);
+
+    //Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type
+    KryoCoderProvider.of().registerTo(pipeline);
+
+    //Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types
+    options.as(KryoOptions.class).setKryoRegistrationRequired(true);
+
+    KryoCoderProvider.of(
+            (kryo) -> { //KryoRegistrar of your uwn
+              kryo.register(KryoSerializedElementType.class); //other may follow
+            })
+        .registerTo(pipeline);
+
+    Dataset<Integer> input =
+        Dataset.of(
+            pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers()));
+
+    MapElements.named("Int2Str")
+        .of(input)
+        .using(String::valueOf, TypeDescriptors.strings())
+        .output();
   }
 
   @Test
   public void windowingSection() {
-    //TODO this part needs revision, some windowing options may be missing
 
     Dataset<Integer> input =
         Dataset.of(
@@ -241,16 +242,15 @@ public class DocumentationExamplesTest {
             .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
             .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()
+            .withAllowedLateness(Duration.standardSeconds(5))
+            .withOnTimeBehavior(OnTimeBehavior.FIRE_IF_NON_EMPTY)
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .output();
 
     pipeline.run();
   }
 
   private static class KryoSerializedElementType {}
-
-  private static class AnotherElementType {}
-
-  private static class ParametrizedTestDataType<T> {}
 
   @Test
   public void countByKeyOperator() {
