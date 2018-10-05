@@ -214,12 +214,10 @@ class HadoopFileSystemTest(unittest.TestCase):
       url = self.fs.join(self.tmpdir, filename)
       self.fs.create(url).close()
 
-  def assertItemsEqual(self, l1, l2):
-    assert len(l1) == len(l2)
-    l1.sort()
-    l2.sort()
-    for i, obj in enumerate(l1):
-      self.assertEqual(obj, l2[i])
+    try:                    # Python 2
+      self.assertCountEqual = self.assertItemsEqual
+    except AttributeError:  # Python 3
+      pass
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'hdfs')
@@ -265,7 +263,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     returned_files = [f.path
                       for match_result in result
                       for f in match_result.metadata_list]
-    self.assertItemsEqual(expected_files, returned_files)
+    self.assertCountEqual(expected_files, returned_files)
 
   def test_match_file_with_limits(self):
     expected_files = [self.fs.join(self.tmpdir, filename)
@@ -303,7 +301,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     # structure, so listing without a '/' will return no results.
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, expected_files)
+    self.assertCountEqual(files, expected_files)
 
   def test_match_directory_trailing_slash(self):
     expected_files = [self.fs.join(self.tmpdir, filename)
@@ -311,7 +309,7 @@ class HadoopFileSystemTest(unittest.TestCase):
 
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, expected_files)
+    self.assertCountEqual(files, expected_files)
 
   def test_create_success(self):
     url = self.fs.join(self.tmpdir, 'new_file')
