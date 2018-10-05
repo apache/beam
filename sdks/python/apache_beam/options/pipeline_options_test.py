@@ -46,12 +46,16 @@ class PipelineOptionsTest(unittest.TestCase):
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/',
-              'ignored', '-invalid=arg', '--unknown_arg', 'unknown_value'],
+              'ignored', '-invalid=arg', '--unknown_arg', 'unknown_value',
+              '--unknown_flag'
+          ],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
               'mock_flag': False, 'mock_option': None,
               'mock_multi_option': None,
-              'unknown_arg': 'unknown_value'},
+              'unknown_arg': 'unknown_value',
+              'unknown_flag': None
+           },
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
