@@ -45,24 +45,16 @@ class PipelineOptionsTest(unittest.TestCase):
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
       {
           'flags': [
-              '--profile_cpu', '--profile_location', 'gs://bucket/',
-              'ignored', '-invalid=arg', '--unknown_arg', 'unknown_value',
-              '--unknown_flag'
-          ],
+              '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
               'mock_flag': False, 'mock_option': None,
-              'mock_multi_option': None,
-              'unknown_arg': 'unknown_value',
-              'unknown_flag': None},
+              'mock_multi_option': None},
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
               DisplayDataItemMatcher('profile_location',
-                                     'gs://bucket/'),
-              DisplayDataItemMatcher('unknown_arg',
-                                     'unknown_value')
-          ]
+                                     'gs://bucket/')]
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
        'expected': {'num_workers': 5,
