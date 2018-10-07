@@ -24,6 +24,7 @@ import filecmp
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -59,6 +60,12 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
@@ -185,7 +192,7 @@ class LocalFileSystemTest(unittest.TestCase):
     full_pattern = os.path.join(self.tmpdir, pattern)
     result = self.fs.match([full_pattern])[0]
     files = [os.path.relpath(f.path, self.tmpdir) for f in result.metadata_list]
-    self.assertItemsEqual(files, expected)
+    self.assertCountEqual(files, expected)
 
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
@@ -200,7 +207,7 @@ class LocalFileSystemTest(unittest.TestCase):
 
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    self.assertCountEqual(files, [path1, path2])
 
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')

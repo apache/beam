@@ -24,6 +24,7 @@ from __future__ import print_function
 import collections
 import operator
 import re
+import sys
 import unittest
 from builtins import map
 from builtins import range
@@ -61,6 +62,12 @@ from apache_beam.utils.windowed_value import WindowedValue
 class PTransformTest(unittest.TestCase):
   # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(msg.startswith(prefix),
@@ -659,15 +666,15 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_to_list(self):
-    self.assertItemsEqual(
+    self.assertCountEqual(
         [1, 2, 3], [0, 1, 2] | 'AddOne' >> beam.Map(lambda x: x + 1))
     self.assertItemsEqual([1],
                           [0, 1, 2] | 'Odd' >> beam.Filter(lambda x: x % 2))
-    self.assertItemsEqual([1, 2, 100, 3],
+    self.assertCountEqual([1, 2, 100, 3],
                           ([1, 2, 3], [100]) | beam.Flatten())
     join_input = ([('k', 'a')],
                   [('k', 'b'), ('k', 'c')])
-    self.assertItemsEqual([('k', (['a'], ['b', 'c']))],
+    self.assertCountEqual([('k', (['a'], ['b', 'c']))],
                           join_input | beam.CoGroupByKey())
 
   def test_multi_input_ptransform(self):

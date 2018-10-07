@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import random
+import sys
 import tempfile
 import unittest
 from builtins import object
@@ -579,6 +580,12 @@ class TestFileBasedSource(unittest.TestCase):
 
 class TestSingleFileSource(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -650,7 +657,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(0, 20)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertItemsEqual(expected_data[:4], read_data)
+    self.assertCountEqual(expected_data[:4], read_data)
 
   def test_read_range_at_end(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -661,7 +668,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(40, 60)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertItemsEqual(expected_data[-3:], read_data)
+    self.assertCountEqual(expected_data[-3:], read_data)
 
   def test_read_range_at_middle(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -672,7 +679,7 @@ class TestSingleFileSource(unittest.TestCase):
     source = SingleFileSource(fbs, file_name, 0, 10 * 6)
     range_tracker = source.get_range_tracker(20, 40)
     read_data = [value for value in source.read(range_tracker)]
-    self.assertItemsEqual(expected_data[4:7], read_data)
+    self.assertCountEqual(expected_data[4:7], read_data)
 
   def test_produces_splits_desiredsize_large_than_size(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -688,7 +695,7 @@ class TestSingleFileSource(unittest.TestCase):
 
     range_tracker = splits[0].source.get_range_tracker(None, None)
     read_data = [value for value in splits[0].source.read(range_tracker)]
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_produces_splits_desiredsize_smaller_than_size(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -706,7 +713,7 @@ class TestSingleFileSource(unittest.TestCase):
                                                split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_produce_split_with_start_and_end_positions(self):
     fbs = LineSource('dummy_pattern', validate=False)
@@ -726,7 +733,7 @@ class TestSingleFileSource(unittest.TestCase):
                                                split.stop_position)
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
-    self.assertItemsEqual(expected_data[2:9], read_data)
+    self.assertCountEqual(expected_data[2:9], read_data)
 
 
 if __name__ == '__main__':

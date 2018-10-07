@@ -25,6 +25,7 @@ import gzip
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -55,6 +56,12 @@ class TextSourceTest(unittest.TestCase):
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _run_read_test(self, file_or_pattern, expected_data,
                      buffer_size=DEFAULT_NUM_RECORDS,
                      compression=CompressionTypes.UNCOMPRESSED):
@@ -65,7 +72,7 @@ class TextSourceTest(unittest.TestCase):
                         True, coders.StrUtf8Coder(), buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_single_file(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
@@ -187,7 +194,7 @@ class TextSourceTest(unittest.TestCase):
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual([line + '\n' for line in written_data], read_data)
+    self.assertCountEqual([line + '\n' for line in written_data], read_data)
 
   def test_read_single_file_without_striping_eol_crlf(self):
     file_name, written_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
@@ -198,7 +205,7 @@ class TextSourceTest(unittest.TestCase):
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual([line + '\r\n' for line in written_data], read_data)
+    self.assertCountEqual([line + '\r\n' for line in written_data], read_data)
 
   def test_read_file_pattern_with_empty_files(self):
     pattern, expected_data = write_pattern(
@@ -249,8 +256,8 @@ class TextSourceTest(unittest.TestCase):
         splits[0].start_position, splits[0].stop_position)
     read_data = list(source.read_records(file_name, range_tracker))
 
-    self.assertItemsEqual(expected_data[:5], header_lines)
-    self.assertItemsEqual(expected_data[5:], read_data)
+    self.assertCountEqual(expected_data[:5], header_lines)
+    self.assertCountEqual(expected_data[5:], read_data)
 
   def test_progress(self):
     file_name, expected_data = write_data(10)
@@ -713,7 +720,7 @@ class TextSourceTest(unittest.TestCase):
                                        skip_header_lines)
     read_data = self._read_skip_header_lines(file_name, skip_header_lines)
     self.assertEqual(len(expected_data), len(read_data))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_skip_header_pattern(self):
     line_counts = [
@@ -730,7 +737,7 @@ class TextSourceTest(unittest.TestCase):
     expected_data = self._remove_lines(data, line_counts, skip_header_lines)
     read_data = self._read_skip_header_lines(pattern, skip_header_lines)
     self.assertEqual(len(expected_data), len(read_data))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_skip_header_pattern_insufficient_lines(self):
     line_counts = [
@@ -743,7 +750,7 @@ class TextSourceTest(unittest.TestCase):
     data = self._remove_lines(data, line_counts, skip_header_lines)
     read_data = self._read_skip_header_lines(pattern, skip_header_lines)
     self.assertEqual(len(data), len(read_data))
-    self.assertItemsEqual(data, read_data)
+    self.assertCountEqual(data, read_data)
 
   def test_read_gzip_with_skip_lines(self):
     _, lines = write_data(15)
@@ -781,6 +788,12 @@ class TextSourceTest(unittest.TestCase):
 
 
 class TextSinkTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     super(TextSinkTest, self).setUp()

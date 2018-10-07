@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -58,6 +59,12 @@ class TestAvro(unittest.TestCase):
   def __init__(self, methodName='runTest'):
     super(TestAvro, self).__init__(methodName)
     self.use_fastavro = False
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -150,7 +157,7 @@ class TestAvro(unittest.TestCase):
           (source, None, None), sources_info)
     else:
       read_records = source_test_utils.read_from_source(source, None, None)
-      self.assertItemsEqual(expected_result, read_records)
+      self.assertCountEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
     file_name = self._write_data()

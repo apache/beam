@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -83,6 +84,12 @@ class LineSource(iobase.BoundedSource):
 
 class SourcesTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
@@ -95,7 +102,7 @@ class SourcesTest(unittest.TestCase):
     range_tracker = source.get_range_tracker(None, None)
     result = [line for line in source.read(range_tracker)]
 
-    self.assertItemsEqual(['aaaa', 'bbbb', 'cccc', 'dddd'], result)
+    self.assertCountEqual(['aaaa', 'bbbb', 'cccc', 'dddd'], result)
 
   def test_run_direct(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
