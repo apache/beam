@@ -289,6 +289,15 @@ class PipelineOptionsTest(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       options.pot_non_vp_arg1.get()
 
+  # Converts duplicate unknown argument values to a single argument
+  # with a list value.
+  def test_unknown_duplicate_args_converted_to_list(self):
+    options = PipelineOptions(['--dup_arg', 'val1',
+                               '--dup_arg', 'val2',
+                               '--dup_arg=val3'])
+    self.assertEqual(options.get_all_options()['dup_arg'],
+                     ['val1', 'val2', 'val3'])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
