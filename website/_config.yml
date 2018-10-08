@@ -29,7 +29,7 @@ description: > # this means to ignore newlines until "baseurl:"
   users to easily implement their data integration processes.
 
 # the subpath of your site, e.g. /blog
-baseurl: ""
+# baseurl: ""
 
 # input and output directory
 source: src

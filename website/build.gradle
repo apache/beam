@@ -99,13 +99,12 @@ task cleanWebsite(type: Delete) {
 }
 clean.dependsOn cleanWebsite
 
+// TODO: Refactor build*Website tasks into helper
 task buildWebsite(type: Exec) {
-  def baseurlFlag = project.findProperty('githubPullRequestId') ? "--baseurl=/${project.findProperty('githubPullRequestId')}" : ''
   dependsOn startDockerContainer, setupBuildDir
   finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
-  inputs.property 'baseurl', baseurlFlag
   outputs.dir "$buildDir/.sass-cache"
   outputs.dir buildContentDir
   commandLine 'docker', 'exec',
@@ -113,7 +112,42 @@ task buildWebsite(type: Exec) {
     """cd $dockerWorkDir/build/website && \
       bundle exec jekyll build \
       --config $dockerWorkDir/website/_config.yml \
-      --incremental ${baseurlFlag} \
+      --incremental \
+      --source $dockerWorkDir/website/src
+      """
+}
+task buildApacheWebsite(type: Exec) {
+  dependsOn startDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
+  inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.dir 'src'
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir buildContentDir
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll build \
+      --config $dockerWorkDir/website/_config.yml \
+      --incremental \
+      --source $dockerWorkDir/website/src
+      """
+}
+task buildGcsWebsite(type: Exec) {
+  def baseUrl = project.findProperty('githubPullRequestId') ? "${project.findProperty('githubPullRequestId')}" : 'latest'
+  dependsOn startDockerContainer, setupBuildDir
+  finalizedBy stopAndRemoveDockerContainer
+  inputs.files 'Gemfile.lock', '_config.yml', '_config_gcs.yml'
+  inputs.dir 'src'
+  inputs.property 'baseurl', baseUrl
+  outputs.dir "$buildDir/.sass-cache"
+  outputs.dir buildContentDir
+  commandLine 'docker', 'exec',
+    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+    """cd $dockerWorkDir/build/website && \
+      bundle exec jekyll build \
+      --config \
+      $dockerWorkDir/website/_config.yml,$dockerWorkDir/website/_config_gcs.yml \
+      --incremental --baseurl=/${baseUrl} \
       --source $dockerWorkDir/website/src
       """
 }
@@ -221,7 +255,7 @@ task publishWebsite << {
   shell "git push ${gitboxUrl} asf-site"
 }
 
-commitWebsite.dependsOn buildWebsite
+commitWebsite.dependsOn buildApacheWebsite
 publishWebsite.dependsOn commitWebsite
 
 /*
@@ -230,11 +264,11 @@ publishWebsite.dependsOn commitWebsite
  *   ./gradlew :beam-website:stageWebsite -PgithubPullRequestId=${ghprbPullId} -PwebsiteBucket=foo
  */
 task stageWebsite << {
-  assert project.hasProperty('githubPullRequestId')
-  assert githubPullRequestId.isInteger()
+  // TODO: Refactor this duplication with build task
+  def baseUrl = project.findProperty('githubPullRequestId') ? "${project.findProperty('githubPullRequestId')}" : 'latest'
 
   def gcs_bucket = project.findProperty('websiteBucket') ?: 'apache-beam-website-pull-requests'
-  def gcs_path = "gs://${gcs_bucket}/${githubPullRequestId}"
+  def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
 
   // Remove current site if it exists.
   shell "gsutil -m rm -r -f ${gcs_path} || true"
@@ -248,8 +282,8 @@ task stageWebsite << {
   shell "gsutil -m cp -r ${buildContentDir} ${gcs_path}"
 
   println "Website published to http://${gcs_bucket}." +
-      "storage.googleapis.com/${githubPullRequestId}/index.html"
+      "storage.googleapis.com/${baseUrl}/index.html"
 }
 
 stageWebsite.dependsOn setupVirtualenv
-stageWebsite.dependsOn buildWebsite
+stageWebsite.dependsOn buildGcsWebsite
