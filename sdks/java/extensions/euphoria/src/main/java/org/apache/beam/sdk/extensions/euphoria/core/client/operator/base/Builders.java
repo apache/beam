@@ -146,16 +146,37 @@ public class Builders {
    */
   public interface WindowedOutput<T extends WindowedOutput<T>> {
 
-    /** {@link Window#withAllowedLateness(Duration)}. */
+    /**
+     * {@link Window#withAllowedLateness(Duration)}.
+     *
+     * @param allowedLateness allowed lateness of elements
+     * @return next windowing builder in chain
+     */
     T withAllowedLateness(Duration allowedLateness);
 
-    /** {@link Window#withAllowedLateness(Duration, Window.ClosingBehavior)}. */
+    /**
+     * {@link Window#withAllowedLateness(Duration, Window.ClosingBehavior)}.
+     *
+     * @param allowedLateness allowed lateness of elements
+     * @param closingBehavior a window closing behavior
+     * @return next windowing builder in chain
+     */
     T withAllowedLateness(Duration allowedLateness, Window.ClosingBehavior closingBehavior);
 
-    /** {@link Window#withTimestampCombiner(TimestampCombiner)}. */
+    /**
+     * {@link Window#withTimestampCombiner(TimestampCombiner)}.
+     *
+     * @param timestampCombiner timestamp combiner
+     * @return next windowing builder in chain
+     */
     T withTimestampCombiner(TimestampCombiner timestampCombiner);
 
-    /** {@link Window#withOnTimeBehavior(Window.OnTimeBehavior)}. */
+    /**
+     * {@link Window#withOnTimeBehavior(Window.OnTimeBehavior)}.
+     *
+     * @param behavior window on time behavior
+     * @return next windowing builder in chain
+     */
     T withOnTimeBehavior(Window.OnTimeBehavior behavior);
   }
 
