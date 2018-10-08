@@ -138,6 +138,9 @@ public class FnApiWindowMappingFnTest {
         }
 
         @Override
+        public void flush() throws Exception {}
+
+        @Override
         public void close() throws Exception {}
       };
     }
