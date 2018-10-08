@@ -652,7 +652,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
 
-    if self.source.query is None:
+    if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
       # project.
       project_id = self.source.table_reference.projectId
@@ -662,30 +662,44 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           project_id,
           self.source.table_reference.datasetId,
           self.source.table_reference.tableId)
-    else:
+    elif self.source.query is not None:
       self.query = self.source.query
-
-  def _get_source_table_location(self):
-    tr = self.source.table_reference
-    if tr is None:
-      # TODO: implement location retrieval for query sources
-      return
-
-    if tr.projectId is None:
-      source_project_id = self.executing_project
     else:
-      source_project_id = tr.projectId
+      # Enforce the "modes" enforced by BigQuerySource.__init__.
+      # If this exception has been raised, the BigQuerySource "modes" have
+      # changed and this method will need to be updated as well.
+      raise ValueError("BigQuerySource must have either a table or query")
 
-    source_dataset_id = tr.datasetId
-    source_table_id = tr.tableId
-    source_location = self.client.get_table_location(
-        source_project_id, source_dataset_id, source_table_id)
-    return source_location
+  def _get_source_location(self):
+    """
+    Get the source location (e.g. ``"EU"`` or ``"US"``) from either
+
+    - :data:`source.table_reference`
+      or
+    - The first referenced table in :data:`source.query`
+
+    See Also:
+      - :meth:`BigQueryWrapper.get_query_location`
+      - :meth:`BigQueryWrapper.get_table_location`
+
+    Returns:
+      Optional[str]: The source location, if any.
+    """
+    if self.source.table_reference is not None:
+      tr = self.source.table_reference
+      return self.client.get_table_location(
+          tr.projectId if tr.projectId is not None else self.executing_project,
+          tr.datasetId, tr.tableId)
+    else:  # It's a query source
+      return self.client.get_query_location(
+          self.executing_project,
+          self.source.query,
+          self.source.use_legacy_sql)
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
     self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_table_location())
+        self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -804,6 +818,53 @@ class BigQueryWrapper(object):
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_query_location(self, project_id, query, use_legacy_sql):
+    """
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first referenced table in the query
+    and depends on the BigQuery service to provide error handling for
+    queries that reference tables in multiple locations.
+    """
+    reference = bigquery.JobReference(jobId=uuid.uuid4().hex,
+                                      projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      logging.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
+    referenced_tables = response.statistics.query.referencedTables
+    if referenced_tables:  # Guards against both non-empty and non-None
+      table = referenced_tables[0]
+      location = self.get_table_location(
+          table.projectId,
+          table.datasetId,
+          table.tableId)
+      logging.info("Using location %r from table %r referenced by query %s",
+                   location, table, query)
+      return location
+
+    logging.debug("Query %s does not reference any tables.", query)
+    return None
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -955,8 +1016,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location=None):
-    # TODO: make location required, once "query" locations can be determined
+  def create_temporary_dataset(self, project_id, location):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     # Check if dataset exists to make sure that the temporary id is unique
     try:
