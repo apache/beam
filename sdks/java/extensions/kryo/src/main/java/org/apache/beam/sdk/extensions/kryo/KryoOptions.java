@@ -22,6 +22,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+/**
+ * {@link PipelineOptions} which allows passing {@link com.esotericsoftware.kryo.Kryo} parameters.
+ */
 @Description("Options for KryoCoder")
 public interface KryoOptions extends PipelineOptions {
 
