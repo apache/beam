@@ -38,6 +38,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -1975,13 +1976,17 @@ class Create(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     coder = typecoders.registry.get_coder(self.get_output_type())
+    debug_options = self.pipeline._options.view_as(DebugOptions)
+    # Must guard against this as some legacy runners don't implement impulse.
+    fn_api = (debug_options.experiments
+              and 'beam_fn_api' in debug_options.experiments)
     # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
     # These special cases are often used in building up more complex
     # transforms (e.g. Write).
-    if len(self.values) == 0:
+    if fn_api and len(self.values) == 0:
       return pbegin | Impulse() | FlatMap(
           lambda _: ()).with_output_types(self.get_output_type())
-    elif len(self.values) == 1:
+    elif fn_api and len(self.values) == 1:
       serialized_value = coder.encode(self.values[0])
       return pbegin | Impulse() | Map(
           lambda _: coder.decode(serialized_value)).with_output_types(
