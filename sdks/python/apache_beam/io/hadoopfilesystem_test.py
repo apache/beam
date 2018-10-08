@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import io
 import logging
 import posixpath
+import sys
 import unittest
 from builtins import object
 
@@ -197,6 +198,12 @@ class FakeHdfs(object):
 
 class HadoopFileSystemTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hdfs.hdfs.InsecureClient = (
@@ -258,7 +265,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     returned_files = [f.path
                       for match_result in result
                       for f in match_result.metadata_list]
-    self.assertItemsEqual(expected_files, returned_files)
+    self.assertCountEqual(expected_files, returned_files)
 
   def test_match_file_with_limits(self):
     expected_files = [self.fs.join(self.tmpdir, filename)
@@ -296,7 +303,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     # structure, so listing without a '/' will return no results.
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, expected_files)
+    self.assertCountEqual(files, expected_files)
 
   def test_match_directory_trailing_slash(self):
     expected_files = [self.fs.join(self.tmpdir, filename)
@@ -304,7 +311,7 @@ class HadoopFileSystemTest(unittest.TestCase):
 
     result = self.fs.match([self.tmpdir + '/'])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, expected_files)
+    self.assertCountEqual(files, expected_files)
 
   def test_create_success(self):
     url = self.fs.join(self.tmpdir, 'new_file')

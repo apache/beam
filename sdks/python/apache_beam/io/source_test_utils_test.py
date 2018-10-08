@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -27,6 +28,12 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 
 class SourceTestUtilsTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def _create_file_with_data(self, lines):
     assert isinstance(lines, list)
@@ -50,7 +57,7 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_read_from_source(self):
     data = self._create_data(100)
     source = self._create_source(data)
-    self.assertItemsEqual(
+    self.assertCountEqual(
         data, source_test_utils.read_from_source(source, None, None))
 
   def test_source_equals_reference_source(self):
