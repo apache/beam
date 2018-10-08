@@ -178,3 +178,7 @@ include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
 include "beam-website"
 project(":beam-website").dir = file("website")
+include "beam-runners-google-cloud-dataflow-java-worker"
+project(":beam-runners-google-cloud-dataflow-java-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+include "beam-runners-google-cloud-dataflow-java-windmill"
+project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
