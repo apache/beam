@@ -52,6 +52,7 @@ public class KryoCoderTest {
 
   @Test(expected = CoderException.class)
   public void testWrongRegistrarCoding() throws IOException {
+    OPTIONS.as(KryoOptions.class).setKryoRegistrationRequired(true);
     final KryoCoder<ClassToBeEncoded> coder = KryoCoder.of(OPTIONS);
     assertEncoding(coder);
   }

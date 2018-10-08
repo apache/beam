@@ -70,7 +70,7 @@ class KryoState {
   /** The kryo instance. */
   private final Kryo kryo;
 
-  /** first id of user provided class registration */
+  /** first id of user provided class registration. */
   private final int firstRegistrationId;
 
   /** A reusable input buffer. */
@@ -88,7 +88,7 @@ class KryoState {
   }
 
   /**
-   * {@link KryoState#kryo}
+   * {@link KryoState#kryo}.
    *
    * @return kryo
    */
@@ -97,7 +97,7 @@ class KryoState {
   }
 
   /**
-   * {@link KryoState#firstRegistrationId}
+   * {@link KryoState#firstRegistrationId}.
    *
    * @return registration id
    */
@@ -106,7 +106,7 @@ class KryoState {
   }
 
   /**
-   * {@link KryoState#inputChunked}
+   * {@link KryoState#inputChunked}.
    *
    * @return input buffer
    */
@@ -115,7 +115,7 @@ class KryoState {
   }
 
   /**
-   * {@link KryoState#outputChunked}
+   * {@link KryoState#outputChunked}.
    *
    * @return output buffer
    */

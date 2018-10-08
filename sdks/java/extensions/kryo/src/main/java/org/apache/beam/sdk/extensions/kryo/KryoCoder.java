@@ -147,7 +147,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
     }
 
     /**
-     * {@link SerializableOptions#bufferSize}
+     * {@link SerializableOptions#bufferSize}.
      *
      * @return buffer size
      */
@@ -156,7 +156,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
     }
 
     /**
-     * {@link SerializableOptions#references}
+     * {@link SerializableOptions#references}.
      *
      * @return boolean flag
      */
@@ -165,7 +165,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
     }
 
     /**
-     * {@link SerializableOptions#registrationRequired}
+     * {@link SerializableOptions#registrationRequired}.
      *
      * @return boolean flag
      */
@@ -246,7 +246,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * {@link KryoCoder#instanceId}
+   * {@link KryoCoder#instanceId}.
    *
    * @return instance id
    */
@@ -255,7 +255,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * {@link KryoCoder#options}
+   * {@link KryoCoder#options}.
    *
    * @return options
    */
@@ -264,7 +264,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * {@link KryoCoder#registrars}
+   * {@link KryoCoder#registrars}.
    *
    * @return registrars
    */
