@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -236,7 +237,7 @@ public class ReferenceRunner {
       ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:
-        return new DockerEnvironmentFactory.Provider()
+        return new DockerEnvironmentFactory.Provider(PipelineOptionsTranslation.fromProto(options))
             .createEnvironmentFactory(
                 control,
                 logging,
