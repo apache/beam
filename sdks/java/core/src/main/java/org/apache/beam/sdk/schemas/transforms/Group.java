@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.Row;
  * type:
  *
  * <pre>{@code
- * @DefaultSchema(JavaFieldSchema.class)
+ * {@literal @DefaultSchema(JavaFieldSchema.class)}
  * public class UserPurchase {
  *   public String userId;
  *   public String country;
@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>You can group all purchases by user and country as follows:
  *
  * <pre>{@code
- * @DefaultSchema(JavaFieldSchema.class)
+ * {@literal @DefaultSchema}(JavaFieldSchema.class)
  * {@literal PCollection<KV<Row, Iterable<UserPurchase>>} byUser =
  *   purchases.apply(Group.byFieldNames("userId', "country"));
  * }</pre>
