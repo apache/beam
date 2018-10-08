@@ -125,4 +125,3 @@ class FnApiLogRecordHandler(logging.Handler):
       except Exception as ex:
         print("Logging client failed: {}... resetting".format(ex),
               file=sys.stderr)
-
