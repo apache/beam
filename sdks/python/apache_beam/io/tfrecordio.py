@@ -182,7 +182,7 @@ class _TFRecordSource(FileBasedSource):
           yield self._coder.decode(record)
 
 
-def _create_tfrcordio_source(
+def _create_tfrecordio_source(
     file_pattern=None, coder=None, compression_type=None):
   # We intentionally disable validation for ReadAll pattern so that reading does
   # not fail for globs (elements) that are empty.
@@ -210,7 +210,7 @@ class ReadAllFromTFRecord(PTransform):
     """
     super(ReadAllFromTFRecord, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_tfrcordio_source, compression_type=compression_type,
+        _create_tfrecordio_source, compression_type=compression_type,
         coder=coder)
     # Desired and min bundle sizes do not matter since TFRecord files are
     # unsplittable.
