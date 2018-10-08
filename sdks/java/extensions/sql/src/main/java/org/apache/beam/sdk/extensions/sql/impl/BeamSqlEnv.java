@@ -26,7 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -37,6 +37,8 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.FrameworkConfig;
+import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
@@ -49,12 +51,16 @@ import org.apache.calcite.tools.ValidationException;
 public class BeamSqlEnv {
   final CalciteConnection connection;
   final SchemaPlus defaultSchema;
-  final BeamQueryPlanner planner;
+  final BeamSqlEngine sqlEngine;
+
+  private BeamSqlPipelineOptions options;
 
   private BeamSqlEnv(TableProvider tableProvider) {
     connection = JdbcDriver.connect(tableProvider);
     defaultSchema = JdbcDriver.getDefaultSchema(connection);
-    planner = new BeamQueryPlanner(connection);
+    FrameworkConfig config = CalciteFrameworkConfigFactory.create(connection);
+    Planner plannerImpl = PlannerFactory.create(config, getBeamSqlPipelineOptions());
+    sqlEngine = BeamSqlEngine.create(plannerImpl);
   }
 
   public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
@@ -84,11 +90,6 @@ public class BeamSqlEnv {
     registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
 
-  public void setPlannerConstructor(PipelineOptions options) {
-    planner.setPlannerConstructor(
-        BeamQueryPlanner.getPlannerConstructorFromPipelineOptions(options));
-  }
-
   /**
    * Register {@link SerializableFunction} as a UDF function which can be used in SQL expression.
    * Note, {@link SerializableFunction} must have a constructor without arguments.
@@ -107,7 +108,7 @@ public class BeamSqlEnv {
 
   public BeamRelNode parseQuery(String query) throws ParseException {
     try {
-      return planner.convertToBeamRel(query);
+      return sqlEngine.convertToBeamRel(query);
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new ParseException(String.format("Unable to parse query %s", query), e);
     }
@@ -115,7 +116,7 @@ public class BeamSqlEnv {
 
   public boolean isDdl(String sqlStatement) throws ParseException {
     try {
-      return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+      return sqlEngine.parse(sqlStatement) instanceof SqlExecutableStatement;
     } catch (SqlParseException e) {
       throw new ParseException("Unable to parse statement", e);
     }
@@ -123,7 +124,7 @@ public class BeamSqlEnv {
 
   public void executeDdl(String sqlStatement) throws ParseException {
     try {
-      SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
+      SqlExecutableStatement ddl = (SqlExecutableStatement) sqlEngine.parse(sqlStatement);
       ddl.execute(getContext());
     } catch (SqlParseException e) {
       throw new ParseException("Unable to parse DDL statement", e);
@@ -134,15 +135,27 @@ public class BeamSqlEnv {
     return connection.createPrepareContext();
   }
 
-  public Map<String, String> getPipelineOptions() {
+  public Map<String, String> getPipelineOptionsMapFromBeamCalciteSchema() {
     return ((BeamCalciteSchema) CalciteSchema.from(defaultSchema).schema).getPipelineOptions();
   }
 
   public String explain(String sqlString) throws ParseException {
     try {
-      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+      return RelOptUtil.toString(sqlEngine.convertToBeamRel(sqlString));
     } catch (ValidationException | RelConversionException | SqlParseException e) {
       throw new ParseException("Unable to parse statement", e);
     }
+  }
+
+  public void setOptions(BeamSqlPipelineOptions options) {
+    this.options = options;
+  }
+
+  private BeamSqlPipelineOptions getBeamSqlPipelineOptions() {
+    if (options == null) {
+      options = PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class);
+    }
+
+    return options;
   }
 }

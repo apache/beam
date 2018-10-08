@@ -56,7 +56,8 @@ public class BeamSqlCli {
       env.executeDdl(sqlString);
     } else {
       PipelineOptions options =
-          BeamEnumerableConverter.createPipelineOptions(env.getPipelineOptions());
+          BeamEnumerableConverter.createPipelineOptions(
+              env.getPipelineOptionsMapFromBeamCalciteSchema());
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
       BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sqlString));

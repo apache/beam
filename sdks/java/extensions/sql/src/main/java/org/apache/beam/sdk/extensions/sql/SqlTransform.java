@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine;
@@ -92,7 +93,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     registerFunctions(sqlEnv);
 
     // overwrite BeamSQL's planner constructor.
-    sqlEnv.setPlannerConstructor(input.getPipeline().getOptions());
+    sqlEnv.setOptions(input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class));
 
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }

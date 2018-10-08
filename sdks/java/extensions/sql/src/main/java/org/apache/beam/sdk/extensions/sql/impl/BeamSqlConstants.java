@@ -17,16 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-
-/** Options used to configure BeamSQL. */
-public interface BeamSqlPipelineOptions extends PipelineOptions {
-
-  @Description("BeamSQL planner implementation class name.")
-  @Default.String(BeamSqlConstants.DEFAULT_BEAM_SQL_PLANNER_IMPL_CLASS_NAME)
-  String getPlannerImplClassName();
-
-  void setPlannerImplClassName(String className);
+/** BeamSql constants. */
+public class BeamSqlConstants {
+  public static final String DEFAULT_BEAM_SQL_PLANNER_IMPL_CLASS_NAME =
+      "org.apache.calcite.prepare.PlannerImpl";
 }
