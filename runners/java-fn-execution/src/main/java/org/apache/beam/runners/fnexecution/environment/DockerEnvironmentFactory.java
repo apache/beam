@@ -40,6 +40,8 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +61,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      boolean retainDockerContainer) {
     return new DockerEnvironmentFactory(
         docker,
         controlServiceServer,
@@ -67,7 +70,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         retrievalServiceServer,
         provisioningServiceServer,
         idGenerator,
-        clientSource);
+        clientSource,
+        retainDockerContainer);
   }
 
   private final DockerCommand docker;
@@ -77,6 +81,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
+  private final boolean retainDockerContainer;
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
@@ -85,7 +90,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
-      ControlClientPool.Source clientSource) {
+      ControlClientPool.Source clientSource,
+      boolean retainDockerContainer) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
@@ -93,6 +99,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
+    this.retainDockerContainer = retainDockerContainer;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
@@ -116,14 +123,17 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    List<String> volArg =
+    ImmutableList.Builder<String> dockerArgsBuilder =
         ImmutableList.<String>builder()
             .addAll(gcsCredentialArgs())
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             .add("--network=host")
             // We need to pass on the information about Docker-on-Mac environment (due to missing host networking on Mac)
-            .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"))
-            .build();
+            .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
+
+    if (!retainDockerContainer) {
+      dockerArgsBuilder.add("--rm");
+    }
 
     List<String> args =
         ImmutableList.of(
@@ -138,7 +148,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String containerId = null;
     InstructionRequestHandler instructionHandler = null;
     try {
-      containerId = docker.runImage(containerImage, volArg, args);
+      containerId = docker.runImage(containerImage, dockerArgsBuilder.build(), args);
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
@@ -225,6 +235,12 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   /** Provider for DockerEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
+    private final boolean retainDockerContainer;
+
+    public Provider(PipelineOptions options) {
+      this.retainDockerContainer =
+          options.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
+    }
 
     @Override
     public EnvironmentFactory createEnvironmentFactory(
@@ -241,7 +257,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
           retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
-          idGenerator);
+          idGenerator,
+          retainDockerContainer);
     }
 
     @Override

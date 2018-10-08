@@ -81,7 +81,8 @@ public class DockerEnvironmentFactoryTest {
             retrievalServiceServer,
             provisioningServiceServer,
             (workerId, timeout) -> client,
-            ID_GENERATOR);
+            ID_GENERATOR,
+            false);
   }
 
   @Test
