@@ -102,7 +102,7 @@ public class FieldTypeDescriptors {
         return FieldType.array(fieldTypeForJavaType(TypeDescriptor.of(params[0])));
       }
     }
-    throw new RuntimeException("Coupld not determine array parameter type for field.");
+    throw new RuntimeException("Could not determine array parameter type for field.");
   }
 
   private static FieldType getMapFieldType(TypeDescriptor typeDescriptor) {

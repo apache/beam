@@ -61,7 +61,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <pre>{@code
  * PCollection<UserEvent> events = readUserEvents();
- * PCollection<Row> rows = event.apply(Select.fieldNameFilters("userId", "eventId"));
+ * PCollection<Row> rows = event.apply(Select.fieldNames("userId", "eventId"));
  * }</pre>
  *
  * It's possible to select a nested field as well. For example, if you want just the location
@@ -132,6 +132,8 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     return selected;
   }
 
+  // Currently we don't flatten selected nested fields. We should consider whether to flatten them
+  // or leave them as is.
   static Schema getOutputSchema(Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.allFields()) {
       return inputSchema;
@@ -140,12 +142,14 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     for (int fieldId : fieldAccessDescriptor.fieldIdsAccessed()) {
       builder.addField(inputSchema.getField(fieldId));
     }
+
     for (Map.Entry<Integer, FieldAccessDescriptor> nested :
         fieldAccessDescriptor.nestedFields().entrySet()) {
       Field field = inputSchema.getField(nested.getKey());
       FieldAccessDescriptor nestedDescriptor = nested.getValue();
       FieldType nestedType =
           FieldType.row(getOutputSchema(field.getType().getRowSchema(), nestedDescriptor));
+
       if (field.getNullable()) {
         builder.addNullableField(field.getName(), nestedType);
       } else {
