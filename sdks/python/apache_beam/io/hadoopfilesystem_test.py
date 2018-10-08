@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import io
 import logging
 import posixpath
+import sys
 import unittest
 from builtins import object
 
@@ -197,6 +198,12 @@ class FakeHdfs(object):
 
 class HadoopFileSystemTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hdfs.hdfs.InsecureClient = (
@@ -213,11 +220,6 @@ class HadoopFileSystemTest(unittest.TestCase):
     for filename in ['old_file1', 'old_file2']:
       url = self.fs.join(self.tmpdir, filename)
       self.fs.create(url).close()
-
-    try:                    # Python 2
-      self.assertCountEqual = self.assertItemsEqual
-    except AttributeError:  # Python 3
-      pass
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'hdfs')
