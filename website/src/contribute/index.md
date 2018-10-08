@@ -88,7 +88,8 @@ For large changes (you may be asked to create a design doc
 ([template](https://s.apache.org/beam-design-doc-template),
 [examples](https://s.apache.org/beam-design-docs))).
 
-Documentation happens at [https://github.com/apache/beam-site](https://github.com/apache/beam-site)
+Documentation happens at
+[https://github.com/apache/beam/tree/master/website](https://github.com/apache/beam/tree/master/website)
 and contributions are welcome.
 
 Large contributions require a signed [Individual Contributor License
