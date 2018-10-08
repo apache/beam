@@ -322,8 +322,7 @@ public class CoderRegistry {
     if (paramCoderOrNull != null) {
       return paramCoderOrNull;
     } else {
-      throw new CannotProvideCoderException(
-          "Cannot infer coder for type parameter " + param.getName());
+      throw new CannotProvideCoderException("Cannot infer coder for type parameter " + param);
     }
   }
 

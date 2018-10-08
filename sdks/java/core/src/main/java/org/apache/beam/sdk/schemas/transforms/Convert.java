@@ -94,10 +94,6 @@ public class Convert {
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     TypeDescriptor<OutputT> outputTypeDescriptor;
 
-    ConvertTransform(Class<OutputT> outputClass) {
-      this(TypeDescriptor.of(outputClass));
-    }
-
     ConvertTransform(TypeDescriptor<OutputT> outputTypeDescriptor) {
       this.outputTypeDescriptor = outputTypeDescriptor;
     }
