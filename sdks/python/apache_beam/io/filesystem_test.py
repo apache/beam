@@ -288,9 +288,10 @@ atomized in instants hammered around the
     self._tempfiles.append(path)
     return path
 
-  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
-                                             'fixed on Python 3'
-                                             'TODO: BEAM-5627')
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def _create_compressed_file(self, compression_type, content):
     file_name = self._create_temp_file()
 
@@ -431,9 +432,10 @@ atomized in instants hammered around the
 
         self.assertEqual(first_pass, second_pass)
 
-  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
-                                             'fixed on Python 3'
-                                             'TODO: BEAM-5627')
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_tell(self):
     lines = ['line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()
