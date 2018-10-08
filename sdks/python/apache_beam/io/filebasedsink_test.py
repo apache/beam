@@ -24,6 +24,7 @@ import glob
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -96,6 +97,12 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -136,7 +143,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
+    self.assertCountEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
@@ -277,7 +284,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
           open(shard_name).read(), ('[start][a][b][%s][end]' % uuid))
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual(res, glob.glob(temp_path + '*'))
+    self.assertCountEqual(res, glob.glob(temp_path + '*'))
 
   @mock.patch.object(filebasedsink.FileSystems, 'rename')
   def test_file_sink_rename_error(self, rename_mock):
