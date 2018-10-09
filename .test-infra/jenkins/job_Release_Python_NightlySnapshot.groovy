@@ -41,11 +41,19 @@ job('beam_Release_Python_NightlySnapshot') {
             'Run Python Publish')
 
     steps {
+      // Cleanup Python directory.
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':beam-sdks-python:sdist')
+        tasks(':beam-sdks-python:clean')
         commonJobProperties.setGradleSwitches(delegate)
       }
+      // Build snapshot.
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':beam-sdks-python:buildSnapshot')
+        commonJobProperties.setGradleSwitches(delegate)
+      }
+      // Publish snapshot to a public accessible GCS directory.
       shell('cd ' + commonJobProperties.checkoutDir +
         ' && bash sdks/python/scripts/run_snapshot_publish.sh')
     }
