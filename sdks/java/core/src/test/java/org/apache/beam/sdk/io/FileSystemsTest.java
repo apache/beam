@@ -30,6 +30,8 @@ import com.google.common.io.Files;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.CopyOption;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -168,6 +170,7 @@ public class FileSystemsTest {
 
     createFileWithContent(srcPath1, "content1");
     createFileWithContent(srcPath3, "content3");
+    createFileWithContent(destPath3, "overwrite-me"); // target exists and will be replaced
 
     FileSystems.rename(
         toResourceIds(
@@ -184,6 +187,56 @@ public class FileSystemsTest {
     assertThat(
         Files.readLines(destPath3.toFile(), StandardCharsets.UTF_8),
         containsInAnyOrder("content3"));
+  }
+
+  @Test
+  public void testRenameOverwriteExistingFilesThrows() throws Exception {
+    // Simulate a filesystem which will not overwrite existing files
+    FileSystem<LocalResourceId> fs = new LocalFileSystem(new CopyOption[0]);
+    thrown.expect(FileAlreadyExistsException.class);
+    executeRename(fs, false);
+  }
+
+  @Test
+  public void testRenameOverwriteExistingFiles() throws Exception {
+    // Simulate a filesystem which will not overwrite existing files
+    FileSystem<LocalResourceId> fs = new LocalFileSystem(new CopyOption[0]);
+    executeRename(fs, true);
+  }
+
+  /**
+   * Creates two resources renaming them where one of the target files already exists.
+   *
+   * @param fs The internal file system implementation
+   * @param replaceExisting True if an attempt to replace existing files is desired
+   * @throws Exception On error creating the files or renaming
+   */
+  private void executeRename(FileSystem<LocalResourceId> fs, boolean replaceExisting)
+      throws Exception {
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path srcPath2 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = srcPath1.resolveSibling("dest1");
+    Path destPath2 = srcPath1.resolveSibling("dest2");
+
+    createFileWithContent(srcPath1, "content1");
+    createFileWithContent(srcPath2, "content2");
+    createFileWithContent(destPath2, "existing target");
+
+    FileSystems.rename(
+        fs,
+        toResourceIds(ImmutableList.of(srcPath1, srcPath2), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */),
+        replaceExisting);
+
+    assertFalse(srcPath1.toFile().exists());
+    assertFalse(srcPath2.toFile().exists());
+    assertThat(
+        Files.readLines(destPath1.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content1"));
+    assertThat(
+        Files.readLines(destPath2.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content2")); // overwrite the data
   }
 
   @Test

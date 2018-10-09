@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -80,8 +82,20 @@ import org.slf4j.LoggerFactory;
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
+  private static final CopyOption[] DEFAULT_RENAME_COPY_OPTIONS =
+      new CopyOption[] {StandardCopyOption.ATOMIC_MOVE};
 
-  LocalFileSystem() {}
+  private final CopyOption[] renameCopyOption;
+
+  LocalFileSystem() {
+    renameCopyOption = DEFAULT_RENAME_COPY_OPTIONS;
+  }
+
+  // Exists to allow testing behaviour of the FileSystems utility methods
+  @VisibleForTesting
+  LocalFileSystem(CopyOption[] renameCopyOption) {
+    this.renameCopyOption = renameCopyOption;
+  }
 
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
@@ -169,11 +183,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
             dst.getPath());
       }
       // Rename the source file, replacing the existing destination.
-      Files.move(
-          src.getPath(),
-          dst.getPath(),
-          StandardCopyOption.REPLACE_EXISTING,
-          StandardCopyOption.ATOMIC_MOVE);
+      Files.move(src.getPath(), dst.getPath(), renameCopyOption);
     }
   }
 
