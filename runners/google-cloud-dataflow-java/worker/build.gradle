@@ -55,10 +55,6 @@ def getWorkerRelocatedPath = { String suffix ->
 // Following listed dependencies will be shaded only in fnapi worker, not legacy
 // worker
 def sdk_provided_dependencies = [
-  "org.apache.beam:beam-runners-google-cloud-dataflow-java:$version",
-  "org.apache.beam:beam-sdks-java-core:$version",
-  "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version",
-  "org.apache.beam:beam-sdks-java-io-google-cloud-platform:$version",
   google_api_services_dataflow,
   library.java.avro,
   library.java.google_api_client,
@@ -68,6 +64,13 @@ def sdk_provided_dependencies = [
   library.java.jackson_core,
   library.java.jackson_databind,
   library.java.joda_time,
+]
+
+def sdk_provided_project_dependencies = [
+  ":beam-runners-google-cloud-dataflow-java",
+  ":beam-sdks-java-core",
+  ":beam-sdks-java-extensions-google-cloud-platform-core",
+  ":beam-sdks-java-io-google-cloud-platform",
 ]
 
 // Exclude unneeded dependencies when building jar
@@ -92,6 +95,9 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
     if (is_legacy_worker()) {
       sdk_provided_dependencies.each {
         exclude(dependency(it))
+      }
+      sdk_provided_project_dependencies.each {
+        exclude(project(path: it))
       }
       excluded_dependencies.each {
         exclude(dependency(it))
@@ -159,6 +165,22 @@ configurations {
   }
 }
 
+def common_compile_project_dependencies = [
+    ":beam-model-fn-execution",
+    ":beam-model-pipeline",
+    ":beam-runners-core-construction-java",
+    ":beam-runners-core-java",
+    ":beam-runners-java-fn-execution",
+    ":beam-sdks-java-fn-execution",
+    ":beam-runners-google-cloud-dataflow-java-windmill",
+]
+
+def common_test_compile_project_dependencies = [
+    ":beam-runners-core-java",
+    ":beam-sdks-java-core",
+    ":beam-sdks-java-extensions-google-cloud-platform-core",
+]
+
 dependencies {
   // Set dependencies to shadow scope by default, but in a property so they can
   // be downgraded when building a legacy (non-FnAPI) worker.
@@ -166,19 +188,21 @@ dependencies {
     sdk_provided_dependencies.each {
       provided(it)
     }
+    sdk_provided_project_dependencies.each {
+      provided project(path: it, configuration: "shadow")
+    }
   } else {
     sdk_provided_dependencies.each {
       shadow(it)
     }
+    sdk_provided_project_dependencies.each {
+      shadow project(path: it, configuration: "shadow")
+    }
   }
 
-  compile "org.apache.beam:beam-model-fn-execution:$version"
-  compile "org.apache.beam:beam-model-pipeline:$version"
-  compile "org.apache.beam:beam-runners-core-construction-java:$version"
-  compile "org.apache.beam:beam-runners-core-java:$version"
-  compile "org.apache.beam:beam-runners-java-fn-execution:$version"
-  compile "org.apache.beam:beam-sdks-java-fn-execution:$version"
-  compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+  common_compile_project_dependencies.each {
+    compile project(path: it, configuration: "shadow")
+  }
 
   compile library.java.guava
   compile library.java.slf4j_api
@@ -191,10 +215,11 @@ dependencies {
 
   runtime library.java.slf4j_jdk14
 
-  testCompile "org.apache.beam:beam-runners-core-java:$version:tests"
-  testCompile "org.apache.beam:beam-runners-direct-java:$version"
-  testCompile "org.apache.beam:beam-sdks-java-core:$version:tests"
-  testCompile "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version:tests"
+  common_test_compile_project_dependencies.each {
+    testCompile project(path: it, configuration: "shadowTest")
+  }
+
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
 
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
