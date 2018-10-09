@@ -24,6 +24,7 @@ import operator
 import random
 from builtins import object
 from builtins import zip
+from functools import cmp_to_key
 
 from past.builtins import long
 
@@ -290,9 +291,12 @@ class TopCombineFn(core.CombineFn):
   def _sort_buffer(self, buffer, lt):
     if lt in (operator.gt, operator.lt):
       buffer.sort(key=self._key_fn, reverse=self._reverse)
+    elif self._key_fn:
+      buffer.sort(key=cmp_to_key(
+          (lambda a, b: (not lt(self._key_fn(a), self._key_fn(b)))
+           - (not lt(self._key_fn(b), self._key_fn(a))))))
     else:
-      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)),
-                  key=self._key_fn)
+      buffer.sort(key=cmp_to_key(lambda a, b: (not lt(a, b)) - (not lt(b, a))))
 
   def display_data(self):
     return {'n': self._n,
