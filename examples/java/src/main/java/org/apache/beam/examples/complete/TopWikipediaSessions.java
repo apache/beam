@@ -18,6 +18,7 @@
 package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.ComparisonChain;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -112,7 +113,11 @@ public class TopWikipediaSessions {
     @Override
     public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
       SerializableComparator<KV<String, Long>> comparator =
-          (o1, o2) -> Long.compare(o1.getValue(), o2.getValue());
+          (o1, o2) ->
+              ComparisonChain.start()
+                  .compare(o1.getValue(), o2.getValue())
+                  .compare(o1.getKey(), o2.getKey())
+                  .result();
       return sessions
           .apply(Window.into(CalendarWindows.months(1)))
           .apply(Top.of(1, comparator).withoutDefaults());
