@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -59,8 +60,9 @@ public class BigQueryToTableIT {
 
   private BigQueryToTableOptions options;
   private String project;
-  private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_to_table_" + Long.toString(System.currentTimeMillis());
+
+  //Naming format: bg_query_to_table_+ timestamp + 3-digit random number
+  private String bigQueryDatasetId = "bq_query_to_table_";
   private static final String OUTPUT_TABLE_NAME = "output_table";
   private BigQueryOptions bqOption;
   private String outputTable;
@@ -115,25 +117,23 @@ public class BigQueryToTableIT {
   private void setupNewTypesQueryTest() {
     this.bqClient.createNewTable(
         this.project,
-        BigQueryToTableIT.BIG_QUERY_DATASET_ID,
+        this.bigQueryDatasetId,
         new Table()
             .setSchema(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_SCHEMA)
             .setTableReference(
                 new TableReference()
                     .setTableId(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME)
-                    .setDatasetId(BigQueryToTableIT.BIG_QUERY_DATASET_ID)
+                    .setDatasetId(this.bigQueryDatasetId)
                     .setProjectId(this.project)));
     this.bqClient.insertDataToTable(
         this.project,
-        BigQueryToTableIT.BIG_QUERY_DATASET_ID,
+        this.bigQueryDatasetId,
         BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME,
         BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_DATA);
     this.options.setQuery(
         String.format(
             "SELECT bytes, date, time FROM [%s:%s.%s]",
-            project,
-            BigQueryToTableIT.BIG_QUERY_DATASET_ID,
-            BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME));
+            project, this.bigQueryDatasetId, BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME));
     this.options.setOutput(outputTable);
     this.options.setOutputSchema(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_SCHEMA);
   }
@@ -232,6 +232,9 @@ public class BigQueryToTableIT {
 
   @Before
   public void setupBqEnvironment() {
+    Long timeSeed = System.currentTimeMillis();
+    Integer random = new Random(timeSeed).nextInt(900) + 100;
+    this.bigQueryDatasetId += (timeSeed.toString() + "_" + random.toString());
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
     options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
@@ -239,18 +242,14 @@ public class BigQueryToTableIT {
 
     bqOption = options.as(BigQueryOptions.class);
     bqClient = new BigqueryClient(bqOption.getAppName());
-    bqClient.createNewDataset(project, BigQueryToTableIT.BIG_QUERY_DATASET_ID);
+    bqClient.createNewDataset(project, this.bigQueryDatasetId);
     outputTable =
-        project
-            + ":"
-            + BigQueryToTableIT.BIG_QUERY_DATASET_ID
-            + "."
-            + BigQueryToTableIT.OUTPUT_TABLE_NAME;
+        project + ":" + this.bigQueryDatasetId + "." + BigQueryToTableIT.OUTPUT_TABLE_NAME;
   }
 
   @After
   public void cleanBqEnvironment() {
-    bqClient.deleteDataset(project, BigQueryToTableIT.BIG_QUERY_DATASET_ID);
+    bqClient.deleteDataset(project, this.bigQueryDatasetId);
   }
 
   @Test
