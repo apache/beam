@@ -53,7 +53,7 @@ class LineSource(iobase.BoundedSource):
       for line in f:
         if not range_tracker.try_claim(current):
           return
-        yield line.rstrip('\n')
+        yield line.decode().rstrip('\n')
         current += len(line)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
@@ -83,7 +83,6 @@ class LineSource(iobase.BoundedSource):
 
 
 class SourcesTest(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -92,7 +91,7 @@ class SourcesTest(unittest.TestCase):
 
   def _create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode())
       return f.name
 
   def test_read_from_source(self):
