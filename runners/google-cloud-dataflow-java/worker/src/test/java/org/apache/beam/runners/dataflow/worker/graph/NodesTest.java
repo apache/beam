@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
+import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.FetchAndFilterStreamingSideInputsNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
@@ -140,15 +141,21 @@ public class NodesTest {
             SdkFunctionSpec.newBuilder()
                 .setSpec(FunctionSpec.newBuilder().setUrn("beam:test:urn:1.0"))
                 .build());
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
     assertSame(
         FetchAndFilterStreamingSideInputsNode.create(
-                windowingStrategy, pcollectionViewsToWindowMappingFns)
+                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
             .getWindowingStrategy(),
         windowingStrategy);
     assertSame(
         FetchAndFilterStreamingSideInputsNode.create(
-                windowingStrategy, pcollectionViewsToWindowMappingFns)
+                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
             .getPCollectionViewsToWindowMappingFns(),
         pcollectionViewsToWindowMappingFns);
+    assertSame(
+        FetchAndFilterStreamingSideInputsNode.create(
+                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
+            .getNameContext(),
+        nameContext);
   }
 }
