@@ -53,6 +53,7 @@ import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedLong;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -191,6 +192,7 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_PARDO_SYSTEM_NAME = "parDo";
   private static final String DEFAULT_PARDO_ORIGINAL_NAME = "parDoOriginalName";
   private static final String DEFAULT_PARDO_USER_NAME = "parDoUserName";
+  private static final String DEFAULT_PARDO_STATE_FAMILY = "parDoStateFamily";
   private static final String DEFAULT_SOURCE_SYSTEM_NAME = "source";
   private static final String DEFAULT_SOURCE_ORIGINAL_NAME = "sourceOriginalName";
   private static final String DEFAULT_SINK_SYSTEM_NAME = "sink";
@@ -595,6 +597,25 @@ public class StreamingDataflowWorkerTest {
     return options;
   }
 
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      StreamingDataflowWorkerOptions options,
+      boolean publishCounters)
+      throws Exception {
+    StreamingDataflowWorker worker =
+        new StreamingDataflowWorker(
+            Arrays.asList(defaultMapTask(instructions)),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mockWorkUnitClient,
+            options,
+            null /* pipeline */,
+            SdkHarnessRegistries.emptySdkHarnessRegistry(),
+            publishCounters);
+    worker.addStateNameMappings(
+        ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
+    return worker;
+  }
+
   @Test
   public void testBasicHarness() throws Exception {
     List<ParallelInstruction> instructions =
@@ -604,15 +625,7 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     final int numIters = 2000;
@@ -650,15 +663,7 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorkerOptions options =
         createTestingPipelineOptions(server, "--experiments=enable_windmill_service");
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     final int numIters = 2000;
@@ -696,15 +701,7 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorkerOptions options =
         createTestingPipelineOptions(server, "--experiments=enable_streaming_engine");
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     final int numIters = 2000;
@@ -761,15 +758,7 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
 
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     for (int i = 0; i < numIters; ++i) {
@@ -850,15 +839,7 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     options.setNumberOfWorkerHarnessThreads(expectedNumberOfThreads);
 
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     for (int i = 0; i < expectedNumberOfThreads * 2; ++i) {
@@ -912,14 +893,7 @@ public class StreamingDataflowWorkerTest {
     server.addWorkToOffer(makeInput(0, 0, "key"));
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.start();
 
     server.waitForEmptyWorkQueue();
@@ -955,14 +929,7 @@ public class StreamingDataflowWorkerTest {
     server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1)));
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.start();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
@@ -1035,14 +1002,7 @@ public class StreamingDataflowWorkerTest {
                 CollectionCoder.of(IntervalWindow.getCoder()), Arrays.asList(DEFAULT_WINDOW))));
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.start();
     server.waitForEmptyWorkQueue();
 
@@ -1146,14 +1106,7 @@ public class StreamingDataflowWorkerTest {
     server.addWorkToOffer(makeInput(timestamp2, timestamp2));
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            false /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), false /* publishCounters */);
     worker.start();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
@@ -1267,14 +1220,7 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            false /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), false /* publishCounters */);
     Map<String, String> nameMap = new HashMap<>();
     nameMap.put("MergeWindowsStep", "MergeWindows");
     worker.addStateNameMappings(nameMap);
@@ -1576,14 +1522,7 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
 
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            false /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), false /* publishCounters */);
     Map<String, String> nameMap = new HashMap<>();
     nameMap.put("MergeWindowsStep", "MergeWindows");
     worker.addStateNameMappings(nameMap);
@@ -1742,13 +1681,9 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(makeUnboundedSourcePipeline())),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
+        makeWorker(
+            makeUnboundedSourcePipeline(),
             createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             false /* publishCounters */);
     worker.start();
 
@@ -1907,13 +1842,9 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(makeUnboundedSourcePipeline())),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
+        makeWorker(
+            makeUnboundedSourcePipeline(),
             createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             true /* publishCounters */);
     worker.start();
 
@@ -2152,6 +2083,7 @@ public class StreamingDataflowWorkerTest {
               new ParallelInstruction()
                   .setOriginalName("OriginalReadName")
                   .setSystemName("Read")
+                  .setName(DEFAULT_PARDO_USER_NAME)
                   .setRead(
                       new ReadInstruction()
                           .setSource(
@@ -2174,14 +2106,8 @@ public class StreamingDataflowWorkerTest {
       FakeWindmillServer server = new FakeWindmillServer(errorCollector);
       server.setExpectedExceptionCount(2);
       StreamingDataflowWorker worker =
-          new StreamingDataflowWorker(
-              Arrays.asList(defaultMapTask(instructions)),
-              IntrinsicMapTaskExecutorFactory.defaultFactory(),
-              mockWorkUnitClient,
-              createTestingPipelineOptions(server),
-              null /* pipeline */,
-              SdkHarnessRegistries.emptySdkHarnessRegistry(),
-              true /* publishCounters */);
+          makeWorker(
+              instructions, createTestingPipelineOptions(server), true /* publishCounters */);
       worker.setRetryLocallyDelayMs(100);
       worker.start();
 
@@ -2201,7 +2127,7 @@ public class StreamingDataflowWorkerTest {
             .setKey(ByteString.copyFromUtf8("0000000000000001"))
             .addValuesBuilder()
             .setTag(ByteString.copyFromUtf8("//+uint"))
-            .setStateFamily("")
+            .setStateFamily(DEFAULT_PARDO_STATE_FAMILY)
             .getValueBuilder()
             .setTimestamp(0)
             .setData(state);
@@ -2276,7 +2202,7 @@ public class StreamingDataflowWorkerTest {
           sb.append((char) 42);
           sb.append("\"\n");
           sb.append("  }\n");
-          sb.append("  state_family: \"\"\n");
+          sb.append("  state_family: \"parDoStateFamily\"\n");
           sb.append("}\n");
         }
 
@@ -2335,15 +2261,7 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     server.addWorkToOffer(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
@@ -2371,15 +2289,7 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
     options.setActiveWorkRefreshPeriodMillis(100);
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            true /* publishCounters */);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
     server.addWorkToOffer(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
@@ -2421,16 +2331,10 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(
-                defaultMapTask(
-                    makeUnboundedSourcePipeline(
-                        numMessagesInCustomSourceShard, new InflateDoFn(inflatedSizePerMessage)))),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
+        makeWorker(
+            makeUnboundedSourcePipeline(
+                numMessagesInCustomSourceShard, new InflateDoFn(inflatedSizePerMessage)),
             createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             false /* publishCounters */);
     worker.start();
 
@@ -2510,14 +2414,7 @@ public class StreamingDataflowWorkerTest {
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Arrays.asList(defaultMapTask(instructions)),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            mockWorkUnitClient,
-            createTestingPipelineOptions(server),
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            false /* publishCounters */);
+        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.start();
 
     // Test new key.

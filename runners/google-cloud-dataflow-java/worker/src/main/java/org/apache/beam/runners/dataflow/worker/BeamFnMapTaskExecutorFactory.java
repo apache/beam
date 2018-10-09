@@ -169,9 +169,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             beamFnDataService,
             dataApiServiceDescriptor,
             executionContext,
-            // TODO: Set NameContext properly for these operations.
-            executionContext.createOperationContext(
-                NameContext.create(stageName, stageName, stageName, stageName))));
+            stageName));
 
     // Swap out all the ParallelInstruction nodes with Operation nodes
     Networks.replaceDirectedNetworkNodes(
@@ -209,7 +207,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
       DataflowExecutionContext executionContext,
-      DataflowOperationContext operationContext) {
+      String stageName) {
     return new TypeSafeNodeFunction<FetchAndFilterStreamingSideInputsNode>(
         FetchAndFilterStreamingSideInputsNode.class) {
 
@@ -217,6 +215,13 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       public Node typedApply(FetchAndFilterStreamingSideInputsNode input) {
         OutputReceiverNode output =
             (OutputReceiverNode) Iterables.getOnlyElement(network.successors(input));
+        DataflowOperationContext operationContext =
+            executionContext.createOperationContext(
+                NameContext.create(
+                    stageName,
+                    input.getNameContext().originalName(),
+                    input.getNameContext().systemName(),
+                    input.getNameContext().userName()));
         return OperationNode.create(
             new FetchAndFilterStreamingSideInputsOperation<>(
                 new OutputReceiver[] {output.getOutputReceiver()},
