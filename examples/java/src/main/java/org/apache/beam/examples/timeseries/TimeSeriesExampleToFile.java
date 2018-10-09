@@ -30,6 +30,7 @@ import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumSequenceToTFSequen
 import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumToTFExample;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -151,8 +152,8 @@ public class TimeSeriesExampleToFile {
             TimeSeriesData.TSMultiVariateDataPoint mvts =
                 TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
                     .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
-                    .putData("x", TimeSeriesData.Data.newBuilder().setDoubleVal(i).build())
-                    .putData("y", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())
+                    .putData("x", TSDatas.createData(i))
+                    .putData("y", TSDatas.createData(y))
                     .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
                     .build();
 

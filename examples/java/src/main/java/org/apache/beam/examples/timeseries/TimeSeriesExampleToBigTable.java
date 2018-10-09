@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -166,8 +167,8 @@ public class TimeSeriesExampleToBigTable {
             TimeSeriesData.TSMultiVariateDataPoint mvts =
                 TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
                     .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
-                    .putData("x", TimeSeriesData.Data.newBuilder().setIntVal(i).build())
-                    .putData("y", TimeSeriesData.Data.newBuilder().setDoubleVal(y).build())
+                    .putData("x", TSDatas.createData(i))
+                    .putData("y", TSDatas.createData(y))
                     .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
                     .build();
 
