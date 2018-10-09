@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -201,7 +200,7 @@ public class FlinkJobServerDriver implements Runnable {
   private GrpcFnServer<InMemoryJobService> createJobServer() throws IOException {
     InMemoryJobService service = createJobService();
     GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer;
-    if (Strings.isNullOrEmpty(configuration.host)) {
+    if (configuration.port == 0) {
       jobServiceGrpcFnServer = GrpcFnServer.allocatePortAndCreateFor(service, jobServerFactory);
     } else {
       Endpoints.ApiServiceDescriptor descriptor =
@@ -239,7 +238,7 @@ public class FlinkJobServerDriver implements Runnable {
       throws IOException {
     BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
     final GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService;
-    if (Strings.isNullOrEmpty(configuration.host)) {
+    if (configuration.artifactPort == 0) {
       artifactStagingService =
           GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
     } else {
