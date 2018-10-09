@@ -60,7 +60,7 @@ class _TFRecordUtil(object):
   """Provides basic TFRecord encoding/decoding with consistency checks.
 
   For detailed TFRecord format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
 
   Note that masks and length are represented in LittleEndian order.
   """
@@ -148,7 +148,7 @@ class _TFRecordSource(FileBasedSource):
   """A File source for reading files of TFRecords.
 
   For detailed TFRecords format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
   def __init__(self,
@@ -260,7 +260,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
   """Sink for writing TFRecords files.
 
   For detailed TFRecord format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
   def __init__(self, file_path_prefix, coder, file_name_suffix, num_shards,
