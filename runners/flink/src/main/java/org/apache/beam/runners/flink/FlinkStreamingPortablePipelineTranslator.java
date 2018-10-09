@@ -520,7 +520,7 @@ public class FlinkStreamingPortablePipelineTranslator
     DoFnOperator<InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
-            null,
+            instantiateCoder(inputPCollectionId, components),
             null,
             Collections.emptyMap(),
             mainOutputTag,
