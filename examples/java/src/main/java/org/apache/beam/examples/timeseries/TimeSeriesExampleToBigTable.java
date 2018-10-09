@@ -23,14 +23,14 @@ import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
-import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
-import org.apache.beam.examples.timeseries.transforms.*;
-import org.apache.beam.examples.timeseries.utils.TSAccumSequences;
-import org.apache.beam.examples.timeseries.utils.TSAccums;
-import org.apache.beam.examples.timeseries.utils.TSMultiVariateDataPoints;
+
+import org.apache.beam.sdk.extensions.timeseries.GCPTimeSeriesOptions;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.transforms.*;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,10 +46,15 @@ import org.slf4j.LoggerFactory;
  * pipeline extracts interesting information from timeseries data. One of the key elements, is the
  * transfer of data between fixed windows for a given key, as well as backfill when a key does not
  * have any new data within a time boundary. This sample should not be used in production.
- *
+ * The generated data is 5 identical waves with keys {Sin-1...Sin-5}, each data point has two values
+ * {x,y}. x increments by 1 starting from 0 with a missed value in the series. { 0 .. 19 } - {10}
+ * y is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments one sec
+ * for each x.
  * <p>The output of this pipeline is to Google Cloud Bigtable.
+ * <p>The output of this pipeline is to a File path. Even though the aggregations for the x values are
+ * are of little value as output, it is processed as part of this demo as it is useful
+ * when eyeballing the results.
  */
-@Experimental
 public class TimeSeriesExampleToBigTable {
 
   static final Logger LOG = LoggerFactory.getLogger(TimeSeriesExampleToBigTable.class);
@@ -60,22 +65,22 @@ public class TimeSeriesExampleToBigTable {
   public static void main(String[] args) {
 
     // Create pipeline
-    TimeSeriesOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(TimeSeriesOptions.class);
-
+    GCPTimeSeriesOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(GCPTimeSeriesOptions.class);
+/*
     TSConfiguration configuration =
         TSConfiguration.builder()
             .downSampleDuration(Duration.standardSeconds(5))
             .timeToLive(Duration.standardMinutes(1))
             .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
-
+*/
     Pipeline p = Pipeline.create(options);
 
     // [START bigtable_dataflow_connector_config]
 
     CloudBigtableTableConfiguration config =
         new CloudBigtableTableConfiguration.Builder()
-            .withProjectId(options.getProjectId())
+            .withProjectId(options.getProject())
             .withInstanceId(options.getBigTableInstanceId())
             .withTableId(options.getBigTableTableId())
             .build();
@@ -93,10 +98,10 @@ public class TimeSeriesExampleToBigTable {
     // ------------ Create perfect rectangles of data--------
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> downSampled =
-        readData.apply(new ExtractAggregates(configuration)).apply(new GetWindowData());
+        readData.apply(new ExtractAggregates()).apply(new GetWindowData());
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> weHaveOrder =
-        downSampled.apply(new OrderOutput(configuration));
+        downSampled.apply(new OrderOutput());
 
     // ------------ OutPut Data as Logs and TFRecords--------
 
@@ -114,7 +119,7 @@ public class TimeSeriesExampleToBigTable {
     weHaveOrder
         .apply(
             new TSAccumToFixedWindowSeq(
-                "Sequence of 1 Min", configuration, Duration.standardMinutes(1)))
+                "Sequence of 1 Min", Duration.standardMinutes(1)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
@@ -122,7 +127,7 @@ public class TimeSeriesExampleToBigTable {
     weHaveOrder
         .apply(
             new TSAccumToFixedWindowSeq(
-                "Sequence of 5 Min", configuration, Duration.standardMinutes(5)))
+                "Sequence of 5 Min", Duration.standardMinutes(5)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
@@ -130,7 +135,7 @@ public class TimeSeriesExampleToBigTable {
     weHaveOrder
         .apply(
             new TSAccumToFixedWindowSeq(
-                "Sequence of 15 Min", configuration, Duration.standardMinutes(15)))
+                "Sequence of 15 Min", Duration.standardMinutes(15)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
@@ -155,7 +160,7 @@ public class TimeSeriesExampleToBigTable {
 
         Instant now = Instant.parse("2018-01-01T00:00Z");
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 20; i++) {
 
           if (!((i % 10 == 0))) {
 

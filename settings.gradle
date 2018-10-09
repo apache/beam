@@ -170,3 +170,5 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
+include "beam-sdks-java-extensions-timeseries"
+project(":beam-sdks-java-extensions-timeseries").dir = file("sdks/java/extensions/timeseries")

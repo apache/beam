@@ -21,17 +21,17 @@ package org.apache.beam.examples.timeseries;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
-import org.apache.beam.examples.timeseries.io.tf.TFSequenceExampleToBytes;
-import org.apache.beam.examples.timeseries.io.tf.TSAccumSequenceToTFSequencExample;
-import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
-import org.apache.beam.examples.timeseries.transforms.DebugSortedResult;
-import org.apache.beam.examples.timeseries.transforms.ExtractAggregates;
-import org.apache.beam.examples.timeseries.transforms.OrderOutput;
-import org.apache.beam.examples.timeseries.transforms.TSAccumToFixedWindowSeq;
-import org.apache.beam.examples.timeseries.utils.TSMultiVariateDataPoints;
+
+import org.apache.beam.sdk.extensions.timeseries.FileSinkTimeSeriesOptions;
+import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
+import org.apache.beam.sdk.extensions.timeseries.io.tf.TFExampleToBytes;
+import org.apache.beam.sdk.extensions.timeseries.io.tf.TFSequenceExampleToBytes;
+import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumSequenceToTFSequencExample;
+import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumToTFExample;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.transforms.*;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -46,25 +46,26 @@ import org.joda.time.Instant;
  * pipeline extracts interesting information from timeseries data. One of the key elements, is the
  * transfer of data between fixed windows for a given key, as well as backfill when a key does not
  * have any new data within a time boundary. This sample should not be used in production.
- *
- * <p>The output of this pipeline is to a File path.
+ *<p>The generated data is 5 identical waves with keys {Sin-1...Sin-5}, each data point has two values
+ * {x,y}. x increments by 1 starting from 0 with a missed value in the series. { 0 .. 19 } - {10}
+ * y is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments one sec
+ * for each x.</p>
+ * <p>The output of this pipeline is to a File path. Even though the aggregations for the x values are
+ * are of little value as output, it is processed as part of this demo as it is useful
+ * when eyeballing the results.</p>
  */
-@Experimental
 public class TimeSeriesExampleToFile {
-
-  private static final String FILE_LOCATION = "/tmp/tf/";
 
   public static void main(String[] args) {
 
     // Create pipeline
-    TimeSeriesOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(TimeSeriesOptions.class);
+    FileSinkTimeSeriesOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(FileSinkTimeSeriesOptions.class);
 
-    TSConfiguration configuration =
-        TSConfiguration.builder()
-            .downSampleDuration(Duration.standardSeconds(1))
-            .timeToLive(Duration.standardMinutes(1))
-            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
+    options.setDownSampleDurationMillis(1000l);
+    options.setTimeToLiveMillis(60000l);
+    options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
+
 
     Pipeline p = Pipeline.create(options);
 
@@ -79,34 +80,41 @@ public class TimeSeriesExampleToFile {
     // ------------ Create perfect rectangles of data--------
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> downSampled =
-        readL1Data.apply(new ExtractAggregates(configuration));
+        readL1Data.apply(new ExtractAggregates());
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> weHaveOrder =
-        downSampled.apply(new OrderOutput(configuration));
+        downSampled.apply(new OrderOutput());
 
     // ------------ OutPut Data as Logs and TFRecords--------
 
     // This transform is purely to allow logged debug output, it will fail with OOM if large dataset is used.
     weHaveOrder.apply(new DebugSortedResult());
 
+    // Output raw values
+    weHaveOrder
+        .apply(ParDo.of(new TSAccumToTFExample()))
+        .apply(ParDo.of(new GetValueFromKV<>()))
+        .apply(ParDo.of(new TFExampleToBytes()))
+        .apply(TFRecordIO.write().to(options.getFileSinkDirectory() + "/tf/raw/tfExamplerecords"));
+
     // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(1)))
+        .apply(new TSAccumToFixedWindowSeq( Duration.standardMinutes(1)))
         .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
         .apply(ParDo.of(new TFSequenceExampleToBytes()))
-        .apply(TFRecordIO.write().to(FILE_LOCATION + "1min/tfSequenceExamplerecords"));
+        .apply(TFRecordIO.write().to(options.getFileSinkDirectory() + "/tf/1min/tfSequenceExamplerecords"));
 
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(5)))
+        .apply(new TSAccumToFixedWindowSeq( Duration.standardMinutes(5)))
         .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
         .apply(ParDo.of(new TFSequenceExampleToBytes()))
-        .apply(TFRecordIO.write().to(FILE_LOCATION + "5min/tfSequenceExamplerecords"));
+        .apply(TFRecordIO.write().to(options.getFileSinkDirectory() + "/tf/5min/tfSequenceExamplerecords"));
 
     weHaveOrder
-        .apply(new TSAccumToFixedWindowSeq(configuration, Duration.standardMinutes(10)))
+        .apply(new TSAccumToFixedWindowSeq( Duration.standardMinutes(10)))
         .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
         .apply(ParDo.of(new TFSequenceExampleToBytes()))
-        .apply(TFRecordIO.write().to(FILE_LOCATION + "10min/tfSequenceExamplerecords"));
+        .apply(TFRecordIO.write().to(options.getFileSinkDirectory() + "/tf/10min/tfSequenceExamplerecords"));
 
     p.run();
   }

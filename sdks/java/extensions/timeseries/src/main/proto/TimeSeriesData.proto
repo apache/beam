@@ -1,0 +1,166 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
+syntax = "proto3";
+
+package protos;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+option java_outer_classname = "TimeSeriesData";
+option java_multiple_files = false;
+option java_package = "org.apache.beam.sdk.extensions.timeseries.protos";
+
+//	The TimeSeriesData proto type will be used as the internal representation of all timeseries within the the TS
+//	example library. The primary work for the devloper making use of this library is to convert their timeseries into a
+//	TimeSeriesData point.
+
+// Major Keys indicate the original timeseries, multivarient or univarient
+// Internally the examples can convert multivarient timeseries to a collection of univarient timeseries. In this case
+// the minorKey is used to designate the property from the multivarient timeseries.
+message TSKey {
+    string majorKey = 1;
+    string minorKeyString = 2;
+
+    enum KeyType {
+        MAJOR_KEY = 0;
+        MINOR_KEY = 1;
+    }
+}
+
+// A Data point can only hold one data type.
+message Data {
+    oneof dataPoint {
+        // DT_FLOAT.
+        float float_val = 3;
+
+        // DT_DOUBLE.
+        double double_val = 4;
+
+        // DT_INT32, DT_INT16, DT_INT8, DT_UINT8.
+        int32 int_val = 5;
+
+        // Categorical features
+        string categorical_val = 6;
+
+        // DT_LONG
+        int64 long_val = 7;
+
+        // Alows the user to store number as String
+        string numAsString = 8;
+    }
+}
+
+// The TSDataPoint holds both the metadata and the data about the timeseries data point
+message TSDataPoint {
+    TSKey key = 1;
+    Data data = 2;
+    google.protobuf.Timestamp timestamp = 3;
+    map<string, string> metadata = 4;
+}
+
+// MultiVarient Data points are stored as a bag of properties.
+// Only one timestamp is allowed for the data point.
+message TSMultiVariateDataPoint {
+    TSKey key = 1;
+    map<string, Data> data = 2;
+    map<string, string> metadata = 3;
+    google.protobuf.Timestamp timestamp = 4;
+}
+
+// The DataAccum holds numeric aggregations for univarient timeseries
+// The First and Last data point in the Accum are also stored
+message Accum {
+    Data sum = 1;
+    Data count = 2;
+    Data minValue = 3;
+    Data maxValue = 4;
+
+    TSDataPoint first = 12;
+    TSDataPoint last = 13;
+
+}
+
+// TSAccum holds univarient timeseries metadata, timedomain.
+// There is also the concept of a previousWindowValue, this is used for computation of items like the first derivative.
+message TSAccum {
+
+    TSKey key = 1;
+
+    PipelineVersion pipelineVersion = 2;
+
+    map<string, string> metadata = 3;
+
+    google.protobuf.Duration duration = 4;
+
+    google.protobuf.Timestamp lowerWindowBoundary = 5;
+    google.protobuf.Timestamp upperWindowBoundary = 6;
+
+    google.protobuf.Timestamp firstTimeStamp = 7;
+    google.protobuf.Timestamp lastTimeStamp = 8;
+
+    Accum dataAccum = 9;
+
+    TSAccum previousWindowValue = 14;
+}
+
+// Time Series Accum sequence holder
+message TSAccumSequence {
+    TSKey key = 1;
+    PipelineVersion pipelineVersion = 2;
+    repeated TSAccum accums = 3;
+
+    google.protobuf.Timestamp lowerWindowBoundary = 4;
+    google.protobuf.Timestamp upperWindowBoundary = 5;
+
+    google.protobuf.Duration duration = 6;
+
+
+}
+
+// MultiVarient TSAccum holds all the accums as a bag of properties, the key being the minor key from the Univarient
+// timeseries.
+message MultiVariateTSAccum {
+    TSKey key = 1;
+    map<string, TSAccum> properties = 3;
+}
+
+// Allow information to be stored about the processing pipeline that created the accums
+message PipelineVersion {
+    string majorVersion = 1;
+    string minorVersion = 2;
+    string pipelineName = 3;
+    string transformName = 4;
+}
+
+// For future use in configuration options
+enum DataType {
+    DT_FLOAT = 0;
+    DT_DOUBLE = 1;
+    DT_STRING = 2;
+    DT_INT32 = 3;
+    DT_INT64 = 4;
+    DT_BOOL = 5;
+}
+
+// For future use in configuration options
+enum DownSampleType {
+    SUM = 0;
+    FIRST = 1;
+    LAST = 2;
+    AVERAGE = 3;
+    MIN = 4;
+    MAX = 5;
+}
+
