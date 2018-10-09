@@ -149,10 +149,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return fmt.Errorf("failed to generate model pipeline: %v", err)
 	}
 
-	id := atomic.AddInt32(&unique, 1)
-	modelURL := gcsx.Join(*stagingLocation, fmt.Sprintf("model-%v-%v", id, time.Now().UnixNano()))
-	workerURL := gcsx.Join(*stagingLocation, fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
-	jarURL := gcsx.Join(*stagingLocation, fmt.Sprintf("dataflow-worker-%v-%v.jar", id, time.Now().UnixNano()))
+	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
+	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
+
+	modelURL := gcsx.Join(*stagingLocation, id, "model")
+	workerURL := gcsx.Join(*stagingLocation, id, "worker")
+	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
