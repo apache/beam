@@ -42,6 +42,9 @@ class FnApiLogRecordHandler(logging.Handler):
   _MAX_BATCH_SIZE = 1000
   # Used to indicate the end of stream.
   _FINISHED = object()
+  # Size of the queue used to buffer messages. Once full, messages will be
+  # dropped. If the average log size is 1KB this may use up to 10MB of memory.
+  _QUEUE_SIZE = 10000
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
@@ -54,8 +57,9 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
-    # If average log size is 1KB, this may use up to 1MB of memory
-    self._log_entry_queue = queue.Queue(maxsize=1000)
+
+    self._dropped_logs = 0
+    self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)
 
     ch = grpc.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -83,14 +87,18 @@ class FnApiLogRecordHandler(logging.Handler):
     nanoseconds = 1e9 * fraction
     log_entry.timestamp.seconds = int(seconds)
     log_entry.timestamp.nanos = int(nanoseconds)
-    self._log_entry_queue.put(log_entry, block=False)
+
+    try:
+      self._log_entry_queue.put(log_entry, block=False)
+    except queue.Full:
+      self._dropped_logs += 1
 
   def close(self):
     """Flush out all existing log entries and unregister this handler."""
     # Acquiring the handler lock ensures ``emit`` is not run until the lock is
     # released.
     self.acquire()
-    self._log_entry_queue.put(self._FINISHED, timeout=1)
+    self._log_entry_queue.put(self._FINISHED, timeout=5)
     # wait on server to close.
     self._reader.join()
     self.release()
@@ -113,12 +121,15 @@ class FnApiLogRecordHandler(logging.Handler):
         yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
 
   def _read_log_control_messages(self):
-    # TODO(vikasrk): Handle control messages.
     while True:
       log_control_iterator = self.connect()
-
+      if self._dropped_logs > 0:
+        logging.warn("Dropped %d logs while logging client disconnected",
+                     self._dropped_logs)
+        self._dropped_logs = 0
       try:
         for _ in log_control_iterator:
+          # TODO(vikasrk): Handle control messages.
           pass
         # iterator is closed
         return
