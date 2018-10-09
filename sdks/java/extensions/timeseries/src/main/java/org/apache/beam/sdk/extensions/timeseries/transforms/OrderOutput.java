@@ -23,13 +23,12 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.util.Iterator;
 import java.util.List;
-
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.timeseries.TimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -59,12 +58,13 @@ public class OrderOutput
 
   private static final Logger LOG = LoggerFactory.getLogger(OrderOutput.class);
 
-
   @Override
   public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
 
-    TSConfiguration options = TSConfiguration.createConfigurationFromOptions(input.getPipeline().getOptions().as(TimeSeriesOptions.class));
+    TSConfiguration options =
+        TSConfiguration.createConfigurationFromOptions(
+            input.getPipeline().getOptions().as(TimeSeriesOptions.class));
 
     // Move into Global Time Domain, this allows Keyed State to retain its value across windows.
     // Late Data is dropped at this stage.
@@ -212,10 +212,7 @@ public class OrderOutput
                 Timestamps.add(
                     lastAccum.getUpperWindowBoundary(),
                     Durations.fromMillis(
-                        options
-                            .downSampleDuration()
-                            .plus(options.timeToLive())
-                            .getMillis())))
+                        options.downSampleDuration().plus(options.timeToLive()).getMillis())))
             >= c.timestamp().getMillis()) {
           return;
         }
@@ -273,8 +270,7 @@ public class OrderOutput
                     "GAP FOUND! upper %s lower %s",
                     next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary()));
 
-            TimeSeriesData.TSAccum.Builder heartBeat =
-                generateHeartBeatAccum(lastAccum, options);
+            TimeSeriesData.TSAccum.Builder heartBeat = generateHeartBeatAccum(lastAccum, options);
 
             KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> hbOutput =
                 setPrevAndOutPutAccum(heartBeat, lastAccum, c.timestamp());
@@ -307,10 +303,7 @@ public class OrderOutput
                 Timestamps.add(
                     lastAccum.getUpperWindowBoundary(),
                     Durations.fromMillis(
-                        options
-                            .downSampleDuration()
-                            .plus(options.timeToLive())
-                            .getMillis())))
+                        options.downSampleDuration().plus(options.timeToLive()).getMillis())))
             >= c.timestamp().getMillis()) {
           return;
         }

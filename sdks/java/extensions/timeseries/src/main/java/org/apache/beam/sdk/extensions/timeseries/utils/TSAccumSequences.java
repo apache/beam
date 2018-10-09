@@ -22,9 +22,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
-
-import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

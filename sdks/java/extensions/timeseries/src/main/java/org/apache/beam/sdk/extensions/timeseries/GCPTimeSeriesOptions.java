@@ -34,6 +34,4 @@ public interface GCPTimeSeriesOptions extends TimeSeriesOptions, DataflowPipelin
   String getBigTableTableId();
 
   void setBigTableTableId(String projectId);
-
-
 }

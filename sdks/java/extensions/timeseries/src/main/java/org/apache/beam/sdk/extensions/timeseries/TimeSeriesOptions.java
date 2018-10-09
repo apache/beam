@@ -22,26 +22,24 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.*;
 
 @Experimental
-public interface TimeSeriesOptions extends PipelineOptions  {
+public interface TimeSeriesOptions extends PipelineOptions {
 
   @Description("Back fill option that should be used in pipeline")
   String getFillOption();
 
   void setFillOption(String option);
 
-  @Description("The down sample period in milli seconds, which must be set. Default is 60 Sec (Minimum Resolution 100ms) ")
+  @Description(
+      "The down sample period in milli seconds, which must be set. Default is 60 Sec (Minimum Resolution 100ms) ")
   @Default.Long(60000)
   Long getDownSampleDurationMillis();
 
   void setDownSampleDurationMillis(Long mills);
 
-  @Description("Once a key is observed we will generate a value during periods when the key has not been observed if the fillOption is set to anything other than NONE.")
+  @Description(
+      "Once a key is observed we will generate a value during periods when the key has not been observed if the fillOption is set to anything other than NONE.")
   @Default.Long(60000)
   Long getTimeToLiveMillis();
 
   void setTimeToLiveMillis(Long mills);
-
-
 }
-
-

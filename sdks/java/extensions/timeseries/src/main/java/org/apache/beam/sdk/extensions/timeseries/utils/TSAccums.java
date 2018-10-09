@@ -26,9 +26,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
-
-import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;

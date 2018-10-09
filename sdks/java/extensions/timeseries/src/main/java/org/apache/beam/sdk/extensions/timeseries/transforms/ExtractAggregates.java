@@ -19,13 +19,12 @@
 package org.apache.beam.sdk.extensions.timeseries.transforms;
 
 import java.util.Iterator;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.timeseries.TimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -49,12 +48,13 @@ public class ExtractAggregates
 
   private static final Logger LOG = LoggerFactory.getLogger(ExtractAggregates.class);
 
-
   @Override
   public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> input) {
 
-    TSConfiguration options = TSConfiguration.createConfigurationFromOptions(input.getPipeline().getOptions().as(TimeSeriesOptions.class));
+    TSConfiguration options =
+        TSConfiguration.createConfigurationFromOptions(
+            input.getPipeline().getOptions().as(TimeSeriesOptions.class));
 
     return input
         .apply(Window.into(FixedWindows.of(options.downSampleDuration())))

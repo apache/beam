@@ -19,8 +19,8 @@
 package org.apache.beam.sdk.extensions.timeseries.utils;
 
 import com.google.protobuf.util.Timestamps;
-import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.DateTime;
@@ -30,7 +30,8 @@ import org.joda.time.DateTime;
 public class TSMultiVariateDataPoints {
 
   public static class ConvertMultiToUniDataPoint
-      extends DoFn<TimeSeriesData.TSMultiVariateDataPoint,
+      extends DoFn<
+          TimeSeriesData.TSMultiVariateDataPoint,
           KV<TimeSeriesData.TSKey, TimeSeriesData.TSDataPoint>> {
 
     @ProcessElement

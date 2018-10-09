@@ -23,14 +23,13 @@ import com.google.cloud.bigtable.beam.CloudBigtableTableConfiguration;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
-
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.timeseries.GCPTimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -45,15 +44,17 @@ import org.slf4j.LoggerFactory;
  * This example pipeline is used to illustrate an advanced use of Keyed state and timers. The
  * pipeline extracts interesting information from timeseries data. One of the key elements, is the
  * transfer of data between fixed windows for a given key, as well as backfill when a key does not
- * have any new data within a time boundary. This sample should not be used in production.
- * The generated data is 5 identical waves with keys {Sin-1...Sin-5}, each data point has two values
- * {x,y}. x increments by 1 starting from 0 with a missed value in the series. { 0 .. 19 } - {10}
- * y is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments one sec
- * for each x.
+ * have any new data within a time boundary. This sample should not be used in production. The
+ * generated data is 5 identical waves with keys {Sin-1...Sin-5}, each data point has two values
+ * {x,y}. x increments by 1 starting from 0 with a missed value in the series. { 0 .. 19 } - {10} y
+ * is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments one
+ * sec for each x.
+ *
  * <p>The output of this pipeline is to Google Cloud Bigtable.
- * <p>The output of this pipeline is to a File path. Even though the aggregations for the x values are
- * are of little value as output, it is processed as part of this demo as it is useful
- * when eyeballing the results.
+ *
+ * <p>The output of this pipeline is to a File path. Even though the aggregations for the x values
+ * are are of little value as output, it is processed as part of this demo as it is useful when
+ * eyeballing the results.
  */
 public class TimeSeriesExampleToBigTable {
 
@@ -67,13 +68,13 @@ public class TimeSeriesExampleToBigTable {
     // Create pipeline
     GCPTimeSeriesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(GCPTimeSeriesOptions.class);
-/*
-    TSConfiguration configuration =
-        TSConfiguration.builder()
-            .downSampleDuration(Duration.standardSeconds(5))
-            .timeToLive(Duration.standardMinutes(1))
-            .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
-*/
+    /*
+        TSConfiguration configuration =
+            TSConfiguration.builder()
+                .downSampleDuration(Duration.standardSeconds(5))
+                .timeToLive(Duration.standardMinutes(1))
+                .fillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE);
+    */
     Pipeline p = Pipeline.create(options);
 
     // [START bigtable_dataflow_connector_config]
@@ -117,25 +118,19 @@ public class TimeSeriesExampleToBigTable {
 
     // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
-        .apply(
-            new TSAccumToFixedWindowSeq(
-                "Sequence of 1 Min", Duration.standardMinutes(1)))
+        .apply(new TSAccumToFixedWindowSeq("Sequence of 1 Min", Duration.standardMinutes(1)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply(
-            new TSAccumToFixedWindowSeq(
-                "Sequence of 5 Min", Duration.standardMinutes(5)))
+        .apply(new TSAccumToFixedWindowSeq("Sequence of 5 Min", Duration.standardMinutes(5)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
-        .apply(
-            new TSAccumToFixedWindowSeq(
-                "Sequence of 15 Min", Duration.standardMinutes(15)))
+        .apply(new TSAccumToFixedWindowSeq("Sequence of 15 Min", Duration.standardMinutes(15)))
         .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));

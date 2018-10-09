@@ -22,11 +22,10 @@ import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;

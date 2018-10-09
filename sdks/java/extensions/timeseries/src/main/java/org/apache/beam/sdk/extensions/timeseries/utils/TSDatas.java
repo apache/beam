@@ -20,9 +20,8 @@ package org.apache.beam.sdk.extensions.timeseries.utils;
 
 import com.google.protobuf.util.Timestamps;
 import java.math.BigDecimal;
-
-import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.tensorflow.example.*;
 
 /** Utility functions for TSData. */

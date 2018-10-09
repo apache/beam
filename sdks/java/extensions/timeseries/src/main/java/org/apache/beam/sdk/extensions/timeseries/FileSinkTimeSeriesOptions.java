@@ -25,11 +25,10 @@ import org.apache.beam.sdk.options.Validation;
 @Experimental
 public interface FileSinkTimeSeriesOptions extends TimeSeriesOptions {
 
-  @Description("File output location for pipelines that make use of directory based sink transforms. for example /tmp or gs:/bucket/tmp ")
+  @Description(
+      "File output location for pipelines that make use of directory based sink transforms. for example /tmp or gs:/bucket/tmp ")
   @Validation.Required
   String getFileSinkDirectory();
 
   void setFileSinkDirectory(String directory);
-
-
 }

@@ -24,12 +24,11 @@ import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.timeseries.TimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -59,8 +58,7 @@ public class TSAccumToFixedWindowSeq
     this.fixedWindowDuration = fixedWindowDuration;
   }
 
-  public TSAccumToFixedWindowSeq(
-      @Nullable String name, Duration fixedWindowDuration) {
+  public TSAccumToFixedWindowSeq(@Nullable String name, Duration fixedWindowDuration) {
     super(name);
     this.fixedWindowDuration = fixedWindowDuration;
   }
@@ -68,8 +66,6 @@ public class TSAccumToFixedWindowSeq
   @Override
   public PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>> expand(
       PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
-
-
 
     return input
         .apply(Window.into(FixedWindows.of(fixedWindowDuration)))
@@ -83,9 +79,10 @@ public class TSAccumToFixedWindowSeq
                   TSConfiguration options;
 
                   @StartBundle
-                  public void startBundle(StartBundleContext c){
-                    options = TSConfiguration.createConfigurationFromOptions(c.getPipelineOptions().as(TimeSeriesOptions.class));
-
+                  public void startBundle(StartBundleContext c) {
+                    options =
+                        TSConfiguration.createConfigurationFromOptions(
+                            c.getPipelineOptions().as(TimeSeriesOptions.class));
                   }
 
                   @ProcessElement
