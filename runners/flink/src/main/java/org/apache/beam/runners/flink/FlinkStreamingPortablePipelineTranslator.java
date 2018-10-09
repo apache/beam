@@ -43,6 +43,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -137,8 +138,8 @@ public class FlinkStreamingPortablePipelineTranslator
       return executionEnvironment;
     }
 
-    public <T> void addDataStream(String pCollectionId, DataStream<T> dataSet) {
-      dataStreams.put(pCollectionId, dataSet);
+    public <T> void addDataStream(String pCollectionId, DataStream<T> dataStream) {
+      dataStreams.put(pCollectionId, dataStream);
     }
 
     public <T> DataStream<T> getDataStreamOrThrow(String pCollectionId) {
@@ -219,8 +220,9 @@ public class FlinkStreamingPortablePipelineTranslator
       // create an empty dummy source to satisfy downstream operations
       // we cannot create an empty source in Flink, therefore we have to
       // add the flatMap that simply never forwards the single element
-      DataStreamSource<String> dummySource =
-          context.getExecutionEnvironment().fromElements("dummy");
+      boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+      DataStreamSource<WindowedValue<byte[]>> dummySource =
+          context.getExecutionEnvironment().addSource(new ImpulseSourceFunction(keepSourceAlive));
 
       DataStream<WindowedValue<T>> result =
           dummySource
@@ -397,11 +399,12 @@ public class FlinkStreamingPortablePipelineTranslator
         new CoderTypeInformation<>(
             WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
 
-    DataStreamSource<WindowedValue<byte[]>> source =
+    boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+    SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .fromCollection(
-                Collections.singleton(WindowedValue.valueInGlobalWindow(new byte[0])), typeInfo);
+            .addSource(new ImpulseSourceFunction(keepSourceAlive))
+            .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
   }
