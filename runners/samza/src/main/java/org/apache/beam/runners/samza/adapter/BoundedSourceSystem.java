@@ -69,28 +69,6 @@ import org.slf4j.LoggerFactory;
  */
 // TODO: instrumentation for the consumer
 public class BoundedSourceSystem {
-  /**
-   * Returns the configuration required to instantiate a consumer for the given {@link
-   * BoundedSource}.
-   *
-   * @param id a unique id for the source. Must use only valid characters for a system name in
-   *     Samza.
-   * @param source the source
-   * @param coder a coder to deserialize messages received by the source's consumer
-   * @param <T> the type of object produced by the source consumer
-   */
-  public static <T> Map<String, String> createConfigFor(
-      String id, BoundedSource<T> source, Coder<WindowedValue<T>> coder, String stepName) {
-    final Map<String, String> config = new HashMap<>();
-    final String streamPrefix = "systems." + id;
-    config.put(streamPrefix + ".samza.factory", BoundedSourceSystem.Factory.class.getName());
-    config.put(streamPrefix + ".source", Base64Serializer.serializeUnchecked(source));
-    config.put(streamPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
-    config.put(streamPrefix + ".stepName", stepName);
-    config.put("streams." + id + ".samza.system", id);
-    config.put("streams." + id + ".samza.bounded", "true");
-    return config;
-  }
 
   private static <T> List<BoundedSource<T>> split(
       BoundedSource<T> source, SamzaPipelineOptions pipelineOptions) throws Exception {
@@ -414,8 +392,7 @@ public class BoundedSourceSystem {
 
   /**
    * A {@link SystemFactory} that produces a {@link BoundedSourceSystem} for a particular {@link
-   * BoundedSource} registered in {@link Config} via {@link #createConfigFor(String, BoundedSource,
-   * Coder, String)}.
+   * BoundedSource} registered in {@link Config}.
    */
   public static class Factory<T> implements SystemFactory {
     @Override
