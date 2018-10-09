@@ -204,7 +204,7 @@ class FileSystemsTest(unittest.TestCase):
     path1 = os.path.join(path_t1, 'f1')
     path2 = os.path.join(path_t2, 'f1')
     with open(path1, 'a') as f:
-      f.write(b'Hello')
+      f.write('Hello')
 
     FileSystems.rename([path_t1], [path_t2])
     self.assertTrue(FileSystems.exists(path_t2))
@@ -216,7 +216,7 @@ class FileSystemsTest(unittest.TestCase):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
     with open(path1, 'a') as f:
-      f.write(b'Hello')
+      f.write('Hello')
     self.assertTrue(FileSystems.exists(path1))
     self.assertFalse(FileSystems.exists(path2))
 
@@ -224,7 +224,7 @@ class FileSystemsTest(unittest.TestCase):
     path1 = os.path.join(self.tmpdir, 'f1')
 
     with open(path1, 'a') as f:
-      f.write(b'Hello')
+      f.write('Hello')
 
     self.assertTrue(FileSystems.exists(path1))
     FileSystems.delete([path1])
