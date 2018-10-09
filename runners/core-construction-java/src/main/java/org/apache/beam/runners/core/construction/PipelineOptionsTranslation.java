@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableMap;
@@ -97,9 +98,17 @@ public class PipelineOptionsTranslation {
   /** Converts the provided Json{@link String} into {@link PipelineOptions}. */
   public static PipelineOptions fromJson(String optionsJson) {
     try {
-      Struct.Builder builder = Struct.newBuilder();
-      JsonFormat.parser().merge(optionsJson, builder);
-      return fromProto(builder.build());
+      Map<String, Object> probingOptionsMap =
+          MAPPER.readValue(optionsJson, new TypeReference<Map<String, Object>>() {});
+      if (probingOptionsMap.containsKey("options")) {
+        //Legacy options.
+        return MAPPER.readValue(optionsJson, PipelineOptions.class);
+      } else {
+        // Fn Options with namespace and version.
+        Struct.Builder builder = Struct.newBuilder();
+        JsonFormat.parser().merge(optionsJson, builder);
+        return fromProto(builder.build());
+      }
     } catch (IOException e) {
       throw new RuntimeException("Failed to read PipelineOptions from JSON", e);
     }
