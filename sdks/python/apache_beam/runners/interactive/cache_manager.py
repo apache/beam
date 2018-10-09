@@ -93,7 +93,7 @@ class FileBasedCacheManager(CacheManager):
     if cache_dir:
       self._cache_dir = filesystems.FileSystems.join(
           cache_dir,
-          datetime.datetime.now().strftime("cache-%y-%m-%d-%H:%M:%S"))
+          datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S"))
     else:
       self._cache_dir = tempfile.mkdtemp(
           prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
