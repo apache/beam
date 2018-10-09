@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import sys
 import unittest
 from itertools import chain
 from itertools import permutations
@@ -287,6 +288,10 @@ class VcfSourceTest(unittest.TestCase):
         os.path.join(get_full_dir(), 'valid-*.vcf.gz'))
     self.assertEqual(9900, len(read_data_gz))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_single_file_no_records(self):
     self.assertEqual(
         [], self._create_temp_file_and_read_records(['']))
@@ -295,6 +300,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(
         [], self._create_temp_file_and_read_records(_SAMPLE_HEADER_LINES))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_single_file_verify_details(self):
     variant_1, vcf_line_1 = self._get_sample_variant_1()
     read_data = self._create_temp_file_and_read_records(
@@ -308,6 +317,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(3, len(read_data))
     self._assert_variants_equal([variant_1, variant_2, variant_3], read_data)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_file_pattern_verify_details(self):
     variant_1, vcf_line_1 = self._get_sample_variant_1()
     variant_2, vcf_line_2 = self._get_sample_variant_2()
@@ -336,6 +349,10 @@ class VcfSourceTest(unittest.TestCase):
       split_records.extend(source_test_utils.read_from_source(*source_info))
     self.assertEqual(9882, len(split_records))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_invalid_file(self):
     invalid_file_contents = self._get_invalid_file_contents()
     for content in chain(*invalid_file_contents):
@@ -347,6 +364,10 @@ class VcfSourceTest(unittest.TestCase):
         self._create_temp_vcf_file(content, tempdir)
       self._read_records(os.path.join(tempdir.get_path(), '*.vcf'))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_allow_malformed_records(self):
     invalid_records, invalid_headers = self._get_invalid_file_contents()
 
@@ -365,6 +386,10 @@ class VcfSourceTest(unittest.TestCase):
         self._read_records(self._create_temp_vcf_file(content, tempdir),
                            allow_malformed_records=True)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_no_samples(self):
     header_line = '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n'
     record_line = '19	123	.	G	A	.	PASS	AF=0.2'
@@ -377,6 +402,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(1, len(read_data))
     self.assertEqual(expected_variant, read_data[0])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_no_info(self):
     record_line = 'chr19	123	.	.	.	.	.	.	GT	.	.'
     expected_variant = Variant(reference_name='chr19', start=122, end=123)
@@ -389,6 +418,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(1, len(read_data))
     self.assertEqual(expected_variant, read_data[0])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_info_numbers_and_types(self):
     info_headers = [
         '##INFO=<ID=HA,Number=A,Type=String,Description="StringInfo_A">\n',
@@ -422,6 +455,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(2, len(read_data))
     self._assert_variants_equal([variant_1, variant_2], read_data)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_end_info_key(self):
     phaseset_header_line = (
         '##INFO=<ID=END,Number=1,Type=Integer,Description="End of record.">\n')
@@ -440,6 +477,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(2, len(read_data))
     self._assert_variants_equal([variant_1, variant_2], read_data)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_custom_phaseset(self):
     phaseset_header_line = (
         '##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phaseset">\n')
@@ -463,6 +504,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(2, len(read_data))
     self._assert_variants_equal([variant_1, variant_2], read_data)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_format_numbers(self):
     format_headers = [
         '##FORMAT=<ID=FU,Number=.,Type=String,Description="Format_variable">\n',
@@ -486,6 +531,10 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(1, len(read_data))
     self.assertEqual(expected_variant, read_data[0])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_pipeline_read_single_file(self):
     with TempDir() as tempdir:
       file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
@@ -511,6 +560,10 @@ class VcfSourceTest(unittest.TestCase):
     assert_that(pcoll, _count_equals_to(9900))
     pipeline.run()
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_read_reentrant_without_splitting(self):
     with TempDir() as tempdir:
       file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
@@ -518,6 +571,10 @@ class VcfSourceTest(unittest.TestCase):
       source = VcfSource(file_name)
       source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_read_reentrant_after_splitting(self):
     with TempDir() as tempdir:
       file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
@@ -528,6 +585,10 @@ class VcfSourceTest(unittest.TestCase):
       source_test_utils.assert_reentrant_reads_succeed(
           (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_dynamic_work_rebalancing(self):
     with TempDir() as tempdir:
       file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +

@@ -214,7 +214,7 @@ class PipeStream(object):
     self.conn = recv_pipe
     self.closed = False
     self.position = 0
-    self.remaining = ''
+    self.remaining = b''
 
   def read(self, size):
     """Read data from the wrapped pipe connection.
@@ -239,7 +239,7 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    return ''.join(data_list)
+    return b''.join(data_list)
 
   def tell(self):
     """Tell the file's current offset.
