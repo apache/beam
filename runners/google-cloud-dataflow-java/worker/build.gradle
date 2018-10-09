@@ -39,7 +39,7 @@ def DATAFLOW_VERSION = "dataflow.version"
 // Use -PisLegacyWorker in Gradle command if build legacy worker, otherwise,
 // FnAPI worker is considered as default.
 def is_legacy_worker = {
-  return project.hasProperty("isLegacyWorker")
+  return project.name.contains("dataflow-java-legacy-worker")
 }
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
@@ -98,9 +98,6 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
       }
     }
   }
-
-  // Archive name pattern: ${name}-${appendix}-${version}-${classifier}.jar
-  appendix = is_legacy_worker() ? "legacy-bundled" : "fnapi-bundled"
 
   // Include original source files extracted under
   // '$buildDir/original_sources_to_package' to jar

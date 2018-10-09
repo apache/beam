@@ -187,6 +187,8 @@ task javaPreCommit() {
   dependsOn ":beam-model-pipeline:build"
   dependsOn ":beam-model-job-management:build"
   dependsOn ":beam-model-fn-execution:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
