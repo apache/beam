@@ -63,6 +63,9 @@ you want to be assigned issues, a PMC member can add you to the project contribu
 group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
 to ask to be added as a contributor in the Beam issue tracker.
 
+Anyone can browse the [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
+If you wish to contribute changes, please request edit access on the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+
 ## Contributing code
 
 Discussons about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
