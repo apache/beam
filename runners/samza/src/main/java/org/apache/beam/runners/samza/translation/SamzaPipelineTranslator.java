@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -39,16 +41,15 @@ import org.slf4j.LoggerFactory;
 public class SamzaPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineTranslator.class);
 
-  private static final Map<String, TransformTranslator<?>> TRANSLATORS =
-      ImmutableMap.<String, TransformTranslator<?>>builder()
-          .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
-          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
-          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
-          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
-          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
-          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
-          .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
-          .build();
+  private static final Map<String, TransformTranslator<?>> TRANSLATORS = loadTranslators();
+
+  private static Map<String, TransformTranslator<?>> loadTranslators() {
+    Map<String, TransformTranslator<?>> translators = new HashMap<>();
+    for (SamzaTranslatorRegistrar registrar : ServiceLoader.load(SamzaTranslatorRegistrar.class)) {
+      translators.putAll(registrar.getTransformTranslators());
+    }
+    return ImmutableMap.copyOf(translators);
+  }
 
   private SamzaPipelineTranslator() {}
 
@@ -60,16 +61,70 @@ public class SamzaPipelineTranslator {
       PValue dummySource) {
 
     final TranslationContext ctx = new TranslationContext(graph, idMap, options, dummySource);
-    final TranslationVisitor visitor = new TranslationVisitor(ctx);
+
+    final TransformVisitorFn translateFn =
+        new TransformVisitorFn() {
+          private int topologicalId = 0;
+
+          @Override
+          public <T extends PTransform<?, ?>> void apply(
+              T transform,
+              TransformHierarchy.Node node,
+              Pipeline pipeline,
+              TransformTranslator<T> translator) {
+            ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+            ctx.setCurrentTopologicalId(topologicalId++);
+
+            translator.translate(transform, node, ctx);
+
+            ctx.clearCurrentTransform();
+          }
+        };
+    final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(translateFn);
     pipeline.traverseTopologically(visitor);
   }
 
-  private static class TranslationVisitor extends Pipeline.PipelineVisitor.Defaults {
-    private final TranslationContext ctx;
-    private int topologicalId = 0;
+  public static void createConfig(
+      Pipeline pipeline, Map<PValue, String> idMap, ConfigBuilder configBuilder) {
+    final ConfigContext ctx = new ConfigContext(idMap);
 
-    private TranslationVisitor(TranslationContext ctx) {
-      this.ctx = ctx;
+    final TransformVisitorFn configFn =
+        new TransformVisitorFn() {
+          @Override
+          public <T extends PTransform<?, ?>> void apply(
+              T transform,
+              TransformHierarchy.Node node,
+              Pipeline pipeline,
+              TransformTranslator<T> translator) {
+
+            ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+
+            if (translator instanceof TransformConfigGenerator) {
+              TransformConfigGenerator<T> configGenerator =
+                  (TransformConfigGenerator<T>) translator;
+              configBuilder.putAll(configGenerator.createConfig(transform, node, ctx));
+            }
+
+            ctx.clearCurrentTransform();
+          }
+        };
+    final SamzaPipelineVisitor visitor = new SamzaPipelineVisitor(configFn);
+    pipeline.traverseTopologically(visitor);
+  }
+
+  private interface TransformVisitorFn {
+    <T extends PTransform<?, ?>> void apply(
+        T transform,
+        TransformHierarchy.Node node,
+        Pipeline pipeline,
+        TransformTranslator<T> translator);
+  }
+
+  private static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
+    private TransformVisitorFn visitorFn;
+
+    private SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
+      this.visitorFn = visitorFn;
     }
 
     @Override
@@ -97,14 +152,9 @@ public class SamzaPipelineTranslator {
     private <T extends PTransform<?, ?>> void applyTransform(
         T transform, TransformHierarchy.Node node, TransformTranslator<?> translator) {
 
-      ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-      ctx.setCurrentTopologicalId(topologicalId++);
-
       @SuppressWarnings("unchecked")
       final TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
-      typedTranslator.translate(transform, node, ctx);
-
-      ctx.clearCurrentTransform();
+      visitorFn.apply(transform, node, getPipeline(), typedTranslator);
     }
 
     private static boolean canTranslate(String urn, PTransform<?, ?> transform) {
@@ -120,6 +170,24 @@ public class SamzaPipelineTranslator {
 
     private static String getUrnForTransform(PTransform<?, ?> transform) {
       return transform == null ? null : PTransformTranslation.urnForTransformOrNull(transform);
+    }
+  }
+
+  /** Registers Samza translators. */
+  @AutoService(SamzaTranslatorRegistrar.class)
+  public static class SamzaTranslators implements SamzaTranslatorRegistrar {
+
+    @Override
+    public Map<String, TransformTranslator<?>> getTransformTranslators() {
+      return ImmutableMap.<String, TransformTranslator<?>>builder()
+          .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
+          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
+          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
+          .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
+          .build();
     }
   }
 
