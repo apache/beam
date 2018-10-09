@@ -16,8 +16,12 @@
     specific language governing permissions and limitations
     under the License.
 -->
+# Time series extensions
 
-# Example Pipelines
+A set of extensions that carry out aggregation tasks for time series data.
+TODO : Detailed documentation. 
+
+## Example Pipelines
 
 The examples included under timeseries serve to demonstrate advanced functionality using BEAM keyed 
 state API and timers. The example pipeline is run from TimeSeriesExample, which makes use of some 
