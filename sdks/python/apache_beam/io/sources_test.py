@@ -94,6 +94,10 @@ class SourcesTest(unittest.TestCase):
       f.write(contents.encode())
       return f.name
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_read_from_source(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
 
@@ -103,6 +107,10 @@ class SourcesTest(unittest.TestCase):
 
     self.assertCountEqual(['aaaa', 'bbbb', 'cccc', 'dddd'], result)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_run_direct(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
     pipeline = TestPipeline()

@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import logging
+import os
 import sys
 import tempfile
 import unittest
@@ -54,12 +55,20 @@ class SourceTestUtilsTest(unittest.TestCase):
     for bundle in source.split(float('inf')):
       return bundle.source
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_read_from_source(self):
     data = self._create_data(100)
     source = self._create_source(data)
     self.assertCountEqual(
         data, source_test_utils.read_from_source(source, None, None))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_source_equals_reference_source(self):
     data = self._create_data(100)
     reference_source = self._create_source(data)
@@ -73,6 +82,10 @@ class SourceTestUtilsTest(unittest.TestCase):
     source_test_utils.assert_sources_equal_reference_source(
         (reference_source, None, None), sources_info)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_split_at_fraction_successful(self):
     data = self._create_data(100)
     source = self._create_source(data)
@@ -97,6 +110,10 @@ class SourceTestUtilsTest(unittest.TestCase):
     self.assertTrue(result1[0] < result3[0])
     self.assertTrue(result1[1] > result3[1])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_split_at_fraction_fails(self):
     data = self._create_data(100)
     source = self._create_source(data)
@@ -110,6 +127,10 @@ class SourceTestUtilsTest(unittest.TestCase):
       source_test_utils.assert_split_at_fraction_behavior(
           source, 10, 0.5, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_split_at_fraction_binary(self):
     data = self._create_data(100)
     source = self._create_source(data)
@@ -122,6 +143,10 @@ class SourceTestUtilsTest(unittest.TestCase):
     self.assertTrue(stats.successful_fractions)
     self.assertTrue(stats.non_trivial_fractions)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_split_at_fraction_exhaustive(self):
     data = self._create_data(10)
     source = self._create_source(data)
