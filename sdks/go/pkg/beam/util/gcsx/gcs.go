@@ -142,10 +142,10 @@ func ParseObject(object string) (bucket, path string, err error) {
 
 // Join joins a GCS path with an element. Preserves
 // the gs:// prefix.
-func Join(object string, elm string) string {
+func Join(object string, elms ...string) string {
 	bucket, prefix, err := ParseObject(object)
 	if err != nil {
 		panic(err)
 	}
-	return MakeObject(bucket, path.Join(prefix, elm))
+	return MakeObject(bucket, path.Join(prefix, path.Join(elms...)))
 }
