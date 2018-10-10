@@ -71,6 +71,9 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
+DATAFLOW_WORKER_JAR=$(find ./runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
+echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
+
 echo ">>> RUNNING DATAFLOW INTEGRATION TESTS"
 ./sdks/go/build/bin/integration \
     --runner=dataflow \
@@ -79,7 +82,8 @@ echo ">>> RUNNING DATAFLOW INTEGRATION TESTS"
     --environment_config=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
-    --worker_binary=./sdks/go/test/build/bin/linux-amd64/worker
+    --worker_binary=./sdks/go/test/build/bin/linux-amd64/worker \
+    --dataflow_worker_jar=$DATAFLOW_WORKER_JAR
 
 # TODO(herohde) 5/9/2018: run other runner tests here to reuse the container image?
 
