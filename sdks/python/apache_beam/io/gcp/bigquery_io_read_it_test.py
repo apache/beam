@@ -38,7 +38,10 @@ class BigqueryIOReadIT(unittest.TestCase):
 
   DEFAULT_DATASET = "big_query_import_export"
   DEFAULT_TABLE_PREFIX = "export_"
-  NUM_RECORDS = {"1K": 1000,}
+  NUM_RECORDS = {"empty": 0,
+                 "1M": 10592,
+                 "1G": 11110839,
+                 "1T": 11110839000,}
 
   def run_bigquery_io_read_pipeline(self, input_size):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -51,8 +54,8 @@ class BigqueryIOReadIT(unittest.TestCase):
         **extra_opts))
 
   @attr('IT')
-  def test_1K_table(self):
-    self.run_bigquery_io_read_pipeline('1K')
+  def bigquery_read_1M_python(self):
+    self.run_bigquery_io_read_pipeline('1M')
 
 
 if __name__ == '__main__':
