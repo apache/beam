@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
+import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
@@ -114,7 +115,8 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
                 pcView,
                 ParDoTranslation.translateWindowMappingFn(
                     pcView.getWindowMappingFn(),
-                    SdkComponents.create(PipelineOptionsFactory.create()))));
+                    SdkComponents.create(PipelineOptionsFactory.create()))),
+            NameContextsForTests.nameContextForTest());
 
     MutableNetwork<Node, Edge> expectedNetwork = createEmptyNetwork();
     expectedNetwork.addNode(predecessor);

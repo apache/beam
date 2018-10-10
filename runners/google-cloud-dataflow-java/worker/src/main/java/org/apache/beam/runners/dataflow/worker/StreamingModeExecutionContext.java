@@ -437,12 +437,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         throws IOException;
   }
 
-  private static final String DEFAULT_STATE_FAMILY = "";
-
   String getStateFamily(NameContext nameContext) {
-    return nameContext.userName() == null
-        ? DEFAULT_STATE_FAMILY
-        : stateNameMap.getOrDefault(nameContext.userName(), DEFAULT_STATE_FAMILY);
+    return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
   class StepContext extends DataflowExecutionContext.DataflowStepContext
@@ -611,6 +607,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       ByteString.Output windowStream = ByteString.newOutput();
       windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
+      if (stateFamily == null) {
+        throw new IllegalStateException(
+            "Tried to write view data for stateless step: " + getNameContext());
+      }
+
       Windmill.GlobalData.Builder builder =
           Windmill.GlobalData.newBuilder()
               .setDataId(
@@ -618,10 +619,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                       .setTag(tag.getId())
                       .setVersion(windowStream.toByteString())
                       .build())
-              .setData(dataStream.toByteString());
-      if (stateFamily != null) {
-        builder.setStateFamily(stateFamily);
-      }
+              .setData(dataStream.toByteString())
+              .setStateFamily(stateFamily);
 
       outputBuilder.addGlobalDataUpdates(builder.build());
     }
@@ -638,10 +637,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Note that there is data on the current key that is blocked on the given side input. */
     @Override
     public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
-      if (stateFamily != null) {
-        sideInput =
-            Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
-      }
+      checkState(
+          stateFamily != null,
+          "Tried to set global data request for stateless step: " + getNameContext());
+      sideInput =
+          Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
       outputBuilder.addGlobalDataRequests(sideInput);
       outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
     }
@@ -656,12 +656,23 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public StateInternals stateInternals() {
+      checkState(
+          stateFamily != null, "Tried to access state for stateless step: " + getNameContext());
       return checkNotNull(stateInternals);
     }
 
     @Override
     public TimerInternals timerInternals() {
+      checkState(
+          stateFamily != null, "Tried to access timers for stateless step: " + getNameContext());
       return checkNotNull(systemTimerInternals);
+    }
+
+    public TimerInternals userTimerInternals() {
+      checkState(
+          stateFamily != null,
+          "Tried to access user timers for stateless step: " + getNameContext());
+      return checkNotNull(userTimerInternals);
     }
   }
 
@@ -697,7 +708,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public StateInternals stateInternals() {
-      return wrapped.stateInternals;
+      return wrapped.stateInternals();
     }
 
     @Override
@@ -718,7 +729,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public TimerInternals timerInternals() {
-      return wrapped.userTimerInternals;
+      return wrapped.userTimerInternals();
     }
 
     @Override

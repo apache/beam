@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.FetchAndFilterStreamingSideInputsNode;
@@ -143,7 +144,13 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
                       sideInput.getWindowMappingFn()));
       Node streamingSideInputWindowHandlerNode =
           FetchAndFilterStreamingSideInputsNode.create(
-              windowingStrategy, pCollectionViewsToWindowMapingsFns.build());
+              windowingStrategy,
+              pCollectionViewsToWindowMapingsFns.build(),
+              NameContext.create(
+                  null,
+                  node.getParallelInstruction().getOriginalName(),
+                  node.getParallelInstruction().getSystemName(),
+                  node.getParallelInstruction().getName()));
 
       // Rewire the graph such that streaming side inputs ParDos are preceded by a
       // node which filters any side inputs that aren't ready and fetches any ready side inputs.
