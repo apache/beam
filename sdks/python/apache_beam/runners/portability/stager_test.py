@@ -65,7 +65,7 @@ class StagerTest(unittest.TestCase):
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
 
   def build_fake_pip_download_command_handler(self, has_wheels):
-    """A stub for apache_beam.utils.processes.check_call that imitates pip.
+    """A stub for apache_beam.utils.processes.check_output that imitates pip.
 
       Args:
         has_wheels: Whether pip fake should have a whl distribution of packages.
@@ -291,7 +291,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = 'default'
 
     with mock.patch(
-        'apache_beam.utils.processes.check_call',
+        'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=False)):
       _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
@@ -309,7 +309,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = 'default'
 
     with mock.patch(
-        'apache_beam.utils.processes.check_call',
+        'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=True)):
       _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
