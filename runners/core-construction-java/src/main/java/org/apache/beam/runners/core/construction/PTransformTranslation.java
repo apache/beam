@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
+import com.google.auto.service.AutoService;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedSet;
@@ -63,6 +64,8 @@ public class PTransformTranslation {
   public static final String GROUP_BY_KEY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.GROUP_BY_KEY);
   public static final String IMPULSE_TRANSFORM_URN = getUrn(StandardPTransforms.Primitives.IMPULSE);
+  public static final String STREAMING_IMPULSE_TRANSFORM_URL = "flink:transform:streaming_impulse:v1";
+
   public static final String ASSIGN_WINDOWS_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
   public static final String TEST_STREAM_TRANSFORM_URN =
@@ -107,7 +110,6 @@ public class PTransformTranslation {
       getUrn(RunnerApi.StandardSideInputTypes.Enum.ITERABLE);
   public static final String MULTIMAP_SIDE_INPUT =
       getUrn(RunnerApi.StandardSideInputTypes.Enum.MULTIMAP);
-
   private static final Collection<TransformTranslator<?>> KNOWN_TRANSLATORS =
       loadKnownTranslators();
 
