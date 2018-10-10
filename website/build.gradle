@@ -25,8 +25,7 @@ apply plugin: 'org.ajoberstar.grgit'
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
 def buildDir = "${project.rootDir}/build/website"
-def buildContentDir = "${project.rootDir}/build/website/generated-content"
-def repoContentDir = "${project.rootDir}/website/generated-content"
+
 def commitedChanges = false
 def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
 
@@ -35,7 +34,7 @@ def shell = { cmd ->
   exec {
     executable 'sh'
     args '-c', cmd
-  } 
+  }
 }
 
 
@@ -99,25 +98,49 @@ task cleanWebsite(type: Delete) {
 }
 clean.dependsOn cleanWebsite
 
-task buildWebsite(type: Exec) {
-  def baseurlFlag = project.findProperty('githubPullRequestId') ? "--baseurl=/${project.findProperty('githubPullRequestId')}" : ''
-  dependsOn startDockerContainer, setupBuildDir
-  finalizedBy stopAndRemoveDockerContainer
-  inputs.files 'Gemfile.lock', '_config.yml'
-  inputs.dir 'src'
-  inputs.property 'baseurl', baseurlFlag
-  outputs.dir "$buildDir/.sass-cache"
-  outputs.dir buildContentDir
-  commandLine 'docker', 'exec',
-    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
-    """cd $dockerWorkDir/build/website && \
-      bundle exec jekyll build \
-      --config $dockerWorkDir/website/_config.yml \
-      --incremental ${baseurlFlag} \
-      --source $dockerWorkDir/website/src
-      """
+class BuildTaskConfiguration {
+  String name
+  boolean useTestConfig = false
+  String baseUrl = ''
+  String dockerWorkDir = ''
 }
+def createBuildTask = {
+  BuildTaskConfiguration config = it as BuildTaskConfiguration
+  task "build${config.name}Website" (type:Exec) {
+    dependsOn startDockerContainer, setupBuildDir
+    finalizedBy stopAndRemoveDockerContainer
+    inputs.files 'Gemfile.lock', '_config.yml'
+    inputs.dir 'src'
+    outputs.dir "$buildDir/.sass-cache"
+    outputs.dir buildContentDir(config.name)
+    def configs = "${config.dockerWorkDir}/website/_config.yml"
+    if (config.useTestConfig) {
+      configs += ",${config.dockerWorkDir}/website/_config_test.yml"
+    }
+    def baseUrlFlag = config.baseUrl ? "--baseurl=/${config.baseUrl}" : ""
+    commandLine 'docker', 'exec',
+      "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+      """cd ${config.dockerWorkDir}/build/website && \
+        bundle exec jekyll build \
+	--destination generated-${config.name.toLowerCase()}-content \
+        --config ${configs} \
+        --incremental ${baseUrlFlag} \
+        --source ${config.dockerWorkDir}/website/src
+        """
+  }
+}
+createBuildTask(name:'Local', useTestConfig: true, dockerWorkDir: dockerWorkDir)
+task buildWebsite(dependsOn:buildLocalWebsite)
 build.dependsOn buildWebsite
+createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerWorkDir: dockerWorkDir)
+createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
+
+def getBaseUrl() {
+  project.findProperty('githubPullRequestId') ?: 'latest'
+}
+def buildContentDir(name) {
+  "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
+}
 
 task serveWebsite(type: Exec) {
   dependsOn startDockerContainer, setupBuildDir
@@ -125,7 +148,7 @@ task serveWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir buildContentDir
+  outputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -138,17 +161,18 @@ task serveWebsite(type: Exec) {
 }
 
 task testWebsite(type: Exec) {
-  dependsOn startDockerContainer, buildWebsite
+  // dependsOn startDockerContainer, 'buildWebsite'
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir buildContentDir
+  inputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec rake test"""
 }
 
+testWebsite.dependsOn 'buildLocalWebsite'
 check.dependsOn testWebsite
 
 task preCommit {
@@ -157,10 +181,10 @@ task preCommit {
 
 // Creates a new commit on asf-site branch
 task commitWebsite << {
-  assert file("${buildContentDir}/index.html").exists()
+  assert file("${buildContentDir('apache')}/index.html").exists()
   // Generated javadoc and pydoc content is not built or stored in this repo.
-  assert !file("${buildContentDir}/documentation/sdks/javadoc").exists()
-  assert !file("${buildContentDir}/documentation/sdks/pydoc").exists()
+  assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
+  assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
 
   def git = grgit.open()
   // get the latest commit on master
@@ -169,14 +193,15 @@ task commitWebsite << {
   shell "git fetch --force origin +asf-site:asf-site"
   git.checkout(branch: 'asf-site')
 
-  // Delete the previous content.
+  // Delete the previous content. These are asf-site branch paths.
   git.remove(patterns: [ 'website/generated-content' ])
+  def repoContentDir = "${project.rootDir}/website/generated-content"
   assert !file("${repoContentDir}/index.html").exists()
   delete repoContentDir
 
   // Copy the built content and add it.
   copy {
-    from buildContentDir
+    from buildContentDir('apache')
     into repoContentDir
   }
   assert file("${repoContentDir}/index.html").exists()
@@ -221,7 +246,7 @@ task publishWebsite << {
   shell "git push ${gitboxUrl} asf-site"
 }
 
-commitWebsite.dependsOn buildWebsite
+commitWebsite.dependsOn buildApacheWebsite
 publishWebsite.dependsOn commitWebsite
 
 /*
@@ -230,26 +255,24 @@ publishWebsite.dependsOn commitWebsite
  *   ./gradlew :beam-website:stageWebsite -PgithubPullRequestId=${ghprbPullId} -PwebsiteBucket=foo
  */
 task stageWebsite << {
-  assert project.hasProperty('githubPullRequestId')
-  assert githubPullRequestId.isInteger()
-
+  def baseUrl = getBaseUrl()
   def gcs_bucket = project.findProperty('websiteBucket') ?: 'apache-beam-website-pull-requests'
-  def gcs_path = "gs://${gcs_bucket}/${githubPullRequestId}"
+  def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
 
   // Remove current site if it exists.
   shell "gsutil -m rm -r -f ${gcs_path} || true"
 
   // Fixup the links to index.html files
-  shell "cd ${buildDir} && ln -s generated-content content || true"
+  shell "cd ${buildDir} && ln -s generated-gcs-content content || true"
   shell ". ${envdir}/bin/activate && cd ${buildDir} && " +
         "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
 
   // Copy the build website to GCS
-  shell "gsutil -m cp -r ${buildContentDir} ${gcs_path}"
+  shell "gsutil -m cp -r ${buildContentDir('gcs')} ${gcs_path}"
 
   println "Website published to http://${gcs_bucket}." +
-      "storage.googleapis.com/${githubPullRequestId}/index.html"
+      "storage.googleapis.com/${baseUrl}/index.html"
 }
 
 stageWebsite.dependsOn setupVirtualenv
-stageWebsite.dependsOn buildWebsite
+stageWebsite.dependsOn buildGcsWebsite
