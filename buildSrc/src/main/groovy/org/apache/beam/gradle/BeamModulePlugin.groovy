@@ -204,6 +204,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerDriver
     // A string representing the jobServer Configuration.
     String jobServerConfig
+    // Number of parallel test runs.
+    Integer parallelism = 1
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -1492,7 +1494,7 @@ artifactId=${project.name}
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = config.testClasspathConfiguration
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
-        maxParallelForks 1
+        maxParallelForks config.parallelism
         useJUnit(config.testCategories)
       }
     }
