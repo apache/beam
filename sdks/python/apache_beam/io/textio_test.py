@@ -161,6 +161,9 @@ class TextSourceTest(unittest.TestCase):
     self._run_read_test(gzip_file_name, expected_data,
                         compression=CompressionTypes.GZIP)
 
+  @unittest.skipIf(sys.version_info[0] == 3,
+                   'This test halts test suite execution on Python 3. '
+                   'TODO: BEAM-5623')
   def test_read_empty_single_file_no_eol_gzip(self):
     file_name, written_data = write_data(
         1, no_data=True, eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
