@@ -228,7 +228,8 @@ class CommonJobProperties {
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
                          notifyAddress = 'commits@beam.apache.org',
-                         triggerOnCommit = false) {
+                         triggerOnCommit = false,
+                         emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -248,6 +249,17 @@ class CommonJobProperties {
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
+      if (emailIndividuals){
+        extendedEmail {
+          triggers {
+            firstFailure {
+              sendTo {
+                firstFailingBuildSuspects()
+              }
+            }
+          }
+        }
+      }
     }
   }
 
