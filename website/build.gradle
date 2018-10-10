@@ -25,7 +25,6 @@ apply plugin: 'org.ajoberstar.grgit'
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
 def buildDir = "${project.rootDir}/build/website"
-/** Generated output directories for buildLocalWebsite task */
 
 def commitedChanges = false
 def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
@@ -35,7 +34,7 @@ def shell = { cmd ->
   exec {
     executable 'sh'
     args '-c', cmd
-  } 
+  }
 }
 
 
@@ -132,6 +131,7 @@ def createBuildTask = {
 }
 createBuildTask(name:'Local', useTestConfig: true, dockerWorkDir: dockerWorkDir)
 task buildWebsite(dependsOn:buildLocalWebsite)
+build.dependsOn buildWebsite
 createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerWorkDir: dockerWorkDir)
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
