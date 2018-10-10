@@ -201,5 +201,11 @@ public class Count {
     public int hashCode() {
       return getClass().hashCode();
     }
+
+    @Override
+    public String getIncompatibleGlobalWindowErrorMessage() {
+      return "If the input collection uses a windowing strategy other than GlobalWindows, "
+          + "use Combine.globally(Count.<T>combineFn()).withoutDefaults() instead.";
+    }
   }
 }
