@@ -93,12 +93,14 @@ public class StreamingModeExecutionContextTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     CounterSet counterSet = new CounterSet();
+    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
             counterSet,
             "computationId",
             new ReaderCache(),
-            new ConcurrentHashMap<String, String>(),
+            stateNameMap,
             new WindmillStateCache().forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(

@@ -315,15 +315,18 @@ public class Nodes {
   public abstract static class FetchAndFilterStreamingSideInputsNode extends Node {
     public static FetchAndFilterStreamingSideInputsNode create(
         WindowingStrategy<?, ?> windowingStrategy,
-        Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns) {
+        Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns,
+        NameContext nameContext) {
       return new AutoValue_Nodes_FetchAndFilterStreamingSideInputsNode(
-          windowingStrategy, pCollectionViewsToWindowMappingFns);
+          windowingStrategy, pCollectionViewsToWindowMappingFns, nameContext);
     }
 
     public abstract WindowingStrategy<?, ?> getWindowingStrategy();
 
     public abstract Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
         getPCollectionViewsToWindowMappingFns();
+
+    public abstract NameContext getNameContext();
   }
 
   // Hide visibility to prevent instantiation
