@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -96,8 +97,9 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * pipeline
  *   .apply(KafkaIO.<Long, String>read()
- *      .withBootstrapServers("broker_1:9092,broker_2:9092")
- *      .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
+ *      .withBootstrapServers(StaticValueProvider.of("broker_1:9092,broker_2:9092"))
+ *      .withTopic(StaticValueProvider.of("my_topic"))
+ *      .withNumSplits(10) // Sets source parallelism. Default is 1.
  *      .withKeyDeserializer(LongDeserializer.class)
  *      .withValueDeserializer(StringDeserializer.class)
  *
@@ -244,7 +246,7 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setTopics(new ArrayList<>())
+        .setNumSplits(0)
         .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
@@ -279,7 +281,11 @@ public class KafkaIO {
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
 
-    abstract List<String> getTopics();
+    @Nullable
+    abstract ValueProvider<String> getBootstrapServers();
+
+    @Nullable
+    abstract ValueProvider<List<String>> getTopics();
 
     abstract List<TopicPartition> getTopicPartitions();
 
@@ -313,13 +319,17 @@ public class KafkaIO {
 
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    abstract int getNumSplits();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
-      abstract Builder<K, V> setTopics(List<String> topics);
+      abstract Builder<K, V> setBootstrapServers(ValueProvider<String> boostrapServers);
+
+      abstract Builder<K, V> setTopics(ValueProvider<List<String>> topics);
 
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
 
@@ -348,13 +358,27 @@ public class KafkaIO {
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
+      abstract Builder<K, V> setNumSplits(int numSplits);
+
       abstract Read<K, V> build();
     }
 
     /** Sets the bootstrap servers for the Kafka consumer. */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateConsumerProperties(
-          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+      return withBootstrapServers(StaticValueProvider.of(bootstrapServers));
+    }
+
+    /** Sets the bootstrap servers for the Kafka consumer. */
+    public Read<K, V> withBootstrapServers(ValueProvider<String> bootstrapServers) {
+      return toBuilder().setBootstrapServers(bootstrapServers).build();
+    }
+
+    /**
+     * ValueProvider version of {@link #withTopic(String)};
+     */
+    public Read<K, V> withTopic(ValueProvider<String> topic) {
+      return withTopics(ValueProvider.NestedValueProvider.of(
+          topic, new SingletonListTranslator<>()));
     }
 
     /**
@@ -374,9 +398,18 @@ public class KafkaIO {
      * partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
+      return withTopics(StaticValueProvider.of(ImmutableList.copyOf(topics)));
+    }
+
+    /**
+     * This is a {@link ValueProvider} version of {@link #withTopics(List)}.
+     * When topic names are not available statically, number of splits should be provided
+     * using #withNumberOfSplits().
+     */
+    public Read<K, V> withTopics(ValueProvider<List<String>> topics) {
       checkState(
           getTopicPartitions().isEmpty(), "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
+      return toBuilder().setTopics(topics).build();
     }
 
     /**
@@ -387,8 +420,21 @@ public class KafkaIO {
      * partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
+      checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /**
+     * Sets number of splits for the reader. Normally the number of splits is based on partitions
+     * for the input topics and number splits suggested by the runner. Bun in some cases,
+     * input topic names, number of workers, or the partitions may not be available
+     * during job construction time (e.g. while using Dataflow Templates). {@link UnboundedSource}
+     * API requires fixed number of splits during job construction time. This allows statically
+     * setting number of partitions.
+     */
+    public Read<K, V> withNumSplits(int numSplits) {
+      checkArgument(numSplits >= 1);
+      return toBuilder().setNumSplits(numSplits).build();
     }
 
     /**
@@ -631,11 +677,10 @@ public class KafkaIO {
 
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+      checkArgument(getBootstrapServers() != null,
+                    "withBootstrapServers() is required");
       checkArgument(
-          getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
-          "withBootstrapServers() is required");
-      checkArgument(
-          getTopics().size() > 0 || getTopicPartitions().size() > 0,
+          getTopics() != null || getTopicPartitions().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
@@ -763,15 +808,21 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      List<String> topics = getTopics();
+      ValueProvider<List<String>> topics = getTopics();
       List<TopicPartition> topicPartitions = getTopicPartitions();
-      if (topics.size() > 0) {
-        builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
+      if (topics != null) {
+        if (topics.isAccessible()) {
+          builder.add(DisplayData.item("topics", Joiner.on(",").join(topics.get()))
+                          .withLabel("Topic/s"));
+        } else {
+          builder.add(DisplayData.item("topics", topics).withLabel("Topic/s"));
+        }
       } else if (topicPartitions.size() > 0) {
         builder.add(
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
       }
+      builder.add(DisplayData.item(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers()));
       Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
         String key = conf.getKey();
@@ -846,6 +897,13 @@ public class KafkaIO {
     config.putAll(updates);
 
     return config;
+  }
+
+  private static class SingletonListTranslator<T> implements SerializableFunction<T, List<T>> {
+    @Override
+    public List<T> apply(T input) {
+      return ImmutableList.of(input);
+    }
   }
 
   /** Static class, prevent instantiation. */

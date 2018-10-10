@@ -760,20 +760,14 @@ public class KafkaIOTest {
         initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
-    long elementsPerSplit = numElements / numSplits;
-    assertEquals("Expected even splits", numElements, elementsPerSplit * numSplits);
-    PCollectionList<Long> pcollections = PCollectionList.empty(p);
-    for (int i = 0; i < splits.size(); ++i) {
-      pcollections =
-          pcollections.and(
-              p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
-                  .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<>()))
-                  .apply("collection " + i, Values.create()));
-    }
-    PCollection<Long> input = pcollections.apply(Flatten.pCollections());
-
-    addCountingAsserts(input, numElements);
-    p.run();
+    UnboundedSource<KafkaRecord<Integer, Long>, ?> withExplicitSplits =
+        mkKafkaReadTransform(numElements, null)
+            .withKeyDeserializerAndCoder(IntegerDeserializer.class, BigEndianIntegerCoder.of())
+            .withValueDeserializerAndCoder(LongDeserializer.class, BigEndianLongCoder.of())
+            .withNumSplits(numSplits)
+            .makeSource();
+    assertEquals("Splits should match splits set explicitly", numSplits,
+                 withExplicitSplits.split(1, p.getOptions()).size());
   }
 
   /** A timestamp function that uses the given value as the timestamp. */
