@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.Failure.TaggedExceptionsList;
+import org.apache.beam.sdk.transforms.Failure.FailureTagList;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -186,36 +186,41 @@ public class FlatMapElements<InputT, OutputT>
   /**
    * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
    * one that returns a {@link PCollectionTuple}. This allows you to make subsequent {@link
-   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions to
-   * failure collections.
+   * WithFailures#withFailureTag(TupleTag, Class[])} calls to capture thrown exceptions to failure
+   * collections.
    */
   public WithFailures withSuccessTag(TupleTag<OutputT> successTag) {
-    return new WithFailures(successTag, TaggedExceptionsList.empty());
+    return new WithFailures(successTag, FailureTagList.empty());
   }
 
   /**
    * Variant of {@link FlatMapElements} that that can handle exceptions and output one or more
    * failure collections wrapped in a {@link PCollectionTuple}. Specify how to handle exceptions by
-   * calling {@link #withFailureTag(TupleTag, Class, Class[])}.
+   * calling {@link #withFailureTag(TupleTag, Class[])}.
    */
-  public class WithFailures extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
+  public class WithFailures extends PTransform<PCollection<InputT>, PCollectionTuple> {
     private final TupleTag<OutputT> successTag;
-    private final TaggedExceptionsList<InputT> taggedExceptionsList;
+    private final FailureTagList<InputT> failureTagList;
 
-    WithFailures(TupleTag<OutputT> successTag, TaggedExceptionsList<InputT> taggedExceptionsList) {
+    WithFailures(TupleTag<OutputT> successTag, FailureTagList<InputT> failureTagList) {
       this.successTag = successTag;
-      this.taggedExceptionsList = taggedExceptionsList;
+      this.failureTagList = failureTagList;
     }
 
-    /** Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it. */
-    public WithFailures withFailureTag(
-        TupleTag<Failure<InputT>> tag, Class exceptionToCatch, Class... additionalExceptions) {
-      return new WithFailures(
-          successTag, taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
+    /**
+     * Returns a modified {@link PTransform} that will catch exceptions of type {@code ExceptionT}
+     * (as specified by the given {@code TupleTag<Failure<ExceptionT, InputT>>}).
+     *
+     * <p>If you only want to catch specific subtypes of {@code ExceptionT}, you may pass class
+     * instances for those narrower types as additional parameters.
+     */
+    public <ExceptionT extends Exception> WithFailures withFailureTag(
+        TupleTag<Failure<ExceptionT, InputT>> tag, Class... exceptionsToCatch) {
+      return new WithFailures(successTag, failureTagList.and(tag, exceptionsToCatch));
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<? extends InputT> input) {
+    public PCollectionTuple expand(PCollection<InputT> input) {
       checkNotNull(fn, ".via() is required");
       PCollectionTuple pcs =
           input.apply(
@@ -232,7 +237,7 @@ public class FlatMapElements<InputT, OutputT>
                                 fn.getClosure()
                                     .apply(c.element(), Fn.Context.wrapProcessContext(c));
                           } catch (Exception e) {
-                            taggedExceptionsList.outputOrRethrow(e, element, receiver);
+                            failureTagList.outputOrRethrow(e, element, receiver);
                           }
                           if (res != null) {
                             for (OutputT output : res) {
@@ -257,9 +262,9 @@ public class FlatMapElements<InputT, OutputT>
                           return outputType;
                         }
                       })
-                  .withOutputTags(successTag, taggedExceptionsList.tupleTagList())
+                  .withOutputTags(successTag, failureTagList.tags())
                   .withSideInputs(fn.getRequirements().getSideInputs()));
-      taggedExceptionsList.applyFailureCoders(pcs);
+      failureTagList.applyFailureCoders(input.getCoder(), pcs);
       return pcs;
     }
 

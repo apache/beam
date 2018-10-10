@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
@@ -226,9 +225,11 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterWithFailures() {
-    TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag2 = new TupleTag<>();
+    TupleTag<Integer> successTag = new TupleTag<Integer>() {};
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
+    TupleTag<Failure<IntegerException2, Integer>> failureTag2 =
+        new TupleTag<Failure<IntegerException2, Integer>>() {};
 
     PCollectionTuple pcs =
         p.apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -243,8 +244,7 @@ public class FilterTest implements Serializable {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException1);
+                  (Failure<IntegerException1, Integer> failure) -> {
                     assertEquals(1, failure.value().intValue());
                   });
               return null;
@@ -253,8 +253,7 @@ public class FilterTest implements Serializable {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException2);
+                  (Failure<IntegerException2, Integer> failure) -> {
                     assertEquals(2, failure.value().intValue());
                   });
               return null;
@@ -266,8 +265,9 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterWithFailuresThrowsUncaught() {
-    TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
+    TupleTag<Integer> successTag = new TupleTag<Integer>() {};
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
 
     PCollectionTuple pcs =
         p.apply(Create.of(1, 2, 3, 4, 5, 6, 7))

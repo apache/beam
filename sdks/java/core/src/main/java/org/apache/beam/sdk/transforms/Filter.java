@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.Failure.TaggedExceptionsList;
+import org.apache.beam.sdk.transforms.Failure.FailureTagList;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -220,32 +220,37 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   /**
    * Sets a {@link TupleTag} to associate with successes, converting this {@link PTransform} into
    * one that returns a {@link PCollectionTuple}. This allows you to make subsequent {@link
-   * WithFailures#withFailureTag(TupleTag, Class, Class[])} calls to capture thrown exceptions to
-   * failure collections.
+   * WithFailures#withFailureTag(TupleTag, Class[])} calls to capture thrown exceptions to failure
+   * collections.
    */
   public WithFailures withSuccessTag(TupleTag<T> successTag) {
-    return new WithFailures(successTag, TaggedExceptionsList.empty());
+    return new WithFailures(successTag, FailureTagList.empty());
   }
 
   /**
    * Variant of {@link Filter} that that can handle exceptions and output one or more failure
    * collections wrapped in a {@link PCollectionTuple}. Specify how to handle exceptions by calling
-   * {@link #withFailureTag(TupleTag, Class, Class[])}.
+   * {@link #withFailureTag(TupleTag, Class[])}.
    */
   public class WithFailures extends PTransform<PCollection<T>, PCollectionTuple> {
     private final TupleTag<T> successTag;
-    private final TaggedExceptionsList<T> taggedExceptionsList;
+    private final FailureTagList<T> failureTagList;
 
-    WithFailures(TupleTag<T> successTag, TaggedExceptionsList<T> taggedExceptionsList) {
+    WithFailures(TupleTag<T> successTag, FailureTagList<T> failureTagList) {
       this.successTag = successTag;
-      this.taggedExceptionsList = taggedExceptionsList;
+      this.failureTagList = failureTagList;
     }
 
-    /** Specify a {@link TupleTag} and the {@link Exception} subclasses that should route to it. */
-    public WithFailures withFailureTag(
-        TupleTag<Failure<T>> tag, Class exceptionToCatch, Class... additionalExceptions) {
-      return new WithFailures(
-          successTag, taggedExceptionsList.and(tag, exceptionToCatch, additionalExceptions));
+    /**
+     * Returns a modified {@link PTransform} that will catch exceptions of type {@code ExceptionT}
+     * (as specified by the given {@code TupleTag<Failure<ExceptionT, InputT>>}).
+     *
+     * <p>If you only want to catch specific subtypes of {@code ExceptionT}, you may pass class
+     * instances for those narrower types as additional parameters.
+     */
+    public <ExceptionT extends Exception> WithFailures withFailureTag(
+        TupleTag<Failure<ExceptionT, T>> tag, Class... exceptionsToCatch) {
+      return new WithFailures(successTag, failureTagList.and(tag, exceptionsToCatch));
     }
 
     @Override
@@ -261,17 +266,16 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
                           try {
                             accepted = predicate.apply(element);
                           } catch (Exception e) {
-                            taggedExceptionsList.outputOrRethrow(e, element, receiver);
+                            failureTagList.outputOrRethrow(e, element, receiver);
                           }
                           if (accepted != null && accepted) {
                             receiver.get(successTag).output(element);
                           }
                         }
                       })
-                  .withOutputTags(successTag, taggedExceptionsList.tupleTagList()));
+                  .withOutputTags(successTag, failureTagList.tags()));
       pcs.get(successTag).setCoder(input.getCoder());
-      taggedExceptionsList.applyFailureCoders(pcs);
-      return pcs;
+      return failureTagList.applyFailureCoders(input.getCoder(), pcs);
     }
 
     @Override

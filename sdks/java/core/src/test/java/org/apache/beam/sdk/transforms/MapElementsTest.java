@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Set;
@@ -372,8 +371,10 @@ public class MapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testMapWithFailures() throws Exception {
     TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag2 = new TupleTag<>();
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
+    TupleTag<Failure<IntegerException2, Integer>> failureTag2 =
+        new TupleTag<Failure<IntegerException2, Integer>>() {};
 
     PCollectionTuple pcs =
         pipeline
@@ -401,8 +402,7 @@ public class MapElementsTest implements Serializable {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException1);
+                  (Failure<IntegerException1, Integer> failure) -> {
                     assertEquals(1, failure.value().intValue());
                   });
               return null;
@@ -411,8 +411,7 @@ public class MapElementsTest implements Serializable {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException2);
+                  (Failure<IntegerException2, Integer> failure) -> {
                     assertEquals(2, failure.value().intValue());
                   });
               return null;
@@ -425,8 +424,9 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMapWithFailuresThrowsUncaught() throws Exception {
-    TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
+    TupleTag<Integer> successTag = new TupleTag<Integer>() {};
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
 
     PCollectionTuple pcs =
         pipeline

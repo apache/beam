@@ -44,7 +44,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Test Jackson transforms {@link ParseJsons} and {@link AsJsons}. */
-public class JacksonTransformsTest {
+public class JacksonTransformsTest implements Serializable {
   private static final List<String> VALID_JSONS =
       Arrays.asList("{\"myString\":\"abc\",\"myInt\":3}", "{\"myString\":\"def\",\"myInt\":4}");
 
@@ -107,7 +107,7 @@ public class JacksonTransformsTest {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<String> failure) -> {
+                  (Failure<IOException, String> failure) -> {
                     assertTrue(failure.exception() instanceof IOException);
                   });
               return null;
@@ -175,7 +175,8 @@ public class JacksonTransformsTest {
 
   @Test
   public void collectWriteFailuresWithoutCustomMapper() {
-    TupleTag<Failure<MyEmptyBean>> failureTag = new TupleTag<>();
+    TupleTag<Failure<IOException, MyEmptyBean>> failureTag =
+        new TupleTag<Failure<IOException, MyEmptyBean>>() {};
 
     final PCollectionTuple pcs =
         pipeline
@@ -184,13 +185,6 @@ public class JacksonTransformsTest {
 
     pcs.get(AsJsons.successTag()).setCoder(StringUtf8Coder.of());
     PAssert.that(pcs.get(AsJsons.successTag())).empty();
-
-    PAssert.that(pcs.get(failureTag))
-        .satisfies(
-            failures -> {
-              failures.forEach(failure -> assertTrue(failure.exception() instanceof IOException));
-              return null;
-            });
 
     PCollection<MyEmptyBean> failureValues =
         pcs.get(failureTag)

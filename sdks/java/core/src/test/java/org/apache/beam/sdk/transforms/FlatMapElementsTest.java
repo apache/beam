@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -283,8 +282,10 @@ public class FlatMapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testFlatMapWithErrors() throws Exception {
     TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag2 = new TupleTag<>();
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
+    TupleTag<Failure<IntegerException2, Integer>> failureTag2 =
+        new TupleTag<Failure<IntegerException2, Integer>>() {};
 
     PCollectionTuple pcs =
         pipeline
@@ -304,16 +305,15 @@ public class FlatMapElementsTest implements Serializable {
                           return ImmutableList.of(i, -i);
                         })
                     .withSuccessTag(successTag)
-                    .withFailureTag(failureTag1, IntegerException1.class)
-                    .withFailureTag(failureTag2, IntegerException2.class));
+                    .withFailureTag(failureTag1)
+                    .withFailureTag(failureTag2));
 
     PAssert.that(pcs.get(successTag)).containsInAnyOrder(3, -4, -3, 4);
     PAssert.that(pcs.get(failureTag1))
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException1);
+                  (Failure<IntegerException1, Integer> failure) -> {
                     assertEquals(1, failure.value().intValue());
                   });
               return null;
@@ -322,8 +322,7 @@ public class FlatMapElementsTest implements Serializable {
         .satisfies(
             failures -> {
               failures.forEach(
-                  (Failure<Integer> failure) -> {
-                    assertTrue(failure.exception() instanceof IntegerException2);
+                  (Failure<IntegerException2, Integer> failure) -> {
                     assertEquals(2, failure.value().intValue());
                   });
               return null;
@@ -337,7 +336,8 @@ public class FlatMapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testFlatMapWithErrorsThrowsUncaught() throws Exception {
     TupleTag<Integer> successTag = new TupleTag<>();
-    TupleTag<Failure<Integer>> failureTag1 = new TupleTag<>();
+    TupleTag<Failure<IntegerException1, Integer>> failureTag1 =
+        new TupleTag<Failure<IntegerException1, Integer>>() {};
 
     PCollectionTuple pcs =
         pipeline
@@ -357,7 +357,7 @@ public class FlatMapElementsTest implements Serializable {
                           return ImmutableList.of(i, -i);
                         })
                     .withSuccessTag(successTag)
-                    .withFailureTag(failureTag1, IntegerException1.class));
+                    .withFailureTag(failureTag1));
 
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(isA(IntegerException2.class));

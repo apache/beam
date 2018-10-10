@@ -39,7 +39,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollection<OutputT>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();
-  private static final TupleTag<Failure<String>> FAILURE_TAG = new TupleTag<>();
+  private static final TupleTag<Failure<IOException, String>> FAILURE_TAG =
+      new TupleTag<Failure<IOException, String>>() {};
 
   private final Class<? extends OutputT> outputClass;
   private ObjectMapper customMapper;
@@ -87,7 +88,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
   }
 
   /** Return the {@link TupleTag} associated with parsing failures. */
-  public static TupleTag<Failure<String>> failureTag() {
+  public static TupleTag<Failure<IOException, String>> failureTag() {
     return FAILURE_TAG;
   }
 
@@ -124,7 +125,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
    * Variant of {@link ParseJsons} that that catches {@link IOException} raised while parsing JSON,
    * wrapping success and failure collections in a {@link PCollectionTuple}.
    */
-  public class WithFailures extends PTransform<PCollection<? extends String>, PCollectionTuple> {
+  public class WithFailures extends PTransform<PCollection<String>, PCollectionTuple> {
     private final TupleTag<OutputT> successTag;
 
     public WithFailures(TupleTag<OutputT> successTag) {
@@ -132,7 +133,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<? extends String> input) {
+    public PCollectionTuple expand(PCollection<String> input) {
       return input.apply(
           MapElements.into(new TypeDescriptor<OutputT>() {})
               .via(
@@ -146,7 +147,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
                       },
                       Requirements.empty()))
               .withSuccessTag(successTag)
-              .withFailureTag(FAILURE_TAG, IOException.class));
+              .withFailureTag(FAILURE_TAG));
     }
   }
 }

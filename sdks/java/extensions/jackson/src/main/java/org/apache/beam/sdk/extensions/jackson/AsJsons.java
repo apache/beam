@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection<String>> {
   private static final ObjectMapper DEFAULT_MAPPER = new ObjectMapper();
-  private static final TupleTag<String> SUCCESS_TAG = new TupleTag<>();
+  private static final TupleTag<String> SUCCESS_TAG = new TupleTag<String>() {};
 
   private final Class<? extends InputT> inputClass;
   private ObjectMapper customMapper;
@@ -103,7 +103,8 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    *
    * <pre>{@code
    * PCollection<Foo> foos = ...;
-   * TupleTag<Failure<Foo>> unserializedFoosTag = new TupleTag<>();
+   * TupleTag<Failure<IOException, Foo>> unserializedFoosTag =
+   *   new TupleTag<Failure<IOException, Foo>>(){};
    *
    * PCollection<String> strings = foos
    *   .apply(AsJsons
@@ -115,7 +116,7 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    *   }));
    * }</pre>
    */
-  public WithFailures withFailureTag(TupleTag<Failure<InputT>> failureTag) {
+  public WithFailures withFailureTag(TupleTag<Failure<IOException, InputT>> failureTag) {
     return new WithFailures(failureTag);
   }
 
@@ -124,9 +125,9 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * wrapping success and failure collections in a {@link PCollectionTuple}.
    */
   public class WithFailures extends PTransform<PCollection<InputT>, PCollectionTuple> {
-    private final TupleTag<Failure<InputT>> failureTag;
+    private final TupleTag<Failure<IOException, InputT>> failureTag;
 
-    public WithFailures(TupleTag<Failure<InputT>> failureTag) {
+    WithFailures(TupleTag<Failure<IOException, InputT>> failureTag) {
       this.failureTag = failureTag;
     }
 
@@ -145,7 +146,7 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
                       },
                       Requirements.empty()))
               .withSuccessTag(SUCCESS_TAG)
-              .withFailureTag(failureTag, IOException.class));
+              .withFailureTag(failureTag));
     }
   }
 }
