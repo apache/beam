@@ -230,6 +230,7 @@ task goIntegrationTests() {
     }
   }
   dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
 }
 
 task pythonPreCommit() {
