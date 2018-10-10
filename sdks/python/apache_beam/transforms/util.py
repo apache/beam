@@ -315,8 +315,8 @@ class _BatchSizeEstimator(object):
 
       # Re-compute the regression, excluding those points with Cook's distance
       # greater than 0.5, and weighting by the inverse of x to give a more
-      # stable y-intercept (as small batches have relatively information
-      # about the fixed ovehead).
+      # stable y-intercept (as small batches have relatively more information
+      # about the fixed overhead).
       weight = (cook_ds <= 0.5) / xs
       b, a = np.polyfit(xs, ys, 1, w=weight)
       return a, b
