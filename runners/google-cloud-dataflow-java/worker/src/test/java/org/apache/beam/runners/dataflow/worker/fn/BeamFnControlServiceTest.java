@@ -88,6 +88,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
+    Thread.sleep(1000); // Wait for stub to close stream.
+
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);
   }
@@ -126,6 +128,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
+    Thread.sleep(1000); // Wait for stub to close stream.
+
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);
     verify(anotherRequestObserver).onCompleted();
