@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import inspect
 import logging
+import os
 import platform
 import signal
 import socket
@@ -176,6 +177,10 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test is flaky on on Python 3. '
+                   'TODO: BEAM-5692')
   def test_error_message_includes_stage(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
