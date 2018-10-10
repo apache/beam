@@ -388,7 +388,7 @@ public class KafkaIO {
      * partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
-      return withTopics(ImmutableList.of(topic));
+      return withTopic(StaticValueProvider.of(topic));
     }
 
     /**
