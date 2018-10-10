@@ -58,7 +58,7 @@ class PostcommitJobBuilder {
 
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
+      commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true, true
     }
 
     autoBuilds.with(jobDefinition)
