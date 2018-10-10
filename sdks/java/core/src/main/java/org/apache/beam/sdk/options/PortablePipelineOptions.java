@@ -87,4 +87,10 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getSdkWorkerParallelism();
 
   void setSdkWorkerParallelism(@Nullable String parallelism);
+
+  @Description("Duration in milliseconds for environment cache within a job. 0 means no caching.")
+  @Default.Integer(0)
+  int getEnvironmentCacheMillis();
+
+  void setEnvironmentCacheMillis(int environmentCacheMillis);
 }
