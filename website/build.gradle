@@ -64,12 +64,15 @@ task createDockerContainer(type: Exec) {
   ext.containerId = {
     return standardOutput.toString().trim()
   }
-  def extraOptions = ''
-  if (project.hasProperty('publishJekyllPort')) {
-    extraOptions = '-p 127.0.0.1:4000:4000'
+  gradle.taskGraph.whenReady {
+    def extraOptions = ''
+    if (gradle.taskGraph.hasTask(":${project.name}:serveWebsite")) {
+      // Publish port 4000 where Jekyll serves website from
+      extraOptions = '--publish 127.0.0.1:4000:4000'
+    }
+    commandLine '/bin/bash', '-c',
+      "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
   }
-  commandLine '/bin/bash', '-c',
-    "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
 }
 
 task startDockerContainer(type: Exec) {
