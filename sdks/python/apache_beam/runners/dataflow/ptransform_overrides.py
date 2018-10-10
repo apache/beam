@@ -47,4 +47,4 @@ class CreatePTransformOverride(PTransformOverride):
     from apache_beam.runners.dataflow.native_io.streaming_create import \
       StreamingCreate
     coder = typecoders.registry.get_coder(ptransform.get_output_type())
-    return StreamingCreate(ptransform.value, coder)
+    return StreamingCreate(ptransform.values, coder)
