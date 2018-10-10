@@ -38,7 +38,6 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -1943,19 +1942,19 @@ PTransform.register_urn(
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, values):
+  def __init__(self, value):
     """Initializes a Create transform.
 
     Args:
-      values: An object of values for the PCollection
+      value: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(values, (unicode, str, bytes)):
+    if isinstance(value, (unicode, str, bytes)):
       raise TypeError('PTransform Create: Refusing to treat string as '
-                      'an iterable. (string=%r)' % values)
-    elif isinstance(values, dict):
-      values = values.items()
-    self.values = tuple(values)
+                      'an iterable. (string=%r)' % value)
+    elif isinstance(value, dict):
+      value = value.items()
+    self.value = tuple(value)
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -1963,9 +1962,9 @@ class Create(PTransform):
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):
-    if not self.values:
+    if not self.value:
       return Any
-    return Union[[trivial_inference.instance_to_type(v) for v in self.values]]
+    return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
 
   def get_output_type(self):
     return (self.get_type_hints().simple_output_type(self.label) or
@@ -1976,25 +1975,9 @@ class Create(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     coder = typecoders.registry.get_coder(self.get_output_type())
-    debug_options = self.pipeline._options.view_as(DebugOptions)
-    # Must guard against this as some legacy runners don't implement impulse.
-    fn_api = (debug_options.experiments
-              and 'beam_fn_api' in debug_options.experiments)
-    # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
-    # These special cases are often used in building up more complex
-    # transforms (e.g. Write).
-    if fn_api and len(self.values) == 0:
-      return pbegin | Impulse() | FlatMap(
-          lambda _: ()).with_output_types(self.get_output_type())
-    elif fn_api and len(self.values) == 1:
-      serialized_value = coder.encode(self.values[0])
-      return pbegin | Impulse() | Map(
-          lambda _: coder.decode(serialized_value)).with_output_types(
-              self.get_output_type())
-    else:
-      source = self._create_source_from_iterable(self.values, coder)
-      return (pbegin.pipeline
-              | iobase.Read(source).with_output_types(self.get_output_type()))
+    source = self._create_source_from_iterable(self.value, coder)
+    return (pbegin.pipeline
+            | iobase.Read(source).with_output_types(self.get_output_type()))
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
