@@ -99,7 +99,7 @@ import org.slf4j.LoggerFactory;
  *   .apply(KafkaIO.<Long, String>read()
  *      .withBootstrapServers(StaticValueProvider.of("broker_1:9092,broker_2:9092"))
  *      .withTopic(StaticValueProvider.of("my_topic"))
- *      .withNumSplits(10) // Sets source parallelism. Default is 1.
+ *      .withNumSplits(10) // Sets source parallelism. Default is runner dependent.
  *      .withKeyDeserializer(LongDeserializer.class)
  *      .withValueDeserializer(StringDeserializer.class)
  *
