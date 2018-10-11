@@ -533,6 +533,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     return JobHeader.newBuilder()
         .setJobId(options.getJobId())
         .setProjectId(options.getProject())
+        .setWorkerId(options.getWorkerId())
         .build();
   }
 
