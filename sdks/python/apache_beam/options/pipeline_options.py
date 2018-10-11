@@ -674,7 +674,12 @@ class SetupOptions(PipelineOptions):
          'job submission, the files will be staged in the staging area '
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
-
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar.'
+    )
 
 class PortableOptions(PipelineOptions):
 

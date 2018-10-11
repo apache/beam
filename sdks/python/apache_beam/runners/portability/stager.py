@@ -123,8 +123,7 @@ class Stager(object):
 
         Returns:
           A list of file names (no paths) for the resources staged. All the
-          files
-          are assumed to be staged at staging_location.
+          files are assumed to be staged at staging_location.
 
         Raises:
           RuntimeError: If files specified are not found or error encountered
@@ -255,6 +254,12 @@ class Stager(object):
             raise RuntimeError(
                 'The file "%s" cannot be found. Its location was specified by '
                 'the --sdk_location command-line option.' % sdk_path)
+
+    if hasattr(setup_options, 'dataflow_worker_jar'):
+      jar_staged_filename = 'dataflow_worker.jar'
+      staged_path = FileSystems.join(staging_location, jar_staged_filename)
+      self.stage_artifact(setup_options.dataflow_worker_jar, staged_path)
+      resources.append(jar_staged_filename)
 
     # Delete all temp files created while staging job resources.
     shutil.rmtree(temp_dir)

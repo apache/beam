@@ -381,6 +381,12 @@ class DataflowRunner(PipelineRunner):
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
 
+    if setup_options.dataflow_worker_jar:
+      experiments = ["use_staged_dataflow_worker_jar"]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
+
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
     # template creation). If a request was sent and failed then the call will
