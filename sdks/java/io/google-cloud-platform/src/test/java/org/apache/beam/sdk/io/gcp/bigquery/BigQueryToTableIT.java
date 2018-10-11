@@ -61,8 +61,7 @@ public class BigQueryToTableIT {
   private BigQueryToTableOptions options;
   private String project;
 
-  //Naming format: bg_query_to_table_+ timestamp + 3-digit random number
-  private String bigQueryDatasetId = "bq_query_to_table_";
+  private String bigQueryDatasetId;
   private static final String OUTPUT_TABLE_NAME = "output_table";
   private BigQueryOptions bqOption;
   private String outputTable;
@@ -234,7 +233,7 @@ public class BigQueryToTableIT {
   public void setupBqEnvironment() {
     Long timeSeed = System.currentTimeMillis();
     Integer random = new Random(timeSeed).nextInt(900) + 100;
-    this.bigQueryDatasetId += (timeSeed.toString() + "_" + random.toString());
+    this.bigQueryDatasetId = "bq_query_to_table_" + timeSeed.toString() + "_" + random.toString();
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
     options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
