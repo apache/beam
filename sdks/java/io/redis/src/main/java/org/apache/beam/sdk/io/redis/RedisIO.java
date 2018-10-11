@@ -552,6 +552,7 @@ public class RedisIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.multi();
           batchCount = 0;
         }
       }
