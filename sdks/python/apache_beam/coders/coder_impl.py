@@ -62,6 +62,12 @@ except ImportError:
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
+  if False:  # pylint: disable=using-constant-test
+    # This clause is interpreted by the compiler.
+    from cython import compiled as is_compiled
+  else:
+    is_compiled = False
+    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -293,8 +299,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
-      stream.write_byte(INT_TYPE)
-      stream.write_var_int64(value)
+      # In Python 3, an int may be larger than 64 bits.
+      # We need to check whether value fits into a 64 bit integer before
+      # writing the marker byte.
+      try:
+        # In Cython-compiled code this will throw an overflow error
+        # when value does not fit into int64.
+        int_value = value
+        # If Cython is not used, we must do a (slower) check ourselves.
+        if not is_compiled:
+          if not fits_in_64_bits(value):
+            raise OverflowError()
+        stream.write_byte(INT_TYPE)
+        stream.write_var_int64(int_value)
+      except OverflowError:
+        stream.write_byte(UNKNOWN_TYPE)
+        self.fallback_coder_impl.encode_to_stream(value, stream, nested)
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
@@ -354,8 +374,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
-
-    return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    elif t == UNKNOWN_TYPE:
+      return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    else:
+      raise ValueError('Unknown type tag %x' % t)
 
 
 class BytesCoderImpl(CoderImpl):
