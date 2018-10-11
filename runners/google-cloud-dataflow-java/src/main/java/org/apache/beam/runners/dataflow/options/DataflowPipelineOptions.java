@@ -136,6 +136,11 @@ public interface DataflowPipelineOptions
 
   void setPipelineUrl(String urlString);
 
+  @Description("The customized dataflow worker jar")
+  String getDataflowWorkerJar();
+
+  void setDataflowWorkerJar(String dataflowWorkerJar);
+
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);

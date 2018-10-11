@@ -741,6 +741,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+      List<String> experiments =
+          dataflowOptions.getExperiments() == null
+              ? new ArrayList<>()
+              : dataflowOptions.getExperiments();
+      experiments.add("use_staged_dataflow_worker_jar");
+      dataflowOptions.setExperiments(experiments);
+    }
+
     Job newJob = jobSpecification.getJob();
     try {
       newJob
@@ -791,6 +800,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             minCpuFlags.get(0));
       }
     }
+
     newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
