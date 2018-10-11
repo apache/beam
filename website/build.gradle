@@ -259,11 +259,9 @@ publishWebsite.dependsOn commitWebsite
  */
 task stageWebsite << {
   def baseUrl = getBaseUrl()
+  assert baseUrl : 'Website staging requires a valid baseUrl'
   def gcs_bucket = project.findProperty('websiteBucket') ?: 'apache-beam-website-pull-requests'
   def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
-
-  // Remove current site if it exists.
-  shell "gsutil -m rm -r -f ${gcs_path} || true"
 
   // Fixup the links to index.html files
   shell "cd ${buildDir} && ln -s generated-gcs-content content || true"
@@ -271,7 +269,7 @@ task stageWebsite << {
         "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
 
   // Copy the build website to GCS
-  shell "gsutil -m cp -r ${buildContentDir('gcs')} ${gcs_path}"
+  shell "gsutil -m rsync -r -d ${buildContentDir('gcs')} ${gcs_path}"
 
   println "Website published to http://${gcs_bucket}." +
       "storage.googleapis.com/${baseUrl}/index.html"
