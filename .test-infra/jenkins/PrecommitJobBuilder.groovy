@@ -103,11 +103,13 @@ class PrecommitJobBuilder {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-PgithubPullRequestId=${ghprbPullId}')
-	  if (nameBase == 'Java') {
+          if (scope.binding.hasVariable('ghprbPullId')) {
+            switches('-PgithubPullRequestId=${ghprbPullId}')
+          }
+          if (nameBase == 'Java') {
             // BEAM-5035: Parallel builds are very flaky
             switches('--no-parallel')
-	  }
+          }
         }
       }
     }
