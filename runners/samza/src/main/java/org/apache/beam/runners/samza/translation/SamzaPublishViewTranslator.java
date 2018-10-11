@@ -19,8 +19,6 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
@@ -59,14 +57,5 @@ class SamzaPublishViewTranslator<ElemT, ViewT>
             element -> OpMessage.ofSideInput(ctx.getViewId(transform.getView()), element));
 
     ctx.registerViewStream(transform.getView(), outputStream);
-  }
-
-  @Override
-  public void translatePortable(
-      PipelineNode.PTransformNode transform,
-      QueryablePipeline pipeline,
-      PortableTranslationContext ctx) {
-    throw new UnsupportedOperationException(
-        "Portable translation is not supported for " + this.getClass().getSimpleName());
   }
 }

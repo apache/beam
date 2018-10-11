@@ -63,17 +63,18 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
       payload =
           RunnerApi.WindowIntoPayload.parseFrom(transform.getTransform().getSpec().getPayload());
     } catch (InvalidProtocolBufferException e) {
-      throw new IllegalArgumentException(e);
+      throw new IllegalArgumentException(
+          String.format("failed to parse WindowIntoPayload: %s", transform.getId()), e);
     }
 
-    //TODO: https://issues.apache.org/jira/browse/BEAM-4296
-    final WindowFn<?, ?> windowFn =
-        WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
+    @SuppressWarnings("unchecked")
+    final WindowFn<T, ?> windowFn =
+        (WindowFn<T, ?>) WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
 
-    final MessageStream<OpMessage<?>> inputStream = ctx.getInputMessageStream(transform);
+    final MessageStream<OpMessage<T>> inputStream = ctx.getOneInputMessageStream(transform);
 
-    final MessageStream<OpMessage<?>> outputStream =
-        inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp(windowFn)));
+    final MessageStream<OpMessage<T>> outputStream =
+        inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
 
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }

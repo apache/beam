@@ -18,11 +18,22 @@
 
 package org.apache.beam.runners.samza.translation;
 
+import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/** Generates config for a BEAM {@link PTransform}. */
+/** Generates config for a BEAM PTransform (regular java api or portable api). */
 public interface TransformConfigGenerator<T extends PTransform<?, ?>> {
-  Map<String, String> createConfig(T transform, TransformHierarchy.Node node, ConfigContext ctx);
+  /** Generate config for regular java api PTransform. */
+  default Map<String, String> createConfig(
+      T transform, TransformHierarchy.Node node, ConfigContext ctx) {
+    return Collections.emptyMap();
+  }
+
+  /** Generate config for portable api PTransform. */
+  default Map<String, String> createPortableConfig(PipelineNode.PTransformNode transform) {
+    return Collections.emptyMap();
+  }
 }

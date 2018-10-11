@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.SamzaRunnerOverrideConfigs;
 import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
@@ -88,6 +89,16 @@ public class ConfigBuilder {
     }
   }
 
+  private static boolean isEmptyUserConfig(Map<String, String> config) {
+    if (config == null) {
+      return true;
+    }
+    return config
+        .keySet()
+        .stream()
+        .allMatch(key -> key.startsWith(SamzaRunnerOverrideConfigs.BEAM_RUNNER_CONFIG_PREFIX));
+  }
+
   private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
     final String configFilePath = options.getConfigFilePath();
     final Map<String, String> config = new HashMap<>();
@@ -106,8 +117,9 @@ public class ConfigBuilder {
       config.putAll(options.getConfigOverride());
     }
 
-    // If the config is empty, use the default local running mode
-    if (config.isEmpty()) {
+    // If there is no user specified config, use the default local running mode
+    // we are keeping this work around until https://issues.apache.org/jira/browse/BEAM-5732 is addressed
+    if (isEmptyUserConfig(options.getConfigOverride())) {
       config.putAll(localRunConfig());
     }
 

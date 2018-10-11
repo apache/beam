@@ -138,7 +138,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       PrepareJobResponse response =
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
-              .setArtifactStagingEndpoint(stagingServiceDescriptor)
+              // li_trunk ONLY: commenting out the staging endpoint to avoid the involvement of Docker
+              // need a better solution from open source to support our Dockerless environment
+              //.setArtifactStagingEndpoint(stagingServiceDescriptor)
               .setStagingSessionToken(stagingSessionToken)
               .build();
       responseObserver.onNext(response);
