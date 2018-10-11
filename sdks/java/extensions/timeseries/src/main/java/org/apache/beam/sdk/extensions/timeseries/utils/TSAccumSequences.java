@@ -188,4 +188,30 @@ public class TSAccumSequences {
               Long.toString(Timestamps.toMillis(accumSequence.getUpperWindowBoundary()))));
     }
   }
+
+  public static String getTSAccumSequenceKeyMillsTimeBoundary(
+      TimeSeriesData.TSAccumSequence accumSequence) {
+
+    TimeSeriesData.TSKey key = accumSequence.getKey();
+
+    return String.join(
+        "-",
+        key.getMajorKey(),
+        key.getMinorKeyString(),
+        Long.toString(Timestamps.toMillis(accumSequence.getLowerWindowBoundary())),
+        Long.toString(Timestamps.toMillis(accumSequence.getUpperWindowBoundary())));
+  }
+
+  public static String getTSAccumSequenceKeyWithPrettyTimeBoundary(
+      TimeSeriesData.TSAccumSequence accumSequence) {
+
+    TimeSeriesData.TSKey key = accumSequence.getKey();
+
+    return String.join(
+        "-",
+        key.getMajorKey(),
+        key.getMinorKeyString(),
+        Timestamps.toString(accumSequence.getLowerWindowBoundary()),
+        Timestamps.toString(accumSequence.getUpperWindowBoundary()));
+  }
 }

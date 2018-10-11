@@ -22,20 +22,25 @@ import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.timeseries.FileSinkTimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
-import org.apache.beam.sdk.extensions.timeseries.io.tf.TFExampleToBytes;
-import org.apache.beam.sdk.extensions.timeseries.io.tf.TFSequenceExampleToBytes;
-import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumSequenceToTFSequencExample;
-import org.apache.beam.sdk.extensions.timeseries.io.tf.TSAccumToTFExample;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
+import org.apache.beam.sdk.io.Compression;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -52,9 +57,9 @@ import org.joda.time.Instant;
  * {10} y is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments
  * one sec for each x.
  *
- * <p>The output of this pipeline is to a File path. Even though the aggregations for the x values
- * are are of little value as output, it is processed as part of this demo as it is useful when
- * eyeballing the results.
+ * <p>The output of this pipeline is to a File path, Using the format defined in
+ * FeatureDirectoryFileNaming. Even though the aggregations for the x values are are of little value
+ * as output, it is processed as part of this demo as it is useful when eyeballing the results.
  */
 public class TimeSeriesExampleToFile {
 
@@ -64,8 +69,8 @@ public class TimeSeriesExampleToFile {
     FileSinkTimeSeriesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(FileSinkTimeSeriesOptions.class);
 
-    options.setDownSampleDurationMillis(1000l);
-    options.setTimeToLiveMillis(60000l);
+    options.setDownSampleDurationMillis(1000L);
+    options.setTimeToLiveMillis(60000L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
 
     Pipeline p = Pipeline.create(options);
@@ -88,40 +93,58 @@ public class TimeSeriesExampleToFile {
 
     // ------------ OutPut Data as Logs and TFRecords--------
 
-    // This transform is purely to allow logged debug output, it will fail with OOM if large dataset is used.
+    // This transform is purely to allow logged debug output, it will fail with OOM if a large dataset is used.
     weHaveOrder.apply(new DebugSortedResult());
 
     // Output raw values
-    weHaveOrder
-        .apply(ParDo.of(new TSAccumToTFExample()))
-        .apply(ParDo.of(new GetValueFromKV<>()))
-        .apply(ParDo.of(new TFExampleToBytes()))
-        .apply(TFRecordIO.write().to(options.getFileSinkDirectory() + "/tf/raw/tfExamplerecords"));
+    weHaveOrder.apply(
+        FileIO.<String, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>writeDynamic()
+            .by(x -> TSAccums.getTSAccumKeyMillsTimeBoundary(x.getValue()))
+            .withDestinationCoder(StringUtf8Coder.of())
+            .withNaming(FeatureDirectoryFileNaming::new)
+            .via(
+                Contextful.fn(new TimeSeriesExampleToFile.TSAccumToExampleByteFn()),
+                TFRecordIO.sink())
+            .to(options.getFileSinkDirectory() + "/tf/raw/tfExamplerecords"));
 
-    // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq(Duration.standardMinutes(1)))
-        .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
-        .apply(ParDo.of(new TFSequenceExampleToBytes()))
+        .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(
-            TFRecordIO.write()
-                .to(options.getFileSinkDirectory() + "/tf/1min/tfSequenceExamplerecords"));
+            FileIO.<String, TimeSeriesData.TSAccumSequence>writeDynamic()
+                .by(x -> TSAccumSequences.getTSAccumSequenceKeyMillsTimeBoundary(x))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .withNaming(FeatureDirectoryFileNaming::new)
+                .via(
+                    Contextful.fn(new TimeSeriesExampleToFile.TSAccumSequenceToExampleByteFn()),
+                    TFRecordIO.sink())
+                .to(options.getFileSinkDirectory() + "/tf/1min/tfSequence"));
 
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq(Duration.standardMinutes(5)))
-        .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
-        .apply(ParDo.of(new TFSequenceExampleToBytes()))
+        .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(
-            TFRecordIO.write()
-                .to(options.getFileSinkDirectory() + "/tf/5min/tfSequenceExamplerecords"));
+            FileIO.<String, TimeSeriesData.TSAccumSequence>writeDynamic()
+                .by(x -> TSAccumSequences.getTSAccumSequenceKeyMillsTimeBoundary(x))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .withNaming(FeatureDirectoryFileNaming::new)
+                .via(
+                    Contextful.fn(new TimeSeriesExampleToFile.TSAccumSequenceToExampleByteFn()),
+                    TFRecordIO.sink())
+                .to(options.getFileSinkDirectory() + "/tf/5min/tfSequence"));
 
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq(Duration.standardMinutes(10)))
-        .apply(ParDo.of(new TSAccumSequenceToTFSequencExample()))
-        .apply(ParDo.of(new TFSequenceExampleToBytes()))
+        .apply(ParDo.of(new GetValueFromKV<>()))
         .apply(
-            TFRecordIO.write()
-                .to(options.getFileSinkDirectory() + "/tf/10min/tfSequenceExamplerecords"));
+            FileIO.<String, TimeSeriesData.TSAccumSequence>writeDynamic()
+                .by(x -> TSAccumSequences.getTSAccumSequenceKeyMillsTimeBoundary(x))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .withNaming(FeatureDirectoryFileNaming::new)
+                .via(
+                    Contextful.fn(new TimeSeriesExampleToFile.TSAccumSequenceToExampleByteFn()),
+                    TFRecordIO.sink())
+                .to(options.getFileSinkDirectory() + "/tf/10min/tfSequence"));
 
     p.run();
   }
@@ -163,6 +186,56 @@ public class TimeSeriesExampleToFile {
       }
 
       return dataPoints;
+    }
+  }
+
+  static class TSAccumToExampleByteFn
+      implements SerializableFunction<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, byte[]> {
+
+    @Override
+    public byte[] apply(KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum> element) {
+      byte[] returnVal;
+      try {
+        returnVal = TSAccums.getExampleFromAccum(element.getValue()).toByteArray();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return returnVal;
+    }
+  }
+
+  static class TSAccumSequenceToExampleByteFn
+      implements SerializableFunction<TimeSeriesData.TSAccumSequence, byte[]> {
+
+    @Override
+    public byte[] apply(TimeSeriesData.TSAccumSequence element) {
+      byte[] returnVal;
+      try {
+        returnVal = TSAccumSequences.getSequenceExampleFromAccumSequence(element).toByteArray();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return returnVal;
+    }
+  }
+
+  static class FeatureDirectoryFileNaming implements FileIO.Write.FileNaming {
+
+    String partitionValue;
+
+    public FeatureDirectoryFileNaming(String partitionValue) {
+      this.partitionValue = partitionValue;
+    }
+
+    @Override
+    public String getFilename(
+        BoundedWindow window,
+        PaneInfo pane,
+        int numShards,
+        int shardIndex,
+        Compression compression) {
+      return String.format(
+          "%s/%s-shard-%s-of-%s", this.partitionValue, this.partitionValue, shardIndex, numShards);
     }
   }
 }

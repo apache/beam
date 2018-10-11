@@ -125,9 +125,8 @@ message TSAccumSequence {
     google.protobuf.Timestamp upperWindowBoundary = 5;
 
     google.protobuf.Duration duration = 6;
-
-
 }
+
 
 // MultiVarient TSAccum holds all the accums as a bag of properties, the key being the minor key from the Univarient
 // timeseries.
@@ -163,4 +162,3 @@ enum DownSampleType {
     MIN = 4;
     MAX = 5;
 }
-

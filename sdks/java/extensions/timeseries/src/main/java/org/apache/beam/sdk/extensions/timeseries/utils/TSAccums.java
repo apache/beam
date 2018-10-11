@@ -149,6 +149,25 @@ public class TSAccums {
             .build());
 
     features.putFeature(
+        "LOWER_WINDOW_BOUNDARY",
+        Feature.newBuilder()
+            .setInt64List(
+                Int64List.newBuilder()
+                    .addValue(Timestamps.toMillis(accum.getLowerWindowBoundary())))
+            .build());
+
+    features.putFeature(
+        "UPPER_WINDOW_BOUNDARY",
+        Feature.newBuilder()
+            .setInt64List(
+                Int64List.newBuilder()
+                    .addValue(Timestamps.toMillis(accum.getUpperWindowBoundary())))
+            .build());
+
+    features.putFeature(
+        "COUNT", TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getCount()));
+
+    features.putFeature(
         TimeSeriesData.DownSampleType.SUM.name(),
         TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getSum()));
     features.putFeature(
@@ -345,6 +364,18 @@ public class TSAccums {
     TimeSeriesData.TSKey key = accum.getKey();
 
     return String.join("-", key.getMajorKey(), key.getMinorKeyString());
+  }
+
+  public static String getTSAccumKeyMillsTimeBoundary(TimeSeriesData.TSAccum accum) {
+
+    TimeSeriesData.TSKey key = accum.getKey();
+
+    return String.join(
+        "-",
+        key.getMajorKey(),
+        key.getMinorKeyString(),
+        Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
+        Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary())));
   }
 
   public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum) {
