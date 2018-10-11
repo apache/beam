@@ -26,7 +26,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
@@ -509,7 +508,7 @@ public class BatchModeExecutionContext
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {
-        totalThrottleTime += TimeUnit.MICROSECONDS.toSeconds(throttlingMsecs.getCumulative());
+        totalThrottleTime += Math.round(throttlingMsecs.getCumulative() / 1000.0);
       }
     }
     return totalThrottleTime;
