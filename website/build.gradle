@@ -136,7 +136,7 @@ createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerW
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
 def getBaseUrl() {
-  project.findProperty('githubPullRequestId') ?: 'latest'
+  project.findProperty('githubPullRequestId')?.trim() ?: 'latest'
 }
 def buildContentDir(name) {
   "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
