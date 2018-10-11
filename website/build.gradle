@@ -139,7 +139,8 @@ createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerW
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
 def getBaseUrl() {
-  System.getenv('ghprbPullId')?.trim() ?: 'latest'
+  System.getenv('ghprbPullId')?.trim() ?:
+    "${System.getProperty('user.name')}-${grgit.branch.current().getName()}"
 }
 def buildContentDir(name) {
   "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
