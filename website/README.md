@@ -37,7 +37,7 @@ run website tests.
 
 The following command is used to build and serve the website locally.
 
-    $ ./gradlew -PpublishJekyllPort :beam-website:serveWebsite
+    $ ./gradlew :beam-website:serveWebsite
 
 Any changes made locally will trigger a rebuild of the website.
 
