@@ -89,6 +89,7 @@ public class PortableExecutionTest implements Serializable {
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
+    options.as(FlinkPipelineOptions.class).setParallelism(2);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
@@ -150,6 +151,6 @@ public class PortableExecutionTest implements Serializable {
 
     assertEquals(1, outputValues.size());
     assertEquals("foo", outputValues.get(0).getKey());
-    assertThat(outputValues.get(0).getValue(), containsInAnyOrder(4L, 3L, 3L));
+    assertThat(outputValues.get(0).getValue(), containsInAnyOrder(4L, 3L, 3L, 4L, 3L, 3L));
   }
 }
