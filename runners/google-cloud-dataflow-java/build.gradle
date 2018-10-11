@@ -150,6 +150,7 @@ task googleCloudPlatformIntegrationTest(type: Test) {
   ])
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
   exclude '**/PubsubReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
