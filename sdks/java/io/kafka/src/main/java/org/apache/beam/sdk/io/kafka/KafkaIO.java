@@ -373,12 +373,10 @@ public class KafkaIO {
       return toBuilder().setBootstrapServers(bootstrapServers).build();
     }
 
-    /**
-     * ValueProvider version of {@link #withTopic(String)}.
-     */
+    /** ValueProvider version of {@link #withTopic(String)}. */
     public Read<K, V> withTopic(ValueProvider<String> topic) {
-      return withTopics(ValueProvider.NestedValueProvider.of(
-          topic, new SingletonListTranslator<>()));
+      return withTopics(
+          ValueProvider.NestedValueProvider.of(topic, new SingletonListTranslator<>()));
     }
 
     /**
@@ -402,9 +400,8 @@ public class KafkaIO {
     }
 
     /**
-     * This is a {@link ValueProvider} version of {@link #withTopics(List)}.
-     * When topic names are not available statically, number of splits should be provided
-     * using #withNumberOfSplits().
+     * This is a {@link ValueProvider} version of {@link #withTopics(List)}. When topic names are
+     * not available statically, number of splits should be provided using #withNumberOfSplits().
      */
     public Read<K, V> withTopics(ValueProvider<List<String>> topics) {
       checkState(
@@ -426,11 +423,11 @@ public class KafkaIO {
 
     /**
      * Sets number of splits for the reader. Normally the number of splits is based on partitions
-     * for the input topics and number splits suggested by the runner. Bun in some cases,
-     * input topic names, number of workers, or the partitions may not be available
-     * during job construction time (e.g. while using Dataflow Templates). {@link UnboundedSource}
-     * API requires fixed number of splits during job construction time. This allows statically
-     * setting number of partitions.
+     * for the input topics and number splits suggested by the runner. Bun in some cases, input
+     * topic names, number of workers, or the partitions may not be available during job
+     * construction time (e.g. while using Dataflow Templates). {@link UnboundedSource} API requires
+     * fixed number of splits during job construction time. This allows statically setting number of
+     * partitions.
      */
     public Read<K, V> withNumSplits(int numSplits) {
       checkArgument(numSplits >= 1);
@@ -677,8 +674,7 @@ public class KafkaIO {
 
     @Override
     public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
-      checkArgument(getBootstrapServers() != null,
-                    "withBootstrapServers() is required");
+      checkArgument(getBootstrapServers() != null, "withBootstrapServers() is required");
       checkArgument(
           getTopics() != null || getTopicPartitions().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
@@ -812,8 +808,8 @@ public class KafkaIO {
       List<TopicPartition> topicPartitions = getTopicPartitions();
       if (topics != null) {
         if (topics.isAccessible()) {
-          builder.add(DisplayData.item("topics", Joiner.on(",").join(topics.get()))
-                          .withLabel("Topic/s"));
+          builder.add(
+              DisplayData.item("topics", Joiner.on(",").join(topics.get())).withLabel("Topic/s"));
         } else {
           builder.add(DisplayData.item("topics", topics).withLabel("Topic/s"));
         }

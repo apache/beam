@@ -65,7 +65,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
@@ -764,8 +763,10 @@ public class KafkaIOTest {
             .withValueDeserializerAndCoder(LongDeserializer.class, BigEndianLongCoder.of())
             .withNumSplits(numSplits)
             .makeSource();
-    assertEquals("Splits should match splits set explicitly", numSplits,
-                 withExplicitSplits.split(1, p.getOptions()).size());
+    assertEquals(
+        "Splits should match splits set explicitly",
+        numSplits,
+        withExplicitSplits.split(1, p.getOptions()).size());
   }
 
   /** A timestamp function that uses the given value as the timestamp. */
