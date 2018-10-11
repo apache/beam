@@ -374,7 +374,7 @@ public class KafkaIO {
     }
 
     /**
-     * ValueProvider version of {@link #withTopic(String)};
+     * ValueProvider version of {@link #withTopic(String)}.
      */
     public Read<K, V> withTopic(ValueProvider<String> topic) {
       return withTopics(ValueProvider.NestedValueProvider.of(

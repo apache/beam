@@ -19,14 +19,13 @@ package org.apache.beam.sdk.io.kafka;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
