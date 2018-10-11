@@ -257,7 +257,7 @@ class Stager(object):
 
     if hasattr(setup_options, 'dataflow_worker_jar') and \
         setup_options.dataflow_worker_jar:
-      jar_staged_filename = 'dataflow_worker.jar'
+      jar_staged_filename = 'dataflow-worker.jar'
       staged_path = FileSystems.join(staging_location, jar_staged_filename)
       self.stage_artifact(setup_options.dataflow_worker_jar, staged_path)
       resources.append(jar_staged_filename)
