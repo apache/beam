@@ -268,7 +268,7 @@ task stageWebsite << {
   // Fixup the links to index.html files
   shell "cd ${buildDir} && ln -s generated-gcs-content content || true"
   shell ". ${envdir}/bin/activate && cd ${buildDir} && " +
-        "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
+        "python ${project.rootDir}/website/append_index_html_to_internal_links.py"
 
   // Copy the build website to GCS
   shell "gsutil -m cp -r ${buildContentDir('gcs')} ${gcs_path}"
