@@ -299,7 +299,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s=%s", getPath(), getNamespace().getName(), getKey(), getValue());
     }
   }
@@ -418,7 +418,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
 
@@ -485,7 +485,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return String.format("%s%s:%s", getPath(), getNamespace(), getKey());
     }
   }
@@ -557,7 +557,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       StringBuilder b = new StringBuilder().append("[");
       Joiner.on("/").appendTo(b, components);
       b.append("]");
@@ -565,12 +565,12 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(Object obj) {
       return obj instanceof Path && Objects.equals(components, ((Path) obj).components);
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       return components.hashCode();
     }
   }
