@@ -255,7 +255,8 @@ class Stager(object):
                 'The file "%s" cannot be found. Its location was specified by '
                 'the --sdk_location command-line option.' % sdk_path)
 
-    if hasattr(setup_options, 'dataflow_worker_jar'):
+    if hasattr(setup_options, 'dataflow_worker_jar') and \
+        setup_options.dataflow_worker_jar:
       jar_staged_filename = 'dataflow_worker.jar'
       staged_path = FileSystems.join(staging_location, jar_staged_filename)
       self.stage_artifact(setup_options.dataflow_worker_jar, staged_path)
