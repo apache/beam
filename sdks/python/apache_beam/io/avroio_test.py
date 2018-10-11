@@ -25,10 +25,15 @@ import unittest
 from builtins import range
 
 import avro.datafile
-import avro.schema
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import hamcrest as hc
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam import Create
@@ -93,7 +98,7 @@ class TestAvro(unittest.TestCase):
                                          'favorite_number': 6,
                                          'favorite_color': 'Green'}]
 
-  SCHEMA = avro.schema.parse('''
+  SCHEMA = Parse('''
   {"namespace": "example.avro",
    "type": "record",
    "name": "User",
