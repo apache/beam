@@ -74,7 +74,7 @@ cdef char BYTES_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE, SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
-  @cython.locals(dict_value=dict)
+  @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
