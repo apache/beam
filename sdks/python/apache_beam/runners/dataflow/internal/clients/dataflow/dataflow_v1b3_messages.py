@@ -2649,6 +2649,8 @@ class MapTask(_messages.Message):
   the list before any instructions which depends on its output.
 
   Fields:
+    counterPrefix: Counter prefix that can be used to prefix counters. Not
+      currently used in Dataflow.
     instructions: The instructions in the MapTask.
     stageName: System-defined name of the stage containing this MapTask.
       Unique across the workflow.
@@ -2656,9 +2658,10 @@ class MapTask(_messages.Message):
       workflow.
   """
 
-  instructions = _messages.MessageField('ParallelInstruction', 1, repeated=True)
-  stageName = _messages.StringField(2)
-  systemName = _messages.StringField(3)
+  counterPrefix = _messages.StringField(1)
+  instructions = _messages.MessageField('ParallelInstruction', 2, repeated=True)
+  stageName = _messages.StringField(3)
+  systemName = _messages.StringField(4)
 
 
 class MetricShortId(_messages.Message):
