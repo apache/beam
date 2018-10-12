@@ -45,7 +45,6 @@ _PYTHON_RPC_DIRECT_RUNNER = (
     'apache_beam.runners.experimental.python_rpc_direct.'
     'python_rpc_direct_runner.')
 _PORTABLE_RUNNER_PATH = ('apache_beam.runners.portability.portable_runner.')
-_SAMZA_RUNNER_PATH = ('apache_beam.runners.portability.samza_portable_runner.')
 
 _KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
@@ -53,7 +52,6 @@ _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner', 'TestDirectRunner')
 _KNOWN_PORTABLE_RUNNERS = ('PortableRunner',)
-_KNOWN_SAMZA_RUNNERS = ('SamzaPortableRunner',)
 
 _RUNNER_MAP = {}
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
@@ -66,11 +64,9 @@ _RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
                                    _TEST_RUNNER_PATH))
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_PORTABLE_RUNNERS,
                                    _PORTABLE_RUNNER_PATH))
-_RUNNER_MAP.update(_get_runner_map(_KNOWN_SAMZA_RUNNERS,
-                                   _SAMZA_RUNNER_PATH))
 
 _ALL_KNOWN_RUNNERS = (
-    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS + _KNOWN_SAMZA_RUNNERS +
+    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS +
     _KNOWN_PORTABLE_RUNNERS)
 
 

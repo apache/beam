@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -64,6 +63,7 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.direct.portable.artifact.UnsupportedArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -77,7 +77,6 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.PassiveEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
@@ -89,44 +88,30 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 /** The "ReferenceRunner" engine implementation. */
 public class ReferenceRunner {
-  private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunner.class);
-
-  private final static String SINGLE_WORKER_ID = PassiveEnvironmentFactory.SINGLE_WORKER_ID;
   private final RunnerApi.Pipeline pipeline;
   private final Struct options;
   @Nullable private final File artifactsDir;
 
   private final EnvironmentType environmentType;
-  private final int controlPort;
 
   private ReferenceRunner(
-      Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType, int controlPort) {
+      Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType) {
     this.pipeline = executable(p);
     this.options = options;
     this.artifactsDir = artifactsDir;
     this.environmentType = environmentType;
-    this.controlPort = controlPort;
   }
 
   public static ReferenceRunner forPipeline(
       RunnerApi.Pipeline p, Struct options, File artifactsDir) {
-    return new ReferenceRunner(p, options, artifactsDir, EnvironmentType.DOCKER, -1);
+    return new ReferenceRunner(p, options, artifactsDir, EnvironmentType.DOCKER);
   }
 
-  @VisibleForTesting
   static ReferenceRunner forInProcessPipeline(RunnerApi.Pipeline p, Struct options) {
-    return new ReferenceRunner(p, options, null, EnvironmentType.IN_PROCESS, -1);
-  }
-
-  // see comments for EnvironmentType.PASSIVE
-  public static ReferenceRunner forPassivePipeline(RunnerApi.Pipeline p, Struct options, int controlPort) {
-    return new ReferenceRunner(p, options, null, EnvironmentType.PASSIVE, controlPort);
+    return new ReferenceRunner(p, options, null, EnvironmentType.IN_PROCESS);
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
@@ -144,8 +129,6 @@ public class ReferenceRunner {
 
     p = foldFeedSDFIntoExecutableStage(p);
     PipelineValidator.validate(p);
-
-    LOG.info(PortablePipelineDotRenderer.toDotString(p));
 
     return p;
   }
@@ -188,7 +171,6 @@ public class ReferenceRunner {
     try (GrpcFnServer<GrpcLoggingService> logging =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-
         GrpcFnServer<ArtifactRetrievalService> artifact =
             artifactsDir == null
                 ? GrpcFnServer.allocatePortAndCreateFor(
@@ -196,31 +178,21 @@ public class ReferenceRunner {
                 : GrpcFnServer.allocatePortAndCreateFor(
                     LocalFileSystemArtifactRetrievalService.forRootDirectory(artifactsDir),
                     serverFactory);
-
         GrpcFnServer<StaticGrpcProvisionService> provisioning =
             GrpcFnServer.allocatePortAndCreateFor(
                 StaticGrpcProvisionService.create(provisionInfo), serverFactory);
-
         GrpcFnServer<FnApiControlClientPoolService> control =
-            GrpcFnServer.create(
+            GrpcFnServer.allocatePortAndCreateFor(
                 FnApiControlClientPoolService.offeringClientsToPool(
                     controlClientPool.getSink(),
-                    () -> SINGLE_WORKER_ID),
-                Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:" + controlPort).build(),
+                    GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
                 serverFactory);
-
         GrpcFnServer<GrpcDataService> data =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
                 serverFactory);
-
         GrpcFnServer<GrpcStateService> state =
-            GrpcFnServer.create(GrpcStateService.create(),
-                Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:10088").build(),
-                serverFactory)){
-      LOG.info("control endpoint: {}", control.getApiServiceDescriptor().getUrl());
-      LOG.info("data endpoint: {}", data.getApiServiceDescriptor().getUrl());
-      LOG.info("state endpoint: {}", state.getApiServiceDescriptor().getUrl());
+            GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 
       EnvironmentFactory environmentFactory =
           createEnvironmentFactory(
@@ -238,22 +210,16 @@ public class ReferenceRunner {
       ExecutorServiceParallelExecutor executor =
           ExecutorServiceParallelExecutor.create(
               targetParallelism, rootRegistry, transformRegistry, graph, ctxt);
-      System.out.println("Starting Reference Runner.");
       executor.start();
       executor.waitUntilFinish(Duration.ZERO);
-    } catch (Exception e) {
-      System.err.println("Failed to execute Reference Runner. Shutting down...");
-      e.printStackTrace(System.err);
     } finally {
       dataExecutor.shutdown();
-      System.out.println("Reference Runner exits");
     }
   }
 
   private ServerFactory createServerFactory() {
     switch (environmentType) {
       case DOCKER:
-      case PASSIVE:
         return ServerFactory.createDefault();
       case IN_PROCESS:
         return InProcessServerFactory.create();
@@ -281,13 +247,6 @@ public class ReferenceRunner {
       case IN_PROCESS:
         return InProcessEnvironmentFactory.create(
             PipelineOptionsFactory.create(), logging, control, controlClientSource);
-      case PASSIVE:
-        return PassiveEnvironmentFactory.forServices(
-            control,
-            logging,
-            artifact,
-            provisioning,
-            controlClientSource);
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));
@@ -590,11 +549,6 @@ public class ReferenceRunner {
 
   private enum EnvironmentType {
     DOCKER,
-    IN_PROCESS,
-    // Similar to https://github.com/apache/beam/pull/6287/files but with slightly different mechanism
-    // Here we expect the job runner itself to be started by the sdk worker process. So this environment
-    // just passively awaits to be connected instead of actively create a docker or local process.
-    // This will be migrated to samza runner
-    PASSIVE
+    IN_PROCESS
   }
 }

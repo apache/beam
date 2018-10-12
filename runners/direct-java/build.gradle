@@ -67,13 +67,13 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.args4j
-  shadow library.java.slf4j_jdk14
   provided library.java.hamcrest_core
   provided library.java.junit
   testRuntime project(path: ":beam-sdks-java-harness")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
+  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.stax2_api
   shadowTest library.java.woodstox_core_asl

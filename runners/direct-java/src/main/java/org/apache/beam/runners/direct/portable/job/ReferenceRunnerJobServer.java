@@ -68,7 +68,7 @@ public class ReferenceRunnerJobServer {
 
   private static void runServer(ServerConfiguration configuration) throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
-    ReferenceRunnerJobService service = ReferenceRunnerJobService.create(serverFactory, configuration.control_port);
+    ReferenceRunnerJobService service = ReferenceRunnerJobService.create(serverFactory);
     try (GrpcFnServer<ReferenceRunnerJobService> server =
         createServer(configuration, serverFactory, service)) {
       System.out.println(
@@ -93,7 +93,7 @@ public class ReferenceRunnerJobServer {
   public String start() throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
     server =
-        createServer(configuration, serverFactory, ReferenceRunnerJobService.create(serverFactory, -1));
+        createServer(configuration, serverFactory, ReferenceRunnerJobService.create(serverFactory));
 
     return server.getApiServiceDescriptor().getUrl();
   }
@@ -113,28 +113,21 @@ public class ReferenceRunnerJobServer {
       ServerFactory serverFactory,
       ReferenceRunnerJobService service)
       throws IOException {
-    if (configuration.job_port < 0) {
+    if (configuration.port < 0) {
       return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     }
     return GrpcFnServer.create(
         service,
-        ApiServiceDescriptor.newBuilder().setUrl("localhost:" + configuration.job_port).build(),
+        ApiServiceDescriptor.newBuilder().setUrl("localhost:" + configuration.port).build(),
         serverFactory);
   }
 
   private static class ServerConfiguration {
     @Option(
-      name = "-jp",
-      aliases = {"--job-submission-port"},
+      name = "-p",
+      aliases = {"--port"},
       usage = "The local port to expose the server on"
     )
-    private int job_port = -1;
-
-    @Option(
-        name = "-cp",
-        aliases = {"--control-port"},
-        usage = "The local port for the control api"
-    )
-    private int control_port = -1;
+    private int port = -1;
   }
 }

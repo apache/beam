@@ -660,11 +660,6 @@ class PortableOptions(PipelineOptions):
                         help=
                         ('Docker image to use for executing Python code '
                          'in the pipeline when running using the Fn API.'))
-    parser.add_argument('--control_endpoint',
-                        default=None,
-                        help=
-                        ('Control endpoint for Fn API. Should be in the form '
-                         'of address and port, e.g. localhost:4000'))
 
 
 class TestOptions(PipelineOptions):
