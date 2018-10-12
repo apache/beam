@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import argparse
-import logging
 from builtins import list
 from builtins import object
 
@@ -214,19 +213,7 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, unknown_args = parser.parse_known_args(self._flags)
-    # Parse args which are not known at this point but might be recognized
-    # at a later point in time, i.e. by the actual Runner.
-    if unknown_args and unknown_args[0] != '':
-      logging.info("Parsing unknown args: %s", unknown_args)
-      for arg in unknown_args:
-        if arg.startswith('--'):
-          parser.add_argument(arg.split('=', 1)[0], nargs='?')
-      # repeat parsing with unknown options added
-      known_args, unknown_args = parser.parse_known_args(self._flags)
-      if unknown_args:
-        logging.warn("Discarding unparseable args: %s", unknown_args)
-
+    known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
 
     # Apply the overrides if any
