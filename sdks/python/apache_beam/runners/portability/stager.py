@@ -408,7 +408,7 @@ class Stager(object):
         ':all:'
     ]
     logging.info('Executing command: %s', cmd_args)
-    processes.check_call(cmd_args)
+    processes.check_output(cmd_args)
 
   @staticmethod
   def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
@@ -421,7 +421,7 @@ class Stager(object):
             os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
         ]
       logging.info('Executing command: %s', build_setup_args)
-      processes.check_call(build_setup_args)
+      processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
@@ -549,7 +549,7 @@ class Stager(object):
 
     logging.info('Executing command: %s', cmd_args)
     try:
-      processes.check_call(cmd_args)
+      processes.check_output(cmd_args)
     except subprocess.CalledProcessError as e:
       raise RuntimeError(repr(e))
 
