@@ -25,7 +25,6 @@ from __future__ import absolute_import
 
 import itertools
 import logging
-import time
 
 from google.protobuf import wrappers_pb2
 
@@ -265,12 +264,11 @@ class _DirectReadFromPubSub(PTransform):
 
 
 class _DirectWriteToPubSubFn(DoFn):
-  BUFFER_SIZE_ELEMENTS = 100
-  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
+  _topic = None
 
   def __init__(self, sink):
     self.project = sink.project
-    self.short_topic_name = sink.topic_name
+    self.topic_name = sink.topic_name
     self.id_label = sink.id_label
     self.timestamp_attribute = sink.timestamp_attribute
     self.with_attributes = sink.with_attributes
@@ -284,33 +282,30 @@ class _DirectWriteToPubSubFn(DoFn):
                                 'supported for PubSub writes')
 
   def start_bundle(self):
+    from google.cloud import pubsub
+
+    if self._topic is None:
+      self._topic = pubsub.Client(project=self.project).topic(
+          self.topic_name)
     self._buffer = []
 
   def process(self, elem):
     self._buffer.append(elem)
-    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
+    if len(self._buffer) >= 100:
       self._flush()
 
   def finish_bundle(self):
     self._flush()
 
   def _flush(self):
-    from google.cloud import pubsub
-    pub_client = pubsub.PublisherClient()
-    topic = pub_client.topic_path(self.project, self.short_topic_name)
-
-    if self.with_attributes:
-      futures = [pub_client.publish(topic, elem.data, **elem.attributes)
-                 for elem in self._buffer]
-    else:
-      futures = [pub_client.publish(topic, elem)
-                 for elem in self._buffer]
-
-    timer_start = time.time()
-    for future in futures:
-      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
-      future.result(remaining)
-    self._buffer = []
+    if self._buffer:
+      with self._topic.batch() as batch:
+        for elem in self._buffer:
+          if self.with_attributes:
+            batch.publish(elem.data, **elem.attributes)
+          else:
+            batch.publish(elem)
+      self._buffer = []
 
 
 def _get_pubsub_transform_overrides(pipeline_options):

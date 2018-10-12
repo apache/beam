@@ -52,31 +52,31 @@ class StreamingWordCountIT(unittest.TestCase):
 
     # Set up PubSub environment.
     from google.cloud import pubsub
-    self.pub_client = pubsub.PublisherClient()
-    self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
-    self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
+    self.pubsub_client = pubsub.Client(project=self.project)
+    self.input_topic = self.pubsub_client.topic(INPUT_TOPIC + self.uuid)
+    self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC + self.uuid)
+    self.input_sub = self.input_topic.subscription(INPUT_SUB + self.uuid)
+    self.output_sub = self.output_topic.subscription(OUTPUT_SUB + self.uuid)
 
-    self.sub_client = pubsub.SubscriberClient()
-    self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, INPUT_SUB + self.uuid),
-        self.input_topic.name)
-    self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+    self.input_topic.create()
+    self.output_topic.create()
+    test_utils.wait_for_topics_created([self.input_topic, self.output_topic])
+    self.input_sub.create()
+    self.output_sub.create()
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
-    logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
+    logging.debug('Injecting %d numbers to topic %s',
+                  num_messages, topic.full_name)
     for n in range(num_messages):
-      self.pub_client.publish(self.input_topic.name, str(n))
+      topic.publish(str(n))
+
+  def _cleanup_pubsub(self):
+    test_utils.cleanup_subscriptions([self.input_sub, self.output_sub])
+    test_utils.cleanup_topics([self.input_topic, self.output_topic])
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    self._cleanup_pubsub()
 
   @attr('IT')
   def test_streaming_wordcount_it(self):
@@ -86,16 +86,17 @@ class StreamingWordCountIT(unittest.TestCase):
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     pubsub_msg_verifier = PubSubMessageMatcher(self.project,
-                                               self.output_sub.name,
+                                               OUTPUT_SUB + self.uuid,
                                                expected_msg,
                                                timeout=400)
-    extra_opts = {'input_subscription': self.input_sub.name,
-                  'output_topic': self.output_topic.name,
+    extra_opts = {'input_subscription': self.input_sub.full_name,
+                  'output_topic': self.output_topic.full_name,
                   'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
                   'on_success_matcher': all_of(state_verifier,
                                                pubsub_msg_verifier)}
 
     # Generate input data and inject to PubSub.
+    test_utils.wait_for_subscriptions_created([self.input_sub])
     self._inject_numbers(self.input_topic, DEFAULT_INPUT_NUMBERS)
 
     # Get pipeline options from command argument: --test-pipeline-options,
