@@ -67,11 +67,16 @@ type extractFn struct {
 	MinLength int `json:"min_length"`
 }
 
+// A global context for simplicity.
+var ctx = context.Background()
+
 func (f *extractFn) ProcessElement(row WordRow, emit func(string, string)) {
+	small_words := beam.NewCounter("example.namespace", "small_words")
 	if len(row.Word) >= f.MinLength {
 		emit(row.Word, row.Corpus)
+	} else {
+		small_words.Inc(ctx, 1)
 	}
-	// TODO(herohde) 7/14/2017: increment counter for "small words"
 }
 
 // TODO(herohde) 7/14/2017: the choice of a string (instead of []string) for the
