@@ -56,8 +56,8 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_work_count_default_value(self):
     self._check_worker_count('{}', 12)
 
-  def test_parse_pipeline_options(self):
-    expected_options = PipelineOptions([])
+  def test_parse_pipeine_options(self):
+    expected_options = PipelineOptions()
     expected_options.view_as(
         SdkWorkerMainTest.MockOptions).m_m_option = [
             'worker_threads=1', 'beam_fn_api'
