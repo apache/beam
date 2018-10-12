@@ -139,7 +139,7 @@ createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerW
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
 def getBaseUrl() {
-  project.findProperty('githubPullRequestId')?.trim() ?: 'latest'
+  System.getenv('ghprbPullId')?.trim() ?: 'latest'
 }
 def buildContentDir(name) {
   "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
@@ -255,7 +255,7 @@ publishWebsite.dependsOn commitWebsite
 /*
  * Stages a pull request on GCS
  * For example:
- *   ./gradlew :beam-website:stageWebsite -PgithubPullRequestId=${ghprbPullId} -PwebsiteBucket=foo
+ *   ./gradlew :beam-website:stageWebsite -PwebsiteBucket=foo
  */
 task stageWebsite << {
   def baseUrl = getBaseUrl()
