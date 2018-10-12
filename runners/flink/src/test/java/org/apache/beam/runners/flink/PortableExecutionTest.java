@@ -30,25 +30,16 @@ import java.util.Collections;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
-import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
-import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
-import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
-import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -80,31 +71,8 @@ public class PortableExecutionTest implements Serializable {
 
   private transient ListeningExecutorService flinkJobExecutor;
 
-  private DockerJobBundleFactory createJobBundleFactory(JobInfo jobInfo) throws Exception {
-    return new DockerJobBundleFactory(jobInfo) {
-
-      @Override
-      protected ServerFactory getServerFactory() {
-        return InProcessServerFactory.create();
-      }
-
-      @Override
-      protected EnvironmentFactory getEnvironmentFactory(
-          GrpcFnServer<FnApiControlClientPoolService> controlServer,
-          GrpcFnServer<GrpcLoggingService> loggingServer,
-          GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-          GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-          Source clientSource,
-          IdGenerator idGenerator) {
-        return InProcessEnvironmentFactory.create(
-            PipelineOptionsFactory.create(), loggingServer, controlServer, clientSource);
-      }
-    };
-  }
-
   @Before
   public void setup() {
-    DockerJobBundleFactory.FACTORY.set(this::createJobBundleFactory);
     flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
   }
 
@@ -117,7 +85,14 @@ public class PortableExecutionTest implements Serializable {
 
   @Test
   public void testExecution() throws Exception {
-    Pipeline p = Pipeline.create();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(CrashingRunner.class);
+    options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
+    options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
+    options
+        .as(PortablePipelineOptions.class)
+        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    Pipeline p = Pipeline.create(options);
     p.apply("impulse", Impulse.create())
         .apply(
             "create",
@@ -158,16 +133,13 @@ public class PortableExecutionTest implements Serializable {
 
     outputValues.clear();
     // execute the pipeline
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-    options.setFlinkMaster("[local]");
-    options.setStreaming(isStreaming);
     FlinkJobInvocation jobInvocation =
         FlinkJobInvocation.create(
             "fakeId",
             "fakeRetrievalToken",
             flinkJobExecutor,
             pipelineProto,
-            options,
+            options.as(FlinkPipelineOptions.class),
             Collections.EMPTY_LIST);
     jobInvocation.start();
     long timeout = System.currentTimeMillis() + 60 * 1000;

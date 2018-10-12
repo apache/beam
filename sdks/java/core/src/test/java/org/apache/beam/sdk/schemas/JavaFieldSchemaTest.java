@@ -112,10 +112,10 @@ public class JavaFieldSchemaTest {
 
     assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString("str"));
-    assertEquals((byte) 1, row.getByte("aByte"));
-    assertEquals((short) 2, row.getInt16("aShort"));
-    assertEquals((int) 3, row.getInt32("anInt"));
-    assertEquals((long) 4, row.getInt64("aLong"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
     assertEquals(true, row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(INSTANT, row.getDateTime("instant").toInstant());
@@ -166,10 +166,10 @@ public class JavaFieldSchemaTest {
 
     Row nestedRow = row.getRow("nested");
     assertEquals("string", nestedRow.getString("str"));
-    assertEquals((byte) 1, nestedRow.getByte("aByte"));
-    assertEquals((short) 2, nestedRow.getInt16("aShort"));
-    assertEquals((int) 3, nestedRow.getInt32("anInt"));
-    assertEquals((long) 4, nestedRow.getInt64("aLong"));
+    assertEquals((byte) 1, (Object) nestedRow.getByte("aByte"));
+    assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
+    assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
+    assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
     assertEquals(true, nestedRow.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
     assertEquals(INSTANT, nestedRow.getDateTime("instant").toInstant());
@@ -354,7 +354,7 @@ public class JavaFieldSchemaTest {
     Row row =
         registry.getToRowFunction(POJOWithNullables.class).apply(new POJOWithNullables(null, 42));
     assertNull(row.getString("str"));
-    assertEquals(42, row.getInt32("anInt"));
+    assertEquals(42, (Object) row.getInt32("anInt"));
   }
 
   @Test

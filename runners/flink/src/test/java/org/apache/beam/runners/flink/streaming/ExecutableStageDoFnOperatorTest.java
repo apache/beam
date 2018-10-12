@@ -284,6 +284,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     operator.close();
     verify(stageBundleFactory).close();
+    verify(stageContext).close();
     verifyNoMoreInteractions(stageBundleFactory);
 
     testHarness.close();
@@ -317,6 +318,8 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
 
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
@@ -329,10 +332,10 @@ public class ExecutableStageDoFnOperatorTest {
             Collections.emptyMap() /* sideInputTagMapping */,
             Collections.emptyList() /* sideInputs */,
             Collections.emptyMap() /* sideInputId mapping */,
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            options,
             stagePayload,
             jobInfo,
-            FlinkExecutableStageContext.batchFactory(),
+            FlinkExecutableStageContext.factory(options),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)));
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);

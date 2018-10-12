@@ -31,7 +31,7 @@ import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -76,7 +76,7 @@ public class BundleFactoryOutputReceiverFactoryTest {
     PCollection<Integer> bar = p.apply("bar", Create.of(1, 2, 3));
 
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     String fooId = sdkComponents.registerPCollection(foo);
     String barId = sdkComponents.registerPCollection(bar);
     baseComponents = sdkComponents.toComponents();

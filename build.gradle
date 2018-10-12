@@ -63,6 +63,7 @@ buildscript {
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
+    classpath "org.ajoberstar.grgit:grgit-gradle:3.0.0-beta.1"                                          // Enable website git publish to asf-site branch
 
     // Plugins which require online access should not be enabled when running in offline mode.
     if (!gradle.startParameter.isOffline()) {
@@ -116,7 +117,7 @@ rat {
 
   def exclusions = [
     // Ignore files we track but do not distribute
-    ".github/**/*",
+    "**/.github/**/*",
 
     "**/package-list",
     "**/user.avsc",
@@ -150,6 +151,9 @@ rat {
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",
+
+    // Json doesn't support comments.
+    "**/*.json",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -183,6 +187,8 @@ task javaPreCommit() {
   dependsOn ":beam-model-pipeline:build"
   dependsOn ":beam-model-job-management:build"
   dependsOn ":beam-model-fn-execution:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
@@ -209,8 +215,6 @@ task goPreCommit() {
   dependsOn ":beam-sdks-java-container:build"
   dependsOn ":beam-sdks-python-container:build"
   dependsOn ":beam-sdks-go-container:build"
-  dependsOn ":beam-runners-gcp-gcemd:build"
-  dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {
@@ -226,6 +230,7 @@ task goIntegrationTests() {
     }
   }
   dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
 }
 
 task pythonPreCommit() {

@@ -46,6 +46,7 @@ import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
@@ -132,6 +133,12 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
             PTransformOverride.of(
                 PTransformMatchers.splittableProcessKeyedUnbounded(),
                 new SplittableParDoViaKeyedWorkItems.OverrideFactory<>()))
+        // TODO: [BEAM-5360] Support @RequiresStableInput on Apex runner
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.requiresStableInputParDoMulti(),
+                UnsupportedOverrideFactory.withMessage(
+                    "Apex runner currently doesn't support @RequiresStableInput annotation.")))
         .build();
   }
 

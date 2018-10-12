@@ -63,11 +63,12 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:iterable:v1': lambda t: coders.IterableCoder(t),
       'beam:coder:global_window:v1': coders.GlobalWindowCoder,
       'beam:coder:windowed_value:v1':
-          lambda v, w: coders.WindowedValueCoder(v, w)
+          lambda v, w: coders.WindowedValueCoder(v, w),
+      'beam:coder:timer:v1': coders._TimerCoder,
   }
 
   _urn_to_json_value_parser = {
-      'beam:coder:bytes:v1': lambda x: x,
+      'beam:coder:bytes:v1': lambda x: x.encode('utf-8'),
       'beam:coder:varint:v1': lambda x: x,
       'beam:coder:kv:v1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
@@ -81,7 +82,11 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:windowed_value:v1':
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
-              tuple([window_parser(w) for w in x['windows']]))
+              tuple([window_parser(w) for w in x['windows']])),
+      'beam:coder:timer:v1':
+          lambda x, payload_parser: dict(
+              payload=payload_parser(x['payload']),
+              timestamp=Timestamp(micros=x['timestamp'])),
   }
 
   def test_standard_coders(self):

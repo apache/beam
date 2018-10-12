@@ -204,17 +204,28 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerDriver
     // A string representing the jobServer Configuration.
     String jobServerConfig
+    // Number of parallel test runs.
+    Integer parallelism = 1
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      //SplitableDoFnTests
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
@@ -301,7 +312,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.18.0"
     def google_cloud_bigdataoss_version = "1.9.0"
     def bigtable_version = "1.4.0"
-    def google_clients_version = "1.23.0"
+    def google_clients_version = "1.24.1"
     def google_auth_version = "0.10.0"
     def grpc_version = "1.13.1"
     def protobuf_version = "3.6.0"
@@ -311,7 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
     def jackson_version = "2.9.5"
-    def spark_version = "2.3.1"
+    def spark_version = "2.3.2"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
     def postgres_version = "42.2.2"
@@ -356,12 +367,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.6.0",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev374-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev233-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev477-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev221-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev382-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev124-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev402-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev253-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev502-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev257-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev399-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev136-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
@@ -679,6 +690,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
 
+      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
+
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
       // is expected to be used for the different Gradle configurations.
@@ -770,10 +783,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Create a task which emulates the maven-archiver plugin in generating a
         // pom.properties file.
+        def pomPropertiesFile = "${project.buildDir}/publications/mavenJava/pom.properties"
         project.task('generatePomPropertiesFileForMavenJavaPublication') {
-          outputs.file "${project.buildDir}/publications/mavenJava/pom.properties"
+          outputs.file "${pomPropertiesFile}"
           doLast {
-            new File("${project.buildDir}/publications/mavenJava/pom.properties").text =
+            new File("${pomPropertiesFile}").text =
                     """version=${project.version}
 groupId=${project.group}
 artifactId=${project.name}
@@ -784,10 +798,23 @@ artifactId=${project.name}
         // Have the shaded include both the generate pom.xml and its properties file
         // emulating the behavior of the maven-archiver plugin.
         project.shadowJar {
+          def pomFile = "${project.buildDir}/publications/mavenJava/pom-default.xml"
+
+          // Validate that the artifacts exist before copying them into the jar.
+          doFirst {
+            if (!project.file("${pomFile}").exists()) {
+              throw new GradleException("Expected ${pomFile} to have been generated by the 'generatePomFileForMavenJavaPublication' task.")
+            }
+            if (!project.file("${pomPropertiesFile}").exists()) {
+              throw new GradleException("Expected ${pomPropertiesFile} to have been generated by the 'generatePomPropertiesFileForMavenJavaPublication' task.")
+            }
+          }
+
           dependsOn 'generatePomFileForMavenJavaPublication'
-          into("META-INF/maven/${project.group}/${project.name}") { from "${project.buildDir}/publications/mavenJava/pom.xml" }
+          into("META-INF/maven/${project.group}/${project.name}") { from "${pomFile}" }
+
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
-          into("META-INF/maven/${project.group}/${project.name}") { from "${project.buildDir}/publications/mavenJava/pom.properties" }
+          into("META-INF/maven/${project.group}/${project.name}") { from "${pomPropertiesFile}" }
         }
 
         // Only build artifacts for archives if we are publishing
@@ -1092,6 +1119,17 @@ artifactId=${project.name}
 
         if (runner?.equalsIgnoreCase('flink')) {
           testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
+        }
+
+        if (runner?.equalsIgnoreCase('spark')) {
+          testCompile it.project(path: ":beam-runners-spark", configuration: 'shadowTest')
+          testCompile project.library.java.spark_core
+          testCompile project.library.java.spark_streaming
+
+          // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+          project.configurations.testRuntimeClasspath {
+            exclude group: "org.slf4j", module: "slf4j-jdk14"
+          }
         }
 
         /* include dependencies required by filesystems */
@@ -1457,7 +1495,7 @@ artifactId=${project.name}
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = config.testClasspathConfiguration
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
-        maxParallelForks 1
+        maxParallelForks config.parallelism
         useJUnit(config.testCategories)
       }
     }

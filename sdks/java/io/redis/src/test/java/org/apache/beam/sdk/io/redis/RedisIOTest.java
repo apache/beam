@@ -57,6 +57,32 @@ public class RedisIOTest {
     embeddedRedis.close();
   }
 
+  private ArrayList<KV<String, String>> ingestData(String prefix, int numKeys) {
+    ArrayList<KV<String, String>> data = new ArrayList<>();
+    for (int i = 0; i < numKeys; i++) {
+      KV<String, String> kv = KV.of(prefix + "-key " + i, "value " + i);
+      data.add(kv);
+    }
+    PCollection<KV<String, String>> write = writePipeline.apply(Create.of(data));
+    write.apply(RedisIO.write().withEndpoint("::1", embeddedRedis.getPort()));
+    writePipeline.run();
+    return data;
+  }
+
+  @Test
+  public void testBulkRead() throws Exception {
+    ArrayList<KV<String, String>> data = ingestData("bulkread", 100);
+    PCollection<KV<String, String>> read =
+        readPipeline.apply(
+            "Read",
+            RedisIO.read()
+                .withEndpoint("::1", embeddedRedis.getPort())
+                .withKeyPattern("bulkread*")
+                .withBatchSize(10));
+    PAssert.that(read).containsInAnyOrder(data);
+    readPipeline.run();
+  }
+
   @Test
   public void testWriteReadUsingDefaultAppendMethod() throws Exception {
     ArrayList<KV<String, String>> data = new ArrayList<>();
@@ -86,6 +112,13 @@ public class RedisIOTest {
     PAssert.thatSingleton(readNotMatch.apply(Count.globally())).isEqualTo(0L);
 
     readPipeline.run();
+  }
+
+  @Test
+  public void testConfiguration() {
+    RedisIO.Write writeOp = RedisIO.write().withEndpoint("test", 111);
+    Assert.assertEquals(111, writeOp.connectionConfiguration().port());
+    Assert.assertEquals("test", writeOp.connectionConfiguration().host());
   }
 
   @Test

@@ -49,6 +49,7 @@ pip install mock jira pyyaml
 cd $WORKSPACE/src/.test-infra/jenkins
 python -m dependency_check.dependency_check_report_generator_test
 python -m jira_utils.jira_manager_test
+python -m dependency_check.version_comparer_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 

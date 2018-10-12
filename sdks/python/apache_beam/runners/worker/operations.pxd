@@ -70,11 +70,20 @@ cdef class ReadOperation(Operation):
   cpdef start(self)
 
 
+cdef class ImpulseReadOperation(Operation):
+  cdef object source
+  @cython.locals(windowed_value=WindowedValue)
+  cpdef process(self, WindowedValue impulse)
+
+
 cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
   cdef object tagged_receivers
   cdef object side_input_maps
+  cdef object user_state_context
+  cdef public dict timer_inputs
+  cdef dict timer_specs
 
 
 cdef class CombineOperation(Operation):

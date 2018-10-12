@@ -16,17 +16,18 @@
 # limitations under the License.
 #
 
-import sys
+import dependency_check.version_comparer as version_comparer
+import logging
 import os.path
 import re
-import traceback
-import logging
 import requests
-import time
+import sys
+import traceback
+
 from datetime import datetime
 from dependency_check.bigquery_client_utils import BigQueryClientUtils
-from jira_utils.jira_manager import JiraManager
 from dependency_check.report_generator_config import ReportGeneratorConfig
+from jira_utils.jira_manager import JiraManager
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -135,11 +136,12 @@ def prioritize_dependencies(deps, sdk_type):
                           latest_ver,
                           curr_release_date,
                           latest_release_date)
-      if (compare_dependency_versions(curr_ver, latest_ver) or
+      if (version_comparer.compare_dependency_versions(curr_ver, latest_ver) or
           compare_dependency_release_dates(curr_release_date, latest_release_date)):
         # Create a new issue or update on the existing issue
-        jira_issue = jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
-        if (jira_issue.fields.status.name == 'Open' or jira_issue.fields.status.name == 'Reopened'):
+        jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
+        if (jira_issue.fields.status.name == 'Open' or
+            jira_issue.fields.status.name == 'Reopened'):
           dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
             ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
             jira_issue.key)
@@ -151,39 +153,6 @@ def prioritize_dependencies(deps, sdk_type):
 
   bigquery_client.clean_stale_records_from_table()
   return high_priority_deps
-
-
-def compare_dependency_versions(curr_ver, latest_ver):
-  """
-  Compare the current using version and the latest version.
-  Return true if a major version change was found, or 3 minor versions that the current version is behind.
-  Args:
-    curr_ver
-    latest_ver
-  Return:
-    boolean
-  """
-  if curr_ver is None or latest_ver is None:
-    return True
-  else:
-    curr_ver_splitted = curr_ver.split('.')
-    latest_ver_splitted = latest_ver.split('.')
-    curr_major_ver = curr_ver_splitted[0]
-    latest_major_ver = latest_ver_splitted[0]
-    # compare major versions
-    if curr_major_ver != latest_major_ver:
-      return True
-    # compare minor versions
-    else:
-      curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
-      latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
-      if curr_minor_ver is not None and latest_minor_ver is not None:
-        if (not curr_minor_ver.isdigit() or not latest_minor_ver.isdigit()) and curr_minor_ver != latest_minor_ver:
-          return True
-        elif int(curr_minor_ver) + ReportGeneratorConfig.MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
-          return True
-    # TODO: Comparing patch versions if needed.
-  return False
 
 
 def find_release_time_from_maven_central(group_id, artifact_id, version):

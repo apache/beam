@@ -529,13 +529,17 @@ public class DataflowPipelineTranslator {
 
     @Override
     public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-      parents.addFirst(node);
+      if (!node.isRootNode()) {
+        parents.addFirst(node);
+      }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
     public void leaveCompositeTransform(TransformHierarchy.Node node) {
-      parents.removeFirst();
+      if (!node.isRootNode()) {
+        parents.removeFirst();
+      }
     }
 
     @Override

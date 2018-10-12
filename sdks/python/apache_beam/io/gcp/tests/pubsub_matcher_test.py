@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import unittest
 
 import mock
@@ -39,6 +40,12 @@ except ImportError:
 
 @unittest.skipIf(pubsub is None, 'PubSub dependencies are not installed.')
 class PubSubMatcherTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.mock_presult = mock.MagicMock()
@@ -136,7 +143,7 @@ class PubSubMatcherTest(unittest.TestCase):
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
-    self.assertItemsEqual(['c', 'd'], self.pubsub_matcher.messages)
+    self.assertCountEqual(['c', 'd'], self.pubsub_matcher.messages)
     self.assertTrue(
         '\nExpected: Expected 1 messages.\n     but: Got 2 messages.'
         in str(error.exception.args[0]))

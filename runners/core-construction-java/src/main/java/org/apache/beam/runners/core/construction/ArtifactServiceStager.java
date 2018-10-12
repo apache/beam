@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,11 +58,15 @@ import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
 import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {
   // 2 MB per file-request
   private static final int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
+
+  private static final Logger LOG = LoggerFactory.getLogger(ArtifactServiceStager.class);
 
   public static ArtifactServiceStager overChannel(Channel channel) {
     return overChannel(channel, DEFAULT_BUFFER_SIZE);
@@ -94,9 +99,10 @@ public class ArtifactServiceStager {
    *
    * @return The artifact staging token returned by the service
    */
-  public String stage(String stagingSessionToken, Iterable<StagedFile> files)
+  public String stage(String stagingSessionToken, Collection<StagedFile> files)
       throws IOException, InterruptedException {
     final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
+    LOG.info("Staging {} files (token: {})", files.size(), stagingSessionToken);
     for (StagedFile file : files) {
       futures.put(
           file,
@@ -114,6 +120,8 @@ public class ArtifactServiceStager {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
       if (stagingResult.isSuccess()) {
+        LOG.info(
+            "Staged {} files (token: {})", stagingResult.getMetadata().size(), stagingSessionToken);
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
         CommitManifestResponse response =

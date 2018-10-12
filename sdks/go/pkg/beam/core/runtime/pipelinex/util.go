@@ -16,6 +16,7 @@
 package pipelinex
 
 import pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+import "github.com/golang/protobuf/proto"
 
 // Bounded returns true iff all PCollections are bounded.
 func Bounded(p *pb.Pipeline) bool {
@@ -32,7 +33,10 @@ func Bounded(p *pb.Pipeline) bool {
 func ContainerImages(p *pb.Pipeline) []string {
 	var ret []string
 	for _, t := range p.GetComponents().GetEnvironments() {
-		ret = append(ret, t.Url)
+		// TODO(angoenka) 09/14/2018 Check t.Urn before parsing the payload.
+		var payload pb.DockerPayload
+		proto.Unmarshal(t.GetPayload(), &payload)
+		ret = append(ret, payload.ContainerImage)
 	}
 	return ret
 }

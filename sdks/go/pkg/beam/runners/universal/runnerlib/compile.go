@@ -35,9 +35,6 @@ import (
 // IsWorkerCompatibleBinary returns the path to itself and true if running
 // a linux-amd64 binary that can directly be used as a worker binary.
 func IsWorkerCompatibleBinary() (string, bool) {
-	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-		return os.Args[0], true
-	}
 	return "", false
 }
 

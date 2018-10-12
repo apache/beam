@@ -48,6 +48,7 @@ test {
 
 configurations {
   validatesRunner
+  coreSDKJavaIntegrationTest
   examplesJavaIntegrationTest
   googleCloudPlatformIntegrationTest
 }
@@ -89,6 +90,8 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner library.java.hamcrest_core
   validatesRunner library.java.hamcrest_library
+  coreSDKJavaIntegrationTest project(path: project.path, configuration: "shadow")
+  coreSDKJavaIntegrationTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
   examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
   googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
@@ -147,6 +150,7 @@ task googleCloudPlatformIntegrationTest(type: Test) {
   ])
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
   exclude '**/PubsubReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -175,11 +179,29 @@ task examplesJavaIntegrationTest(type: Test) {
   useJUnit { }
 }
 
+task coreSDKJavaIntegrationTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.coreSDKJavaIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformIntegrationTest
   dependsOn examplesJavaIntegrationTest
+  dependsOn coreSDKJavaIntegrationTest
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

@@ -54,7 +54,7 @@ import org.hamcrest.Matchers;
  * iterable is undefined, use a matcher like {@code kv(equalTo("some key"), containsInAnyOrder(1, 2,
  * 3))}.
  */
-class SerializableMatchers implements Serializable {
+public class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
   private SerializableMatchers() {} // not instantiable

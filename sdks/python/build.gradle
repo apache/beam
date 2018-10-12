@@ -80,6 +80,19 @@ task buildPython(dependsOn: 'setupVirtualenv') {
 }
 build.dependsOn buildPython
 
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+task depSnapshot(dependsOn: 'installGcpTest') {
+  doLast {
+    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
+    }
+  }
+}
+
 task lint {}
 check.dependsOn lint
 
@@ -123,7 +136,7 @@ task testGcp(dependsOn: 'setupVirtualenv') {
 }
 test.dependsOn testGcp
 
-task testPython(dependsOn: 'setupVirtualenv') {
+task testPython2(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
@@ -131,7 +144,17 @@ task testPython(dependsOn: 'setupVirtualenv') {
     }
   }
 }
-test.dependsOn testPython
+test.dependsOn testPython2
+
+task testPython3(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3"
+    }
+  }
+}
+test.dependsOn testPython3
 
 task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
@@ -145,7 +168,7 @@ test.dependsOn testCython
 // Ensure that testCython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython, testGcp
+testCython.mustRunAfter testPython2, testGcp
 
 task docs(dependsOn: 'setupVirtualenv') {
   doLast {
@@ -169,7 +192,8 @@ task cover(dependsOn: 'setupVirtualenv') {
 task preCommit() {
   dependsOn "docs"
   dependsOn "testCython"
-  dependsOn "testPython"
+  dependsOn "testPython2"
+  dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
 }
@@ -230,9 +254,7 @@ task portableWordCount(dependsOn: 'installGcpTest') {
     def options = [
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-direct",
-            "--experiments=beam_fn_api",
             "--runner=PortableRunner",
-            "--sdk_location=container",
     ]
     if (project.hasProperty("streaming"))
       options += ["--streaming"]
@@ -242,6 +264,37 @@ task portableWordCount(dependsOn: 'installGcpTest') {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
+    }
+  }
+}
+
+task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
+  doLast {
+    def cmd_args = []
+
+    // Build test options that configures test environment and framework
+    def test_options = [
+            "--nocapture",
+            "--nologcapture",
+            "--processes=8",
+            "--process-timeout=3000",
+    ]
+    if (project.hasProperty('testOptions'))
+      // Customize test options by adding more nose flags to -Ptest_opt in commandline
+      test_options = project.property('test_options')
+    if (project.hasProperty('attr'))
+      test_options += ["--attr=${project.property('attr')}"]
+    if (project.hasProperty('tests'))
+      test_options += ["--tests=${project.property('tests')}"]
+    cmd_args += ["--test_opts \"${test_options.join(' ')}\""]
+
+    // Build pipeline options that configures pipeline job
+    if (project.hasProperty('pipelineOptions'))
+      cmd_args += ["--pipeline_opts \"${project.property('pipelineOptions')}\""]
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_integration_test.sh ${cmd_args.join(' ')}"
     }
   }
 }
@@ -289,7 +342,7 @@ def flinkCompatibilityMatrix = {
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
     dependsOn ':beam-sdks-python-container:docker'
-    dependsOn ':beam-runners-flink_2.11-job-server:jar'
+    dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
     doLast {
       exec {
         executable 'sh'
@@ -316,4 +369,9 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
       args '-c', "./scripts/run_dependency_check.sh"
     }
   }
+}
+
+task buildSnapshot() {
+  dependsOn 'sdist'
+  dependsOn 'depSnapshot'
 }

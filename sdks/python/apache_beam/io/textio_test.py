@@ -25,6 +25,7 @@ import gzip
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -55,6 +56,12 @@ class TextSourceTest(unittest.TestCase):
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _run_read_test(self, file_or_pattern, expected_data,
                      buffer_size=DEFAULT_NUM_RECORDS,
                      compression=CompressionTypes.UNCOMPRESSED):
@@ -65,7 +72,7 @@ class TextSourceTest(unittest.TestCase):
                         True, coders.StrUtf8Coder(), buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_single_file(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
@@ -154,6 +161,9 @@ class TextSourceTest(unittest.TestCase):
     self._run_read_test(gzip_file_name, expected_data,
                         compression=CompressionTypes.GZIP)
 
+  @unittest.skipIf(sys.version_info[0] == 3,
+                   'This test halts test suite execution on Python 3. '
+                   'TODO: BEAM-5623')
   def test_read_empty_single_file_no_eol_gzip(self):
     file_name, written_data = write_data(
         1, no_data=True, eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
@@ -187,7 +197,7 @@ class TextSourceTest(unittest.TestCase):
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual([line + '\n' for line in written_data], read_data)
+    self.assertCountEqual([line + '\n' for line in written_data], read_data)
 
   def test_read_single_file_without_striping_eol_crlf(self):
     file_name, written_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
@@ -198,7 +208,7 @@ class TextSourceTest(unittest.TestCase):
 
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
-    self.assertItemsEqual([line + '\r\n' for line in written_data], read_data)
+    self.assertCountEqual([line + '\r\n' for line in written_data], read_data)
 
   def test_read_file_pattern_with_empty_files(self):
     pattern, expected_data = write_pattern(
@@ -249,8 +259,8 @@ class TextSourceTest(unittest.TestCase):
         splits[0].start_position, splits[0].stop_position)
     read_data = list(source.read_records(file_name, range_tracker))
 
-    self.assertItemsEqual(expected_data[:5], header_lines)
-    self.assertItemsEqual(expected_data[5:], read_data)
+    self.assertCountEqual(expected_data[:5], header_lines)
+    self.assertCountEqual(expected_data[5:], read_data)
 
   def test_progress(self):
     file_name, expected_data = write_data(10)
@@ -490,6 +500,10 @@ class TextSourceTest(unittest.TestCase):
       with self.assertRaises(Exception):
         pipeline.run()
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_read_bzip2_concat(self):
     with TempDir() as tempdir:
       bzip2_file_name1 = tempdir.create_temp_file()
@@ -713,7 +727,7 @@ class TextSourceTest(unittest.TestCase):
                                        skip_header_lines)
     read_data = self._read_skip_header_lines(file_name, skip_header_lines)
     self.assertEqual(len(expected_data), len(read_data))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_skip_header_pattern(self):
     line_counts = [
@@ -730,7 +744,7 @@ class TextSourceTest(unittest.TestCase):
     expected_data = self._remove_lines(data, line_counts, skip_header_lines)
     read_data = self._read_skip_header_lines(pattern, skip_header_lines)
     self.assertEqual(len(expected_data), len(read_data))
-    self.assertItemsEqual(expected_data, read_data)
+    self.assertCountEqual(expected_data, read_data)
 
   def test_read_skip_header_pattern_insufficient_lines(self):
     line_counts = [
@@ -743,7 +757,7 @@ class TextSourceTest(unittest.TestCase):
     data = self._remove_lines(data, line_counts, skip_header_lines)
     read_data = self._read_skip_header_lines(pattern, skip_header_lines)
     self.assertEqual(len(data), len(read_data))
-    self.assertItemsEqual(data, read_data)
+    self.assertCountEqual(data, read_data)
 
   def test_read_gzip_with_skip_lines(self):
     _, lines = write_data(15)
@@ -782,6 +796,12 @@ class TextSourceTest(unittest.TestCase):
 
 class TextSinkTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     super(TextSinkTest, self).setUp()
     self.lines = ['Line %d' % d for d in range(100)]
@@ -806,6 +826,10 @@ class TextSinkTest(unittest.TestCase):
       sink.write_record(f, line)
     sink.close(f)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_text_file(self):
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
@@ -820,6 +844,10 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_bzip2_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.BZIP2)
@@ -828,6 +856,10 @@ class TextSinkTest(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_bzip2_file_auto(self):
     self.path = self._create_temp_file(suffix='.bz2')
     sink = TextSink(self.path)
@@ -836,6 +868,10 @@ class TextSinkTest(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_gzip_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
@@ -844,6 +880,10 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_gzip_file_auto(self):
     self.path = self._create_temp_file(suffix='.gz')
     sink = TextSink(self.path)
@@ -852,6 +892,10 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_gzip_file_empty(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
@@ -860,6 +904,10 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_text_file_with_header(self):
     header = 'header1\nheader2'
     sink = TextSink(self.path, header=header)
@@ -868,6 +916,10 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_text_file_empty_with_header(self):
     header = 'header1\nheader2'
     sink = TextSink(self.path, header=header)
@@ -876,6 +928,10 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_write_dataflow(self):
     pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create(self.lines)

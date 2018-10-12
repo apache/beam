@@ -37,8 +37,8 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -116,7 +116,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE)
+      return TestBoundedTable.of(ROW_TYPE)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -139,7 +139,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getFloorCeilingTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE_THREE)
+      return TestBoundedTable.of(ROW_TYPE_THREE)
           .addRows(parseDate("1986-02-15 11:35:26"), 1.4)
           .buildIOReader(pipeline.begin())
           .setRowSchema(ROW_TYPE_THREE);
@@ -150,7 +150,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getAggregationTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE_TWO)
+      return TestBoundedTable.of(ROW_TYPE_TWO)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -346,7 +346,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")));
@@ -362,7 +362,9 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       // Here we create a Beam table just to force the calling convention.
       TestTableProvider tableProvider = new TestTableProvider();
       Connection connection = JdbcDriver.connect(tableProvider);
-      connection.createStatement().executeUpdate("CREATE TABLE dummy (dummy BOOLEAN) TYPE 'test'");
+      connection
+          .createStatement()
+          .executeUpdate("CREATE EXTERNAL TABLE dummy (dummy BOOLEAN) TYPE 'test'");
       tableProvider.addRows("dummy", DUMMY_ROW);
 
       for (String expr : exprs) {

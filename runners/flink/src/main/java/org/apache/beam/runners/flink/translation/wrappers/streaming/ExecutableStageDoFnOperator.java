@@ -69,8 +69,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
-  private static final Logger logger =
-      LoggerFactory.getLogger(ExecutableStageDoFnOperator.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutableStageDoFnOperator.class);
 
   private final RunnerApi.ExecutableStagePayload payload;
   private final JobInfo jobInfo;
@@ -181,7 +180,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
-      logger.debug(String.format("Sending value: %s", element));
+      LOG.debug(String.format("Sending value: %s", element));
       // TODO(BEAM-4681): Add support to Flink to support portable timers.
       Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(element);
       // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
@@ -196,9 +195,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     // Remove the reference to stageContext and make stageContext available for garbage collection.
-    try (AutoCloseable closable = stageContext) {}
+    try (@SuppressWarnings("unused")
+            AutoCloseable bundleFactoryCloser = stageBundleFactory;
+        @SuppressWarnings("unused")
+            AutoCloseable closable = stageContext) {}
     stageContext = null;
     super.close();
   }

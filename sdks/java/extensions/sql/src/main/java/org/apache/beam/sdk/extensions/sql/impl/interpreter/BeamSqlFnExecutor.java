@@ -33,9 +33,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlLocal
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlOperatorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowEndExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowStartExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.DateOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.StringOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
@@ -504,21 +501,6 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlIsNotNullExpression(subExps.get(0));
           break;
 
-        case "HOP":
-        case "TUMBLE":
-        case "SESSION":
-          ret = new BeamSqlWindowExpression(subExps, node.type.getSqlTypeName());
-          break;
-        case "HOP_START":
-        case "TUMBLE_START":
-        case "SESSION_START":
-          ret = new BeamSqlWindowStartExpression();
-          break;
-        case "HOP_END":
-        case "TUMBLE_END":
-        case "SESSION_END":
-          ret = new BeamSqlWindowEndExpression();
-          break;
         default:
           // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
@@ -540,7 +522,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   private static boolean isDateNode(SqlTypeName type, Object value) {
-    return (type == SqlTypeName.DATE || type == SqlTypeName.TIMESTAMP) && value instanceof Calendar;
+    return (type == SqlTypeName.DATE || type == SqlTypeName.TIME || type == SqlTypeName.TIMESTAMP)
+        && value instanceof Calendar;
   }
 
   @Override

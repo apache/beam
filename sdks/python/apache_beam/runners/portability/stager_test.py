@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -222,6 +223,9 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test is not hermetic '
+                   'and halts test suite execution on Python 3. '
+                   'TODO: BEAM-5502')
   def test_with_setup_file(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()

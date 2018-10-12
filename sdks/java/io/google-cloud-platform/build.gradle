@@ -97,6 +97,8 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryToTableIT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

@@ -24,7 +24,9 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.auto
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,6 +59,11 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       ImmutableList<ImmutableList<RexLiteral>> tuples,
       RelTraitSet traits) {
     super(cluster, rowType, tuples, traits);
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return ImmutableMap.of();
   }
 
   @Override

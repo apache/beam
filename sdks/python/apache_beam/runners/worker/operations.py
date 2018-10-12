@@ -42,6 +42,7 @@ from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
@@ -245,6 +246,29 @@ class ReadOperation(Operation):
         self.output(windowed_value)
 
 
+class ImpulseReadOperation(Operation):
+
+  def __init__(self, name_context, counter_factory, state_sampler,
+               consumers, source, output_coder):
+    super(ImpulseReadOperation, self).__init__(
+        name_context, None, counter_factory, state_sampler)
+    self.source = source
+    self.receivers = [
+        ConsumerSet(
+            self.counter_factory, self.name_context.step_name, 0,
+            next(iter(consumers.values())), output_coder)]
+
+  def process(self, unused_impulse):
+    with self.scoped_process_state:
+      range_tracker = self.source.get_range_tracker(None, None)
+      for value in self.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
+
+
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
 
@@ -272,10 +296,14 @@ class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
   def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None):
+      self, name, spec, counter_factory, sampler, side_input_maps=None,
+      user_state_context=None, timer_inputs=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.user_state_context = user_state_context
     self.tagged_receivers = None
+    # A mapping of timer tags to the input "PCollections" they come in on.
+    self.timer_inputs = timer_inputs or {}
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -364,6 +392,13 @@ class DoOperation(Operation):
           raise ValueError('Unexpected output name for operation: %s' % tag)
         self.tagged_receivers[original_tag] = self.receivers[index]
 
+      if self.user_state_context:
+        self.user_state_context.update_timer_receivers(self.tagged_receivers)
+        self.timer_specs = {
+            spec.name: spec
+            for spec in userstate.get_dofn_specs(fn)[1]
+        }
+
       if self.side_input_maps is None:
         if tags_and_types:
           self.side_input_maps = list(self._read_side_inputs(tags_and_types))
@@ -375,6 +410,7 @@ class DoOperation(Operation):
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
           state=state,
+          user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
 
       self.dofn_receiver = (self.dofn_runner
@@ -386,6 +422,12 @@ class DoOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def process_timer(self, tag, windowed_timer):
+    key, timer_data = windowed_timer.value
+    timer_spec = self.timer_specs[tag]
+    self.dofn_receiver.process_user_timer(
+        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
   def finish(self):
     with self.scoped_finish_state:
@@ -495,13 +537,7 @@ class PGBKCVOperation(Operation):
     # simpler than for the DoFn's of ParDo.
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
-    if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.__func__):
-      # Old versions of the SDK have CombineFns that don't implement add_input.
-      self.combine_fn_add_input = (
-          lambda a, e: self.combine_fn.add_inputs(a, [e]))
-    else:
-      self.combine_fn_add_input = self.combine_fn.add_input
+    self.combine_fn_add_input = self.combine_fn.add_input
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.

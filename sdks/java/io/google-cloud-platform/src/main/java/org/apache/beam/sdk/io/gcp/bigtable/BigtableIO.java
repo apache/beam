@@ -848,18 +848,25 @@ public class BigtableIO {
       // Delegate to testable helper.
       List<BigtableSource> splits =
           splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
-      return reduceSplits(splits, options, MAX_SPLIT_COUNT);
+
+      // Reduce the splits.
+      List<BigtableSource> reduced = reduceSplits(splits, options, MAX_SPLIT_COUNT);
+      // Randomize the result before returning an immutable copy of the splits, the default behavior
+      // may lead to multiple workers hitting the same tablet.
+      Collections.shuffle(reduced);
+      return ImmutableList.copyOf(reduced);
     }
 
+    /** Returns a mutable list of reduced splits. */
     @VisibleForTesting
     protected List<BigtableSource> reduceSplits(
         List<BigtableSource> splits, PipelineOptions options, long maxSplitCounts)
         throws IOException {
       int numberToCombine = (int) ((splits.size() + maxSplitCounts - 1) / maxSplitCounts);
       if (splits.size() < maxSplitCounts || numberToCombine < 2) {
-        return splits;
+        return new ArrayList<>(splits);
       }
-      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
+      List<BigtableSource> reducedSplits = new ArrayList<>();
       List<ByteKeyRange> previousSourceRanges = new ArrayList<ByteKeyRange>();
       int counter = 0;
       long size = 0;
@@ -879,7 +886,7 @@ public class BigtableIO {
       if (size > 0) {
         reducedSplits.add(new BigtableSource(config, filter, previousSourceRanges, size));
       }
-      return reducedSplits.build();
+      return reducedSplits;
     }
 
     /**
@@ -1080,6 +1087,11 @@ public class BigtableIO {
 
     @Override
     public void validate() {
+      if (!config.getValidate()) {
+        LOG.debug("Validation is disabled");
+        return;
+      }
+
       ValueProvider<String> tableId = config.getTableId();
       checkArgument(
           tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
@@ -1090,7 +1102,7 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("tableId", config.getTableId().get()).withLabel("Table ID"));
+      builder.add(DisplayData.item("tableId", config.getTableId()).withLabel("Table ID"));
 
       if (filter != null) {
         builder.add(DisplayData.item("rowFilter", filter.toString()).withLabel("Table Row Filter"));

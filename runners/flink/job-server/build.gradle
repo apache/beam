@@ -48,6 +48,7 @@ dependencies {
   validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
 }
 
@@ -55,13 +56,14 @@ dependencies {
 // task will not work because the flink runner classes only exist in the shadow
 // jar.
 runShadow {
-  def jobHost = project.hasProperty("jobHost") ? project.property("jobHost") : "localhost"
-  def artifactsDir = project.hasProperty("artifactsDir") ?  project.property("artifactsDir") : "/tmp/flink-artifacts"
-  def cleanArtifactsPerJob = project.hasProperty("cleanArtifactsPerJob")
-  args = ["--job-host=${jobHost}", "--artifacts-dir=${artifactsDir}"]
-  if (cleanArtifactsPerJob)
+  args = []
+  if (project.hasProperty('jobHost'))
+    args += ["--job-host=${project.property('jobHost')}"]
+  if (project.hasProperty('artifactsDir'))
+    args += ["--artifacts-dir=${project.property('artifactsDir')}"]
+  if (project.hasProperty('cleanArtifactsPerJob'))
     args += ["--clean-artifacts-per-job"]
-  if (project.hasProperty("flinkMasterUrl"))
+  if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
 
   // Enable remote debugging.
@@ -72,6 +74,7 @@ runShadow {
 
 createPortableValidatesRunnerTask(
         jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-        jobServerConfig: "--clean-artifacts-per-job",
-        testClasspathConfiguration: configurations.validatesPortableRunner
+        jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+        testClasspathConfiguration: configurations.validatesPortableRunner,
+        parallelism: 2,
 )

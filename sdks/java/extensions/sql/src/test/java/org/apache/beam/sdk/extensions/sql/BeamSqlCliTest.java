@@ -45,7 +45,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -69,7 +69,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -99,7 +99,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -131,7 +131,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age', \n"
@@ -158,16 +158,16 @@ public class BeamSqlCliTest {
                         "address",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of(
                         "addressAngular",
                         Schema.FieldType.row(
                             Schema.builder()
-                                .addNullableField("street", Schema.FieldType.STRING)
-                                .addNullableField("country", Schema.FieldType.STRING)
+                                .addNullableField("street", VARCHAR)
+                                .addNullableField("country", VARCHAR)
                                 .build()))
                     .withNullable(true),
                 Field.of("isRobot", BOOLEAN).withNullable(true))
@@ -182,7 +182,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -203,7 +203,7 @@ public class BeamSqlCliTest {
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
@@ -221,7 +221,7 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
 
     cli.execute(
-        "create table person (\n"
+        "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"

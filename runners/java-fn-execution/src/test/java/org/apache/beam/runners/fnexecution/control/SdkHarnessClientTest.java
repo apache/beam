@@ -50,7 +50,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.InProcessSdkHarness;
+import org.apache.beam.runners.fnexecution.EmbeddedSdkHarness;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
@@ -91,7 +91,7 @@ public class SdkHarnessClientTest {
   @Mock public FnApiControlClient fnApiControlClient;
   @Mock public FnDataService dataService;
 
-  @Rule public InProcessSdkHarness harness = InProcessSdkHarness.create();
+  @Rule public EmbeddedSdkHarness harness = EmbeddedSdkHarness.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 

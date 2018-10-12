@@ -1064,7 +1064,7 @@ class GeneralTriggerDriver(TriggerDriver):
     # First handle merging.
     if self.is_merging:
       old_windows = set(state.known_windows())
-      all_windows = old_windows.union(windows_to_elements.keys())
+      all_windows = old_windows.union(list(windows_to_elements))
 
       if all_windows != old_windows:
         merged_away = {}

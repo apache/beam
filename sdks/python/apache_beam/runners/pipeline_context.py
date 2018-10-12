@@ -109,7 +109,7 @@ class PipelineContext(object):
       'environments': Environment,
   }
 
-  def __init__(self, proto=None, default_environment_url=None):
+  def __init__(self, proto=None, default_environment=None):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -119,11 +119,9 @@ class PipelineContext(object):
       setattr(
           self, name, _PipelineContextMap(
               self, cls, getattr(proto, name, None)))
-    if default_environment_url:
+    if default_environment:
       self._default_environment_id = self.environments.get_id(
-          Environment(
-              beam_runner_api_pb2.Environment(
-                  url=default_environment_url)))
+          Environment(default_environment))
     else:
       self._default_environment_id = None
 

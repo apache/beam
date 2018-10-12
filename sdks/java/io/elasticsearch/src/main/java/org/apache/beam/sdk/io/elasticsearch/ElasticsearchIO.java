@@ -133,7 +133,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Optionally, you can provide {@link ElasticsearchIO.Write.FieldValueExtractFn} using {@code
  * withIndexFn()} or {@code withTypeFn()} to enable per-document routing to the target Elasticsearch
- * index and type.
+ * index (all versions) and type (version &gt; 6). Support for type routing was removed in
+ * Elasticsearch 6 (see
+ * https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch)
  *
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
@@ -186,7 +188,7 @@ public class ElasticsearchIO {
         String errorRootName = "";
         if (backendVersion == 2) {
           errorRootName = "create";
-        } else if (backendVersion == 5) {
+        } else if (backendVersion == 5 || backendVersion == 6) {
           errorRootName = "index";
         }
         JsonNode errorRoot = item.path(errorRootName);
@@ -277,6 +279,8 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the username.
      *
      * @param username the username used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withUsername(String username) {
       checkArgument(username != null, "username can not be null");
@@ -288,6 +292,8 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the password.
      *
      * @param password the password used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withPassword(String password) {
       checkArgument(password != null, "password can not be null");
@@ -300,6 +306,8 @@ public class ElasticsearchIO {
      * containing the client key.
      *
      * @param keystorePath the location of the keystore containing the client key.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
       checkArgument(keystorePath != null, "keystorePath can not be null");
@@ -312,6 +320,8 @@ public class ElasticsearchIO {
      * to open the client keystore.
      *
      * @param keystorePassword the password of the client keystore.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
       checkArgument(keystorePassword != null, "keystorePassword can not be null");
@@ -402,7 +412,13 @@ public class ElasticsearchIO {
       abstract Read build();
     }
 
-    /** Provide the Elasticsearch connection configuration object. */
+    /**
+     * Provide the Elasticsearch connection configuration object.
+     *
+     * @param connectionConfiguration a {@link ConnectionConfiguration} describes a connection
+     *     configuration to Elasticsearch.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
@@ -414,6 +430,7 @@ public class ElasticsearchIO {
      * @param query the query. See <a
      *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
      *     DSL</a>
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withQuery(String query) {
       checkArgument(query != null, "query can not be null");
@@ -423,6 +440,8 @@ public class ElasticsearchIO {
 
     /**
      * Include metadata in result json documents. Document source will be under json node _source.
+     *
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withMetadata() {
       return builder().setWithMetadata(true).build();
@@ -432,6 +451,9 @@ public class ElasticsearchIO {
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
+     *
+     * @param scrollKeepalive keepalive duration of the scroll
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
@@ -447,6 +469,7 @@ public class ElasticsearchIO {
      * batchSize
      *
      * @param batchSize number of documents read in each scroll read
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withBatchSize(long batchSize) {
       checkArgument(
@@ -522,9 +545,9 @@ public class ElasticsearchIO {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
       if (backendVersion == 2) {
         // 1. We split per shard :
-        // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
+        // unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
         // shard.So we do not use desiredBundleSize because we cannot split shards.
-        // With the slice API in ES 5.0 we will be able to use desiredBundleSize.
+        // With the slice API in ES 5.x+ we will be able to use desiredBundleSize.
         // Basically we will just ask the slice API to return data
         // in nbBundles = estimatedSize / desiredBundleSize chuncks.
         // So each beam source will read around desiredBundleSize volume of data.
@@ -540,11 +563,11 @@ public class ElasticsearchIO {
           sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5) {
+      } else if (backendVersion == 5 || backendVersion == 6) {
         long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
-        //ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
+        // ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
         if (nbBundles > 1024) {
           nbBundles = 1024;
         }
@@ -573,7 +596,7 @@ public class ElasticsearchIO {
       // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
       // the estimated size bytes is not really used in the split into bundles.
       // However, we implement this method anyway as the runners can use it.
-      // NB: Elasticsearch 5.x now provides the slice API.
+      // NB: Elasticsearch 5.x+ now provides the slice API.
       // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
       // #sliced-scroll)
       JsonNode statsJson = getStats(connectionConfiguration, false);
@@ -640,7 +663,9 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1) {
+      if ((source.backendVersion == 5 || source.backendVersion == 6)
+          && source.numSlices != null
+          && source.numSlices > 1) {
         //if there is more than one slice, add the slice to the user query
         String sliceQuery =
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
@@ -1240,15 +1265,15 @@ public class ElasticsearchIO {
       int backendVersion =
           Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument(
-          (backendVersion == 2 || backendVersion == 5),
+          (backendVersion == 2 || backendVersion == 5 || backendVersion == 6),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v5.x and v2.x",
+              + "Elasticsearch v6.x, v5.x and v2.x",
           backendVersion);
       return backendVersion;
 
     } catch (IOException e) {
-      throw (new IllegalArgumentException("Cannot get Elasticsearch version"));
+      throw (new IllegalArgumentException("Cannot get Elasticsearch version", e));
     }
   }
 }
