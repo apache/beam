@@ -163,6 +163,11 @@ import org.slf4j.LoggerFactory;
  * Write#withBatchSizeBytes(long)}. Setting batch size to a small value or zero practically disables
  * batching.
  *
+ * <p>The write transform reads the database schema on pipeline start. If the schema is created as
+ * part of the same pipline, this transform needs to wait until the schema has been created. Use
+ * {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be used
+ * with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
+ *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
  * <ul>
@@ -682,6 +687,9 @@ public class SpannerIO {
     abstract PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
         getSampler();
 
+    @Nullable
+    abstract PCollection getSchemaReadySignal();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -700,6 +708,8 @@ public class SpannerIO {
       abstract Builder setSampler(
           PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
               sampler);
+
+      abstract Builder setSchemaReadySignal(PCollection schemaReadySignal);
 
       abstract Write build();
     }
@@ -786,6 +796,15 @@ public class SpannerIO {
       return toBuilder().setMaxNumMutations(maxNumMutations).build();
     }
 
+    /**
+     * Specifies an input PCollection that can be used with a {@code Wait.on(signal)} to indicate
+     * when the database schema is ready. To be used when the schema creation is part of the
+     * pipeline to prevent the connector reading the schema too early.
+     */
+    public Write withSchemaReadySignal(PCollection signal) {
+      return toBuilder().setSchemaReadySignal(signal).build();
+    }
+
     @Override
     public SpannerWriteResult expand(PCollection<Mutation> input) {
       getSpannerConfig().validate();
@@ -835,13 +854,16 @@ public class SpannerIO {
       if (sampler == null) {
         sampler = createDefaultSampler();
       }
+
       // First, read the Cloud Spanner schema.
+      PCollection<Void> schemaSeed =
+          input.getPipeline().apply("Create Seed", Create.of((Void) null));
+      if (spec.getSchemaReadySignal() != null) {
+        // Wait for external signal before reading schema.
+        schemaSeed = schemaSeed.apply("Wait for schema", Wait.on(spec.getSchemaReadySignal()));
+      }
       final PCollectionView<SpannerSchema> schemaView =
-          input
-              .getPipeline()
-              .apply("Create seed", Create.of((Void) null))
-              // Wait for input mutations so it is possible to chain transforms.
-              .apply(Wait.on(input))
+          schemaSeed
               .apply(
                   "Read information schema",
                   ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
