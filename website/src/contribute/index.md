@@ -84,6 +84,11 @@ If you are unfamiliar with this workflow, GitHub maintains these helpful guides:
  - [Git Handbook](https://guides.github.com/introduction/git-handbook/)
  - [Forking a repository](https://guides.github.com/activities/forking/)
 
+You need to install Java Development Kit 8. To check it it is installed, try
+`javac -version`
+
+Which should show version 1.8.x is installed.
+
 If your change is large or it is your first change, it is a good idea to
 [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
 
