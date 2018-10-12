@@ -612,7 +612,9 @@ public class RedisIO {
 
       @FinishBundle
       public void finishBundle() {
-        pipeline.exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+        }
         batchCount = 0;
       }
 
