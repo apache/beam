@@ -82,19 +82,56 @@ class TestUtilsTest(unittest.TestCase):
         self.assertEqual(f.readline(), b'line2\n')
         self.assertEqual(f.readline(), b'line3\n')
 
+  @mock.patch('time.sleep', return_value=None)
+  def test_wait_for_subscriptions_created_fails(self, patched_time_sleep):
+    sub1 = mock.MagicMock()
+    sub1.exists.return_value = True
+    sub2 = mock.MagicMock()
+    sub2.exists.return_value = False
+    with self.assertRaises(RuntimeError) as error:
+      utils.wait_for_subscriptions_created([sub1, sub2], timeout=0.1)
+    self.assertTrue(sub1.exists.called)
+    self.assertTrue(sub2.exists.called)
+    self.assertTrue(error.exception.args[0].startswith('Timeout after'))
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_wait_for_topics_created_fails(self, patched_time_sleep):
+    topic1 = mock.MagicMock()
+    topic1.exists.return_value = True
+    topic2 = mock.MagicMock()
+    topic2.exists.return_value = False
+    with self.assertRaises(RuntimeError) as error:
+      utils.wait_for_subscriptions_created([topic1, topic2], timeout=0.1)
+    self.assertTrue(topic1.exists.called)
+    self.assertTrue(topic2.exists.called)
+    self.assertTrue(error.exception.args[0].startswith('Timeout after'))
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_wait_for_subscriptions_created_succeeds(self, patched_time_sleep):
+    sub1 = mock.MagicMock()
+    sub1.exists.return_value = True
+    self.assertTrue(
+        utils.wait_for_subscriptions_created([sub1], timeout=0.1))
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_wait_for_topics_created_succeeds(self, patched_time_sleep):
+    topic1 = mock.MagicMock()
+    topic1.exists.return_value = True
+    self.assertTrue(
+        utils.wait_for_subscriptions_created([topic1], timeout=0.1))
+    self.assertTrue(topic1.exists.called)
+
   def test_cleanup_subscriptions(self):
-    sub_client = mock.Mock()
-    sub = mock.Mock()
-    sub.name = 'test_sub'
-    utils.cleanup_subscriptions(sub_client, [sub])
-    sub_client.delete_subscription.assert_called_with(sub.name)
+    mock_sub = mock.MagicMock()
+    mock_sub.exist.return_value = True
+    utils.cleanup_subscriptions([mock_sub])
+    self.assertTrue(mock_sub.delete.called)
 
   def test_cleanup_topics(self):
-    pub_client = mock.Mock()
-    topic = mock.Mock()
-    topic.name = 'test_topic'
-    utils.cleanup_topics(pub_client, [topic])
-    pub_client.delete_topic.assert_called_with(topic.name)
+    mock_topics = mock.MagicMock()
+    mock_topics.exist.return_value = True
+    utils.cleanup_subscriptions([mock_topics])
+    self.assertTrue(mock_topics.delete.called)
 
 
 if __name__ == '__main__':

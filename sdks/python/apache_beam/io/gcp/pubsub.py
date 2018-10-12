@@ -38,10 +38,11 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
+# The protobuf library is only used for running on Dataflow.
 try:
-  from google.cloud import pubsub
+  from google.cloud.proto.pubsub.v1 import pubsub_pb2
 except ImportError:
-  pubsub = None
+  pubsub_pb2 = None
 
 __all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
            'WriteStringsToPubSub', 'WriteToPubSub']
@@ -91,7 +92,7 @@ class PubsubMessage(object):
     Returns:
       A new PubsubMessage object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub_pb2.PubsubMessage()
     msg.ParseFromString(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
@@ -108,7 +109,7 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub_pb2.PubsubMessage()
     msg.data = self.data
     for key, value in self.attributes.iteritems():
       msg.attributes[key] = value
@@ -116,9 +117,9 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg):
-    """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
+    """Construct from ``google.cloud.pubsub.message.Message``.
 
-    https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
+    https://google-cloud-python.readthedocs.io/en/latest/pubsub/subscriber/api/message.html
     """
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
