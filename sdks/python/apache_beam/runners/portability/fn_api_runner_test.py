@@ -28,6 +28,7 @@ import unittest
 from builtins import range
 
 import apache_beam as beam
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
@@ -435,7 +436,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
   def test_metrics(self):
-
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
       # This test is inherited by others that may not support the same
@@ -470,6 +470,46 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
+  def test_non_user_metrics(self):
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    pcoll = p | beam.Create(['a', 'zzz'])
+    # pylint: disable=expression-not-assigned
+    pcoll | 'MyStep' >> beam.FlatMap(lambda x: None)
+    res = p.run()
+    res.wait_until_finish()
+
+    result_metrics = res.monitoring_metrics()
+    all_metrics_via_montoring_infos = result_metrics.query()
+
+    def assert_counter_exists(metrics, namespace, name, step):
+      found = 0
+      metric_key = MetricKey(step, MetricName(namespace, name))
+      for m in metrics['counters']:
+        if m.key == metric_key:
+          found = found + 1
+      self.assertEqual(
+          1, found, "Did not find exactly 1 metric for %s." % metric_key)
+    urns = [
+        monitoring_infos.ELEMENT_COUNT_URN,
+        monitoring_infos.START_BUNDLE_MSECS_URN,
+        monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+        monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+        monitoring_infos.TOTAL_MSECS_URN,
+    ]
+    for urn in urns:
+      split = urn.split(':')
+      namespace = split[0]
+      name = ':'.join(split[1:])
+      assert_counter_exists(
+          all_metrics_via_montoring_infos, namespace, name, step='Create/Read')
+      assert_counter_exists(
+          all_metrics_via_montoring_infos, namespace, name, step='MyStep')
+
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
@@ -489,13 +529,21 @@ class FnApiRunnerTest(unittest.TestCase):
              beam.pvalue.TaggedOutput('twice', x)]))
     res = p.run()
     res.wait_until_finish()
+
+    def has_mi_for_ptransform(monitoring_infos, ptransform):
+      for mi in monitoring_infos:
+        if ptransform in mi.labels['PTRANSFORM']:
+          return True
+      return False
+
     try:
-      self.assertEqual(2, len(res._metrics_by_stage))
-      pregbk_metrics, postgbk_metrics = list(res._metrics_by_stage.values())
+      # TODO(ajamato): Delete this block after deleting the legacy metrics code.
+      # Test the DEPRECATED legacy metrics
+      pregbk_metrics, postgbk_metrics = list(
+          res._metrics_by_stage.values())
       if 'Create/Read' not in pregbk_metrics.ptransforms:
         # The metrics above are actually unordered. Swap.
         pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
-
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Create/Read']
@@ -527,8 +575,58 @@ class FnApiRunnerTest(unittest.TestCase):
           2,
           m_out.processed_elements.measured.output_element_counts['twice'])
 
+      # Test the new MonitoringInfo monitoring format.
+      self.assertEqual(2, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):
+        # The monitoring infos above are actually unordered. Swap.
+        pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
+
+      def assert_has_monitoring_info(
+          monitoring_infos, urn, labels, value=None, ge_value=None):
+        # TODO(ajamato): Consider adding a matcher framework
+        found = 0
+        for m in monitoring_infos:
+          if m.labels == labels and m.urn == urn:
+            if (ge_value is not None and
+                m.metric.counter_data.int64_value >= ge_value):
+              found = found + 1
+            elif (value is not None and
+                  m.metric.counter_data.int64_value == value):
+              found = found + 1
+        ge_value_str = {'ge_value' : ge_value} if ge_value else ''
+        value_str = {'value' : value} if value else ''
+        self.assertEqual(
+            1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+            (found, (urn, labels, value_str, ge_value_str),))
+
+      # pregbk monitoring infos
+      labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'out'}
+      assert_has_monitoring_info(
+          pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
+      labels = {'PTRANSFORM' : 'Map(sleep)', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
+      labels = {'PTRANSFORM' : 'Map(sleep)'}
+      assert_has_monitoring_info(
+          pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
+          labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
+
+      # postgbk monitoring infos
+      labels = {'PTRANSFORM' : 'GroupByKey/Read', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'once'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'twice'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=2)
     except:
-      print(res._metrics_by_stage)
+      print(res._monitoring_infos_by_stage)
       raise
 
 
