@@ -31,10 +31,12 @@ __all__ = ['PubSubMessageMatcher']
 
 
 # Protect against environments where pubsub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 DEFAULT_TIMEOUT = 5 * 60
 MAX_MESSAGES_IN_ONE_PULL = 50
@@ -47,9 +49,8 @@ class PubSubMessageMatcher(BaseMatcher):
   subscription until all expected messages are shown or timeout.
   """
 
-  def __init__(self, project, sub_name, expected_msg,
-               timeout=DEFAULT_TIMEOUT, with_attributes=False,
-               strip_attributes=None):
+  def __init__(self, project, sub_name, expected_msg, timeout=DEFAULT_TIMEOUT,
+               with_attributes=False, strip_attributes=None):
     """Initialize PubSubMessageMatcher object.
 
     Args:
@@ -58,9 +59,8 @@ class PubSubMessageMatcher(BaseMatcher):
       expected_msg: A string list that contains expected message data pulled
         from the subscription. See also: with_attributes.
       timeout: Timeout in seconds to wait for all expected messages appears.
-      with_attributes: If True, will match against both message data and
-        attributes. If True, expected_msg should be a list of ``PubsubMessage``
-        objects. Otherwise, it should be a list of ``bytes``.
+      with_attributes: Whether expected_msg is a list of
+        ``PubsubMessage`` objects.
       strip_attributes: List of strings. If with_attributes==True, strip the
         attributes keyed by these values from incoming messages.
         If a key is missing, will add an attribute with an error message as
@@ -86,26 +86,28 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def _matches(self, _):
     if self.messages is None:
-      self.messages = self._wait_for_messages(len(self.expected_msg),
+      self.messages = self._wait_for_messages(self._get_subscription(),
+                                              len(self.expected_msg),
                                               self.timeout)
     return Counter(self.messages) == Counter(self.expected_msg)
 
-  def _wait_for_messages(self, expected_num, timeout):
-    """Wait for messages from given subscription."""
-    total_messages = []
+  def _get_subscription(self):
+    return pubsub.Client(project=self.project).subscription(self.sub_name)
 
-    sub_client = pubsub.SubscriberClient()
+  def _wait_for_messages(self, subscription, expected_num, timeout):
+    """Wait for messages from given subscription."""
+    logging.debug('Start pulling messages from %s', subscription.full_name)
+    total_messages = []
     start_time = time.time()
     while time.time() - start_time <= timeout:
-      response = sub_client.pull(self.sub_name,
-                                 max_messages=MAX_MESSAGES_IN_ONE_PULL,
-                                 return_immediately=True)
-      for rm in response.received_messages:
-        msg = PubsubMessage._from_message(rm.message)
+      pulled = subscription.pull(max_messages=MAX_MESSAGES_IN_ONE_PULL)
+      for ack_id, message in pulled:
+        subscription.acknowledge([ack_id])
         if not self.with_attributes:
-          total_messages.append(msg.data)
+          total_messages.append(message.data)
           continue
 
+        msg = PubsubMessage._from_message(message)
         if self.strip_attributes:
           for attr in self.strip_attributes:
             try:
@@ -115,16 +117,12 @@ class PubSubMessageMatcher(BaseMatcher):
                                       'expected attribute not found.')
         total_messages.append(msg)
 
-      ack_ids = [rm.ack_id for rm in response.received_messages]
-      if ack_ids:
-        sub_client.acknowledge(self.sub_name, ack_ids)
       if len(total_messages) >= expected_num:
-        break
+        return total_messages
       time.sleep(1)
 
-    if time.time() - start_time > timeout:
-      logging.error('Timeout after %d sec. Received %d messages from %s.',
-                    timeout, len(total_messages), self.sub_name)
+    logging.error('Timeout after %d sec. Received %d messages from %s.',
+                  timeout, len(total_messages), subscription.full_name)
     return total_messages
 
   def describe_to(self, description):

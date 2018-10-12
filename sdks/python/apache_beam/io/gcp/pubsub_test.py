@@ -20,9 +20,12 @@
 
 from __future__ import absolute_import
 
+import functools
 import logging
 import unittest
 from builtins import object
+from builtins import range
+from builtins import zip
 
 import hamcrest as hc
 import mock
@@ -40,7 +43,6 @@ from apache_beam.runners.direct import transform_evaluator
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _get_transform_overrides
 from apache_beam.runners.direct.transform_evaluator import _PubSubReadEvaluator
-from apache_beam.testing import test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
@@ -52,10 +54,18 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import timestamp
 
 # Protect against environments where the PubSub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+# The protobuf library is only used for running on Dataflow.
+try:
+  from google.cloud.proto.pubsub.v1 import pubsub_pb2
+except ImportError:
+  pubsub_pb2 = None
 
 
 class TestPubsubMessage(unittest.TestCase):
@@ -71,7 +81,8 @@ class TestPubsubMessage(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, {})
 
-  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  @unittest.skipIf(pubsub_pb2 is None,
+                   'PubSub proto dependencies are not installed')
   def test_proto_conversion(self):
     data = 'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
@@ -209,7 +220,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     write_transform = pcoll.producer.inputs[0].producer.transform
 
     # Ensure that the properties passed through correctly
-    self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
+    self.assertEqual('a_topic', write_transform.dofn.topic_name)
 
   def test_expand(self):
     p = TestPipeline()
@@ -229,7 +240,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     write_transform = pcoll.producer.inputs[0].producer.transform
 
     # Ensure that the properties passed through correctly
-    self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
+    self.assertEqual('a_topic', write_transform.dofn.topic_name)
     self.assertEqual(True, write_transform.dofn.with_attributes)
     # TODO(BEAM-4275): These properties aren't supported yet in direct runner.
     self.assertEqual(None, write_transform.dofn.id_label)
@@ -322,25 +333,118 @@ transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
 }
 
 
+class FakePubsubTopic(object):
+
+  def __init__(self, name, client):
+    self.name = name
+    self.client = client
+
+  def subscription(self, name):
+    return FakePubsubSubscription(name, self.name, self.client)
+
+  def batch(self):
+    if self.client.batch is None:
+      self.client.batch = FakeBatch(self.client)
+    return self.client.batch
+
+
+class FakePubsubSubscription(object):
+
+  def __init__(self, name, topic, client):
+    self.name = name
+    self.topic = topic
+    self.client = client
+
+  def create(self):
+    pass
+
+
+class FakeAutoAck(object):
+
+  def __init__(self, sub, **unused_kwargs):
+    self.sub = sub
+
+  def __enter__(self):
+    messages = self.sub.client.messages_read
+    self.ack_id_to_msg = dict(zip(range(len(messages)), messages))
+    return self.ack_id_to_msg
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    pass
+
+
+class FakeBatch(object):
+  """Context manager that accept Pubsub client writes via publish().
+
+  Verifies writes on exit.
+  """
+
+  def __init__(self, client):
+    self.client = client
+    self.published = []
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if exc_type is not None:
+      return  # Exception will be raised.
+    hc.assert_that(self.published,
+                   hc.only_contains(*self.client.messages_write))
+
+  def publish(self, message, **attrs):
+    self.published.append([message, attrs])
+
+
+class FakePubsubClient(object):
+
+  def __init__(self, messages_read=None, messages_write=None, project=None,
+               **unused_kwargs):
+    """Creates a Pubsub client fake.
+
+    Args:
+      messages_read: List of PubsubMessage objects to return.
+      messages_write: List of [data, attributes] pairs, corresponding to
+        messages expected to be written to the client.
+      project: Name of GCP project.
+    """
+    self.messages_read = messages_read
+    self.messages_write = messages_write
+    self.project = project
+    self.batch = None
+
+  def topic(self, name):
+    return FakePubsubTopic(name, self)
+
+
+def create_client_message(data, message_id, attributes, publish_time):
+  """Returns a message as it would be returned from Cloud Pub/Sub client.
+
+  This is what the reader sees.
+  """
+  msg = pubsub.message.Message(data, message_id, attributes)
+  msg._service_timestamp = publish_time
+  return msg
+
+
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
-@mock.patch('google.cloud.pubsub.SubscriberClient')
 class TestReadFromPubSub(unittest.TestCase):
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_messages_success(self, mock_pubsub):
     data = 'data'
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
+    message_id = 'message_id'
+    publish_time = '2018-03-12T13:37:01.234567Z'
     attributes = {'key': 'value'}
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
-    ])
+    payloads = [create_client_message(
+        data, message_id, attributes, publish_time)]
     expected_elements = [
         TestWindowedValue(PubsubMessage(data, attributes),
                           timestamp.Timestamp(1520861821.234567),
                           [window.GlobalWindow()])]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -349,18 +453,17 @@ class TestReadFromPubSub(unittest.TestCase):
                               None, None, with_attributes=True))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_strings_success(self, mock_pubsub):
     data = u'🤷 ¯\\_(ツ)_/¯'
     data_encoded = data.encode('utf-8')
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(data_encoded, ack_id=ack_id)
-    ])
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [create_client_message(data_encoded, None, None, publish_time)]
     expected_elements = [data]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -369,16 +472,16 @@ class TestReadFromPubSub(unittest.TestCase):
                                      None, None))
     assert_that(pcoll, equal_to(expected_elements))
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_data_success(self, mock_pubsub):
     data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(data_encoded, ack_id=ack_id)])
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [create_client_message(data_encoded, None, None, publish_time)]
     expected_elements = [data_encoded]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -386,26 +489,24 @@ class TestReadFromPubSub(unittest.TestCase):
              | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
     assert_that(pcoll, equal_to(expected_elements))
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = 'data'
+    message_id = 'message_id'
     attributes = {'time': '1337'}
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
-    ])
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
             timestamp.Timestamp(micros=int(attributes['time']) * 1000),
             [window.GlobalWindow()]),
     ]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -415,26 +516,24 @@ class TestReadFromPubSub(unittest.TestCase):
                  with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = 'data'
+    message_id = 'message_id'
     attributes = {'time': '2018-03-12T13:37:01.234567Z'}
-    publish_time_secs = 1337000000
-    publish_time_nanos = 133700000
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
-    ])
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
             timestamp.Timestamp.from_rfc3339(attributes['time']),
             [window.GlobalWindow()]),
     ]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -444,27 +543,24 @@ class TestReadFromPubSub(unittest.TestCase):
                  with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = 'data'
+    message_id = 'message_id'
     attributes = {}
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
     publish_time = '2018-03-12T13:37:01.234567Z'
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
-    ])
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
     expected_elements = [
         TestWindowedValue(
             PubsubMessage(data, attributes),
             timestamp.Timestamp.from_rfc3339(publish_time),
             [window.GlobalWindow()]),
     ]
-    mock_pubsub.return_value.pull.return_value = pull_response
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -474,20 +570,18 @@ class TestReadFromPubSub(unittest.TestCase):
                  with_attributes=True, timestamp_attribute='nonexistent'))
     assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     p.run()
-    mock_pubsub.return_value.acknowledge.assert_has_calls([
-        mock.call(mock.ANY, [ack_id])])
 
+  @mock.patch('google.cloud.pubsub')
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = 'data'
+    message_id = 'message_id'
     attributes = {'time': '1337 unparseable'}
-    publish_time_secs = 1520861821
-    publish_time_nanos = 234567000
-    ack_id = 'ack_id'
-    pull_response = test_utils.create_pull_response([
-        test_utils.PullResponseMessage(
-            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
-    ])
-    mock_pubsub.return_value.pull.return_value = pull_response
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -497,10 +591,20 @@ class TestReadFromPubSub(unittest.TestCase):
              with_attributes=True, timestamp_attribute='time'))
     with self.assertRaisesRegexp(ValueError, r'parse'):
       p.run()
-    mock_pubsub.return_value.acknowledge.assert_not_called()
 
-  def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
+  @mock.patch('google.cloud.pubsub')
+  def test_read_message_id_label_unsupported(self, mock_pubsub):
     # id_label is unsupported in DirectRunner.
+    data = 'data'
+    message_id = 'message_id'
+    attributes = {'time': '1337 unparseable'}
+    publish_time = '2018-03-12T13:37:01.234567Z'
+    payloads = [
+        create_client_message(data, message_id, attributes, publish_time)]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient, payloads)
+    mock_pubsub.subscription.AutoAck = FakeAutoAck
+
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
@@ -510,12 +614,16 @@ class TestReadFromPubSub(unittest.TestCase):
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
-@mock.patch('google.cloud.pubsub.PublisherClient')
 class TestWriteToPubSub(unittest.TestCase):
 
+  @mock.patch('google.cloud.pubsub')
   def test_write_messages_success(self, mock_pubsub):
     data = 'data'
     payloads = [data]
+    expected_payloads = [[data, {}]]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient,
+                                           messages_write=expected_payloads)
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -524,12 +632,15 @@ class TestWriteToPubSub(unittest.TestCase):
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          with_attributes=False))
     p.run()
-    mock_pubsub.return_value.publish.assert_has_calls([
-        mock.call(mock.ANY, data)])
 
+  @mock.patch('google.cloud.pubsub')
   def test_write_messages_deprecated(self, mock_pubsub):
     data = 'data'
     payloads = [data]
+    expected_payloads = [[data, {}]]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient,
+                                           messages_write=expected_payloads)
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -537,13 +648,16 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     p.run()
-    mock_pubsub.return_value.publish.assert_has_calls([
-        mock.call(mock.ANY, data)])
 
+  @mock.patch('google.cloud.pubsub')
   def test_write_messages_with_attributes_success(self, mock_pubsub):
     data = 'data'
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
+    expected_payloads = [[data, attributes]]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient,
+                                           messages_write=expected_payloads)
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -552,13 +666,14 @@ class TestWriteToPubSub(unittest.TestCase):
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          with_attributes=True))
     p.run()
-    mock_pubsub.return_value.publish.assert_has_calls([
-        mock.call(mock.ANY, data, **attributes)])
 
+  @mock.patch('google.cloud.pubsub')
   def test_write_messages_with_attributes_error(self, mock_pubsub):
     data = 'data'
     # Sending raw data when WriteToPubSub expects a PubsubMessage object.
     payloads = [data]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient)
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
@@ -570,10 +685,15 @@ class TestWriteToPubSub(unittest.TestCase):
                                  r'str.*has no attribute.*data'):
       p.run()
 
+  @mock.patch('google.cloud.pubsub')
   def test_write_messages_unsupported_features(self, mock_pubsub):
     data = 'data'
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
+    expected_payloads = [[data, attributes]]
+
+    mock_pubsub.Client = functools.partial(FakePubsubClient,
+                                           messages_write=expected_payloads)
 
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True

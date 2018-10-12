@@ -73,16 +73,15 @@ class LeaderBoardIT(unittest.TestCase):
 
     # Set up PubSub environment.
     from google.cloud import pubsub
+    self.pubsub_client = pubsub.Client(project=self.project)
+    unique_topic_name = self.INPUT_TOPIC + _unique_id
+    unique_subscrition_name = self.INPUT_SUB + _unique_id
+    self.input_topic = self.pubsub_client.topic(unique_topic_name)
+    self.input_sub = self.input_topic.subscription(unique_subscrition_name)
 
-    self.pub_client = pubsub.PublisherClient()
-    self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + _unique_id))
-
-    self.sub_client = pubsub.SubscriberClient()
-    self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project,
-                                          self.INPUT_SUB + _unique_id),
-        self.input_topic.name)
+    self.input_topic.create()
+    test_utils.wait_for_topics_created([self.input_topic])
+    self.input_sub.create()
 
     # Set up BigQuery environment
     from google.cloud import bigquery
@@ -97,15 +96,14 @@ class LeaderBoardIT(unittest.TestCase):
     """Inject game events as test data to PubSub."""
 
     logging.debug('Injecting %d game events to topic %s',
-                  message_count, topic.name)
+                  message_count, topic.full_name)
 
     for _ in range(message_count):
-      self.pub_client.publish(topic.name,
-                              self.INPUT_EVENT % self._test_timestamp)
+      topic.publish(self.INPUT_EVENT % self._test_timestamp)
 
   def _cleanup_pubsub(self):
-    test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
-    test_utils.cleanup_topics(self.pub_client, [self.input_topic])
+    test_utils.cleanup_subscriptions([self.input_sub])
+    test_utils.cleanup_topics([self.input_topic])
 
   def _cleanup_dataset(self):
     self.dataset.delete()
@@ -133,9 +131,9 @@ class LeaderBoardIT(unittest.TestCase):
                                         teams_query,
                                         self.DEFAULT_EXPECTED_CHECKSUM)
 
-    extra_opts = {'subscription': self.input_sub.name,
+    extra_opts = {'subscription': self.input_sub.full_name,
                   'dataset': self.dataset.name,
-                  'topic': self.input_topic.name,
+                  'topic': self.input_topic.full_name,
                   'team_window_duration': 1,
                   'wait_until_finish_duration':
                       self.WAIT_UNTIL_FINISH_DURATION,
@@ -153,6 +151,8 @@ class LeaderBoardIT(unittest.TestCase):
                     self.dataset.name, self.OUTPUT_TABLE_TEAMS)
 
     # Generate input data and inject to PubSub.
+    test_utils.wait_for_subscriptions_created([self.input_topic,
+                                               self.input_sub])
     self._inject_pubsub_game_events(self.input_topic, self.DEFAULT_INPUT_COUNT)
 
     # Get pipeline options from command argument: --test-pipeline-options,
