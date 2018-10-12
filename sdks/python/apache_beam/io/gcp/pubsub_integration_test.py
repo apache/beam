@@ -100,25 +100,21 @@ class PubSubIntegrationTest(unittest.TestCase):
 
     # Set up PubSub environment.
     from google.cloud import pubsub
-    self.pub_client = pubsub.PublisherClient()
-    self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
-    self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
+    self.pubsub_client = pubsub.Client(project=self.project)
+    self.input_topic = self.pubsub_client.topic(INPUT_TOPIC + self.uuid)
+    self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC + self.uuid)
+    self.input_sub = self.input_topic.subscription(INPUT_SUB + self.uuid)
+    self.output_sub = self.output_topic.subscription(OUTPUT_SUB + self.uuid)
 
-    self.sub_client = pubsub.SubscriberClient()
-    self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, INPUT_SUB + self.uuid),
-        self.input_topic.name)
-    self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, OUTPUT_SUB + self.uuid),
-        self.output_topic.name)
+    self.input_topic.create()
+    self.output_topic.create()
+    test_utils.wait_for_topics_created([self.input_topic, self.output_topic])
+    self.input_sub.create()
+    self.output_sub.create()
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    test_utils.cleanup_subscriptions([self.input_sub, self.output_sub])
+    test_utils.cleanup_topics([self.input_topic, self.output_topic])
 
   def _test_streaming(self, with_attributes):
     """Runs IT pipeline with message verifier.
@@ -143,20 +139,21 @@ class PubSubIntegrationTest(unittest.TestCase):
       strip_attributes = [self.ID_LABEL, self.TIMESTAMP_ATTRIBUTE]
     pubsub_msg_verifier = PubSubMessageMatcher(
         self.project,
-        self.output_sub.name,
+        OUTPUT_SUB + self.uuid,
         expected_messages,
         timeout=MESSAGE_MATCHER_TIMEOUT_S,
         with_attributes=with_attributes,
         strip_attributes=strip_attributes)
-    extra_opts = {'input_subscription': self.input_sub.name,
-                  'output_topic': self.output_topic.name,
+    extra_opts = {'input_subscription': self.input_sub.full_name,
+                  'output_topic': self.output_topic.full_name,
                   'wait_until_finish_duration': TEST_PIPELINE_DURATION_MS,
                   'on_success_matcher': all_of(state_verifier,
                                                pubsub_msg_verifier)}
 
     # Generate input data and inject to PubSub.
+    test_utils.wait_for_subscriptions_created([self.input_sub])
     for msg in self.INPUT_MESSAGES[self.runner_name]:
-      self.pub_client.publish(self.input_topic.name, msg.data, **msg.attributes)
+      self.input_topic.publish(msg.data, **msg.attributes)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
