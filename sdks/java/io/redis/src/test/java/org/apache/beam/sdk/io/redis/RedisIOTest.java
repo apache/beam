@@ -86,7 +86,7 @@ public class RedisIOTest {
   @Test
   public void testWriteReadUsingDefaultAppendMethod() throws Exception {
     ArrayList<KV<String, String>> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 8000; i++) {
       KV<String, String> kv = KV.of("key " + i, "value " + i);
       data.add(kv);
     }
