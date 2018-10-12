@@ -220,13 +220,12 @@ class PipelineOptions(HasDisplayData):
     if unknown_args and unknown_args[0] != '':
       logging.info("Parsing unknown args: %s", unknown_args)
       for arg in unknown_args:
-        # https://issues.apache.org/jira/browse/BEAM-5442
-        if arg.startswith('--') and not arg.startswith('--beam_plugins'):
+        if arg.startswith('--'):
           parser.add_argument(arg.split('=', 1)[0], nargs='?')
       # repeat parsing with unknown options added
       known_args, unknown_args = parser.parse_known_args(self._flags)
       if unknown_args:
-        logging.warning("Discarding unparseable args: %s", unknown_args)
+        logging.warn("Discarding unparseable args: %s", unknown_args)
 
     result = vars(known_args)
 
