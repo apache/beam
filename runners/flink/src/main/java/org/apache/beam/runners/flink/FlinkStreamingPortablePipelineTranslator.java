@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.STREAMING_IMPULSE_TRANSFORM_URL;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
@@ -38,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -61,6 +58,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKey
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.StreamingImpulseSource;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -165,6 +163,8 @@ public class FlinkStreamingPortablePipelineTranslator
   interface PTransformTranslator<T> {
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
+
+  private static final String STREAMING_IMPULSE_TRANSFORM_URL = "flink:transform:streaming_impulse:v1";
 
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
       urnToTransformTranslator;
@@ -441,24 +441,7 @@ public class FlinkStreamingPortablePipelineTranslator
     DataStreamSource<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(
-                new RichParallelSourceFunction<WindowedValue<byte[]>>() {
-                  private AtomicBoolean cancelled = new AtomicBoolean(false);
-                  private AtomicLong count = new AtomicLong();
-
-                  @Override
-                  public void run(SourceContext<WindowedValue<byte[]>> ctx) throws Exception {
-                    while (!cancelled.get() && (messageCount == 0 || count.getAndIncrement() < messageCount)) {
-                      ctx.collect(WindowedValue.valueInGlobalWindow(new byte[] {}));
-                      Thread.sleep(intervalMillis);
-                    }
-                  }
-
-                  @Override
-                  public void cancel() {
-                    cancelled.set(true);
-                  }
-                });
+            .addSource(new StreamingImpulseSource(intervalMillis, messageCount));
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
   }
