@@ -112,9 +112,8 @@ def equal_to(expected):
   expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected,
-                             key=lambda x: (hash(type(x)), type(x), x))
-    sorted_actual = sorted(actual, key=lambda x: (hash(type(x)), type(x), x))
+    sorted_expected = sorted(expected)
+    sorted_actual = sorted(actual)
     if sorted_expected != sorted_actual:
       raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
