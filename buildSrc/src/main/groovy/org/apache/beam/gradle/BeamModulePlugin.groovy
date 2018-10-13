@@ -1486,6 +1486,7 @@ artifactId=${project.name}
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
+        "--environmentCacheMillis=10000",
       ]
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
