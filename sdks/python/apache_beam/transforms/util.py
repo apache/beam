@@ -223,7 +223,7 @@ class _BatchSizeEstimator(object):
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
       raise ValueError("target_batch_duration_secs (%s) must be positive" % (
           target_batch_duration_secs))
-    if not (target_batch_overhead or target_batch_duration_secs):
+    if max(0, target_batch_overhead, target_batch_duration_secs) == 0:
       raise ValueError("At least one of target_batch_overhead or "
                        "target_batch_duration_secs must be positive.")
     self._min_batch_size = min_batch_size
