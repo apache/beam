@@ -20,8 +20,10 @@
 from __future__ import absolute_import
 
 import argparse
+import logging
 from builtins import list
 from builtins import object
+from collections import OrderedDict
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -213,7 +215,35 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, _ = parser.parse_known_args(self._flags)
+    known_args, unknown_args = parser.parse_known_args(self._flags)
+    # Parse args which are not known at this point but might be recognized
+    # at a later point in time, i.e. by the actual Runner.
+    if unknown_args and unknown_args[0] != '':
+      logging.info("Parsing unknown args: %s", unknown_args)
+
+      def enumerate_args(args):
+        cleaned_args = OrderedDict()
+        for arg in args:
+          if arg.startswith('--'):
+            # split argument name if it's in arg_name=value syntax
+            arg_name = arg.split('=', 1)[0]
+            # count identical arg names
+            if arg_name not in cleaned_args:
+              cleaned_args[arg_name] = 1
+            else:
+              cleaned_args[arg_name] += 1
+        return cleaned_args
+
+      for arg_name, num_times in enumerate_args(unknown_args).items():
+        parser.add_argument(arg_name,
+                            nargs='?',
+                            action='append' if num_times > 1 else 'store')
+
+      # repeat parsing with unknown options added
+      known_args, unknown_args = parser.parse_known_args(self._flags)
+      if unknown_args:
+        logging.warning("Discarding unparseable args: %s", unknown_args)
+
     result = vars(known_args)
 
     # Apply the overrides if any
