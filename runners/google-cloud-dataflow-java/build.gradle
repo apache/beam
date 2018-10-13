@@ -31,6 +31,7 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
 evaluationDependsOn(":beam-sdks-java-core")
 evaluationDependsOn(":beam-examples-java")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -104,12 +105,18 @@ test {
 
 task validatesRunnerTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.getArchivePath()
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
+
   ])
 
   // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -141,12 +148,19 @@ task validatesRunner {
 
 task googleCloudPlatformIntegrationTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar')
+  if (!project.findProperty('dataflowWorkerJar')) {
+    dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.getArchivePath()
+  }
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
@@ -160,12 +174,17 @@ task googleCloudPlatformIntegrationTest(type: Test) {
 
 task examplesJavaIntegrationTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.getArchivePath()
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
@@ -181,12 +200,17 @@ task examplesJavaIntegrationTest(type: Test) {
 
 task coreSDKJavaIntegrationTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.getArchivePath()
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
