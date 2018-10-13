@@ -16,7 +16,9 @@
 #
 
 """
-A PTransform that provides an unbounded, streaming source of empty byte  arrays.
+A PTransform that provides an unbounded, streaming source of empty byte arrays.
+
+This can only be used with the flink runner.
 """
 import json
 
@@ -25,7 +27,7 @@ from apache_beam import pvalue
 from apache_beam import Windowing
 from apache_beam.transforms.window import GlobalWindows
 
-class StreamingImpulseSource(PTransform):
+class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
 
   config = {}

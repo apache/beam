@@ -16,6 +16,8 @@
 #
 
 """A streaming workflow that uses a synthetic streaming source.
+
+This can only be used with the Flink portable runner.
 """
 
 from __future__ import absolute_import
@@ -23,9 +25,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-from apache_beam.runners.portability.portable_runner import PortableRunner
-
-from apache_beam.io.streaming_impulse_source import StreamingImpulseSource
+from apache_beam.io.flink.flink_streaming_impulse_source import FlinkStreamingImpulseSource
 from apache_beam.transforms.trigger import AfterProcessingTime, AccumulationMode, Repeatedly
 
 import apache_beam as beam
@@ -59,7 +59,7 @@ def run(argv=None):
 
   p = beam.Pipeline(options=pipeline_options)
 
-  messages = (p | StreamingImpulseSource())
+  messages = (p | FlinkStreamingImpulseSource())
 
   (messages | 'decode' >> beam.Map(lambda x: ('', 1))
    | 'window' >> beam.WindowInto(window.GlobalWindows(),
