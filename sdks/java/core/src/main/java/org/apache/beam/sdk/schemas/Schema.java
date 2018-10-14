@@ -209,6 +209,25 @@ public class Schema implements Serializable {
         && Objects.equals(getFields(), other.getFields());
   }
 
+  /** Returns true if two schemas are equal ignoring field names and descriptions. */
+  public boolean typesEqual(Schema other) {
+    if (uuid != null && other.uuid != null && Objects.equals(uuid, other.uuid)) {
+      return true;
+    }
+    if (getFieldCount() != other.getFieldCount()) {
+      return false;
+    }
+    if (!Objects.equals(fieldIndices.values(), other.fieldIndices.values())) {
+      return false;
+    }
+    for (int i = 0; i < getFieldCount(); ++i) {
+      if (!getField(i).typesEqual(other.getField(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   enum EquivalenceNullablePolicy {
     SAME,
     WEAKEN,
@@ -547,6 +566,29 @@ public class Schema implements Serializable {
           && Arrays.equals(getMetadata(), other.getMetadata());
     }
 
+    /** Returns true if two FieldTypes are equal. */
+    public boolean typesEqual(FieldType other) {
+      if (!Objects.equals(getTypeName(), other.getTypeName())) {
+        return false;
+      }
+      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+        return false;
+      }
+      if (getTypeName() == TypeName.ARRAY
+          && !getCollectionElementType().typesEqual(other.getCollectionElementType())) {
+        return false;
+      }
+      if (getTypeName() == TypeName.MAP
+          && (!getMapValueType().typesEqual(other.getMapValueType())
+              || !getMapKeyType().typesEqual(other.getMapKeyType()))) {
+        return false;
+      }
+      if (getTypeName() == TypeName.ROW && !getRowSchema().typesEqual(other.getRowSchema())) {
+        return false;
+      }
+      return true;
+    }
+
     private boolean equivalent(FieldType other) {
       if (!other.getTypeName().equals(getTypeName())) {
         return false;
@@ -668,6 +710,12 @@ public class Schema implements Serializable {
       return Objects.equals(getName(), other.getName())
           && Objects.equals(getDescription(), other.getDescription())
           && Objects.equals(getType(), other.getType())
+          && Objects.equals(getNullable(), other.getNullable());
+    }
+
+    /** Returns true if two fields are equal, ignoring name and description. */
+    public boolean typesEqual(Field other) {
+      return getType().typesEqual(other.getType())
           && Objects.equals(getNullable(), other.getNullable());
     }
 
