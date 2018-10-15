@@ -37,6 +37,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -239,7 +240,8 @@ class BigtableServiceImpl implements BigtableService {
             public void onFailure(Throwable throwable) {
               result.completeExceptionally(throwable);
             }
-          });
+          },
+          MoreExecutors.directExecutor());
       return result;
     }
   }

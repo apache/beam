@@ -239,7 +239,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
-    Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
+    Iterable<File> files = com.google.common.io.Files.fileTraverser().depthFirstPreOrder(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(

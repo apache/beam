@@ -317,11 +317,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_auth_version = "0.10.0"
     def grpc_version = "1.13.1"
     def protobuf_version = "3.6.0"
-    def guava_version = "20.0"
+    def guava_version = "25.1-jre"
     def netty_version = "4.1.25.Final"
     def proto_google_common_protos_version = "1.12.0"
     def hamcrest_version = "1.3"
-    def hadoop_version = "2.7.3"
+    def hadoop_version = "2.8.5"
     def jackson_version = "2.9.5"
     def spark_version = "2.3.2"
     def apex_core_version = "3.7.0"
@@ -362,7 +362,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
         datastore_v1_protos                         : "com.google.api.grpc:proto-google-cloud-datastore-v1:$generated_grpc_beta_version",
-        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
+        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.1.3",
         gax_grpc                                    : "com.google.api:gax-grpc:1.29.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
