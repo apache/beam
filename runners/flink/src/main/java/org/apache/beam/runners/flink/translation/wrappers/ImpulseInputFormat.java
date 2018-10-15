@@ -62,8 +62,13 @@ public class ImpulseInputFormat extends RichInputFormat<WindowedValue<byte[]>, G
 
   @Override
   public GenericInputSplit[] createInputSplits(int numSplits) {
-    // Always return a single split because only one global "impulse" will ever be sent.
-    return new GenericInputSplit[] {new GenericInputSplit(1, 1)};
+    // Generate one input split per partition (numSplits) to trigger
+    // an impulse for each parallel instance.
+    GenericInputSplit[] splits = new GenericInputSplit[numSplits];
+    for (int i = 0; i < splits.length; i++) {
+      splits[i] = new GenericInputSplit(i, numSplits);
+    }
+    return splits;
   }
 
   @Override

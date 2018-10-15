@@ -19,13 +19,13 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 /**
  * Source function which sends an impulse to a downstream operator. It may keep the source alive
  * although its work is already done. It will only shutdown when requested by the JobManager.
  */
-public class ImpulseSourceFunction implements SourceFunction<WindowedValue<byte[]>> {
+public class ImpulseSourceFunction implements ParallelSourceFunction<WindowedValue<byte[]>> {
 
   /** Keep source running even after it has done all the work. */
   private final boolean keepSourceAlive;
