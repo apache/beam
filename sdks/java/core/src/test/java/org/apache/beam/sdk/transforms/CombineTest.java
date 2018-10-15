@@ -964,6 +964,19 @@ public class CombineTest implements Serializable {
     public void testSimpleCombineWithContextEmpty() {
       runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
     }
+
+    @Test
+    public void testWithDefaultsPreservesSideInputs() {
+      final PCollectionView<Integer> view =
+          pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
+
+      Combine.Globally<Integer, String> combine =
+          Combine.globally(new TestCombineFnWithContext(view))
+              .withSideInputs(view)
+              .withoutDefaults();
+
+      assertEquals(Collections.singletonList(view), combine.getSideInputs());
+    }
   }
 
   /** Tests validating windowing behaviors. */
