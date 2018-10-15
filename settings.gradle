@@ -173,7 +173,7 @@ project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven
 include "beam-sdks-java-maven-archetypes-starter"
 project(":beam-sdks-java-maven-archetypes-starter").dir = file("sdks/java/maven-archetypes/starter")
 include "beam-sdks-java-nexmark"
-project(":beam-sdks-java-nexmark").dir = file("sdks/java/nexmark")
+project(":beam-sdks-java-nexmark").dir = file("sdks/java/testing/nexmark")
 include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
 include "beam-sdks-python-container"
