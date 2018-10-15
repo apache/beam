@@ -167,7 +167,7 @@ project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-javadoc"
 project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
 include "beam-sdks-java-load-tests"
-project(":beam-sdks-java-load-tests").dir = file("sdks/java/load-tests")
+project(":beam-sdks-java-load-tests").dir = file("sdks/java/testing/load-tests")
 include "beam-sdks-java-maven-archetypes-examples"
 project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven-archetypes/examples")
 include "beam-sdks-java-maven-archetypes-starter"
