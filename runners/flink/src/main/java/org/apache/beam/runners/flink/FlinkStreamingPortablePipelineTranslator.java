@@ -170,12 +170,6 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
 
-    translatorMap.put(
-        // https://issues.apache.org/jira/browse/BEAM-5649
-        // Need to support this via a NOOP until the primitive is removed
-        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
-        (String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) -> {});
-
     this.urnToTransformTranslator = translatorMap.build();
   }
 
