@@ -22,8 +22,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 /**
- * Source function which sends an impulse to a downstream operator. It may keep the source alive
- * although its work is already done. It will only shutdown when requested by the JobManager.
+ * Source function which sends a single global impulse to a downstream operator. It may keep the
+ * source alive although its work is already done. It will only shutdown when the streaming job is
+ * cancelled.
  */
 public class ImpulseSourceFunction implements SourceFunction<WindowedValue<byte[]>> {
 
