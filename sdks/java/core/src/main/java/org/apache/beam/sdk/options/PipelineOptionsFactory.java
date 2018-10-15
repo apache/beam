@@ -1541,7 +1541,7 @@ public class PipelineOptionsFactory {
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner, true, ReflectHelpers.findClassLoader());
-              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+              if (!PipelineRunner.class.isAssignableFrom(runnerClass)) {
                 throw new IllegalArgumentException(
                     String.format(
                         "Class '%s' does not implement PipelineRunner. "
