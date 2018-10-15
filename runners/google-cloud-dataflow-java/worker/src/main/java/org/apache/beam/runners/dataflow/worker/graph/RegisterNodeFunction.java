@@ -41,7 +41,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -190,27 +189,17 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             .setId(idGenerator.get())
             .setStateApiServiceDescriptor(stateApiServiceDescriptor);
 
-    // Seed the ProcessBundleDescriptor with the bits from the pipeline.
-    // We do _not_ seed the transforms, as a ProcessBundleDescriptor will execute all transforms
-    // so misc. client-side transforms are meaningless.
-    processBundleDescriptor
-        .putAllCoders(pipeline.getComponents().getCodersMap())
-        .putAllPcollections(pipeline.getComponents().getPcollectionsMap())
-        .putAllWindowingStrategies(pipeline.getComponents().getWindowingStrategiesMap());
-
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
     // TODO: create a correct windowing strategy, including coders and environment
     // An SdkFunctionSpec is invalid without a working environment reference. We can revamp that
     // when we inline SdkFunctionSpec and FunctionSpec, both slated for inlining wherever they occur
-    SdkComponents sdkComponents = SdkComponents.create();
-    // Attempt to use the environment supplied by the pipeline, otherwise default to use
-    // the Java environment.
-    try {
-      sdkComponents.registerEnvironment(
-          Iterables.getOnlyElement(pipeline.getComponents().getEnvironmentsMap().values()));
-    } catch (NoSuchElementException e) {
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+
+    // Default to use the Java environment if pipeline doesn't have environment specified.
+    if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
       sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
+
     String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.get();
     try {
       RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
@@ -236,7 +225,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
-      String coderId = idGenerator.get();
+      String coderId = "generatedCoder" + idGenerator.get();
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -271,7 +260,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             e);
       }
 
-      String pcollectionId = idGenerator.get();
+      String pcollectionId = "generatedPcollection" + idGenerator.get();
       processBundleDescriptor.putPcollections(
           pcollectionId,
           RunnerApi.PCollection.newBuilder()
@@ -285,7 +274,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
       ParallelInstruction parallelInstruction = node.getParallelInstruction();
-      String ptransformId = idGenerator.get();
+      String ptransformId = "generatedPtransform" + idGenerator.get();
       ptransformIdToNameContexts.put(
           ptransformId,
           NameContext.create(
@@ -394,7 +383,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       }
 
       for (Node predecessorOutput : input.predecessors(node)) {
-        pTransform.putInputs(idGenerator.get(), nodesToPCollections.get(predecessorOutput));
+        pTransform.putInputs(
+            "generatedInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
       }
 
       for (Edge edge : input.outEdges(node)) {
