@@ -89,17 +89,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
           'last-returned record [starting at %d]' %
           (record_start, self._last_record_start))
 
-    if split_point:
-      if (self._offset_of_last_split_point != -1 and
-          record_start == self._offset_of_last_split_point):
-        raise ValueError(
-            'Record at a split point has same offset as the previous split '
-            'point: %d' % record_start)
-    elif self._last_record_start == -1:
-      raise ValueError(
-          'The first record [starting at %d] must be at a split point' %
-          record_start)
-
     if (split_point and self._offset_of_last_split_point != -1 and
         record_start == self._offset_of_last_split_point):
       raise ValueError(
