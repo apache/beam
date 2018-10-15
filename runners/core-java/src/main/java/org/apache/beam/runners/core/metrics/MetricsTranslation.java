@@ -30,6 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricName;
 
+// TODO ajamato possibly update this?
 /** Translation utilities for metrics classes to/from Fn API. */
 @Experimental(Kind.METRICS)
 public abstract class MetricsTranslation {
@@ -42,6 +43,10 @@ public abstract class MetricsTranslation {
     List<MetricUpdates.MetricUpdate<DistributionData>> distributionUpdates = new ArrayList<>();
     List<MetricUpdates.MetricUpdate<GaugeData>> gaugeUpdates = new ArrayList<>();
 
+    // DOESN't seem like its called outside of tests
+    // TODO ajamato possibly update this?
+    // We need to instead pass in the accept the MonitoringInfos and
+    // translate and accept the ones it knows of into MetricUpdates
     for (BeamFnApi.Metrics.User userMetricUpdate : userMetricUpdates) {
       MetricKey metricKey =
           MetricKey.create(ptransformName, metricNameFromProto(userMetricUpdate.getMetricName()));

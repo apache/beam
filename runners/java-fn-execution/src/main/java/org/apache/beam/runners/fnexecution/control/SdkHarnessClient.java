@@ -174,6 +174,8 @@ public class SdkHarnessClient implements AutoCloseable {
                 (Coder) remoteInput.getValue().getCoder()));
       }
 
+
+      // TODO ajamato: Somehow add metrics to this object
       return new ActiveBundle(
           bundleId,
           specificResponse,
