@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -28,6 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +37,19 @@ public class FlinkJobInvoker implements JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
   public static FlinkJobInvoker create(
-      ListeningExecutorService executorService, String flinkMasterUrl) {
-    return new FlinkJobInvoker(executorService, firstNonNull(flinkMasterUrl, "[auto]"));
+      ListeningExecutorService executorService,
+      FlinkJobServerDriver.ServerConfiguration serverConfig) {
+    return new FlinkJobInvoker(executorService, serverConfig);
   }
 
   private final ListeningExecutorService executorService;
-  private final String flinkMasterUrl;
+  private final FlinkJobServerDriver.ServerConfiguration serverConfig;
 
-  private FlinkJobInvoker(ListeningExecutorService executorService, String flinkMasterUrl) {
+  private FlinkJobInvoker(
+      ListeningExecutorService executorService,
+      FlinkJobServerDriver.ServerConfiguration serverConfig) {
     this.executorService = executorService;
-    this.flinkMasterUrl = flinkMasterUrl;
+    this.serverConfig = serverConfig;
   }
 
   @Override
@@ -62,7 +65,14 @@ public class FlinkJobInvoker implements JobInvoker {
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
-    flinkOptions.setFlinkMaster(firstNonNull(flinkOptions.getFlinkMaster(), flinkMasterUrl));
+    if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getFlinkMaster())) {
+      flinkOptions.setFlinkMaster(serverConfig.getFlinkMasterUrl());
+    }
+
+    PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
+    if (portableOptions.getSdkWorkerParallelism() == null) {
+      portableOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
+    }
 
     flinkOptions.setRunner(null);
 

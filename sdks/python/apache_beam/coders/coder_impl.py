@@ -197,6 +197,10 @@ class CallbackCoderImpl(CoderImpl):
 
     return self.estimate_size(value, nested), []
 
+  def __repr__(self):
+    return 'CallbackCoderImpl[encoder=%s, decoder=%s]' % (
+        self._encoder, self._decoder)
+
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -433,6 +437,24 @@ class TimestampCoderImpl(StreamCoderImpl):
     # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of
     # nesting.
     return 8
+
+
+class TimerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, payload_coder_impl):
+    self._timestamp_coder_impl = TimestampCoderImpl()
+    self._payload_coder_impl = payload_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    self._timestamp_coder_impl.encode_to_stream(value['timestamp'], out, True)
+    self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    # TODO(robertwb): Consider using a concrete class rather than a dict here.
+    return dict(
+        timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
+        payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 
 small_ints = [chr(_).encode('latin-1') for _ in range(128)]

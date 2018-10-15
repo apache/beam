@@ -476,8 +476,8 @@ class KVHintTestCase(TypeHintTestCase):
       typehints.KV[int, str, bool]
 
     self.assertEqual("Length of parameters to a KV type-hint must be "
-                     "exactly 2. Passed parameters: (<type 'int'>, <type "
-                     "'str'>, <type 'bool'>), have a length of 3.",
+                     "exactly 2. Passed parameters: ({}, {}, {}), have a "
+                     "length of 3.".format(int, str, bool),
                      e.exception.args[0])
 
   def test_getitem_proxy_to_tuple(self):
@@ -505,8 +505,8 @@ class DictHintTestCase(TypeHintTestCase):
       typehints.Dict[float, int, bool]
 
     self.assertEqual("Length of parameters to a Dict type-hint must be "
-                     "exactly 2. Passed parameters: (<type 'float'>, <type "
-                     "'int'>, <type 'bool'>), have a length of 3.",
+                     "exactly 2. Passed parameters: ({}, {}, {}), have a "
+                     "length of 3.".format(float, int, bool),
                      e.exception.args[0])
 
   def test_key_type_must_be_valid_composite_param(self):
@@ -591,8 +591,8 @@ class SetHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       typehints.Set[list]
     self.assertEqual("Parameter to a Set hint must be a non-sequence, a "
-                     "type, or a TypeConstraint. <type 'list'> is an "
-                     "instance of type.",
+                     "type, or a TypeConstraint. {} is an instance of "
+                     "type.".format(list),
                      e.exception.args[0])
 
   def test_compatibility(self):
@@ -810,8 +810,8 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       m = 'a'
       foo(m)
     self.assertEqual("Type-hint for argument: 'a' violated. Expected an "
-                     "instance of <type 'int'>, instead found an "
-                     "instance of <type 'str'>.",
+                     "instance of {}, instead found an instance of "
+                     "{}.".format(int, type(m)),
                      e.exception.args[0])
 
   def test_composite_type_assertion(self):
@@ -861,11 +861,12 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       return a - b
 
     with self.assertRaises(TypeCheckError) as e:
-      sub(1, 'two')
+      m = 'two'
+      sub(1, m)
 
     self.assertEqual("Type-hint for argument: 'b' violated. Expected an "
-                     "instance of <type 'int'>, instead found an instance "
-                     "of <type 'str'>.",
+                     "instance of {}, instead found an instance of "
+                     "{}.".format(int, type(m)),
                      e.exception.args[0])
 
   def test_valid_only_positional_arguments(self):
@@ -907,11 +908,12 @@ class ReturnsDecoratorTestCase(TypeHintTestCase):
     def foo(a):
       return 'test'
     with self.assertRaises(TypeCheckError) as e:
-      foo(4)
+      m = 4
+      foo(m)
 
     self.assertEqual("Type-hint for return type violated. Expected an "
-                     "instance of <type 'int'>, instead found an instance "
-                     "of <type 'str'>.",
+                     "instance of {}, instead found an instance of "
+                     "{}.".format(int, type('test')),
                      e.exception.args[0])
 
   def test_type_check_simple_type(self):

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -40,15 +41,26 @@ var tests = []struct {
 	Expected   interface{}
 }{
 	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
+	{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
 	{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 	{Fn: &MyOtherCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: "21"},
 	{Fn: &MyThirdCombine{}, AccumCoder: intCoder(reflectx.Int), Input: strInput, Expected: int(21)},
+	{Fn: &MyContextCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
+	{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
+}
+
+func fnName(x interface{}) string {
+	v := reflect.ValueOf(x)
+	if v.Kind() != reflect.Func {
+		return v.Type().String()
+	}
+	return runtime.FuncForPC(uintptr(v.Pointer())).Name()
 }
 
 // TestCombine verifies that the Combine node works correctly.
 func TestCombine(t *testing.T) {
 	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
+		t.Run(fnName(test.Fn), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
@@ -69,7 +81,7 @@ func TestCombine(t *testing.T) {
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
 	for _, test := range tests {
-		t.Run(reflect.TypeOf(test.Fn).Name(), func(t *testing.T) {
+		t.Run(fnName(test.Fn), func(t *testing.T) {
 			edge := getCombineEdge(t, test.Fn, test.AccumCoder)
 
 			out := &CaptureNode{UID: 1}
@@ -101,7 +113,7 @@ func getCombineEdge(t *testing.T, cfn interface{}, ac *coder.Coder) *graph.Multi
 		// This makes the assumption that the AddInput function is unkeyed.
 		vtype = fn.AddInputFn().Param[1].T
 	} else {
-		vtype = fn.MergeAccumulatorsFn().Param[0].T
+		vtype = fn.MergeAccumulatorsFn().Param[1].T
 	}
 	inT := typex.NewCoGBK(typex.New(reflectx.Int), typex.New(vtype))
 	in := g.NewNode(inT, window.DefaultWindowingStrategy(), true)
@@ -119,7 +131,7 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {
@@ -161,6 +173,13 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 //  InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
+}
+
+// nonBinaryMergeFn represents a combine with a context parameter and an error return, where
+//
+//  InputT == OutputT == AccumT == int
+func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
+	return a + b, nil
 }
 
 // MyCombine represents a combine with the same Input and Output type (int), but a
@@ -214,6 +233,32 @@ func (*MyThirdCombine) MergeAccumulators(a, b int) int {
 	return a + b
 }
 
+// MyContextCombine is the same as MyCombine, but requires a context parameter.
+//
+//  InputT == int
+//  AccumT == int64
+//  OutputT == string
+type MyContextCombine struct {
+	MyCombine // Embedding to re-use the exisitng AddInput implementations
+}
+
+func (*MyContextCombine) MergeAccumulators(_ context.Context, a, b int64) int64 {
+	return a + b
+}
+
+// MyErrorCombine is the same as MyCombine, but may return an error.
+//
+//  InputT == int
+//  AccumT == int64
+//  OutputT == string
+type MyErrorCombine struct {
+	MyCombine // Embedding to re-use the exisitng AddInput implementations
+}
+
+func (*MyErrorCombine) MergeAccumulators(a, b int64) (int64, error) {
+	return a + b, nil
+}
+
 func intCoder(t reflect.Type) *coder.Coder {
 	c, err := coderx.NewVarIntZ(t)
 	if err != nil {
@@ -245,7 +290,7 @@ func (n *simpleGBK) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 

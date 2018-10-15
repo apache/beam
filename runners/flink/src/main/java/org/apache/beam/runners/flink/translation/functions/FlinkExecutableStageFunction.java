@@ -21,16 +21,19 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -40,6 +43,8 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Flink operator that passes its input DataSet through an SDK-executed {@link
@@ -51,6 +56,7 @@ import org.apache.flink.util.Collector;
  */
 public class FlinkExecutableStageFunction<InputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, RawUnionValue> {
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutableStageFunction.class);
 
   // Main constructor fields. All must be Serializable because Flink distributes Functions to
   // task managers via java serialization.
@@ -65,8 +71,8 @@ public class FlinkExecutableStageFunction<InputT>
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
-  private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
+  private transient FlinkExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
 
@@ -93,9 +99,21 @@ public class FlinkExecutableStageFunction<InputT>
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
-    stateRequestHandler = stageContext.getStateRequestHandler(executableStage, runtimeContext);
+    stateRequestHandler = getStateRequestHandler(executableStage, runtimeContext);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
+  }
+
+  private static StateRequestHandler getStateRequestHandler(
+      ExecutableStage executableStage, RuntimeContext runtimeContext) {
+    StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+        FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
+    try {
+      return StateRequestHandlers.forSideInputHandlerFactory(
+          ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -126,8 +144,17 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
-    // Remove the reference to stageContext and make stageContext available for garbage collection.
+    // close may be called multiple times when an exception is thrown
+    if (stageContext != null) {
+      try (@SuppressWarnings("unused")
+              AutoCloseable bundleFactoryCloser = stageBundleFactory;
+          @SuppressWarnings("unused")
+              AutoCloseable closable = stageContext) {
+      } catch (Exception e) {
+        LOG.error("Error in close: ", e);
+        throw e;
+      }
+    }
     stageContext = null;
   }
 

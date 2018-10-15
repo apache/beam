@@ -174,7 +174,7 @@ Pipeline p = TestPipeline.create();
 You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection]({{ site.baseurl }}/documentation/programming-guide/#creating-a-pcollection) for more information.
 
 ### PAssert
-[PAssert]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/PAssert.html) is a class included in the Beam Java SDK  that is an assertion on the contents of a `PCollection`. You can use `PAssert`to verify that a `PCollection` contains a specific set of expected elements.
+[PAssert](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/PAssert.html) is a class included in the Beam Java SDK  that is an assertion on the contents of a `PCollection`. You can use `PAssert`to verify that a `PCollection` contains a specific set of expected elements.
 
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
 
@@ -200,7 +200,7 @@ Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're usin
 </dependency>
 ```
 
-For more information on how these classes work, see the [org.apache.beam.sdk.testing]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/package-summary.html) package documentation.
+For more information on how these classes work, see the [org.apache.beam.sdk.testing](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/package-summary.html) package documentation.
 
 ### An Example Test for a Composite Transform
 

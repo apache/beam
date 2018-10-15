@@ -20,6 +20,7 @@ from __future__ import absolute_import
 
 import logging
 import math
+import sys
 import unittest
 from builtins import range
 
@@ -41,7 +42,7 @@ from . import observable
 class CustomCoder(coders.Coder):
 
   def encode(self, x):
-    return str(x+1)
+    return str(x+1).encode('utf-8')
 
   def decode(self, encoded):
     return int(encoded) - 1
@@ -56,6 +57,9 @@ class CodersTest(unittest.TestCase):
   def setUpClass(cls):
     cls.seen = set()
     cls.seen_nested = set()
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   @classmethod
   def tearDownClass(cls):
@@ -193,6 +197,15 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
         (timestamp.Timestamp.of(27), b'abc'))
 
+  def test_timer_coder(self):
+    self.check_coder(coders._TimerCoder(coders.BytesCoder()),
+                     *[{'timestamp': timestamp.Timestamp(micros=x),
+                        'payload': b'xyz'}
+                       for x in range(-3, 3)])
+    self.check_coder(
+        coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()),)),
+        ({'timestamp': timestamp.Timestamp.of(37), 'payload': 389},))
+
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
     # Verify cloud object representation
@@ -272,7 +285,7 @@ class CodersTest(unittest.TestCase):
         yield i
 
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
-    self.assertItemsEqual(list(iter_generator(count)),
+    self.assertCountEqual(list(iter_generator(count)),
                           iterable_coder.decode(
                               iterable_coder.encode(iter_generator(count))))
 
@@ -374,8 +387,8 @@ class CodersTest(unittest.TestCase):
     self.assertEqual({'@type': 'kind:global_window'},
                      coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('', coder.encode(value))
-    self.assertEqual(value, coder.decode(''))
+    self.assertEqual(b'', coder.encode(value))
+    self.assertEqual(value, coder.decode(b''))
     # Test unnested
     self.check_coder(coder, value)
     # Test nested

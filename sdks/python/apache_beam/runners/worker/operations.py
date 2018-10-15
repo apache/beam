@@ -31,6 +31,7 @@ from builtins import zip
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
@@ -42,6 +43,7 @@ from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
@@ -189,6 +191,62 @@ class Operation(object):
                     else None))),
         user=self.metrics_container.to_runner_api())
 
+  def monitoring_infos(self, transform_id):
+    """Returns the list of MonitoringInfos collected by this operation."""
+    all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
+    all_monitoring_infos.update(
+        self.element_count_monitoring_infos(transform_id))
+    all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
+    return all_monitoring_infos
+
+  def element_count_monitoring_infos(self, transform_id):
+    """Returns the element count MonitoringInfo collected by this operation."""
+    if len(self.receivers) == 1:
+      # If there is exactly one output, we can unambiguously
+      # fix its name later, which we do.
+      # TODO(robertwb): Plumb the actual name here.
+      mi = monitoring_infos.int64_counter(
+          monitoring_infos.ELEMENT_COUNT_URN,
+          self.receivers[0].opcounter.element_counter.value(),
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {monitoring_infos.to_key(mi) : mi}
+    return {}
+
+  def user_monitoring_infos(self, transform_id):
+    """Returns the user MonitoringInfos collected by this operation."""
+    return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
+
+  def execution_time_monitoring_infos(self, transform_id):
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int()
+        + self.scoped_process_state.sampled_msecs_int()
+        + self.scoped_finish_state.sampled_msecs_int())
+    mis = [
+        monitoring_infos.int64_counter(
+            monitoring_infos.START_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+            self.scoped_process_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+            self.scoped_finish_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.TOTAL_MSECS_URN,
+            total_time_spent_msecs,
+            ptransform=transform_id
+        ),
+    ]
+    return {monitoring_infos.to_key(mi) : mi for mi in mis}
+
   def __str__(self):
     """Generates a useful string for this object.
 
@@ -245,6 +303,29 @@ class ReadOperation(Operation):
         self.output(windowed_value)
 
 
+class ImpulseReadOperation(Operation):
+
+  def __init__(self, name_context, counter_factory, state_sampler,
+               consumers, source, output_coder):
+    super(ImpulseReadOperation, self).__init__(
+        name_context, None, counter_factory, state_sampler)
+    self.source = source
+    self.receivers = [
+        ConsumerSet(
+            self.counter_factory, self.name_context.step_name, 0,
+            next(iter(consumers.values())), output_coder)]
+
+  def process(self, unused_impulse):
+    with self.scoped_process_state:
+      range_tracker = self.source.get_range_tracker(None, None)
+      for value in self.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
+
+
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
 
@@ -272,10 +353,14 @@ class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
   def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None):
+      self, name, spec, counter_factory, sampler, side_input_maps=None,
+      user_state_context=None, timer_inputs=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.user_state_context = user_state_context
     self.tagged_receivers = None
+    # A mapping of timer tags to the input "PCollections" they come in on.
+    self.timer_inputs = timer_inputs or {}
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -364,6 +449,13 @@ class DoOperation(Operation):
           raise ValueError('Unexpected output name for operation: %s' % tag)
         self.tagged_receivers[original_tag] = self.receivers[index]
 
+      if self.user_state_context:
+        self.user_state_context.update_timer_receivers(self.tagged_receivers)
+        self.timer_specs = {
+            spec.name: spec
+            for spec in userstate.get_dofn_specs(fn)[1]
+        }
+
       if self.side_input_maps is None:
         if tags_and_types:
           self.side_input_maps = list(self._read_side_inputs(tags_and_types))
@@ -375,6 +467,7 @@ class DoOperation(Operation):
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
           state=state,
+          user_state_context=self.user_state_context,
           operation_name=self.name_context.metrics_name())
 
       self.dofn_receiver = (self.dofn_runner
@@ -386,6 +479,12 @@ class DoOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def process_timer(self, tag, windowed_timer):
+    key, timer_data = windowed_timer.value
+    timer_spec = self.timer_specs[tag]
+    self.dofn_receiver.process_user_timer(
+        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
   def finish(self):
     with self.scoped_finish_state:
@@ -399,6 +498,19 @@ class DoOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    if self.tagged_receivers:
+      for tag, receiver in self.tagged_receivers.items():
+        mi = monitoring_infos.int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(mi)] = mi
+    return infos
 
 
 class DoFnRunnerReceiver(Receiver):
@@ -495,13 +607,7 @@ class PGBKCVOperation(Operation):
     # simpler than for the DoFn's of ParDo.
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
-    if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.__func__):
-      # Old versions of the SDK have CombineFns that don't implement add_input.
-      self.combine_fn_add_input = (
-          lambda a, e: self.combine_fn.add_inputs(a, [e]))
-    else:
-      self.combine_fn_add_input = self.combine_fn.add_input
+    self.combine_fn_add_input = self.combine_fn.add_input
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.

@@ -535,14 +535,11 @@ public class SolrIO {
     /**
      * Provide a maximum size in number of documents for the batch. Depending on the execution
      * engine, size of bundles may vary, this sets the maximum size. Change this if you need to have
-     * smaller batch.
+     * smaller batch. Default max batch size is 1000.
      *
      * @param batchSize maximum batch size in number of documents
      */
-    @VisibleForTesting
-    Write withMaxBatchSize(int batchSize) {
-      // TODO remove this configuration, we can figure out the best number
-      // by tuning batchSize when pipelines run.
+    public Write withMaxBatchSize(int batchSize) {
       checkArgument(batchSize > 0, "batchSize must be larger than 0, but was: %s", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
     }

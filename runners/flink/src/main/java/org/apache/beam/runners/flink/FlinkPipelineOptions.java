@@ -24,12 +24,14 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 /** Options which can be used to configure a Flink PipelineRunner. */
 public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
+
+  String AUTO = "[auto]";
 
   /**
    * List of local files to make available to workers.
@@ -56,35 +58,45 @@ public interface FlinkPipelineOptions
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
           + "[collection] or [auto].")
+  @Default.String(AUTO)
   String getFlinkMaster();
 
   void setFlinkMaster(String value);
 
-  @Description("The degree of parallelism to be used when distributing operations onto workers.")
-  @Default.InstanceFactory(DefaultParallelismFactory.class)
+  @Description(
+      "The degree of parallelism to be used when distributing operations onto workers. "
+          + "If the parallelism is not set, the configured Flink default is used, or 1 if none can be found.")
+  @Default.Integer(-1)
   Integer getParallelism();
 
   void setParallelism(Integer value);
 
   @Description(
-      "The interval between consecutive checkpoints (i.e. snapshots of the current"
-          + "pipeline state used for fault tolerance).")
+      "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
+          + "Default: No checkpointing.")
   @Default.Long(-1L)
   Long getCheckpointingInterval();
 
   void setCheckpointingInterval(Long interval);
 
   @Description("The checkpointing mode that defines consistency guarantee.")
-  @Default.Enum("AT_LEAST_ONCE")
+  @Default.Enum("EXACTLY_ONCE")
   CheckpointingMode getCheckpointingMode();
 
   void setCheckpointingMode(CheckpointingMode mode);
 
-  @Description("The maximum time that a checkpoint may take before being discarded.")
-  @Default.Long(20 * 60 * 1000)
+  @Description(
+      "The maximum time in milliseconds that a checkpoint may take before being discarded.")
+  @Default.Long(-1L)
   Long getCheckpointTimeoutMillis();
 
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
+
+  @Description("The minimal pause in milliseconds before the next checkpoint is triggered.")
+  @Default.Long(-1L)
+  Long getMinPauseBetweenCheckpoints();
+
+  void setMinPauseBetweenCheckpoints(Long minPauseInterval);
 
   @Description(
       "Sets the number of times that failed tasks are re-executed. "
@@ -96,7 +108,7 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
-      "Sets the delay between executions. A value of {@code -1} "
+      "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)
   Long getExecutionRetryDelay();
@@ -117,9 +129,9 @@ public interface FlinkPipelineOptions
       "Sets the state backend to use in streaming mode. "
           + "Otherwise the default is read from the Flink config.")
   @JsonIgnore
-  AbstractStateBackend getStateBackend();
+  StateBackend getStateBackend();
 
-  void setStateBackend(AbstractStateBackend stateBackend);
+  void setStateBackend(StateBackend stateBackend);
 
   @Description("Enable/disable Beam metrics in Flink Runner")
   @Default.Boolean(true)
@@ -167,4 +179,12 @@ public interface FlinkPipelineOptions
   Boolean isShutdownSourcesOnFinalWatermark();
 
   void setShutdownSourcesOnFinalWatermark(Boolean shutdownOnFinalWatermark);
+
+  @Description(
+      "Interval in milliseconds for sending latency tracking marks from the sources to the sinks. "
+          + "Interval value <= 0 disables the feature.")
+  @Default.Long(0)
+  Long getLatencyTrackingInterval();
+
+  void setLatencyTrackingInterval(Long interval);
 }

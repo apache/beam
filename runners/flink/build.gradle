@@ -46,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.5.2"
+def flink_version = "1.5.3"
 
 dependencies {
   compile library.java.guava
@@ -56,7 +56,6 @@ dependencies {
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
-  shadow library.java.slf4j_simple
   shadow library.java.joda_time
   shadow library.java.commons_compress
   shadow library.java.args4j
@@ -74,6 +73,7 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
+  shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
@@ -97,7 +97,12 @@ def createValidatesRunnerTask(Map m) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
-    def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
+    def pipelineOptions = JsonOutput.toJson(
+        ["--runner=TestFlinkRunner",
+         "--streaming=${config.streaming}",
+         // TODO This should be changed to > 1
+         "--parallelism=1",
+        ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)

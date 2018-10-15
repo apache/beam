@@ -53,6 +53,8 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
+	// WorkerJar is a custom worker jar.
+	WorkerJar string
 
 	// -- Internal use only. Not supported in public Dataflow. --
 
@@ -60,7 +62,7 @@ type JobOptions struct {
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
+func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	steps, err := translate(p)
@@ -82,6 +84,21 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 		return nil, fmt.Errorf("Dataflow supports one container image only: %v", images)
 	}
 
+	packages := []*df.Package{{
+		Name:     "worker",
+		Location: workerURL,
+	}}
+	experiments := append(opts.Experiments, "beam_fn_api")
+
+	if opts.WorkerJar != "" {
+		jar := &df.Package{
+			Name:     "dataflow-worker.jar",
+			Location: jarURL,
+		}
+		packages = append(packages, jar)
+		experiments = append(experiments, "use_staged_dataflow_worker_jar")
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -89,7 +106,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 		Environment: &df.Environment{
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
-				Version: "0.3.0",
+				Version: "0.5.0",
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
@@ -100,15 +117,13 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 				Options: dataflowOptions{
 					PipelineURL: modelURL,
 					Region:      opts.Region,
+					Experiments: experiments,
 				},
 				GoOptions: opts.Options,
 			}),
 			WorkerPools: []*df.WorkerPool{{
-				Kind: "harness",
-				Packages: []*df.Package{{
-					Location: workerURL,
-					Name:     "worker",
-				}},
+				Kind:                        "harness",
+				Packages:                    packages,
 				WorkerHarnessContainerImage: images[0],
 				NumWorkers:                  1,
 				MachineType:                 opts.MachineType,
@@ -116,7 +131,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 				Zone:                        opts.Zone,
 			}},
 			TempStoragePrefix: opts.TempLocation,
-			Experiments:       append(opts.Experiments, "beam_fn_api"),
+			Experiments:       experiments,
 		},
 		Labels: opts.Labels,
 		Steps:  steps,
@@ -132,6 +147,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*d
 		// Add separate data disk for streaming jobs
 		job.Environment.WorkerPools[0].DataDisks = []*df.Disk{{}}
 	}
+
 	return job, nil
 }
 
@@ -191,8 +207,9 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 }
 
 type dataflowOptions struct {
-	PipelineURL string `json:"pipelineUrl"`
-	Region      string `json:"region"`
+	Experiments []string `json:"experiments,omitempty"`
+	PipelineURL string   `json:"pipelineUrl"`
+	Region      string   `json:"region"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

@@ -25,7 +25,6 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
@@ -53,7 +52,8 @@ if __name__ == '__main__':
             'java',
             '-jar', flinkJobServerJar,
             '--artifacts-dir', tmp_dir,
-            '--job-host', 'localhost:%s' % port,
+            '--job-host', 'localhost',
+            '--job-port', str(port),
         ]
       finally:
         shutil.rmtree(tmp_dir)
@@ -65,7 +65,6 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
-      options.view_as(SetupOptions).sdk_location = 'container'
       if streaming:
         options.view_as(StandardOptions).streaming = True
       return options
@@ -78,6 +77,12 @@ if __name__ == '__main__':
 
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
+
+    def test_pardo_state_only(self):
+      raise unittest.SkipTest("BEAM-2918 - User state not yet supported.")
+
+    def test_pardo_timers(self):
+      raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
 
     # Inherits all other tests.
 

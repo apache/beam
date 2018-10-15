@@ -16,24 +16,21 @@
 # limitations under the License.
 #
 
-import sys
+import dependency_check.version_comparer as version_comparer
+import logging
 import os.path
 import re
-import traceback
-import logging
 import requests
-import time
+import sys
+import traceback
+
 from datetime import datetime
 from dependency_check.bigquery_client_utils import BigQueryClientUtils
-from jira_utils.jira_manager import JiraManager
 from dependency_check.report_generator_config import ReportGeneratorConfig
+from jira_utils.jira_manager import JiraManager
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-_MAX_STALE_DAYS = 360
-_MAX_MINOR_VERSION_DIFF = 3
-_PYPI_URL = "https://pypi.org/project/"
-_MAVEN_CENTRAL_URL = "http://search.maven.org/#search|gav|1|"
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -115,11 +112,11 @@ def prioritize_dependencies(deps, sdk_type):
       if sdk_type == 'Java':
         # extract the groupid and artifactid
         group_id, artifact_id = dep_name.split(":")
-        dep_details_url = "{0}g:\"{1}\" AND a:\"{2}\"".format(_MAVEN_CENTRAL_URL, group_id, artifact_id)
+        dep_details_url = "{0}/{1}/{2}".format(ReportGeneratorConfig.MAVEN_CENTRAL_URL, group_id, artifact_id)
         curr_release_date = find_release_time_from_maven_central(group_id, artifact_id, curr_ver)
         latest_release_date = find_release_time_from_maven_central(group_id, artifact_id, latest_ver)
       else:
-        dep_details_url = _PYPI_URL + dep_name
+        dep_details_url = ReportGeneratorConfig.PYPI_URL + dep_name
         curr_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, curr_ver)
         latest_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, curr_ver)
 
@@ -133,58 +130,29 @@ def prioritize_dependencies(deps, sdk_type):
         <td>{2}</td>
         <td>{3}</td>
         <td>{4}</td>
-        <td>{5}</td>
-        </tr>\n""".format(dep_details_url,
+        <td>{5}</td>""".format(dep_details_url,
                           dep_name,
                           curr_ver,
                           latest_ver,
                           curr_release_date,
                           latest_release_date)
-      if compare_dependency_versions(curr_ver, latest_ver):
-        high_priority_deps.append(dep_info)
-        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
-      elif compare_dependency_release_dates(curr_release_date, latest_release_date):
-        high_priority_deps.append(dep_info)
-        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
+      if (version_comparer.compare_dependency_versions(curr_ver, latest_ver) or
+          compare_dependency_release_dates(curr_release_date, latest_release_date)):
+        # Create a new issue or update on the existing issue
+        jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
+        if (jira_issue.fields.status.name == 'Open' or
+            jira_issue.fields.status.name == 'Reopened'):
+          dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
+            ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
+            jira_issue.key)
+          high_priority_deps.append(dep_info)
+
     except:
       traceback.print_exc()
       continue
 
   bigquery_client.clean_stale_records_from_table()
   return high_priority_deps
-
-
-def compare_dependency_versions(curr_ver, latest_ver):
-  """
-  Compare the current using version and the latest version.
-  Return true if a major version change was found, or 3 minor versions that the current version is behind.
-  Args:
-    curr_ver
-    latest_ver
-  Return:
-    boolean
-  """
-  if curr_ver is None or latest_ver is None:
-    return True
-  else:
-    curr_ver_splitted = curr_ver.split('.')
-    latest_ver_splitted = latest_ver.split('.')
-    curr_major_ver = curr_ver_splitted[0]
-    latest_major_ver = latest_ver_splitted[0]
-    # compare major versions
-    if curr_major_ver != latest_major_ver:
-      return True
-    # compare minor versions
-    else:
-      curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
-      latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
-      if curr_minor_ver is not None and latest_minor_ver is not None:
-        if (not curr_minor_ver.isdigit() or not latest_minor_ver.isdigit()) and curr_minor_ver != latest_minor_ver:
-          return True
-        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
-          return True
-    # TODO: Comparing patch versions if needed.
-  return False
 
 
 def find_release_time_from_maven_central(group_id, artifact_id, version):
@@ -202,16 +170,16 @@ def find_release_time_from_maven_central(group_id, artifact_id, version):
       artifact_id,
       version
   )
-  logging.info('Finding release date of {0}:{1} {2} from the Maven Central').format(
+  logging.info('Finding release date of {0}:{1} {2} from the Maven Central'.format(
       group_id,
       artifact_id,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
       logging.error("""Failed finding the release date of {0}:{1} {2}.
-        The response status code is not ok: {4}""".format(group_id,
+        The response status code is not ok: {3}""".format(group_id,
                                                           artifact_id,
                                                           version,
                                                           str(response.status_code)))
@@ -238,15 +206,15 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
       dep_name,
       version
   )
-  logging.info('Finding release time of {0} {1} from the python compatibility checking service.').format(
+  logging.info('Finding release time of {0} {1} from the python compatibility checking service.'.format(
       dep_name,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
-      logging.error("""Failed finding the release date of {0} {2}. 
-        The response status code is not ok: {3}""".format(dep_name,
+      logging.error("""Failed finding the release date of {0} {1}. 
+        The response status code is not ok: {2}""".format(dep_name,
                                                           version,
                                                           str(response.status_code)))
       return None
@@ -319,7 +287,7 @@ def compare_dependency_release_dates(curr_release_date, latest_release_date):
   if not curr_release_date or not latest_release_date:
     return False
   else:
-    if (latest_release_date - curr_release_date).days >= _MAX_STALE_DAYS:
+    if (latest_release_date - curr_release_date).days >= ReportGeneratorConfig.MAX_STALE_DAYS:
       return True
   return False
 
@@ -359,11 +327,13 @@ def generate_report(sdk_type):
       <td><b>{2}</b></td>
       <td><b>{3}</b></td>
       <td><b>{4}</b></td>
+      <td><b>{5}</b></td>
       </tr>""".format("Dependency Name",
                       "Current Version",
                       "Latest Version",
                       "Release Date Of the Current Used Version",
-                      "Release Date Of The Latest Release")
+                      "Release Date Of The Latest Release",
+                      "JIRA Issue")
     report.write(subtitle)
     report.write("<table>\n")
     report.write(table_fields)

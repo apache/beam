@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -54,6 +55,8 @@ var (
 	network         = flag.String("network", "", "GCP network (optional)")
 	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
 	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform  = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerJar       = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -85,7 +88,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *image == "" {
-		*image = jobopts.GetContainerImage(ctx)
+		*image = getContainerImage(ctx)
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
@@ -110,9 +113,14 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	hooks.SerializeHooksToOptions()
 
+	experiments := jobopts.GetExperiments()
+	if *minCPUPlatform != "" {
+		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
+	}
+
 	opts := &dataflowlib.JobOptions{
 		Name:           jobopts.GetJobName(),
-		Experiments:    jobopts.GetExperiments(),
+		Experiments:    experiments,
 		Options:        beam.PipelineOptions.Export(),
 		Project:        project,
 		Region:         *region,
@@ -123,6 +131,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Labels:         jobLabels,
 		TempLocation:   *tempLocation,
 		Worker:         *jobopts.WorkerBinary,
+		WorkerJar:      *workerJar,
 		TeardownPolicy: *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
@@ -135,20 +144,23 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: *image})
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
 		return fmt.Errorf("failed to generate model pipeline: %v", err)
 	}
 
-	id := atomic.AddInt32(&unique, 1)
-	modelURL := gcsx.Join(*stagingLocation, fmt.Sprintf("model-%v-%v", id, time.Now().UnixNano()))
-	workerURL := gcsx.Join(*stagingLocation, fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
+	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
+	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
+
+	modelURL := gcsx.Join(*stagingLocation, id, "model")
+	workerURL := gcsx.Join(*stagingLocation, id, "worker")
+	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(model, opts, workerURL, modelURL)
+		job, err := dataflowlib.Translate(model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
 			return err
 		}
@@ -156,10 +168,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
 	return err
 }
-
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])
 	if err != nil {
@@ -173,4 +184,37 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 		}
 		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
 	}
+}
+
+func getContainerImage(ctx context.Context) string {
+	urn := jobopts.GetEnvironmentUrn(ctx)
+	if urn == "" || urn == "beam:env:docker:v1" {
+		return jobopts.GetEnvironmentConfig(ctx)
+	}
+	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+func createEnvironment(ctx context.Context) pb.Environment {
+	var environment pb.Environment
+	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
+	case "beam:env:process:v1":
+		// TODO Support process based SDK Harness.
+		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:docker:v1":
+		fallthrough
+	default:
+		config := jobopts.GetEnvironmentConfig(ctx)
+		payload := &pb.DockerPayload{ContainerImage: config}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+		}
+		environment = pb.Environment{
+			Url:     config,
+			Urn:     urn,
+			Payload: serializedPayload,
+		}
+	}
+	return environment
 }

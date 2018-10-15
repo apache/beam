@@ -87,9 +87,6 @@ deps:
   pyyaml:
     owners: robertwb
 
-  six:
-    owners: robertwb
-
   typing:
     owners: robertwb
 

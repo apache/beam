@@ -202,8 +202,8 @@ Do not:
 Do:
 
 * Generally, follow the rules of [semantic versioning](http://semver.org/).
-* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
-* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
+* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
+* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
 * Pay attention to the stability and versioning of third-party classes exposed by the transform's API: if they are unstable or improperly versioned (do not obey [semantic versioning](http://semver.org/)), it is better to wrap them in your own classes.
 
 Do not:

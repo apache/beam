@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -105,7 +106,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testSelectsPayloadContent() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -163,10 +164,11 @@ public class PubsubJsonIT implements Serializable {
     resultSignal.waitForSuccess(Duration.standardSeconds(60));
   }
 
+  @Ignore("Disable flake tracked at https://issues.apache.org/jira/browse/BEAM-5122")
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -256,7 +258,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testSQLLimit() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"

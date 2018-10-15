@@ -33,7 +33,6 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -135,7 +134,7 @@ public class CoderTranslationTest {
     @Test
     public void toAndFromProto() throws Exception {
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, sdkComponents);
 
       Components encodedComponents = sdkComponents.toComponents();

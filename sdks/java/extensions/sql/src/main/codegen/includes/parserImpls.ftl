@@ -146,8 +146,10 @@ Schema.Field Field() :
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
  */
-SqlCreate SqlCreateTable(Span s, boolean replace) :
+SqlCreate SqlCreateExternalTable() :
 {
+    final Span s = Span.of();
+    final boolean replace = false;
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
@@ -157,7 +159,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlNode tblProperties = null;
 }
 {
-    <TABLE> ifNotExists = IfNotExistsOpt()
+
+    <CREATE> <EXTERNAL> <TABLE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
     fieldList = FieldListParens()
     <TYPE>
@@ -171,7 +178,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
     {
         return
-            new SqlCreateTable(
+            new SqlCreateExternalTable(
                 s.end(this),
                 replace,
                 ifNotExists,
@@ -182,6 +189,18 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 location,
                 tblProperties);
     }
+}
+
+SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
+{
+}
+{
+  <TABLE>
+  {
+    throw new ParseException("'CREATE TABLE' is not supported in SQL. You can use "
+    + "'CREATE EXTERNAL TABLE' to register an external data source to SQL. For more details, "
+    + "please check: https://beam.apache.org/documentation/dsls/sql/create-external-table");
+  }
 }
 
 SqlDrop SqlDropTable(Span s, boolean replace) :

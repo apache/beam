@@ -97,9 +97,16 @@ fi
 
 TESTS=""
 if [[ "$3" = "TestDirectRunner" ]]; then
-  TESTS="--tests=\
+  if [[ "$2" = "streaming" ]]; then
+    TESTS="--tests=\
 apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it,\
 apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest"
+  else
+    TESTS="--tests=\
+apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it,\
+apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest,\
+apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT"
+  fi
 fi
 
 ###########################################################################

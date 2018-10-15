@@ -141,8 +141,6 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	// (3) Precomputed side input and emitters (or other output).
-	// TODO(lostluck): 2018/07/10 extras (emitters and side inputs), are constant so we could
-	// initialize them once at construction time, and not clear them in Reset.
 	for _, arg := range extra {
 		args[in[i]] = arg
 		i++
@@ -228,7 +226,7 @@ func makeEmitters(fn *funcx.Fn, nodes []Node) ([]ReusableEmitter, error) {
 func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (ReusableInput, error) {
 	switch kind {
 	case graph.Singleton:
-		elms, err := ReadAll(values.Open())
+		elms, err := ReadAll(values)
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +236,7 @@ func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (Reusa
 		return &fixedValue{val: Convert(elms[0].Elm, t)}, nil
 
 	case graph.Slice:
-		elms, err := ReadAll(values.Open())
+		elms, err := ReadAll(values)
 		if err != nil {
 			return nil, err
 		}

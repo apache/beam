@@ -295,6 +295,11 @@ class TimestampedValue(object):
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance = None
+  # The maximum timestamp for global windows is MAX_TIMESTAMP - 1 day.
+  # This is due to timers triggering when the watermark passes the trigger
+  # time, which is only possible for timestamps < MAX_TIMESTAMP.
+  # See also GlobalWindow in the Java SDK.
+  _END_OF_GLOBAL_WINDOW = MAX_TIMESTAMP - (24 * 60 * 60)
 
   def __new__(cls):
     if cls._instance is None:
@@ -302,7 +307,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(MAX_TIMESTAMP)
+    super(GlobalWindow, self).__init__(GlobalWindow._END_OF_GLOBAL_WINDOW)
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):

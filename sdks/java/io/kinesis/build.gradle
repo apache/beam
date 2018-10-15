@@ -17,7 +17,15 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(
+  // Override the default shading configuration to exclude everything since
+  // AWS-KPL library has hard dependency on guava.
+  shadowClosure: {
+    dependencies {
+      exclude(dependency(".*:.*"))
+    }
+  }
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -50,5 +58,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
-  testCompile "org.assertj:assertj-core:2.5.0"
+  testCompile "org.assertj:assertj-core:3.11.1"
 }

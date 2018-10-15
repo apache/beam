@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import inspect
+import os
+import sys
 import typing
 import unittest
 
@@ -46,6 +48,9 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(repeat, 3)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def test_non_function(self):
     result = ['a', 'bb', 'c'] | beam.Map(str.upper)
     self.assertEqual(['A', 'BB', 'C'], sorted(result))
@@ -102,6 +107,9 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3.')
 class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):
@@ -196,6 +204,9 @@ class SideInputTest(unittest.TestCase):
   # with self.assertRaises(typehints.TypeCheckError):
   #   ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
@@ -210,6 +221,9 @@ class SideInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def test_deferred_side_input_iterable(self):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):

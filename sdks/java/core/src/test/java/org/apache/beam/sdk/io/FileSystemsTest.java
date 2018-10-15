@@ -196,6 +196,7 @@ public class FileSystemsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testInvalidSchemaMatchNewResource() {
     assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));
+    assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
   }
 
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {

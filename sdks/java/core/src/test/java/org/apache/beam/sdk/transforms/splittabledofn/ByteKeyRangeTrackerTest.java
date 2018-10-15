@@ -71,8 +71,9 @@ public class ByteKeyRangeTrackerTest {
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x10)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x11)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x11), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(
+        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10, 0x00)), tracker.currentRestriction());
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10, 0x00), ByteKey.of(0xc0)), checkpoint);
   }
 
   @Test
@@ -82,8 +83,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x91)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x91), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(
+        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x90, 0x00)), tracker.currentRestriction());
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x90, 0x00), ByteKey.of(0xc0)), checkpoint);
   }
 
   @Test
@@ -94,8 +96,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xbf)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0xc0), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(
+        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xbf, 0x00)), tracker.currentRestriction());
+    assertEquals(ByteKeyRange.of(ByteKey.of(0xbf, 0x00), ByteKey.of(0xc0)), checkpoint);
   }
 
   @Test
@@ -107,8 +110,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xa1)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0xa1), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(
+        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xa0, 0x00)), tracker.currentRestriction());
+    assertEquals(ByteKeyRange.of(ByteKey.of(0xa0, 0x00), ByteKey.of(0xc0)), checkpoint);
   }
 
   @Test
@@ -158,6 +162,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xbf)));
+    expected.expectMessage(
+        "Last attempted key was [bf] in range ByteKeyRange{startKey=[10], endKey=[c0]}, "
+            + "claiming work in [[bf00], [c0]) was not attempted");
     tracker.checkDone();
   }
 
@@ -169,7 +176,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     expected.expectMessage(
         "Last attempted key was [90] in range ByteKeyRange{startKey=[10], endKey=[c0]}, "
-            + "claiming work in [[91], [c0]) was not attempted");
+            + "claiming work in [[9000], [c0]) was not attempted");
     tracker.checkDone();
   }
 
@@ -194,11 +201,11 @@ public class ByteKeyRangeTrackerTest {
   @Test
   public void testNextByteKey() {
     assertEquals(next(ByteKey.EMPTY), ByteKey.of(0x00));
-    assertEquals(next(ByteKey.of(0x00)), ByteKey.of(0x01));
-    assertEquals(next(ByteKey.of(0x9f)), ByteKey.of(0xa0));
-    assertEquals(next(ByteKey.of(0xff)), ByteKey.of(0x01, 0x00));
-    assertEquals(next(ByteKey.of(0x10, 0x10)), ByteKey.of(0x10, 0x11));
-    assertEquals(next(ByteKey.of(0x00, 0xff)), ByteKey.of(0x01, 0x00));
-    assertEquals(next(ByteKey.of(0xff, 0xff)), ByteKey.of(0x01, 0x00, 0x00));
+    assertEquals(next(ByteKey.of(0x00)), ByteKey.of(0x00, 0x00));
+    assertEquals(next(ByteKey.of(0x9f)), ByteKey.of(0x9f, 0x00));
+    assertEquals(next(ByteKey.of(0xff)), ByteKey.of(0xff, 0x00));
+    assertEquals(next(ByteKey.of(0x10, 0x10)), ByteKey.of(0x10, 0x10, 0x00));
+    assertEquals(next(ByteKey.of(0x00, 0xff)), ByteKey.of(0x00, 0xff, 0x00));
+    assertEquals(next(ByteKey.of(0xff, 0xff)), ByteKey.of(0xff, 0xff, 0x00));
   }
 }

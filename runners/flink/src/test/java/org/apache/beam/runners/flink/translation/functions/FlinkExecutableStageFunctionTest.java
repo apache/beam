@@ -55,6 +55,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
 @RunWith(JUnit4.class)
@@ -85,7 +86,6 @@ public class FlinkExecutableStageFunctionTest {
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
 
@@ -223,8 +223,9 @@ public class FlinkExecutableStageFunctionTest {
         Mockito.mock(FlinkExecutableStageContext.Factory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<Integer>(stagePayload, jobInfo, outputMap, contextFactory);
+        new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory);
     function.setRuntimeContext(runtimeContext);
+    Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);
     return function;
   }
 }

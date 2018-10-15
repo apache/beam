@@ -30,7 +30,7 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
 
 ```
-$ go --version
+$ go version
 ```
 
 ## Get the SDK and the examples
@@ -61,11 +61,14 @@ $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 

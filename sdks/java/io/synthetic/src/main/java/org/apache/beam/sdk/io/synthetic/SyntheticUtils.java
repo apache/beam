@@ -27,6 +27,7 @@ import org.joda.time.Duration;
 
 /** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */
 class SyntheticUtils {
+
   // cpu delay implementation:
 
   private static final long MASK = (1L << 16) - 1L;

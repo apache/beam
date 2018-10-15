@@ -54,3 +54,41 @@ func ShallowClonePTransform(t *pb.PTransform) *pb.PTransform {
 	ret.Outputs, _ = reflectx.ShallowClone(t.Outputs).(map[string]string)
 	return ret
 }
+
+// ShallowCloneParDoPayload makes a shallow copy of the given ParDoPayload.
+func ShallowCloneParDoPayload(p *pb.ParDoPayload) *pb.ParDoPayload {
+	if p == nil {
+		return nil
+	}
+
+	ret := &pb.ParDoPayload{
+		DoFn:               p.DoFn,
+		Splittable:         p.Splittable,
+		RestrictionCoderId: p.RestrictionCoderId,
+	}
+	ret.Parameters, _ = reflectx.ShallowClone(p.Parameters).([]*pb.Parameter)
+	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pb.SideInput)
+	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pb.StateSpec)
+	ret.TimerSpecs, _ = reflectx.ShallowClone(p.TimerSpecs).(map[string]*pb.TimerSpec)
+	return ret
+}
+
+// ShallowCloneSideInput makes a shallow copy of the given SideInput.
+func ShallowCloneSideInput(p *pb.SideInput) *pb.SideInput {
+	if p == nil {
+		return nil
+	}
+	var ret pb.SideInput
+	ret = *p
+	return &ret
+}
+
+// ShallowCloneFunctionSpec makes a shallow copy of the given FunctionSpec.
+func ShallowCloneFunctionSpec(p *pb.FunctionSpec) *pb.FunctionSpec {
+	if p == nil {
+		return nil
+	}
+	var ret pb.FunctionSpec
+	ret = *p
+	return &ret
+}

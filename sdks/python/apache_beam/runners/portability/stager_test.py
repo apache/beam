@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -64,7 +65,7 @@ class StagerTest(unittest.TestCase):
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
 
   def build_fake_pip_download_command_handler(self, has_wheels):
-    """A stub for apache_beam.utils.processes.check_call that imitates pip.
+    """A stub for apache_beam.utils.processes.check_output that imitates pip.
 
       Args:
         has_wheels: Whether pip fake should have a whl distribution of packages.
@@ -222,6 +223,9 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test is not hermetic '
+                   'and halts test suite execution on Python 3. '
+                   'TODO: BEAM-5502')
   def test_with_setup_file(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
@@ -287,7 +291,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = 'default'
 
     with mock.patch(
-        'apache_beam.utils.processes.check_call',
+        'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=False)):
       _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
@@ -305,7 +309,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = 'default'
 
     with mock.patch(
-        'apache_beam.utils.processes.check_call',
+        'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=True)):
       _, staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)

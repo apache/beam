@@ -54,12 +54,12 @@ public class CalciteUtils {
           .put(
               FieldType.DATETIME.withMetadata("TIME_WITH_LOCAL_TZ"),
               SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.DATETIME.withMetadata("TS"), SqlTypeName.TIMESTAMP)
+          .put(FieldType.DATETIME, SqlTypeName.TIMESTAMP)
           .put(
               FieldType.DATETIME.withMetadata("TS_WITH_LOCAL_TZ"),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .put(FieldType.STRING.withMetadata("CHAR"), SqlTypeName.CHAR)
-          .put(FieldType.STRING.withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
+          .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();
 
   private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
@@ -124,7 +124,7 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).withMetadata((byte[]) null);
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName);
     }
   }
 

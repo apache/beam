@@ -165,7 +165,9 @@ if 'save_module' in dir(dill.dill):
       if obj_id not in known_module_dicts:
         for m in sys.modules.values():
           try:
-            if m and m.__name__ != '__main__':
+            if (m
+                and m.__name__ != '__main__'
+                and isinstance(m, dill.dill.ModuleType)):
               d = m.__dict__
               known_module_dicts[id(d)] = m, d
           except AttributeError:

@@ -17,10 +17,12 @@
 
 """Apache Beam SDK for Python setup file."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import os
 import platform
+import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -99,12 +101,18 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
+REQUIRED_PACKAGES_PY2_ONLY = [
+    'avro>=1.8.1,<2.0.0'
+]
+
+REQUIRED_PACKAGES_PY3_ONLY = [
+    'avro-python3>=1.8.1,<2.0.0'
+]
 
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill>=0.2.6,<=0.2.8.2',
-    'fastavro==0.19.7',
+    'fastavro>=0.21.4,<0.22',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -116,14 +124,14 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
-    'six>=1.9,<1.12',
-    'typing>=3.6.0,<3.7.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'parameterized>=0.6.0,<0.7.0',
     'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
     ]
@@ -132,12 +140,17 @@ GCP_REQUIREMENTS = [
     # oauth2client >=4 only works with google-apitools>=0.5.18.
     'google-apitools>=0.5.18,<=0.5.20',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
+    'googledatastore==7.0.1; python_version < "3.0"',
     'google-cloud-pubsub==0.26.0',
     'proto-google-cloud-pubsub-v1==0.15.4',
     # GCP packages required by tests
     'google-cloud-bigquery==0.25.0',
 ]
+
+if sys.version_info[0] == 2:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
+elif sys.version_info[0] >= 3:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
 
 
 # We must generate protos after setup_requires are installed.

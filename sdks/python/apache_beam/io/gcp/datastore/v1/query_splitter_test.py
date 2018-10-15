@@ -19,13 +19,19 @@
 
 from __future__ import absolute_import
 
+import os
+import sys
 import unittest
 
 from mock import MagicMock
 from mock import call
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import query_splitter
+# pylint: disable=ungrouped-imports
+try: # TODO(BEAM-4543): googledatastore dependency does not work on Python 3.
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import query_splitter
+except ImportError:
+  pass
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,8 +42,13 @@ try:
 except ImportError:
   datastore_pb2 = None
 # pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=ungrouped-imports
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class QuerySplitterTest(unittest.TestCase):
 

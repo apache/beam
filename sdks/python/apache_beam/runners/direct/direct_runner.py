@@ -105,6 +105,9 @@ class SwitchingDirectRunner(PipelineRunner):
           # The FnApiRunner does not support execution of SplittableDoFns.
           if DoFnSignature(dofn).is_splittable_dofn():
             self.supported_by_fnapi_runner = False
+          # The FnApiRunner does not support execution of DoFns with timers.
+          if DoFnSignature(dofn).has_timers():
+            self.supported_by_fnapi_runner = False
           # The FnApiRunner does not support execution of CombineFns with
           # deferred side inputs.
           if isinstance(dofn, CombineValuesDoFn):

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,7 +64,7 @@ public class RemoteEnvironmentTest {
   @Test
   public void forHandlerReturnsProvided() {
     InstructionRequestHandler handler = mock(InstructionRequestHandler.class);
-    Environment environment = Environment.newBuilder().setUrl("my_url").build();
+    Environment environment = Environments.createDockerEnvironment("my_url");
     RemoteEnvironment remoteEnvironment = RemoteEnvironment.forHandler(environment, handler);
     assertThat(remoteEnvironment.getEnvironment(), theInstance(environment));
     assertThat(remoteEnvironment.getInstructionRequestHandler(), theInstance(handler));

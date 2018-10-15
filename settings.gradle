@@ -42,10 +42,8 @@ include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
 include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
-include "beam-runners-gcp-gcemd"
-project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
-include "beam-runners-gcp-gcsproxy"
-project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
+include "beam-runners-flink_2.11-job-server-container"
+project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -60,6 +58,8 @@ include "beam-runners-local-java-core"
 project(":beam-runners-local-java-core").dir = file("runners/local-java")
 include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
+include "beam-runners-reference-job-server"
+project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
 include "beam-runners-samza"
@@ -114,6 +114,8 @@ include "beam-sdks-java-io-elasticsearch-tests-2"
 project(":beam-sdks-java-io-elasticsearch-tests-2").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-2")
 include "beam-sdks-java-io-elasticsearch-tests-5"
 project(":beam-sdks-java-io-elasticsearch-tests-5").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-5")
+include "beam-sdks-java-io-elasticsearch-tests-6"
+project(":beam-sdks-java-io-elasticsearch-tests-6").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-6")
 include "beam-sdks-java-io-elasticsearch-tests-common"
 project(":beam-sdks-java-io-elasticsearch-tests-common").dir = file("sdks/java/io/elasticsearch-tests/elasticsearch-tests-common")
 include "beam-sdks-java-io-file-based-io-tests"
@@ -158,6 +160,8 @@ include "beam-sdks-java-io-synthetic"
 project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-javadoc"
 project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
+include "beam-sdks-java-load-tests"
+project(":beam-sdks-java-load-tests").dir = file("sdks/java/load-tests")
 include "beam-sdks-java-maven-archetypes-examples"
 project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven-archetypes/examples")
 include "beam-sdks-java-maven-archetypes-starter"
@@ -168,7 +172,20 @@ include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
 include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
+include "beam-sdks-python-container-py3"
+project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
+<<<<<<< HEAD
 include "beam-sdks-java-extensions-timeseries"
 project(":beam-sdks-java-extensions-timeseries").dir = file("sdks/java/extensions/timeseries")
+=======
+include "beam-website"
+project(":beam-website").dir = file("website")
+include "beam-runners-google-cloud-dataflow-java-legacy-worker"
+project(":beam-runners-google-cloud-dataflow-java-legacy-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
+project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+include "beam-runners-google-cloud-dataflow-java-windmill"
+project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
+>>>>>>> fc738ab9ac7fdbc8ac561e580b1a557b919437d0

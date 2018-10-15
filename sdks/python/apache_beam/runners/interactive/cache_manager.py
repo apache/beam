@@ -30,6 +30,14 @@ from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.transforms import combiners
 
+try:                    # Python 3
+  unquote_to_bytes = urllib.parse.unquote_to_bytes
+  quote = urllib.parse.quote
+except AttributeError:  # Python 2
+  # pylint: disable=deprecated-urllib-function
+  unquote_to_bytes = urllib.unquote
+  quote = urllib.quote
+
 
 class CacheManager(object):
   """Abstract class for caching PCollections.
@@ -85,7 +93,7 @@ class FileBasedCacheManager(CacheManager):
     if cache_dir:
       self._cache_dir = filesystems.FileSystems.join(
           cache_dir,
-          datetime.datetime.now().strftime("cache-%y-%m-%d-%H:%M:%S"))
+          datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S"))
     else:
       self._cache_dir = tempfile.mkdtemp(
           prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
@@ -191,9 +199,10 @@ class WriteCache(beam.PTransform):
 
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
+  # pylint: disable=deprecated-urllib-function
 
   def encode(self, value):
-    return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
+    return quote(coders.coders.FastPrimitivesCoder().encode(value))
 
   def decode(self, value):
-    return coders.coders.FastPrimitivesCoder().decode(urllib.unquote(value))
+    return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))

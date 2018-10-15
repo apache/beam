@@ -51,6 +51,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -431,6 +433,17 @@ public class AutoComplete {
 
     void setOutputToBigQuery(Boolean value);
 
+    @Description("Whether to send output to checksum Transform.")
+    @Default.Boolean(true)
+    Boolean getOutputToChecksum();
+
+    void setOutputToChecksum(Boolean value);
+
+    @Description("Expected result of the checksum transform.")
+    Long getExpectedChecksum();
+
+    void setExpectedChecksum(Long value);
+
     @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
@@ -449,8 +462,7 @@ public class AutoComplete {
     void setOutputProject(String value);
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  public static void runAutocompletePipeline(Options options) throws IOException {
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
@@ -506,10 +518,35 @@ public class AutoComplete {
                           : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     }
 
+    if (options.getOutputToChecksum()) {
+      PCollection<Long> checksum =
+          toWrite
+              .apply(
+                  ParDo.of(
+                      new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          KV<String, List<CompletionCandidate>> elm = c.element();
+                          Long listHash =
+                              c.element().getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
+                          c.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
+                        }
+                      }))
+              .apply(Sum.longsGlobally());
+
+      PAssert.that(checksum).containsInAnyOrder(options.getExpectedChecksum());
+    }
+
     // Run the pipeline.
     PipelineResult result = p.run();
 
     // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
+  }
+
+  public static void main(String[] args) throws IOException {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runAutocompletePipeline(options);
   }
 }

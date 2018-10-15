@@ -31,7 +31,7 @@ import (
 )
 
 // Execute submits a pipeline as a Dataflow job.
-func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (string, error) {
+func Execute(ctx context.Context, raw *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL, endpoint string, async bool) (string, error) {
 	// (1) Upload Go binary to GCS.
 
 	bin := opts.Worker
@@ -56,15 +56,26 @@ func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, m
 
 	log.Infof(ctx, "Staging worker binary: %v", bin)
 
-	if err := StageWorker(ctx, opts.Project, workerURL, bin); err != nil {
+	if err := StageFile(ctx, opts.Project, workerURL, bin); err != nil {
 		return "", err
 	}
 	log.Infof(ctx, "Staged worker binary: %v", workerURL)
 
+	if opts.WorkerJar != "" {
+		log.Infof(ctx, "Staging Dataflow worker jar: %v", opts.WorkerJar)
+
+		if err := StageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
+			return "", err
+		}
+		log.Infof(ctx, "Staged worker jar: %v", jarURL)
+	}
+
 	// (2) Fixup and upload model to GCS
 
-	// TODO(herohde): fixup
-
+	p, err := Fixup(raw)
+	if err != nil {
+		return "", err
+	}
 	log.Info(ctx, proto.MarshalTextString(p))
 
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(p)); err != nil {
@@ -74,7 +85,7 @@ func Execute(ctx context.Context, p *pb.Pipeline, opts *JobOptions, workerURL, m
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(p, opts, workerURL, modelURL)
+	job, err := Translate(p, opts, workerURL, jarURL, modelURL)
 	if err != nil {
 		return "", err
 	}

@@ -63,14 +63,14 @@ class CommonJobProperties {
                                            String branch = 'master',
                                            int timeout = 100,
                                            boolean allowRemotePoll = true,
-                                           boolean localPerfTest = false) {
+                                           String jenkinsExecutorLabel =  'beam') {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
             timeout,
             allowRemotePoll,
-            localPerfTest)
+            jenkinsExecutorLabel)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -80,12 +80,7 @@ class CommonJobProperties {
                                                String defaultBranch,
                                                int defaultTimeout,
                                                boolean allowRemotePoll = true,
-                                               boolean localPerfTest = false) {
-    def jenkinsExecutorLabel = 'beam'
-    if (localPerfTest) {
-      jenkinsExecutorLabel = 'beam-perf'
-    }
-
+                                               String jenkinsExecutorLabel = 'beam') {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
@@ -129,6 +124,7 @@ class CommonJobProperties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
         string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
+      timestamps()
     }
   }
 
@@ -232,7 +228,8 @@ class CommonJobProperties {
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
                          notifyAddress = 'commits@beam.apache.org',
-                         triggerOnCommit = false) {
+                         triggerOnCommit = false,
+                         emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -252,6 +249,17 @@ class CommonJobProperties {
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
+      if (emailIndividuals){
+        extendedEmail {
+          triggers {
+            firstFailure {
+              sendTo {
+                firstFailingBuildSuspects()
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -313,37 +321,26 @@ class CommonJobProperties {
   }
 
   // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap) {
+  static def buildPerformanceTest(def context, def argMap, def language = "DEFAULT") {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
-    def beam_root = makePathAbsolute(checkoutDir)
     def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def beam_env = makePathAbsolute("env/.beam_env")
     def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
     context.steps {
         // Clean up environment.
         shell("rm -rf ${perfkit_root}")
-        shell("rm -rf ${beam_env}")
         shell("rm -rf ${perfkit_env}")
 
-        // create new VirtualEnv, inherit already existing packages
-        shell("virtualenv ${beam_env} --system-site-packages")
-        shell("virtualenv ${perfkit_env} --system-site-packages")
+        // create new VirtualEnv
+        shell("virtualenv ${perfkit_env}")
 
         // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
-
-        // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
-
-        // Build PythonSDK tar ball.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
 
         // Install Perfkit benchmark requirements.
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")

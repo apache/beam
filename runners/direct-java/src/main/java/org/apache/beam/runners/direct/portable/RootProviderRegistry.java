@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
 
 import com.google.common.collect.ImmutableMap;
@@ -25,7 +26,6 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -33,13 +33,18 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
-  public static RootProviderRegistry impulseRegistry(BundleFactory bundleFactory) {
+
+  /**
+   * Returns a {@link RootProviderRegistry} that supports the {@link Impulse} and {@link Flatten}
+   * primitives.
+   */
+  static RootProviderRegistry javaPortableRegistry(BundleFactory bundleFactory) {
     return new RootProviderRegistry(
         ImmutableMap.<String, RootInputProvider<?>>builder()
             .put(
                 IMPULSE_TRANSFORM_URN,
                 new ImpulseEvaluatorFactory.ImpulseRootProvider(bundleFactory))
+            .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider())
             .build());
   }
 

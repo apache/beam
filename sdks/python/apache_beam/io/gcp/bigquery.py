@@ -98,9 +98,9 @@ TableSchema: Describes the schema (types and order) for values in each row.
 
 TableFieldSchema: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
-  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN'. All possible
-  values are described at:
-  https://cloud.google.com/bigquery/preparing-data-for-bigquery#datatypes
+  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC'.
+  All possible values are described at:
+  https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 
 TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
   list of TableCell instances.
@@ -108,12 +108,16 @@ TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
 TableCell: Holds the value for one cell (or field).  Has one attribute,
   'v', which is a JsonValue instance. This class is defined in
   apitools.base.py.extra_types.py module.
+
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 """
 
 from __future__ import absolute_import
 
 import collections
 import datetime
+import decimal
 import json
 import logging
 import re
@@ -160,6 +164,13 @@ JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 MAX_RETRIES = 3
 
 
+def default_encoder(obj):
+  if isinstance(obj, decimal.Decimal):
+    return str(obj)
+  raise TypeError(
+      "Object of type '%s' is not JSON serializable" % type(obj).__name__)
+
+
 class RowAsDictJsonCoder(coders.Coder):
   """A coder for a table row (represented as a dict) to/from a JSON string.
 
@@ -173,7 +184,8 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
-      return json.dumps(table_row, allow_nan=False)
+      return json.dumps(
+          table_row, allow_nan=False, default=default_encoder)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
@@ -197,6 +209,7 @@ class TableRowJsonCoder(coders.Coder):
     # Precompute field names since we need them for row encoding.
     if self.table_schema:
       self.field_names = tuple(fs.name for fs in self.table_schema.fields)
+      self.field_types = tuple(fs.type for fs in self.table_schema.fields)
 
   def encode(self, table_row):
     if self.table_schema is None:
@@ -208,7 +221,8 @@ class TableRowJsonCoder(coders.Coder):
           collections.OrderedDict(
               zip(self.field_names,
                   [from_json_value(f.v) for f in table_row.f])),
-          allow_nan=False)
+          allow_nan=False,
+          default=default_encoder)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
@@ -450,7 +464,13 @@ class BigQuerySource(dataflow_io.NativeSource):
 
 
 class BigQuerySink(dataflow_io.NativeSink):
-  """A sink based on a BigQuery table."""
+  """A sink based on a BigQuery table.
+
+  This BigQuery sink triggers a Dataflow native sink for BigQuery
+  that only supports batch pipelines.
+  Instead of using this sink directly, please use WriteToBigQuery
+  transform that works for both batch and streaming pipelines.
+  """
 
   def __init__(self, table, dataset=None, project=None, schema=None,
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
@@ -632,7 +652,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
 
-    if self.source.query is None:
+    if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
       # project.
       project_id = self.source.table_reference.projectId
@@ -642,30 +662,44 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           project_id,
           self.source.table_reference.datasetId,
           self.source.table_reference.tableId)
-    else:
+    elif self.source.query is not None:
       self.query = self.source.query
-
-  def _get_source_table_location(self):
-    tr = self.source.table_reference
-    if tr is None:
-      # TODO: implement location retrieval for query sources
-      return
-
-    if tr.projectId is None:
-      source_project_id = self.executing_project
     else:
-      source_project_id = tr.projectId
+      # Enforce the "modes" enforced by BigQuerySource.__init__.
+      # If this exception has been raised, the BigQuerySource "modes" have
+      # changed and this method will need to be updated as well.
+      raise ValueError("BigQuerySource must have either a table or query")
 
-    source_dataset_id = tr.datasetId
-    source_table_id = tr.tableId
-    source_location = self.client.get_table_location(
-        source_project_id, source_dataset_id, source_table_id)
-    return source_location
+  def _get_source_location(self):
+    """
+    Get the source location (e.g. ``"EU"`` or ``"US"``) from either
+
+    - :data:`source.table_reference`
+      or
+    - The first referenced table in :data:`source.query`
+
+    See Also:
+      - :meth:`BigQueryWrapper.get_query_location`
+      - :meth:`BigQueryWrapper.get_table_location`
+
+    Returns:
+      Optional[str]: The source location, if any.
+    """
+    if self.source.table_reference is not None:
+      tr = self.source.table_reference
+      return self.client.get_table_location(
+          tr.projectId if tr.projectId is not None else self.executing_project,
+          tr.datasetId, tr.tableId)
+    else:  # It's a query source
+      return self.client.get_query_location(
+          self.executing_project,
+          self.source.query,
+          self.source.use_legacy_sql)
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
     self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_table_location())
+        self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -784,6 +818,53 @@ class BigQueryWrapper(object):
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_query_location(self, project_id, query, use_legacy_sql):
+    """
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first referenced table in the query
+    and depends on the BigQuery service to provide error handling for
+    queries that reference tables in multiple locations.
+    """
+    reference = bigquery.JobReference(jobId=uuid.uuid4().hex,
+                                      projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      logging.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
+    referenced_tables = response.statistics.query.referencedTables
+    if referenced_tables:  # Guards against both non-empty and non-None
+      table = referenced_tables[0]
+      location = self.get_table_location(
+          table.projectId,
+          table.datasetId,
+          table.tableId)
+      logging.info("Using location %r from table %r referenced by query %s",
+                   location, table, query)
+      return location
+
+    logging.debug("Query %s does not reference any tables.", query)
+    return None
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -935,8 +1016,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location=None):
-    # TODO: make location required, once "query" locations can be determined
+  def create_temporary_dataset(self, project_id, location):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     # Check if dataset exists to make sure that the temporary id is unique
     try:
@@ -1108,6 +1188,11 @@ class BigQueryWrapper(object):
     for row in rows:
       json_object = bigquery.JsonObject()
       for k, v in iteritems(row):
+        if isinstance(v, decimal.Decimal):
+          # decimal values are converted into string because JSON does not
+          # support the precision that decimal supports. BQ is able to handle
+          # inserts into NUMERIC columns by receiving JSON with string attrs.
+          v = str(v)
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))
@@ -1156,6 +1241,8 @@ class BigQueryWrapper(object):
       # when querying, the repeated and/or record fields are flattened
       # unless we pass the flatten_results flag as False to the source
       return self.convert_row_to_dict(value, field)
+    elif field.type == 'NUMERIC':
+      return decimal.Decimal(value)
     else:
       raise RuntimeError('Unexpected field type: %s' % field.type)
 
@@ -1235,6 +1322,13 @@ class BigQueryWriteFn(DoFn):
     self._rows_buffer = []
     # The default batch size is 500
     self._max_batch_size = batch_size or 500
+
+  def display_data(self):
+    return {'table_id': self.table_id,
+            'dataset_id': self.dataset_id,
+            'project_id': self.project_id,
+            'schema': str(self.schema),
+            'max_batch_size': self._max_batch_size}
 
   @staticmethod
   def get_table_schema(schema):

@@ -70,7 +70,7 @@ public class BeamSqlLineIT implements Serializable {
     setProject = String.format("SET project = '%s';", project);
 
     createPubsubTableStatement =
-        "CREATE TABLE taxi_rides (\n"
+        "CREATE EXTERNAL TABLE taxi_rides (\n"
             + "         event_timestamp TIMESTAMP,\n"
             + "         attributes MAP<VARCHAR, VARCHAR>,\n"
             + "         payload ROW<\n"

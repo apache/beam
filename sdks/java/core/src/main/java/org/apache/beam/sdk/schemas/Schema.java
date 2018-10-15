@@ -167,6 +167,10 @@ public class Schema implements Serializable {
     this.fields = fields;
     int index = 0;
     for (Field field : fields) {
+      if (fieldIndices.get(field.getName()) != null) {
+        throw new IllegalArgumentException(
+            "Duplicate field " + field.getName() + " added to schema");
+      }
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
@@ -528,17 +532,18 @@ public class Schema implements Serializable {
 
     public abstract Builder toBuilder();
 
+    /** Builder for {@link Field}. */
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setName(String name);
+    public abstract static class Builder {
+      public abstract Builder setName(String name);
 
-      abstract Builder setDescription(String description);
+      public abstract Builder setDescription(String description);
 
-      abstract Builder setType(FieldType fieldType);
+      public abstract Builder setType(FieldType fieldType);
 
-      abstract Builder setNullable(Boolean nullable);
+      public abstract Builder setNullable(Boolean nullable);
 
-      abstract Field build();
+      public abstract Field build();
     }
 
     /** Return's a field with the give name and type. */

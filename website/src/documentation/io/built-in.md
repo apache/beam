@@ -58,7 +58,8 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/hadoop/">Apache Hadoop InputFormat</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hcatalog">Apache Hive (HCatalog)</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/hcatalog">Apache Hive (HCatalog)</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kudu">Apache Kudu</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/solr">Apache Solr</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch">Elasticsearch (v2.x and v5.x)</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
@@ -110,10 +111,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td>Apache Kafka</td><td>Python</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
   </tr>
-  <tr>
-    <td>Apache Kudu</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-2661">BEAM-2661</a></td>
-  </tr>  
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>

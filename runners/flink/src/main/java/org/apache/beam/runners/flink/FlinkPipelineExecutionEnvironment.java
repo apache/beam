@@ -17,22 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.core.Base64Variants;
-import com.google.common.base.Strings;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -82,7 +70,7 @@ class FlinkPipelineExecutionEnvironment {
    * org.apache.flink.api.java.DataSet} or {@link
    * org.apache.flink.streaming.api.datastream.DataStream} one.
    */
-  public void translate(FlinkRunner flinkRunner, Pipeline pipeline) {
+  public void translate(Pipeline pipeline) {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
@@ -95,73 +83,34 @@ class FlinkPipelineExecutionEnvironment {
     pipeline.replaceAll(
         FlinkTransformOverrides.getDefaultOverrides(translationMode == TranslationMode.STREAMING));
 
-    // Local flink configurations work in the same JVM and have no problems with improperly
-    // formatted files on classpath (eg. directories with .class files or empty directories).
-    // prepareFilesToStage() only when using remote flink cluster.
-    List<String> filesToStage;
-    if (!options.getFlinkMaster().matches("\\[.*\\]")) {
-      filesToStage = prepareFilesToStage();
-    } else {
-      filesToStage = options.getFilesToStage();
-    }
+    prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, filesToStage);
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+              options, options.getFilesToStage());
+      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, filesToStage);
+          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+              options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 
     translator.translate(pipeline);
   }
 
-  private List<String> prepareFilesToStage() {
-    return options
-        .getFilesToStage()
-        .stream()
-        .map(File::new)
-        .filter(File::exists)
-        .map(file -> file.isDirectory() ? packageDirectoriesToStage(file) : file.getAbsolutePath())
-        .collect(Collectors.toList());
-  }
-
-  private String packageDirectoriesToStage(File directoryToStage) {
-    String hash = calculateDirectoryContentHash(directoryToStage);
-    String pathForJar = getUniqueJarPath(hash);
-    zipDirectory(directoryToStage, pathForJar);
-    return pathForJar;
-  }
-
-  private String calculateDirectoryContentHash(File directoryToStage) {
-    Hasher hasher = Hashing.md5().newHasher();
-    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
-      ZipFiles.zipDirectory(directoryToStage, hashStream);
-      return Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private String getUniqueJarPath(String contentHash) {
-    String tempLocation = options.getTempLocation();
-
-    checkArgument(
-        !Strings.isNullOrEmpty(tempLocation),
-        "Please provide \"tempLocation\" pipeline option. Flink runner needs it to store jars "
-            + "made of directories that were on classpath.");
-
-    return String.format("%s%s.jar", tempLocation, contentHash);
-  }
-
-  private void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
-    try {
-      ZipFiles.zipDirectory(directoryToStage, new FileOutputStream(uniqueDirectoryPath));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
+    if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
     }
   }
 

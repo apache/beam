@@ -79,14 +79,14 @@ include:
 
 A typical Beam driver program works as follows:
 
-* Create a `Pipeline` object and set the pipeline execution options, including
+* **Create** a `Pipeline` object and set the pipeline execution options, including
   the Pipeline Runner.
 * Create an initial `PCollection` for pipeline data, either using the IOs
   to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* Apply **PTransforms** to each `PCollection`. Transforms can change, filter,
+* **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
-  transform creates a new output `PCollection` *without consuming the input
+  transform creates a new output `PCollection` *without modifying the input
   collection*. A typical pipeline applies subsequent transforms to the each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
@@ -106,7 +106,7 @@ asynchronous "job" (or equivalent) on that back-end.
 
 The `Pipeline` abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class="language-java">[Pipeline]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
+<span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
 object, and then using that object as the basis for creating the pipeline's data
 sets as `PCollection`s and its operations as `Transform`s.
@@ -139,8 +139,8 @@ potentially include information such as your project ID or a location for
 storing files.
 
 When you run the pipeline on a runner of your choice, a copy of the
-PipelineOptions will be available to your code. For example, you can read
-PipelineOptions from a DoFn's Context.
+PipelineOptions will be available to your code. For example, if you add a PipelineOptions parameter
+to a DoFn's `@ProcessElement` method, it will be populated by the system.
 
 #### 2.1.1. Setting PipelineOptions from command-line arguments {#pipeline-options-cli}
 
@@ -234,7 +234,7 @@ Now your pipeline can accept `--myCustomOption=value` as a command-line argument
 
 ## 3. PCollections {#pcollections}
 
-The <span class="language-java">[PCollection]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
+The <span class="language-java">[PCollection](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
 <span class="language-py">`PCollection`</span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as
@@ -623,9 +623,13 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 Inside your `DoFn` subclass, you'll write a method annotated with
 `@ProcessElement` where you provide the actual processing logic. You don't need
 to manually extract the elements from the input collection; the Beam SDKs handle
-that for you. Your `@ProcessElement` method should accept an object of type
-`ProcessContext`. The `ProcessContext` object gives you access to an input
-element and a method for emitting an output element:
+that for you. Your `@ProcessElement` method should accept a parameter tagged with
+`@Element`, which will be populated with the input element. In order to output
+elements, the method can also take a parameter of type `OutputReceiver` which
+provides a method for emitting elements. The parameter types must match the input
+and output types of your `DoFn` or the framework will raise an error. Note: @Element and
+OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+ProcessContext parameter should be used instead.
 
 {:.language-py}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
@@ -638,11 +642,9 @@ method.
 ```java
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
   @ProcessElement
-  public void processElement(ProcessContext c) {
-    // Get the input element from ProcessContext.
-    String word = c.element();
-    // Use ProcessContext.output to emit the output element.
-    c.output(word.length());
+  public void processElement(@Element String word, OutputReceiver<Integer> out) {
+    // Use OutputReceiver.output to emit the output element.
+    out.output(word.length());
   }
 }
 ```
@@ -653,8 +655,8 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 
 {:.language-java}
 > **Note:** If the elements in your input `PCollection` are key/value pairs, you
-> can access the key or value by using `ProcessContext.element().getKey()` or
-> `ProcessContext.element().getValue()`, respectively.
+> can access the key or value by using `element.getKey()` or
+> `element.getValue()`, respectively.
 
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
@@ -670,10 +672,10 @@ following requirements:
 
 {:.language-java}
 * You should not in any way modify an element returned by
-  `ProcessContext.element()` or `ProcessContext.sideInput()` (the incoming
+  the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
-* Once you output a value using `ProcessContext.output()` or
-  `ProcessContext.sideOutput()`, you should not modify that value in any way.
+* Once you output a value using `OutputReceiver.output()` you should not modify
+  that value in any way.
 
 ##### 4.2.1.3. Lightweight DoFns and other abstractions {#lightweight-dofns}
 
@@ -697,8 +699,8 @@ PCollection<Integer> wordLengths = words.apply(
   "ComputeWordLengths",                     // the transform name
   ParDo.of(new DoFn<String, Integer>() {    // a DoFn as an anonymous inner class instance
       @ProcessElement
-      public void processElement(ProcessContext c) {
-        c.output(c.element().length());
+      public void processElement(@Element String word, OutputReceiver<Integer> out) {
+        out.output(word.length());
       }
     }));
 ```
@@ -922,7 +924,7 @@ The formatted data looks like this:
 
 #### 4.2.4. Combine {#combine}
 
-<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
+<span class="language-java">[`Combine`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
 <span class="language-py">[`Combine`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for combining collections of elements or values in your
 data. `Combine` has variants that work on entire `PCollection`s, and some that
@@ -1072,7 +1074,7 @@ If your input `PCollection` uses the default global windowing, the default
 behavior is to return a `PCollection` containing one item. That item's value
 comes from the accumulator in the combine function that you specified when
 applying `Combine`. For example, the Beam provided sum combine function returns
-a zero value (the sum of an empty input), while the max combine function returns
+a zero value (the sum of an empty input), while the min combine function returns
 a maximal or infinite value.
 
 To have `Combine` instead return an empty `PCollection` if the input is empty,
@@ -1151,7 +1153,7 @@ player_accuracies = ...
 
 #### 4.2.5. Flatten {#flatten}
 
-<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
+<span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
 <span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
@@ -1200,7 +1202,7 @@ pipeline is constructed.
 
 #### 4.2.6. Partition {#partition}
 
-<span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
+<span class="language-java">[`Partition`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
 <span class="language-py">[`Partition`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data
 type. `Partition` splits a single `PCollection` into a fixed number of smaller
@@ -1264,6 +1266,8 @@ In general, your user code must fulfill at least these requirements:
   Beam SDKs are not thread-safe*.
 
 In addition, it's recommended that you make your function object **idempotent**.
+Non-idempotent functions are supported by Beam, but require additional
+thought to ensure correctness when there are external side effects.
 
 > **Note:** These requirements apply to subclasses of `DoFn` (a function object
 > used with the [ParDo](#pardo) transform), `CombineFn` (a function object used
@@ -1305,10 +1309,10 @@ function may be accessed from different threads.
 
 It's recommended that you make your function object idempotent--that is, that it
 can be repeated or retried as often as necessary without causing unintended side
-effects. The Beam model provides no guarantees as to the number of times your
-user code might be invoked or retried; as such, keeping your function object
-idempotent keeps your pipeline's output deterministic, and your transforms'
-behavior more predictable and easier to debug.
+effects. Non-idempotent functions are supported, however the Beam model provides
+no guarantees as to the number of times your user code might be invoked or retried;
+as such, keeping your function object idempotent keeps your pipeline's output
+deterministic, and your transforms' behavior more predictable and easier to debug.
 
 ### 4.4. Side inputs {#side-inputs}
 
@@ -1346,12 +1350,12 @@ determined by the input data, or depend on a different branch of your pipeline.
   PCollection<String> wordsBelowCutOff =
   words.apply(ParDo
       .of(new DoFn<String, String>() {
-          public void processElement(ProcessContext c) {
-            String word = c.element();
+          @ProcessElement
+          public void processElement(@Element String word, OutputReceiver<String> out, ProcessContext c) {
             // In our DoFn, access the side input.
             int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
             if (word.length() <= lengthCutOff) {
-              c.output(word);
+              out.output(word);
             }
           }
       }).withSideInputs(maxWordLengthCutOffView)
@@ -1480,25 +1484,24 @@ together.
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
-// appropriate TupleTag when you call ProcessContext.output.
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a 
+// MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
   .of(new DoFn<String, String>() {
-     public void processElement(ProcessContext c) {
-       String word = c.element();
+     public void processElement(@Element String word, MultiOutputReceiver out) {
        if (word.length() <= wordLengthCutOff) {
          // Emit short word to the main output.
          // In this example, it is the output with tag wordsBelowCutOffTag.
-         c.output(word);
+         out.get(wordsBelowCutOffTag).output(word);
        } else {
          // Emit long word length to the output with tag wordLengthsAboveCutOffTag.
-         c.output(wordLengthsAboveCutOffTag, word.length());
+         out.get(wordLengthsAboveCutOffTag).output(word.length());
        }
        if (word.startsWith("MARKER")) {
          // Emit word to the output with tag markedWordsTag.
-         c.output(markedWordsTag, word);
+         out.get(markedWordsTag).output(word);
        }
      }}));
 ```
@@ -1517,6 +1520,63 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
+{:.language-java}
+#### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
+
+{:.language-java}
+In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
+Any combination of these parameters can be added to your process method in any order.
+
+{:.language-java}
+**Timestamp:**
+To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
+
+```java
+.of(new DoFn<String, String>() {
+     public void processElement(@Element String word, @Timestamp Instant timestamp) {
+  }})
+```
+
+
+{:.language-java}
+**Window:**
+To access the window an input element falls into, add a parameter of the type of the window used for the input `PCollection`.
+If the parameter is a window type (a subclass of `BoundedWindow`) that does not match the input `PCollection`, then an error
+will be raised. If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the
+`@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows
+are being used, the window is of type `IntervalWindow`.
+
+```java
+.of(new DoFn<String, String>() {
+     public void processElement(@Element String word, IntervalWindow window) {
+  }})
+```
+
+{:.language-java}
+**PaneInfo:**
+When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
+
+```java
+.of(new DoFn<String, String>() {
+     public void processElement(@Element String word, PaneInfo paneInfo) {
+  }})
+```
+
+{:.language-java}
+**PipelineOptions:**
+The `PipelineOptions` for the current pipeline can always be accessed in a process method by adding it as a parameter:
+```java
+.of(new DoFn<String, String>() {
+     public void processElement(@Element String word, PipelineOptions options) {
+  }})
+```
+
+{:.language-java}
+`@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
+`MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
+a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
+
 ### 4.6. Composite transforms {#composite-transforms}
 
 Transforms can have a nested structure, where a complex transform performs
@@ -1527,8 +1587,8 @@ transform can make your code more modular and easier to understand.
 
 The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:
-  * [Pre-written Beam transforms for Java]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
-  * [Pre-written Beam transforms for Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
+  * [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
+  * [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
 
 #### 4.6.1. An example composite transform {#composite-transform-example}
 
@@ -2104,7 +2164,7 @@ all the elements are by default part of a single, global window.
 To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a `ParDo` transform with a
 `DoFn` that outputs each element with a new timestamp (for example, the
-[WithTimestamps]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
+[WithTimestamps](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
 transform in the Beam SDK for Java).
 
 To illustrate how windowing with a bounded `PCollection` can affect how your
@@ -2253,13 +2313,13 @@ into fixed windows, each one minute in length:
 #### 7.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
-into sliding time windows. Each window is 30 minutes in length, and a new window
+into sliding time windows. Each window is 30 seconds in length, and a new window
 begins every five seconds:
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> slidingWindowedItems = items.apply(
-        Window.<String>into(SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5))));
+        Window.<String>into(SlidingWindows.of(Duration.standardSeconds(30)).every(Duration.standardSeconds(5))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_sliding_windows
@@ -2387,12 +2447,12 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
       PCollection<LogEntry> unstampedLogs = ...;
       PCollection<LogEntry> stampedLogs =
           unstampedLogs.apply(ParDo.of(new DoFn<LogEntry, LogEntry>() {
-            public void processElement(ProcessContext c) {
+            public void processElement(@Element LogEntry element, OutputReceiver<LogEntry> out) {
               // Extract the timestamp from log entry we're currently processing.
-              Instant logTimeStamp = extractTimeStampFromLogEntry(c.element());
-              // Use ProcessContext.outputWithTimestamp (rather than
-              // ProcessContext.output) to emit the entry with timestamp attached.
-              c.outputWithTimestamp(c.element(), logTimeStamp);
+              Instant logTimeStamp = extractTimeStampFromLogEntry(element);
+              // Use OutputReceiver.outputWithTimestamp (rather than
+              // OutputReceiver.output) to emit the entry with timestamp attached.
+              out.outputWithTimestamp(element, logTimeStamp);
             }
           }));
 ```
@@ -2430,7 +2490,7 @@ At a high level, triggers provide two additional capabilities compared to simply
 outputting at the end of a window:
 
 *   Triggers allow Beam to emit early results, before all the data in a given
-    window has arrived. For example, emitting after a certain amouint of time
+    window has arrived. For example, emitting after a certain amount of time
     elapses, or after a certain number of elements arrives.
 *   Triggers allow processing of late data by triggering after the event time
     watermark passes the end of the window.

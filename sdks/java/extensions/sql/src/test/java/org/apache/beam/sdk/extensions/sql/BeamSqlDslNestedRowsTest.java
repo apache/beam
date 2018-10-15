@@ -258,7 +258,7 @@ public class BeamSqlDslNestedRowsTest {
         input
             .apply(
                 SqlTransform.query(
-                    "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[1] FROM PCOLLECTION"))
+                    "SELECT `PCOLLECTION`.`f_nestedRow`.`f_nestedArray`[2] FROM PCOLLECTION"))
             .setRowSchema(resultSchema);
 
     PAssert.that(result)

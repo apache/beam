@@ -225,12 +225,7 @@ public class CombineRunners {
                 combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<InputT>> input) -> {
-      AccumT accumulator = combineFn.createAccumulator();
-      Iterable<InputT> inputValues = input.getValue();
-      for (InputT inputValue : inputValues) {
-        accumulator = combineFn.addInput(accumulator, inputValue);
-      }
-      return KV.of(input.getKey(), combineFn.extractOutput(accumulator));
+      return KV.of(input.getKey(), combineFn.apply(input.getValue()));
     };
   }
 }

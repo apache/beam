@@ -31,6 +31,10 @@ class ReportGeneratorConfig:
   PYTHON_DEP_RAW_REPORT = WORKING_SPACE + '/src/build/dependencyUpdates/python_dependency_report.txt'
   JAVA_DEP_RAW_REPORT   = WORKING_SPACE + '/src/build/dependencyUpdates/report.txt'
   FINAL_REPORT          = WORKING_SPACE + '/src/build/dependencyUpdates/beam-dependency-check-report.html'
+  MAX_STALE_DAYS = 360
+  MAX_MINOR_VERSION_DIFF = 3
+  PYPI_URL = "https://pypi.org/project/"
+  MAVEN_CENTRAL_URL = "https://mvnrepository.com/artifact"
 
   # Constants for JIRA automation
   BEAM_JIRA_HOST        = 'https://issues.apache.org/jira/'

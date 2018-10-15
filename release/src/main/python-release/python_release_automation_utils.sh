@@ -295,3 +295,4 @@ PUBSUB_SUBSCRIPTION='wordstream-python-sub2'
 # Mobile Gaming Configurations
 DATASET='beam_postrelease_mobile_gaming'
 USERSCORE_OUTPUT_PREFIX='python-userscore_result'
+GAME_INPUT_DATA='gs://dataflow-samples/game/5000_gaming_data.csv'

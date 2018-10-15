@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.hdfs;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -41,6 +43,8 @@ import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as Apache Beam {@link
@@ -68,6 +72,9 @@ import org.apache.hadoop.fs.Path;
  * </ul>
  */
 class HadoopFileSystem extends FileSystem<HadoopResourceId> {
+  private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
+
+  @VisibleForTesting static final String LOG_CREATE_DIRECTORY = "Creating directory %s";
   @VisibleForTesting final org.apache.hadoop.fs.FileSystem fileSystem;
 
   HadoopFileSystem(Configuration configuration) throws IOException {
@@ -129,29 +136,93 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // implementing it. The DFSFileSystem implemented concat by deleting the srcs after which
       // is not what we want. Also, all the other FileSystem implementations I saw threw
       // UnsupportedOperationException within concat.
-      FileUtil.copy(
-          fileSystem,
-          srcResourceIds.get(i).toPath(),
-          fileSystem,
-          destResourceIds.get(i).toPath(),
-          false,
-          true,
-          fileSystem.getConf());
+      boolean success =
+          FileUtil.copy(
+              fileSystem,
+              srcResourceIds.get(i).toPath(),
+              fileSystem,
+              destResourceIds.get(i).toPath(),
+              false,
+              true,
+              fileSystem.getConf());
+      if (!success) {
+        // Defensive coding as this should not happen in practice
+        throw new IOException(
+            String.format(
+                "Unable to copy resource %s to %s. No further information provided by underlying filesystem.",
+                srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+      }
     }
   }
 
+  /**
+   * Renames a {@link List} of file-like resources from one location to another.
+   *
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
+   *
+   * @param srcResourceIds the references of the source resources
+   * @param destResourceIds the references of the destination resources
+   * @throws FileNotFoundException if the source resources are missing. When rename throws, the
+   *     state of the resources is unknown but safe: for every (source, destination) pair of
+   *     resources, the following are possible: a) source exists, b) destination exists, c) source
+   *     and destination both exist. Thus no data is lost, however, duplicated resource are
+   *     possible. In such scenarios, callers can use {@code match()} to determine the state of the
+   *     resource.
+   * @throws FileAlreadyExistsException if the target resources already exist.
+   * @throws IOException if the underlying filesystem indicates the rename was not performed but no
+   *     other errors were thrown.
+   */
   @Override
   protected void rename(
       List<HadoopResourceId> srcResourceIds, List<HadoopResourceId> destResourceIds)
       throws IOException {
     for (int i = 0; i < srcResourceIds.size(); ++i) {
-      fileSystem.rename(srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath());
+
+      // rename in HDFS requires the target directory to exist or silently fails (BEAM-4861)
+      Path targetDirectory = destResourceIds.get(i).toPath().getParent();
+      if (!fileSystem.exists(targetDirectory)) {
+        LOG.debug(
+            String.format(
+                LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory)));
+        boolean success = fileSystem.mkdirs(targetDirectory);
+        if (!success) {
+          throw new IOException(
+              String.format(
+                  "Unable to create target directory %s. No further information provided by underlying filesystem.",
+                  targetDirectory));
+        }
+      }
+
+      boolean success =
+          fileSystem.rename(srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath());
+      if (!success) {
+        if (!fileSystem.exists(srcResourceIds.get(i).toPath())) {
+          throw new FileNotFoundException(
+              String.format(
+                  "Unable to rename resource %s to %s as source not found.",
+                  srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+
+        } else if (fileSystem.exists(destResourceIds.get(i).toPath())) {
+          throw new FileAlreadyExistsException(
+              String.format(
+                  "Unable to rename resource %s to %s as destination already exists.",
+                  srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+
+        } else {
+          throw new IOException(
+              String.format(
+                  "Unable to rename resource %s to %s. No further information provided by underlying filesystem.",
+                  srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+        }
+      }
     }
   }
 
   @Override
   protected void delete(Collection<HadoopResourceId> resourceIds) throws IOException {
     for (HadoopResourceId resourceId : resourceIds) {
+      // ignore response as issues are surfaced with exception
       fileSystem.delete(resourceId.toPath(), false);
     }
   }

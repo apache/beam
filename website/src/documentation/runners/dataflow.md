@@ -203,8 +203,8 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 </table>
 
 See the reference documentation for the
-<span class="language-java">[DataflowPipelineOptions]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>
-<span class="language-py">[`PipelineOptions`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions)</span>
+<span class="language-java">[DataflowPipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>
+<span class="language-py">[`PipelineOptions`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions)</span>
 interface (and any subinterfaces) for additional pipeline configuration options.
 
 ## Additional information and caveats {#additional-info}

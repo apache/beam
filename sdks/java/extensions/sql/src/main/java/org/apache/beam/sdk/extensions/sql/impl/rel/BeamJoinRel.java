@@ -147,8 +147,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       if (isSideInputJoin()) {
         checkArgument(pinput.size() == 1, "More than one input received for side input join");
-        return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
-            .setRowSchema(CalciteUtils.toSchema(getRowType()));
+        Schema schema = CalciteUtils.toSchema(getRowType());
+        return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0), schema).setRowSchema(schema);
       }
 
       Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
@@ -170,24 +170,29 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       // build the extract key type
       // the name of the join field is not important
-      Schema extractKeySchema =
+      Schema extractKeySchemaLeft =
           pairs.stream().map(pair -> leftSchema.getField(pair.getKey())).collect(toSchema());
+      Schema extractKeySchemaRight =
+          pairs.stream().map(pair -> rightSchema.getField(pair.getValue())).collect(toSchema());
 
-      SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchema);
+      SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchemaLeft);
 
       // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
       PCollection<KV<Row, Row>> extractedLeftRows =
           leftRows
               .apply(
                   "left_ExtractJoinFields",
-                  MapElements.via(new BeamJoinTransforms.ExtractJoinFields(true, pairs)))
+                  MapElements.via(
+                      new BeamJoinTransforms.ExtractJoinFields(true, pairs, extractKeySchemaLeft)))
               .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
       PCollection<KV<Row, Row>> extractedRightRows =
           rightRows
               .apply(
                   "right_ExtractJoinFields",
-                  MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
+                  MapElements.via(
+                      new BeamJoinTransforms.ExtractJoinFields(
+                          false, pairs, extractKeySchemaRight)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
       // a regular join
@@ -311,11 +316,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         break;
     }
 
+    Schema schema = CalciteUtils.toSchema(getRowType());
     PCollection<Row> ret =
         joinedRows
             .apply(
-                "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-            .setRowSchema(CalciteUtils.toSchema(getRowType()));
+                "JoinParts2WholeRow",
+                MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
+            .setRowSchema(schema);
     return ret;
   }
 
@@ -359,14 +366,15 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       boolean swapped) {
     final PCollectionView<Map<Row, Iterable<Row>>> rowsView = rightRows.apply(View.asMultimap());
 
+    Schema schema = CalciteUtils.toSchema(getRowType());
     PCollection<Row> ret =
         leftRows
             .apply(
                 ParDo.of(
                         new BeamJoinTransforms.SideInputJoinDoFn(
-                            joinType, rightNullRow, rowsView, swapped))
+                            joinType, rightNullRow, rowsView, swapped, schema))
                     .withSideInputs(rowsView))
-            .setRowSchema(CalciteUtils.toSchema(getRowType()));
+            .setRowSchema(schema);
 
     return ret;
   }
@@ -428,7 +436,10 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   private PCollection<Row> joinAsLookup(
-      BeamRelNode leftRelNode, BeamRelNode rightRelNode, PCollection<Row> factStream) {
+      BeamRelNode leftRelNode,
+      BeamRelNode rightRelNode,
+      PCollection<Row> factStream,
+      Schema outputSchema) {
     BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
     BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();
 
@@ -438,6 +449,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             condition,
             seekableTable,
             CalciteUtils.toSchema(rightRelNode.getRowType()),
+            outputSchema,
             CalciteUtils.toSchema(leftRelNode.getRowType()).getFieldCount()));
   }
 

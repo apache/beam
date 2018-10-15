@@ -78,28 +78,6 @@ public class UnboundedSourceSystem {
       new IncomingMessageEnvelope(null, null, null, null);
 
   /**
-   * Returns the configuration required to instantiate a consumer for the given {@link
-   * UnboundedSource}.
-   *
-   * @param id a unique id for the source. Must use only valid characters for a system name in
-   *     Samza.
-   * @param source the source
-   * @param coder a coder to deserialize messages received by the source's consumer
-   * @param <T> the type of object produced by the source consumer
-   */
-  public static <T> Map<String, String> createConfigFor(
-      String id, UnboundedSource<T, ?> source, Coder<WindowedValue<T>> coder, String stepName) {
-    final Map<String, String> config = new HashMap<>();
-    final String streamPrefix = "systems." + id;
-    config.put(streamPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
-    config.put(streamPrefix + ".source", Base64Serializer.serializeUnchecked(source));
-    config.put(streamPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
-    config.put(streamPrefix + ".stepName", stepName);
-    config.put("streams." + id + ".samza.system", id);
-    return config;
-  }
-
-  /**
    * For better parallelism in Samza, we need to configure a large split number for {@link
    * UnboundedSource} like Kafka. This will most likely make each split contain a single partition,
    * and be assigned to a Samza task. A large split number is safe since the actual split is bounded
@@ -456,8 +434,7 @@ public class UnboundedSourceSystem {
 
   /**
    * A {@link SystemFactory} that produces a {@link UnboundedSourceSystem} for a particular {@link
-   * UnboundedSource} registered in {@link Config} via {@link #createConfigFor(String,
-   * UnboundedSource, Coder, String)}.
+   * UnboundedSource} registered in {@link Config}.
    */
   public static class Factory<T, CheckpointMarkT extends CheckpointMark> implements SystemFactory {
     @Override

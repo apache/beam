@@ -58,6 +58,12 @@ public class ExplicitShardedFile implements ShardedFile {
     }
   }
 
+  /**
+   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   *
+   * <p>Because of eventual consistency, reads may discover no files or fewer files than the
+   * explicit list of files implies. In this case, the read is considered to have failed.
+   */
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
@@ -84,7 +90,7 @@ public class ExplicitShardedFile implements ShardedFile {
   }
 
   /**
-   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   * Discovers all shards of this file.
    *
    * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
    * template implies. In this case, the read is considered to have failed.

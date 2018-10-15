@@ -48,16 +48,40 @@ public class RowTest {
   public void testCreatesNullRecord() {
     Schema type =
         Stream.of(
-                Schema.Field.of("f_int", FieldType.INT32).withNullable(true),
-                Schema.Field.of("f_str", FieldType.STRING).withNullable(true),
-                Schema.Field.of("f_double", FieldType.DOUBLE).withNullable(true))
+                Schema.Field.of("f_byte", FieldType.BYTE).withNullable(true),
+                Schema.Field.of("f_int16", FieldType.INT16).withNullable(true),
+                Schema.Field.of("f_int32", FieldType.INT32).withNullable(true),
+                Schema.Field.of("f_int64", FieldType.INT64).withNullable(true),
+                Schema.Field.of("f_decimal", FieldType.DECIMAL).withNullable(true),
+                Schema.Field.of("f_float", FieldType.FLOAT).withNullable(true),
+                Schema.Field.of("f_double", FieldType.DOUBLE).withNullable(true),
+                Schema.Field.of("f_string", FieldType.STRING).withNullable(true),
+                Schema.Field.of("f_datetime", FieldType.DATETIME).withNullable(true),
+                Schema.Field.of("f_boolean", FieldType.BOOLEAN).withNullable(true))
             .collect(toSchema());
 
     Row row = Row.nullRow(type);
 
-    assertNull(row.getValue("f_int"));
-    assertNull(row.getValue("f_str"));
-    assertNull(row.getValue("f_double"));
+    assertNull(row.getByte("f_byte"));
+    assertNull(row.getByte(0));
+    assertNull(row.getInt16("f_int16"));
+    assertNull(row.getInt16(1));
+    assertNull(row.getInt32("f_int32"));
+    assertNull(row.getInt32(2));
+    assertNull(row.getInt64("f_int64"));
+    assertNull(row.getInt64(3));
+    assertNull(row.getDecimal("f_decimal"));
+    assertNull(row.getDecimal(4));
+    assertNull(row.getFloat("f_float"));
+    assertNull(row.getFloat(5));
+    assertNull(row.getDouble("f_double"));
+    assertNull(row.getDouble(6));
+    assertNull(row.getString("f_string"));
+    assertNull(row.getString(7));
+    assertNull(row.getDateTime("f_datetime"));
+    assertNull(row.getDateTime(8));
+    assertNull(row.getBoolean("f_boolean"));
+    assertNull(row.getBoolean(9));
   }
 
   @Test
@@ -91,18 +115,26 @@ public class RowTest {
                 (byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str", dateTime, false)
             .build();
 
-    assertEquals(0, row.getByte("f_byte"));
-    assertEquals(1, row.getInt16("f_int16"));
-    assertEquals(2, row.getInt32("f_int32"));
-    assertEquals(3, row.getInt64("f_int64"));
+    assertEquals((byte) 0, (Object) row.getByte("f_byte"));
+    assertEquals((byte) 0, (Object) row.getByte(0));
+    assertEquals((short) 1, (Object) row.getInt16("f_int16"));
+    assertEquals((short) 1, (Object) row.getInt16(1));
+    assertEquals((int) 2, (Object) row.getInt32("f_int32"));
+    assertEquals((int) 2, (Object) row.getInt32(2));
+    assertEquals((long) 3, (Object) row.getInt64("f_int64"));
+    assertEquals((long) 3, (Object) row.getInt64(3));
     assertEquals(new BigDecimal(2.3), row.getDecimal("f_decimal"));
+    assertEquals(new BigDecimal(2.3), row.getDecimal(4));
     assertEquals(1.2f, row.getFloat("f_float"), 0);
+    assertEquals(1.2f, row.getFloat(5), 0);
     assertEquals(3.0d, row.getDouble("f_double"), 0);
+    assertEquals(3.0d, row.getDouble(6), 0);
     assertEquals("str", row.getString("f_string"));
+    assertEquals("str", row.getString(7));
     assertEquals(dateTime, row.getDateTime("f_datetime"));
+    assertEquals(dateTime, row.getDateTime(8));
     assertEquals(false, row.getBoolean("f_boolean"));
-    assertEquals("str", row.getString("f_string"));
-    assertEquals(false, row.getBoolean("f_boolean"));
+    assertEquals(false, row.getBoolean(9));
   }
 
   @Test
@@ -117,7 +149,7 @@ public class RowTest {
             .collect(toSchema());
     Row nestedRow = Row.withSchema(nestedType).addValues("foobar").build();
     Row row = Row.withSchema(type).addValues(42, nestedRow).build();
-    assertEquals(42, row.getInt32("f_int"));
+    assertEquals((int) 42, (Object) row.getInt32("f_int"));
     assertEquals("foobar", row.getRow("nested").getString("f1_str"));
   }
 

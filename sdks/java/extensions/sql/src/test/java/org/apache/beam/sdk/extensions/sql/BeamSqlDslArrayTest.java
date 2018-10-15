@@ -98,7 +98,7 @@ public class BeamSqlDslArrayTest {
     Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
-        input.apply("sqlQuery", SqlTransform.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
+        input.apply("sqlQuery", SqlTransform.query("SELECT f_stringArr[1] FROM PCOLLECTION"));
 
     PAssert.that(result)
         .containsInAnyOrder(
@@ -348,7 +348,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input
-            .apply(SqlTransform.query("SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[2] FROM PCOLLECTION"))
             .setRowSchema(resultSchema);
 
     PAssert.that(result)
@@ -394,7 +394,7 @@ public class BeamSqlDslArrayTest {
 
     PCollection<Row> result =
         input
-            .apply(SqlTransform.query("SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
+            .apply(SqlTransform.query("SELECT f_arrayOfRows[2].f_rowString FROM PCOLLECTION"))
             .setRowSchema(resultSchema);
 
     PAssert.that(result)
