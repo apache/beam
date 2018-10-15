@@ -225,7 +225,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
-      String coderId = "fakeCoder" + idGenerator.get();
+      String coderId = "generatedCoder" + idGenerator.get();
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -260,7 +260,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             e);
       }
 
-      String pcollectionId = "fakePcollection" + idGenerator.get();
+      String pcollectionId = "generatedPcollection" + idGenerator.get();
       processBundleDescriptor.putPcollections(
           pcollectionId,
           RunnerApi.PCollection.newBuilder()
@@ -274,7 +274,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
       ParallelInstruction parallelInstruction = node.getParallelInstruction();
-      String ptransformId = "fakePtransform" + idGenerator.get();
+      String ptransformId = "generatedPtransform" + idGenerator.get();
       ptransformIdToNameContexts.put(
           ptransformId,
           NameContext.create(
@@ -384,7 +384,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
       for (Node predecessorOutput : input.predecessors(node)) {
         pTransform.putInputs(
-            "fakeInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
+            "generatedInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
       }
 
       for (Edge edge : input.outEdges(node)) {
