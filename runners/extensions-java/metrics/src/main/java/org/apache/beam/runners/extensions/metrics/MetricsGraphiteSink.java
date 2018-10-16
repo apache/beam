@@ -70,39 +70,24 @@ public class MetricsGraphiteSink implements MetricsSink {
         metricQueryResults.getDistributions();
 
     for (MetricResult<Long> counter : counters) {
-      // if committed metrics are not supported, exception is thrown and we don't append the message
-      try {
-        messagePayload.append(createCounterGraphiteMessage(metricTimestamp, counter, true));
-      } catch (UnsupportedOperationException e) {
-        if (!e.getMessage().contains("committed metrics")) {
-          throw e;
-        }
-      }
-      messagePayload.append(createCounterGraphiteMessage(metricTimestamp, counter, false));
+      messagePayload.append(new CounterMetricMessage(counter, "value", metricTimestamp).toString());
     }
 
     for (MetricResult<GaugeResult> gauge : gauges) {
-      try {
-        messagePayload.append(createGaugeGraphiteMessage(gauge, true));
-      } catch (UnsupportedOperationException e) {
-        if (!e.getMessage().contains("committed metrics")) {
-          throw e;
-        }
-      }
-      messagePayload.append(createGaugeGraphiteMessage(gauge, false));
+      messagePayload.append(new GaugeMetricMessage(gauge, "value").toString());
     }
 
     for (MetricResult<DistributionResult> distribution : distributions) {
-      try {
-        messagePayload.append(
-            createDistributionGraphiteMessage(metricTimestamp, distribution, true));
-      } catch (UnsupportedOperationException e) {
-        if (!e.getMessage().contains("committed metrics")) {
-          throw e;
-        }
-      }
       messagePayload.append(
-          createDistributionGraphiteMessage(metricTimestamp, distribution, false));
+          new DistributionMetricMessage(distribution, "min", metricTimestamp).toString());
+      messagePayload.append(
+          new DistributionMetricMessage(distribution, "max", metricTimestamp).toString());
+      messagePayload.append(
+          new DistributionMetricMessage(distribution, "count", metricTimestamp).toString());
+      messagePayload.append(
+          new DistributionMetricMessage(distribution, "sum", metricTimestamp).toString());
+      messagePayload.append(
+          new DistributionMetricMessage(distribution, "mean", metricTimestamp).toString());
     }
     writer.write(messagePayload.toString());
     writer.flush();
@@ -110,167 +95,205 @@ public class MetricsGraphiteSink implements MetricsSink {
     socket.close();
   }
 
-  @SuppressFBWarnings(
-    value = "VA_FORMAT_STRING_USES_NEWLINE",
-    justification = "\\n is part of graphite protocol"
-  )
-  private String createCounterGraphiteMessage(
-      long metricTimestamp, MetricResult<Long> counter, boolean committedValue) {
-    String metricMessage;
-    if (committedValue) {
-      metricMessage =
+  private abstract static class MetricMessage {
+    @Override
+    public String toString() {
+      StringBuilder messagePayload = new StringBuilder();
+      // if committed metrics are not supported, exception is thrown and we don't append the message
+      try {
+        messagePayload.append(createCommittedMessage());
+      } catch (UnsupportedOperationException e) {
+        if (!e.getMessage().contains("committed metrics")) {
+          throw e;
+        }
+      }
+      messagePayload.append(createAttemptedMessage());
+      return messagePayload.toString();
+    }
+
+    protected abstract String createCommittedMessage();
+
+    protected abstract String createAttemptedMessage();
+  }
+
+  private static class CounterMetricMessage extends MetricMessage {
+    private String valueType;
+    private MetricResult<Long> counter;
+    private long metricTimestamp;
+
+    private CounterMetricMessage(
+        MetricResult<Long> counter, String valueType, long metricTimestamp) {
+      this.valueType = valueType;
+      this.counter = counter;
+      this.metricTimestamp = metricTimestamp;
+    }
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createCommittedMessage() {
+      String metricMessage =
           String.format(
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  counter, "counter", "value", CommittedOrAttemped.COMMITTED),
+                  counter, "counter", valueType, CommittedOrAttemped.COMMITTED),
               counter.getCommitted(),
               metricTimestamp);
-    } else {
-      metricMessage =
+      return metricMessage;
+    }
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createAttemptedMessage() {
+      String metricMessage =
           String.format(
               Locale.US,
               "%s %s %s\n",
               createNormalizedMetricName(
-                  counter, "counter", "value", CommittedOrAttemped.ATTEMPTED),
+                  counter, "counter", valueType, CommittedOrAttemped.ATTEMPTED),
               counter.getAttempted(),
               metricTimestamp);
+      return metricMessage;
     }
-    return metricMessage;
   }
 
-  @SuppressFBWarnings(
-    value = "VA_FORMAT_STRING_USES_NEWLINE",
-    justification = "\\n is part of graphite protocol"
-  )
-  private String createGaugeGraphiteMessage(
-      MetricResult<GaugeResult> gauge, boolean committedValue) {
-    String metricMessage;
-    if (committedValue) {
-      metricMessage =
+  private static class GaugeMetricMessage extends MetricMessage {
+    private String valueType;
+    private MetricResult<GaugeResult> gauge;
+
+    private GaugeMetricMessage(MetricResult<GaugeResult> gauge, String valueType) {
+      this.valueType = valueType;
+      this.gauge = gauge;
+    }
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createCommittedMessage() {
+      String metricMessage =
           String.format(
               Locale.US,
               "%s %s %s\n",
-              createNormalizedMetricName(gauge, "gauge", "value", CommittedOrAttemped.COMMITTED),
+              createNormalizedMetricName(gauge, "gauge", valueType, CommittedOrAttemped.COMMITTED),
               gauge.getCommitted().getValue(),
               gauge.getCommitted().getTimestamp().getMillis() / 1000L);
-    } else {
-      metricMessage =
+      return metricMessage;
+    }
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createAttemptedMessage() {
+      String metricMessage =
           String.format(
               Locale.US,
               "%s %s %s\n",
-              createNormalizedMetricName(gauge, "gauge", "value", CommittedOrAttemped.ATTEMPTED),
+              createNormalizedMetricName(gauge, "gauge", valueType, CommittedOrAttemped.ATTEMPTED),
               gauge.getAttempted().getValue(),
               gauge.getAttempted().getTimestamp().getMillis() / 1000L);
+      return metricMessage;
     }
-    return metricMessage;
   }
 
-  @SuppressFBWarnings(
-    value = "VA_FORMAT_STRING_USES_NEWLINE",
-    justification = "\\n is part of graphite protocol"
-  )
-  private String createDistributionGraphiteMessage(
-      long metricTimestamp, MetricResult<DistributionResult> distribution, boolean committedValue) {
-    StringBuilder messagePayload = new StringBuilder();
-    String metricMessage;
-    if (committedValue) {
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "min", CommittedOrAttemped.COMMITTED),
-              distribution.getCommitted().getMin(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "max", CommittedOrAttemped.COMMITTED),
-              distribution.getCommitted().getMax(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "count", CommittedOrAttemped.COMMITTED),
-              distribution.getCommitted().getCount(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "sum", CommittedOrAttemped.COMMITTED),
-              distribution.getCommitted().getSum(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "mean", CommittedOrAttemped.COMMITTED),
-              distribution.getCommitted().getMean(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-    } else {
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "min", CommittedOrAttemped.ATTEMPTED),
-              distribution.getAttempted().getMin(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "max", CommittedOrAttemped.ATTEMPTED),
-              distribution.getAttempted().getMax(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "count", CommittedOrAttemped.ATTEMPTED),
-              distribution.getAttempted().getCount(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "sum", CommittedOrAttemped.ATTEMPTED),
-              distribution.getAttempted().getSum(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
-      metricMessage =
-          String.format(
-              Locale.US,
-              "%s %s %s\n",
-              createNormalizedMetricName(
-                  distribution, "distribution", "mean", CommittedOrAttemped.ATTEMPTED),
-              distribution.getAttempted().getMean(),
-              metricTimestamp);
-      messagePayload.append(metricMessage);
+  private static class DistributionMetricMessage extends MetricMessage {
+
+    private String valueType;
+    private MetricResult<DistributionResult> distribution;
+    private long metricTimestamp;
+
+    public DistributionMetricMessage(
+        MetricResult<DistributionResult> distribution, String valueType, long metricTimestamp) {
+      this.valueType = valueType;
+      this.distribution = distribution;
+      this.metricTimestamp = metricTimestamp;
     }
-    return messagePayload.toString();
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createCommittedMessage() {
+      Number value = null;
+      switch (valueType) {
+        case "min":
+          value = distribution.getCommitted().getMin();
+          break;
+        case "max":
+          value = distribution.getCommitted().getMax();
+          break;
+        case "count":
+          value = distribution.getCommitted().getCount();
+          break;
+        case "sum":
+          value = distribution.getCommitted().getSum();
+          break;
+        case "mean":
+          value = distribution.getCommitted().getMean();
+          break;
+        default:
+          break;
+      }
+      String metricMessage =
+          String.format(
+              Locale.US,
+              "%s %s %s\n",
+              createNormalizedMetricName(
+                  distribution, "distribution", valueType, CommittedOrAttemped.COMMITTED),
+              value,
+              metricTimestamp);
+      return metricMessage;
+    }
+
+    @SuppressFBWarnings(
+      value = "VA_FORMAT_STRING_USES_NEWLINE",
+      justification = "\\n is part of graphite protocol"
+    )
+    @Override
+    protected String createAttemptedMessage() {
+      Number value = null;
+      switch (valueType) {
+        case "min":
+          value = distribution.getAttempted().getMin();
+          break;
+        case "max":
+          value = distribution.getAttempted().getMax();
+          break;
+        case "count":
+          value = distribution.getAttempted().getCount();
+          break;
+        case "sum":
+          value = distribution.getAttempted().getSum();
+          break;
+        case "mean":
+          value = distribution.getAttempted().getMean();
+          break;
+        default:
+          break;
+      }
+      String metricMessage =
+          String.format(
+              Locale.US,
+              "%s %s %s\n",
+              createNormalizedMetricName(
+                  distribution, "distribution", valueType, CommittedOrAttemped.ATTEMPTED),
+              value,
+              metricTimestamp);
+      return metricMessage;
+    }
   }
 
-  private <T> String createNormalizedMetricName(
+  private static <T> String createNormalizedMetricName(
       MetricResult<T> metric,
       String metricType,
       String valueType,
