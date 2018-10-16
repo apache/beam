@@ -107,7 +107,7 @@ public class CombineFnBase {
   abstract static class AbstractGlobalCombineFn<InputT, AccumT, OutputT>
       implements GlobalCombineFn<InputT, AccumT, OutputT>, Serializable {
     private static final String INCOMPATIBLE_GLOBAL_WINDOW_ERROR_MESSAGE =
-        "Default values are not supported in Combine.globally() if the output "
+        "Default values are not supported in Combine.globally() if the input "
             + "PCollection is not windowed by GlobalWindows. Instead, use "
             + "Combine.globally().withoutDefaults() to output an empty PCollection if the input "
             + "PCollection is empty, or Combine.globally().asSingletonView() to get the default "
