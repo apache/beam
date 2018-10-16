@@ -381,7 +381,8 @@ class DataflowRunner(PipelineRunner):
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
 
-    if worker_options.dataflow_worker_jar:
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
       experiments = ["use_staged_dataflow_worker_jar"]
       if debug_options.experiments is not None:
         experiments = list(set(experiments + debug_options.experiments))
