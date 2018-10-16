@@ -45,6 +45,9 @@ WAIT_UNTIL_FINISH_DURATION = 3 * 60 * 1000   # in milliseconds
 
 class StreamingWordCountIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')

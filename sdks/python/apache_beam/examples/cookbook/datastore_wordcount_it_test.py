@@ -34,6 +34,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class DatastoreWordCountIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
   EXPECTED_CHECKSUM = '826f69ed0275858c2e098f1e8407d4e3ba5a4b3f'
 

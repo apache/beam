@@ -49,6 +49,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class HourlyTeamScoreIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   DEFAULT_INPUT_FILE = 'gs://dataflow-samples/game/gaming_data*'
   # SHA-1 hash generated from sorted rows reading from BigQuery table
   DEFAULT_EXPECTED_CHECKSUM = '4fa761fb5c3341ec573d5d12c6ab75e3b2957a25'

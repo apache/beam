@@ -49,6 +49,9 @@ from apache_beam.testing.test_utils import delete_files
 
 class UserScoreIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   DEFAULT_INPUT_FILE = 'gs://dataflow-samples/game/gaming_data*'
   DEFAULT_EXPECTED_CHECKSUM = '9f3bd81669607f0d98ec80ddd477f3277cfba0a2'
 

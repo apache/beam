@@ -84,6 +84,9 @@ def record(i):
 
 class FastavroIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   SCHEMA = Parse('''
     {"namespace": "example.avro",
      "type": "record",

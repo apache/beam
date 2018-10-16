@@ -66,6 +66,10 @@ DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
+
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
