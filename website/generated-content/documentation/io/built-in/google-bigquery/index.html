@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google BigQuery IO</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/built-in/google-bigquery/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Documentation</span></li>
+<li><a href="/documentation">Using the Documentation</a></li>
+<li><a href="/documentation/execution-model">Beam Execution Model</a></li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">Pipeline development lifecycle</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+  </ul>
+</li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">Beam programming guide</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/programming-guide/">Overview</a></li>
+    <li><a href="/documentation/programming-guide/#creating-a-pipeline">Pipelines</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">PCollections</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pcollections">Creating a PCollection</a></li>
+        <li><a href="/documentation/programming-guide/#pcollection-characteristics">PCollection characteristics</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Transforms</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#applying-transforms">Applying transforms</a></li>
+        <li>
+          <span class="section-nav-list-title">Core Beam transforms</span>
+
+          <ul class="section-nav-list">
+            <li><a href="/documentation/programming-guide/#pardo">ParDo</a></li>
+            <li><a href="/documentation/programming-guide/#groupbykey">GroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#cogroupbykey">CoGroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#combine">Combine</a></li>
+            <li><a href="/documentation/programming-guide/#flatten">Flatten</a></li>
+            <li><a href="/documentation/programming-guide/#partition">Partition</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for user code</a></li>
+        <li><a href="/documentation/programming-guide/#side-inputs">Side inputs</a></li>
+        <li><a href="/documentation/programming-guide/#additional-outputs">Additional outputs</a></li>
+        <li><a href="/documentation/programming-guide/#composite-transforms">Composite transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Pipeline I/O</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
+        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Data encoding and type safety</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#data-encoding-and-type-safety">Data encoding basics</a></li>
+        <li><a href="/documentation/programming-guide/#specifying-coders">Specifying coders</a></li>
+        <li><a href="/documentation/programming-guide/#default-coders-and-the-coderregistry">Default coders and the CoderRegistry</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Windowing</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#windowing">Windowing basics</a></li>
+        <li><a href="/documentation/programming-guide/#provided-windowing-functions">Provided windowing functions</a></li>
+        <li><a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Setting your PCollection’s windowing function</a></li>
+        <li><a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data</a></li>
+        <li><a href="/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Triggers</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#triggers">Trigger basics</a></li>
+        <li><a href="/documentation/programming-guide/#event-time-triggers">Event time triggers and the default trigger</a></li>
+        <li><a href="/documentation/programming-guide/#processing-time-triggers">Processing time triggers</a></li>
+        <li><a href="/documentation/programming-guide/#data-driven-triggers">Data-driven triggers</a></li>
+        <li><a href="/documentation/programming-guide/#setting-a-trigger">Setting a trigger</a></li>
+        <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
+      </ul>
+    </li>
+    <li><a href="/documentation/resources/">Additional Resources</a></li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#before-you-start">Before you start</a></li>
+  <li><a href="#bigquery-basics">BigQuery basics</a>
+    <ul>
+      <li><a href="#table-names">Table names</a></li>
+      <li><a href="#table-rows">Table rows</a></li>
+      <li><a href="#schemas">Schemas</a></li>
+    </ul>
+  </li>
+  <li><a href="#reading-from-bigquery">Reading from BigQuery</a>
+    <ul>
+      <li><a href="#reading-from-a-table">Reading from a table</a></li>
+      <li><a href="#reading-with-a-query-string">Reading with a query string</a></li>
+    </ul>
+  </li>
+  <li><a href="#writing-to-bigquery">Writing to BigQuery</a>
+    <ul>
+      <li><a href="#create-disposition">Create disposition</a></li>
+      <li><a href="#write-disposition">Write disposition</a></li>
+      <li><a href="#creating-a-table-schema">Creating a table schema</a></li>
+      <li><a href="#setting-the-insertion-method">Setting the insertion method</a></li>
+      <li><a href="#writing-to-a-table">Writing to a table</a></li>
+      <li><a href="#using-dynamic-destinations">Using dynamic destinations</a></li>
+      <li><a href="#using-time-partitioning">Using time partitioning</a></li>
+    </ul>
+  </li>
+  <li><a href="#limitations">Limitations</a></li>
+  <li><a href="#additional-examples">Additional examples</a>
+    <ul>
+      <li><a href="#java-cookbook-examples">Java cookbook examples</a></li>
+      <li><a href="#java-complete-examples">Java complete examples</a></li>
+      <li><a href="#python-cookbook-examples">Python cookbook examples</a></li>
+    </ul>
+  </li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<p><a href="/documentation/io/built-in/">Built-in I/O Transforms</a></p>
+
+<h1 id="google-bigquery-io">Google BigQuery IO</h1>
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
+<p>The Beam SDKs include built-in transforms that can read data from and write data
+to <a href="https://cloud.google.com/bigquery">Google BigQuery</a> tables.</p>
+
+<h2 id="before-you-start">Before you start</h2>
+
+<!-- Java specific -->
+
+<p class="language-java">To use BigQueryIO, add the Maven artifact dependency to your <code class="highlighter-rouge">pom.xml</code> file.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">sdks</span><span class="o">-</span><span class="n">java</span><span class="o">-</span><span class="n">io</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">platform</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.7</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<p class="language-java">Additional resources:</p>
+
+<ul class="language-java">
+  <li><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">BigQueryIO source code</a></li>
+  <li><a href="/documentation/sdks/javadoc/2.7.0/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc</a></li>
+  <li><a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation</a></li>
+</ul>
+
+<!-- Python specific -->
+
+<p class="language-py">To use BigQueryIO, you must install the Google Cloud Platform dependencies by
+running <code class="highlighter-rouge">pip install apache-beam[gcp]</code>.</p>
+
+<p class="language-py">Additional resources:</p>
+
+<ul class="language-py">
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">BigQueryIO source code</a></li>
+  <li><a href="/documentation/sdks/pydoc/2.7.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc</a></li>
+  <li><a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation</a></li>
+</ul>
+
+<h2 id="bigquery-basics">BigQuery basics</h2>
+
+<h3 id="table-names">Table names</h3>
+
+<p>To read or write from a BigQuery table, you must provide a fully-qualified
+BigQuery table name (for example, <code class="highlighter-rouge">bigquery-public-data:github_repos.sample_contents</code>).
+A fully-qualified BigQuery table name consists of three parts:</p>
+
+<ul>
+  <li><strong>Project ID</strong>: The ID for your Google Cloud Project. The default value comes
+from your pipeline options object.</li>
+  <li><strong>Dataset ID</strong>: The BigQuery dataset ID, which is unique within a given Cloud
+Project.</li>
+  <li><strong>Table ID</strong>: A BigQuery table ID, which is unique within a given dataset.</li>
+</ul>
+
+<p>A table name can also include a <a href="https://cloud.google.com/bigquery/table-decorators">table decorator</a>
+if you are using <a href="#using-time-partitioning">time-partitioned tables</a>.</p>
+
+<p>To specify a BigQuery table, you can use either the table’s fully-qualified name as
+a string, or use a
+<span class="language-java">
+  <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/index.html?com/google/api/services/bigquery/model/TableReference.html">TableReference</a>
+</span>
+<span class="language-py">
+  <a href="https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.table.TableReference.html#google.cloud.bigquery.table.TableReference">TableReference</a>
+</span>
+object.</p>
+
+<h4 id="using-a-string">Using a string</h4>
+
+<p>To specify a table with a string, use the format
+<code class="highlighter-rouge">[project_id]:[dataset_id].[table_id]</code> to specify the fully-qualified BigQuery
+table name.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"clouddataflow-readonly:samples.weather_stations"</span><span class="o">;</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># project-id:dataset_id.table_id</span>
+<span class="n">table_spec</span> <span class="o">=</span> <span class="s">'clouddataflow-readonly:samples.weather_stations'</span>
+</code></pre>
+</div>
+
+<p>You can also omit <code class="highlighter-rouge">project_id</code> and use the <code class="highlighter-rouge">[dataset_id].[table_id]</code> format. If
+you omit the project ID, Beam uses the default project ID from your
+<span class="language-java">
+  <a href="/documentation/sdks/javadoc/2.7.0/index.html?org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options</a>.
+</span>
+<span class="language-py">
+  <a href="/documentation/sdks/pydoc/2.7.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options</a>.
+</span></p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSpec</span> <span class="o">=</span> <span class="s">"samples.weather_stations"</span><span class="o">;</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># dataset_id.table_id</span>
+<span class="n">table_spec</span> <span class="o">=</span> <span class="s">'samples.weather_stations'</span>
+</code></pre>
+</div>
+
+<h4 id="using-a-tablereference">Using a TableReference</h4>
+
+<p>To specify a table with a <code class="highlighter-rouge">TableReference</code>, create a new <code class="highlighter-rouge">TableReference</code> using
+the three parts of the BigQuery table name.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableReference</span> <span class="n">tableSpec</span> <span class="o">=</span>
+    <span class="k">new</span> <span class="nf">TableReference</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">setProjectId</span><span class="o">(</span><span class="s">"clouddataflow-readonly"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">setDatasetId</span><span class="o">(</span><span class="s">"samples"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">setTableId</span><span class="o">(</span><span class="s">"weather_stations"</span><span class="o">);</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="kn">import</span> <span class="n">bigquery</span>
+
+<span class="n">table_spec</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableReference</span><span class="p">(</span>
+    <span class="n">projectId</span><span class="o">=</span><span class="s">'clouddataflow-readonly'</span><span class="p">,</span>
+    <span class="n">datasetId</span><span class="o">=</span><span class="s">'samples'</span><span class="p">,</span>
+    <span class="n">tableId</span><span class="o">=</span><span class="s">'weather_stations'</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<!-- Java specific -->
+
+<p class="language-java">The Beam SDK for Java also provides the <a href="/documentation/sdks/javadoc/2.7.0/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html"><code class="highlighter-rouge">parseTableSpec</code></a>
+helper method, which constructs a <code class="highlighter-rouge">TableReference</code> object from a String that
+contains the fully-qualified BigQuery table name. However, the static factory
+methods for BigQueryIO transforms accept the table name as a String and
+construct a <code class="highlighter-rouge">TableReference</code> object for you.</p>
+
+<h3 id="table-rows">Table rows</h3>
+
+<p>BigQueryIO read and write transforms produce and consume data as a <code class="highlighter-rouge">PCollection</code>
+of dictionaries, where each element in the <code class="highlighter-rouge">PCollection</code> represents a single row
+in the table.</p>
+
+<h3 id="schemas">Schemas</h3>
+
+<p>When writing to BigQuery, you must supply a table schema for the destination
+table that you want to write to, unless you specify a <a href="#create-disposition">create
+disposition</a> of <code class="highlighter-rouge">CREATE_NEVER</code>. <a href="#creating-a-table-schema">Creating a table
+schema</a> covers schemas in more detail.</p>
+
+<h2 id="reading-from-bigquery">Reading from BigQuery</h2>
+
+<p>BigQueryIO allows you to read from a BigQuery table, or read the results of
+an arbitrary SQL query string. When you apply a BigQueryIO read transform,
+Beam invokes a <a href="https://cloud.google.com/bigquery/docs/exporting-data">BigQuery export request</a>.
+Beam’s use of this API is subject to BigQuery’s <a href="https://cloud.google.com/bigquery/quota-policy#export">Quota</a>
+and <a href="https://cloud.google.com/bigquery/pricing">Pricing</a> policies.</p>
+
+<!-- Java specific -->
+
+<p class="language-java">The Beam SDK for Java has two BigQueryIO read methods. Both of these methods
+allow you to read from a table, or read fields using a query string.</p>
+
+<ol class="language-java">
+  <li>
+    <p><code class="highlighter-rouge">read(SerializableFunction)</code> reads Avro-formatted records and uses a
+specified parsing function to parse them into a <code class="highlighter-rouge">PCollection</code> of custom typed
+objects. Each element in the <code class="highlighter-rouge">PCollection</code> represents a single row in the
+table. The <a href="#reading-with-a-query-string">example code</a> for reading with a
+query string shows how to use <code class="highlighter-rouge">read(SerializableFunction)</code>.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">readTableRows</code> returns a <code class="highlighter-rouge">PCollection</code> of BigQuery <code class="highlighter-rouge">TableRow</code>
+objects.  Each element in the <code class="highlighter-rouge">PCollection</code> represents a single row in the
+table. Integer values in the <code class="highlighter-rouge">TableRow</code> objects are encoded as strings to
+match BigQuery’s exported JSON format. This method is convenient, but can be
+2-3 times slower in performance compared to <code class="highlighter-rouge">read(SerializableFunction)</code>. The
+<a href="#reading-from-a-table">example code</a> for reading from a table shows how to
+use <code class="highlighter-rouge">readTableRows</code>.</p>
+  </li>
+</ol>
+
+<p class="language-java"><strong><em>Note:</em></strong> <code class="highlighter-rouge">BigQueryIO.read()</code> is deprecated as of Beam SDK 2.2.0. Instead, use
+<code class="highlighter-rouge">read(SerializableFunction&lt;SchemaAndRecord, T&gt;)</code> to parse BigQuery rows from
+Avro <code class="highlighter-rouge">GenericRecord</code> into your custom type, or use <code class="highlighter-rouge">readTableRows()</code> to parse
+them into JSON <code class="highlighter-rouge">TableRow</code> objects.</p>
+
+<!-- Python specific -->
+
+<p class="language-py">To read from a BigQuery table using the Beam SDK for Python, apply a <code class="highlighter-rouge">Read</code>
+transform on a <code class="highlighter-rouge">BigQuerySource</code>. Read returns a <code class="highlighter-rouge">PCollection</code> of dictionaries,
+where each element in the <code class="highlighter-rouge">PCollection</code> represents a single row in the table.
+Integer values in the <code class="highlighter-rouge">TableRow</code> objects are encoded as strings to match
+BigQuery’s exported JSON format.</p>
+
+<h3 id="reading-from-a-table">Reading from a table</h3>
+
+<p class="language-java">To read an entire BigQuery table, use the <code class="highlighter-rouge">from</code> method with a BigQuery table
+name. This example uses <code class="highlighter-rouge">readTableRows</code>.</p>
+
+<p class="language-py">To read an entire BigQuery table, use the <code class="highlighter-rouge">table</code> parameter with the BigQuery
+table name.</p>
+
+<p>The following code reads an entire table that contains weather station data and
+then extracts the <code class="highlighter-rouge">max_temperature</code> column.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">readTableRows</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">tableSpec</span><span class="o">))</span>
+        <span class="c1">// Each row is of type TableRow</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">doubles</span><span class="o">())</span>
+                <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">TableRow</span> <span class="n">row</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">row</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">)));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">p</span>
+    <span class="o">|</span> <span class="s">'ReadTable'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span><span class="n">table_spec</span><span class="p">))</span>
+    <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
+</code></pre>
+</div>
+
+<h3 id="reading-with-a-query-string">Reading with a query string</h3>
+
+<p class="language-java">If you don’t want to read an entire table, you can supply a query string with
+the <code class="highlighter-rouge">fromQuery</code> method. This example uses
+<code class="highlighter-rouge">read(SerializableFunction)</code>.</p>
+
+<p class="language-py">If you don’t want to read an entire table, you can supply a query string to
+<code class="highlighter-rouge">BigQuerySource</code> by specifying the <code class="highlighter-rouge">query</code> parameter.</p>
+
+<p>The following code uses a SQL query to only read the <code class="highlighter-rouge">max_temperature</code> column.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">read</span><span class="o">(</span>
+                <span class="o">(</span><span class="n">SchemaAndRecord</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">elem</span><span class="o">.</span><span class="na">getRecord</span><span class="o">().</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">))</span>
+            <span class="o">.</span><span class="na">fromQuery</span><span class="o">(</span>
+                <span class="s">"SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">DoubleCoder</span><span class="o">.</span><span class="na">of</span><span class="o">()));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">p</span>
+    <span class="o">|</span> <span class="s">'QueryTable'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+        <span class="n">query</span><span class="o">=</span><span class="s">'SELECT max_temperature FROM '</span>\
+              <span class="s">'[clouddataflow-readonly:samples.weather_stations]'</span><span class="p">))</span>
+    <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
+</code></pre>
+</div>
+
+<p>You can also use BigQuery’s standard SQL dialect with a query string, as shown
+in the following example:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Double</span><span class="o">&gt;</span> <span class="n">maxTemperatures</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">read</span><span class="o">(</span>
+                <span class="o">(</span><span class="n">SchemaAndRecord</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">elem</span><span class="o">.</span><span class="na">getRecord</span><span class="o">().</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">))</span>
+            <span class="o">.</span><span class="na">fromQuery</span><span class="o">(</span>
+                <span class="s">"SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">usingStandardSql</span><span class="o">()</span>
+            <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">DoubleCoder</span><span class="o">.</span><span class="na">of</span><span class="o">()));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">max_temperatures</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">p</span>
+    <span class="o">|</span> <span class="s">'QueryTableStdSQL'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+        <span class="n">query</span><span class="o">=</span><span class="s">'SELECT max_temperature FROM '</span>\
+              <span class="s">'`clouddataflow-readonly.samples.weather_stations`'</span><span class="p">,</span>
+        <span class="n">use_standard_sql</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+    <span class="c"># Each row is a dictionary where the keys are the BigQuery columns</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'max_temperature'</span><span class="p">]))</span>
+</code></pre>
+</div>
+
+<h2 id="writing-to-bigquery">Writing to BigQuery</h2>
+
+<p>BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
+for Java, you can also write different rows to different tables. BigQueryIO
+write transforms use APIs that are subject to BigQuery’s <a href="https://cloud.google.com/bigquery/quota-policy#export">Quota</a>
+and <a href="https://cloud.google.com/bigquery/pricing">Pricing</a> policies.</p>
+
+<p>When you apply a write transform, you must provide the following information
+for the destination table(s):</p>
+
+<ul>
+  <li>The table name.</li>
+  <li>The destination table’s create disposition. The create disposition specifies
+whether the destination table must exist or can be created by the write
+operation.</li>
+  <li>The destination table’s write disposition. The write disposition specifies
+whether the data you write will replace an existing table, append rows to an
+existing table, or write only to an empty table.</li>
+</ul>
+
+<p>In addition, if your write operation creates a new BigQuery table, you must also
+supply a table schema for the destination table.</p>
+
+<h3 id="create-disposition">Create disposition</h3>
+
+<p>The create disposition controls whether or not your BigQuery write operation
+should create a table if the destination table does not exist.</p>
+
+<!-- Java specific -->
+
+<p class="language-java">Use <code class="highlighter-rouge">.withCreateDisposition</code> to specify the create disposition. Valid enum
+values are:</p>
+
+<ul class="language-java">
+  <li>
+    <p><code class="highlighter-rouge">Write.CreateDisposition.CREATE_IF_NEEDED</code>: Specifies that the
+write operation should create a new table if one does not exist. If you use
+this value, you must provide a table schema with the <code class="highlighter-rouge">withSchema</code> method.
+<code class="highlighter-rouge">CREATE_IF_NEEDED</code> is the default behavior.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">Write.CreateDisposition.CREATE_NEVER</code>: Specifies that a table
+should never be created. If the destination table does not exist, the write
+operation fails.</p>
+  </li>
+</ul>
+
+<!-- Python specific -->
+
+<p class="language-py">Use the <code class="highlighter-rouge">create_disposition</code> parameter to specify the create disposition. Valid
+enum values are:</p>
+
+<ul class="language-py">
+  <li>
+    <p><code class="highlighter-rouge">BigQueryDisposition.CREATE_IF_NEEDED</code>: Specifies that the write operation
+should create a new table if one does not exist. If you use this value, you
+must provide a table schema. <code class="highlighter-rouge">CREATE_IF_NEEDED</code> is the default behavior.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">BigQueryDisposition.CREATE_NEVER</code>: Specifies that a table should never be
+created. If the destination table does not exist, the write operation fails.</p>
+  </li>
+</ul>
+
+<p>If you specify <code class="highlighter-rouge">CREATE_IF_NEEDED</code> as the create disposition and you don’t supply
+a table schema, the transform might fail at runtime if the destination table does
+not exist.</p>
+
+<h3 id="write-disposition">Write disposition</h3>
+
+<p>The write disposition controls how your BigQuery write operation applies to an
+existing table.</p>
+
+<!-- Java specific -->
+
+<p class="language-java">Use <code class="highlighter-rouge">.withWriteDisposition</code> to specify the write disposition. Valid enum values
+are:</p>
+
+<ul class="language-java">
+  <li>
+    <p><code class="highlighter-rouge">Write.WriteDisposition.WRITE_EMPTY</code>: Specifies that the write
+operation should fail at runtime if the destination table is not empty.
+<code class="highlighter-rouge">WRITE_EMPTY</code> is the default behavior.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">Write.WriteDisposition.WRITE_TRUNCATE</code>: Specifies that the write
+operation should replace an existing table. Any existing rows in the
+destination table are removed, and the new rows are added to the table.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">Write.WriteDisposition.WRITE_APPEND</code>: Specifies that the write
+operation should append the rows to the end of the existing table.</p>
+  </li>
+</ul>
+
+<!-- Python specific -->
+
+<p class="language-py">Use the <code class="highlighter-rouge">write_disposition</code> parameter to specify the write disposition. Valid
+enum values are:</p>
+
+<ul class="language-py">
+  <li>
+    <p><code class="highlighter-rouge">BigQueryDisposition.WRITE_EMPTY</code>: Specifies that the write operation should
+fail at runtime if the destination table is not empty. <code class="highlighter-rouge">WRITE_EMPTY</code> is the
+default behavior.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">BigQueryDisposition.WRITE_TRUNCATE</code>: Specifies that the write operation
+should replace an existing table. Any existing rows in the destination table
+are removed, and the new rows are added to the table.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">BigQueryDisposition.WRITE_APPEND</code>: Specifies that the write operation should
+append the rows to the end of the existing table.</p>
+  </li>
+</ul>
+
+<p>When you use <code class="highlighter-rouge">WRITE_EMPTY</code>, the check for whether or not the destination table
+is empty can occur before the actual write operation. This check doesn’t
+guarantee that your pipeline will have exclusive access to the table. Two
+concurrent pipelines that write to the same output table with a write
+disposition of <code class="highlighter-rouge">WRITE_EMPTY</code> might start successfully, but both pipelines can
+fail later when the write attempts happen.</p>
+
+<h3 id="creating-a-table-schema">Creating a table schema</h3>
+
+<p>If your BigQuery write operation creates a new table, you must provide schema
+information. The schema contains information about each field in the table.</p>
+
+<p class="language-java">To create a table schema in Java, you can either use a <code class="highlighter-rouge">TableSchema</code> object, or
+use a string that contains a JSON-serialized <code class="highlighter-rouge">TableSchema</code> object.</p>
+
+<p class="language-py">To create a table schema in Python, you can either use a <code class="highlighter-rouge">TableSchema</code> object,
+or use a string that defines a list of fields. Single string based schemas do
+not support nested fields, repeated fields, or specifying a BigQuery mode for
+fields (the mode will always be set to <code class="highlighter-rouge">NULLABLE</code>).</p>
+
+<h4 id="using-a-tableschema">Using a TableSchema</h4>
+
+<p>To create and use a table schema as a <code class="highlighter-rouge">TableSchema</code> object, follow these steps.</p>
+
+<!-- Java specific - TableSchema -->
+
+<ol class="language-java">
+  <li>
+    <p>Create a list of <code class="highlighter-rouge">TableFieldSchema</code> objects. Each <code class="highlighter-rouge">TableFieldSchema</code> object
+represents a field in the table.</p>
+  </li>
+  <li>
+    <p>Create a <code class="highlighter-rouge">TableSchema</code> object and use the <code class="highlighter-rouge">setFields</code> method to specify your
+list of fields.</p>
+  </li>
+  <li>
+    <p>Use the <code class="highlighter-rouge">withSchema</code> method to provide your table schema when you apply a
+write transform.</p>
+  </li>
+</ol>
+
+<!-- Python specific - TableSchema -->
+
+<ol class="language-py">
+  <li>
+    <p>Create a <code class="highlighter-rouge">TableSchema</code> object.</p>
+  </li>
+  <li>
+    <p>Create and append a <code class="highlighter-rouge">TableFieldSchema</code> object for each field in your table.</p>
+  </li>
+  <li>
+    <p>Next, use the <code class="highlighter-rouge">schema</code> parameter to provide your table schema when you apply
+a write transform. Set the parameter’s value to the <code class="highlighter-rouge">TableSchema</code> object.</p>
+  </li>
+</ol>
+
+<!-- Common -->
+
+<p>The following example code shows how to create a <code class="highlighter-rouge">TableSchema</code> for a table with
+two fields (source and quote) of type string.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TableSchema</span> <span class="n">tableSchema</span> <span class="o">=</span>
+    <span class="k">new</span> <span class="nf">TableSchema</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">setFields</span><span class="o">(</span>
+            <span class="n">ImmutableList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                    <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"source"</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"STRING"</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"NULLABLE"</span><span class="o">),</span>
+                <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                    <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"quote"</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"STRING"</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">)));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="kn">import</span> <span class="n">bigquery</span>
+
+<span class="n">table_schema</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">()</span>
+
+<span class="n">source_field</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+<span class="n">source_field</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">'source'</span>
+<span class="n">source_field</span><span class="o">.</span><span class="nb">type</span> <span class="o">=</span> <span class="s">'STRING'</span>
+<span class="n">source_field</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s">'NULLABLE'</span>
+<span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">source_field</span><span class="p">)</span>
+
+<span class="n">quote_field</span> <span class="o">=</span> <span class="n">bigquery</span><span class="o">.</span><span class="n">TableFieldSchema</span><span class="p">()</span>
+<span class="n">quote_field</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">'quote'</span>
+<span class="n">quote_field</span><span class="o">.</span><span class="nb">type</span> <span class="o">=</span> <span class="s">'STRING'</span>
+<span class="n">quote_field</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s">'REQUIRED'</span>
+<span class="n">table_schema</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">quote_field</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h4 id="using-a-string-1">Using a string</h4>
+
+<!-- Java specific - string -->
+
+<p class="language-java">To create and use a table schema as a string that contains JSON-serialized
+<code class="highlighter-rouge">TableSchema</code> object, follow these steps.</p>
+
+<ol class="language-java">
+  <li>
+    <p>Create a string that contains a JSON-serialized <code class="highlighter-rouge">TableSchema</code> object.</p>
+  </li>
+  <li>
+    <p>Use the <code class="highlighter-rouge">withJsonSchema</code> method to provide your table schema when you apply a
+write transform.</p>
+  </li>
+</ol>
+
+<!-- Python specific - string -->
+
+<p class="language-py">To create and use a table schema as a string, follow these steps.</p>
+
+<ol class="language-py">
+  <li>
+    <p>Create a single comma separated string of the form
+“field1:type1,field2:type2,field3:type3” that defines a list of fields. The
+type should specify the field’s BigQuery type.</p>
+  </li>
+  <li>
+    <p>Use the <code class="highlighter-rouge">schema</code> parameter to provide your table schema when you apply a
+write transform. Set the parameter’s value to the string.</p>
+  </li>
+</ol>
+
+<!-- Common -->
+
+<p>The following example shows how to use a string to specify the same table schema
+as the previous example.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">tableSchemaJson</span> <span class="o">=</span>
+    <span class="s">""</span>
+        <span class="o">+</span> <span class="s">"{"</span>
+        <span class="o">+</span> <span class="s">"  \"fields\": ["</span>
+        <span class="o">+</span> <span class="s">"    {"</span>
+        <span class="o">+</span> <span class="s">"      \"name\": \"source\","</span>
+        <span class="o">+</span> <span class="s">"      \"type\": \"STRING\","</span>
+        <span class="o">+</span> <span class="s">"      \"mode\": \"NULLABLE\""</span>
+        <span class="o">+</span> <span class="s">"    },"</span>
+        <span class="o">+</span> <span class="s">"    {"</span>
+        <span class="o">+</span> <span class="s">"      \"name\": \"quote\","</span>
+        <span class="o">+</span> <span class="s">"      \"type\": \"STRING\","</span>
+        <span class="o">+</span> <span class="s">"      \"mode\": \"REQUIRED\""</span>
+        <span class="o">+</span> <span class="s">"    }"</span>
+        <span class="o">+</span> <span class="s">"  ]"</span>
+        <span class="o">+</span> <span class="s">"}"</span><span class="o">;</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># column_name:BIGQUERY_TYPE, ...</span>
+<span class="n">table_schema</span> <span class="o">=</span> <span class="s">'source:STRING, quote:STRING'</span>
+</code></pre>
+</div>
+
+<h3 id="setting-the-insertion-method">Setting the insertion method</h3>
+
+<blockquote class="language-py">
+  <p>The Beam SDK for Python does not currently support specifying the insertion
+method.</p>
+</blockquote>
+
+<p>BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
+streaming inserts. Each insertion method provides different tradeoffs of cost,
+quota, and data consistency. See the BigQuery documentation for
+<a href="https://cloud.google.com/bigquery/loading-data">load jobs</a> and
+<a href="https://cloud.google.com/bigquery/streaming-data-into-bigquery">streaming inserts</a>
+for more information about these tradeoffs.</p>
+
+<p>BigQueryIO chooses a default insertion method based on the input <code class="highlighter-rouge">PCollection</code>.</p>
+
+<p class="language-py">BigQueryIO uses load jobs when you apply a BigQueryIO write transform to a
+bounded <code class="highlighter-rouge">PCollection</code>.</p>
+
+<p class="language-java">BigQueryIO uses load jobs in the following situations:</p>
+
+<ul class="language-java">
+  <li>When you apply a BigQueryIO write transform to a bounded <code class="highlighter-rouge">PCollection</code>.</li>
+  <li>When you apply a BigQueryIO write transform to an unbounded <code class="highlighter-rouge">PCollection</code> and
+use <code class="highlighter-rouge">BigQueryIO.write().withTriggeringFrequency()</code> to set the triggering
+frequency.</li>
+  <li>When you specify load jobs as the insertion method using
+<code class="highlighter-rouge">BigQueryIO.write().withMethod(FILE_LOADS)</code>.</li>
+</ul>
+
+<p class="language-py">BigQueryIO uses streaming inserts when you apply a BigQueryIO write transform to
+an unbounded <code class="highlighter-rouge">PCollection</code>.</p>
+
+<p class="language-java">BigQueryIO uses streaming inserts in the following situations:</p>
+
+<ul class="language-java">
+  <li>When you apply a BigQueryIO write transform to an unbounded <code class="highlighter-rouge">PCollection</code> and
+do not set the triggering frequency.</li>
+  <li>When you specify streaming inserts as the insertion method using
+<code class="highlighter-rouge">BigQueryIO.write().withMethod(STREAMING_INSERTS)</code>.</li>
+</ul>
+
+<!-- Java specific -->
+
+<p class="language-java">You can use <code class="highlighter-rouge">withMethod</code> to specify the desired insertion method. See
+<a href="/documentation/sdks/javadoc/2.7.0/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">Write.Method</a>
+for the list of the available methods and their restrictions.</p>
+
+<p class="language-java"><strong><em>Note:</em></strong> If you use batch loads in a streaming pipeline, you must use
+<code class="highlighter-rouge">withTriggeringFrequency</code> to specify a triggering frequency.</p>
+
+<h3 id="writing-to-a-table">Writing to a table</h3>
+
+<p class="language-java">To write to a BigQuery table, apply either a <code class="highlighter-rouge">writeTableRows</code> or <code class="highlighter-rouge">write</code>
+transform.</p>
+
+<p class="language-py">To write to a BigQuery table, apply the <code class="highlighter-rouge">WriteToBigQuery</code> transform.
+<code class="highlighter-rouge">WriteToBigQuery</code> supports both batch mode and streaming mode. You must apply
+the transform to a <code class="highlighter-rouge">PCollection</code> of dictionaries. In general, you’ll need to use
+another transform, such as <code class="highlighter-rouge">ParDo</code>, to format your output data into a
+collection.</p>
+
+<p>The following examples use this <code class="highlighter-rouge">PCollection</code> that contains quotes.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/*
+@DefaultCoder(AvroCoder.class)
+static class Quote {
+  final String source;
+  final String quote;
+
+  public Quote() {
+    this.source = "";
+    this.quote = "";
+  }
+  public Quote(String source, String quote) {
+    this.source = source;
+    this.quote = quote;
+  }
+}
+*/</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Quote</span><span class="o">&gt;</span> <span class="n">quotes</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+            <span class="k">new</span> <span class="nf">Quote</span><span class="o">(</span><span class="s">"Mahatma Gandhi"</span><span class="o">,</span> <span class="s">"My life is my message."</span><span class="o">),</span>
+            <span class="k">new</span> <span class="nf">Quote</span><span class="o">(</span><span class="s">"Yoda"</span><span class="o">,</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="o">)));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+    <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Mahatma Ghandi'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">'My life is my message.'</span><span class="p">},</span>
+    <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Yoda'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="p">},</span>
+<span class="p">])</span>
+</code></pre>
+</div>
+
+<!-- writeTableRows and WriteToBigQuery -->
+
+<p class="language-java">The <code class="highlighter-rouge">writeTableRows</code> method writes a <code class="highlighter-rouge">PCollection</code> of BigQuery <code class="highlighter-rouge">TableRow</code>
+objects to a BigQuery table. Each element in the <code class="highlighter-rouge">PCollection</code> represents a
+single row in the table. This example uses <code class="highlighter-rouge">writeTableRows</code> to write quotes to a
+<code class="highlighter-rouge">PCollection&lt;TableRow&gt;</code>.  The write operation creates a table if needed; if the
+table already exists, it will be replaced.</p>
+
+<p class="language-py">The following example code shows how to apply a <code class="highlighter-rouge">WriteToBigQuery</code> transform to
+write a <code class="highlighter-rouge">PCollection</code> of dictionaries to a BigQuery table. The write operation
+creates a table if needed; if the table already exists, it will be replaced.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">TableRow</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+            <span class="o">.</span><span class="na">via</span><span class="o">(</span>
+                <span class="o">(</span><span class="n">Quote</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span>
+                    <span class="k">new</span> <span class="nf">TableRow</span><span class="o">().</span><span class="na">set</span><span class="o">(</span><span class="s">"source"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">source</span><span class="o">).</span><span class="na">set</span><span class="o">(</span><span class="s">"quote"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">quote</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">writeTableRows</span><span class="o">()</span>
+            <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">tableSpec</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
+    <span class="n">table_spec</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">table_schema</span><span class="p">,</span>
+    <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">,</span>
+    <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<!-- write -->
+
+<p class="language-java">The <code class="highlighter-rouge">write</code> transform writes a <code class="highlighter-rouge">PCollection</code> of custom typed objects to a BigQuery
+table. Use <code class="highlighter-rouge">.withFormatFunction(SerializableFunction)</code> to provide a formatting
+function that converts each input element in the <code class="highlighter-rouge">PCollection</code> into a
+<code class="highlighter-rouge">TableRow</code>.  This example uses <code class="highlighter-rouge">write</code> to write a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>. The
+write operation creates a table if needed; if the table already exists, it will
+be replaced.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">quotes</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">Quote</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">tableSpec</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">tableSchema</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withFormatFunction</span><span class="o">(</span>
+            <span class="o">(</span><span class="n">Quote</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span>
+                <span class="k">new</span> <span class="nf">TableRow</span><span class="o">().</span><span class="na">set</span><span class="o">(</span><span class="s">"source"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">source</span><span class="o">).</span><span class="na">set</span><span class="o">(</span><span class="s">"quote"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">quote</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<p class="language-java">When you use streaming inserts, you can decide what to do with failed records.
+You can either keep retrying, or return the failed records in a separate
+<code class="highlighter-rouge">PCollection</code> using the <code class="highlighter-rouge">WriteResult.getFailedInserts()</code> method.</p>
+
+<h3 id="using-dynamic-destinations">Using dynamic destinations</h3>
+
+<blockquote class="language-py">
+  <p>The Beam SDK for Python does not currently support dynamic destinations.</p>
+</blockquote>
+
+<p>You can use the dynamic destinations feature to write elements in a
+<code class="highlighter-rouge">PCollection</code> to different BigQuery tables, possibly with different schemas.</p>
+
+<p>The dynamic destinations feature groups your user type by a user-defined
+destination key, uses the key to compute a destination table and/or schema, and
+writes each group’s elements to the computed destination.</p>
+
+<p>In addition, you can also write your own types that have a mapping function to
+<code class="highlighter-rouge">TableRow</code>, and you can use side inputs in all <code class="highlighter-rouge">DynamicDestinations</code> methods.</p>
+
+<!-- Java specific -->
+
+<p class="language-java">To use dynamic destinations, you must create a <code class="highlighter-rouge">DynamicDestinations</code> object and
+implement the following methods:</p>
+
+<ul class="language-java">
+  <li>
+    <p><code class="highlighter-rouge">getDestination</code>: Returns an object that <code class="highlighter-rouge">getTable</code> and <code class="highlighter-rouge">getSchema</code> can use as
+the destination key to compute the destination table and/or schema.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getTable</code>: Returns the table (as a <code class="highlighter-rouge">TableDestination</code> object) for the
+destination key. This method must return a unique table for each unique
+destination.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getSchema</code>: Returns the table schema (as a <code class="highlighter-rouge">TableSchema</code> object) for the
+destination key.</p>
+  </li>
+</ul>
+
+<p class="language-java">Then, use <code class="highlighter-rouge">write().to</code> with your <code class="highlighter-rouge">DynamicDestinations</code> object. This example
+uses a <code class="highlighter-rouge">PCollection</code> that contains weather data and writes the data into a
+different table for each year.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/*
+@DefaultCoder(AvroCoder.class)
+static class WeatherData {
+  final long year;
+  final long month;
+  final long day;
+  final double maxTemp;
+
+  public WeatherData() {
+    this.year = 0;
+    this.month = 0;
+    this.day = 0;
+    this.maxTemp = 0.0f;
+  }
+  public WeatherData(long year, long month, long day, double maxTemp) {
+    this.year = year;
+    this.month = month;
+    this.day = day;
+    this.maxTemp = maxTemp;
+  }
+}
+*/</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">WeatherData</span><span class="o">&gt;</span> <span class="n">weatherData</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">BigQueryIO</span><span class="o">.</span><span class="na">read</span><span class="o">(</span>
+                <span class="o">(</span><span class="n">SchemaAndRecord</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
+                  <span class="n">GenericRecord</span> <span class="n">record</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="na">getRecord</span><span class="o">();</span>
+                  <span class="k">return</span> <span class="k">new</span> <span class="nf">WeatherData</span><span class="o">(</span>
+                      <span class="o">(</span><span class="n">Long</span><span class="o">)</span> <span class="n">record</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"year"</span><span class="o">),</span>
+                      <span class="o">(</span><span class="n">Long</span><span class="o">)</span> <span class="n">record</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"month"</span><span class="o">),</span>
+                      <span class="o">(</span><span class="n">Long</span><span class="o">)</span> <span class="n">record</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"day"</span><span class="o">),</span>
+                      <span class="o">(</span><span class="n">Double</span><span class="o">)</span> <span class="n">record</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"max_temperature"</span><span class="o">));</span>
+                <span class="o">})</span>
+            <span class="o">.</span><span class="na">fromQuery</span><span class="o">(</span>
+                <span class="s">"SELECT year, month, day, max_temperature "</span>
+                    <span class="o">+</span> <span class="s">"FROM [clouddataflow-readonly:samples.weather_stations] "</span>
+                    <span class="o">+</span> <span class="s">"WHERE year BETWEEN 2007 AND 2009"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">WeatherData</span><span class="o">.</span><span class="na">class</span><span class="o">)));</span>
+
+<span class="c1">// We will send the weather data into different tables for every year.</span>
+<span class="n">weatherData</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">WeatherData</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">to</span><span class="o">(</span>
+            <span class="k">new</span> <span class="n">DynamicDestinations</span><span class="o">&lt;</span><span class="n">WeatherData</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;()</span> <span class="o">{</span>
+              <span class="nd">@Override</span>
+              <span class="kd">public</span> <span class="n">Long</span> <span class="nf">getDestination</span><span class="o">(</span><span class="n">ValueInSingleWindow</span><span class="o">&lt;</span><span class="n">WeatherData</span><span class="o">&gt;</span> <span class="n">elem</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="n">elem</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">year</span><span class="o">;</span>
+              <span class="o">}</span>
+
+              <span class="nd">@Override</span>
+              <span class="kd">public</span> <span class="n">TableDestination</span> <span class="nf">getTable</span><span class="o">(</span><span class="n">Long</span> <span class="n">destination</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="nf">TableDestination</span><span class="o">(</span>
+                    <span class="k">new</span> <span class="nf">TableReference</span><span class="o">()</span>
+                        <span class="o">.</span><span class="na">setProjectId</span><span class="o">(</span><span class="n">writeProject</span><span class="o">)</span>
+                        <span class="o">.</span><span class="na">setDatasetId</span><span class="o">(</span><span class="n">writeDataset</span><span class="o">)</span>
+                        <span class="o">.</span><span class="na">setTableId</span><span class="o">(</span><span class="n">writeTable</span> <span class="o">+</span> <span class="s">"_"</span> <span class="o">+</span> <span class="n">destination</span><span class="o">),</span>
+                    <span class="s">"Table for year "</span> <span class="o">+</span> <span class="n">destination</span><span class="o">);</span>
+              <span class="o">}</span>
+
+              <span class="nd">@Override</span>
+              <span class="kd">public</span> <span class="n">TableSchema</span> <span class="nf">getSchema</span><span class="o">(</span><span class="n">Long</span> <span class="n">destination</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="nf">TableSchema</span><span class="o">()</span>
+                    <span class="o">.</span><span class="na">setFields</span><span class="o">(</span>
+                        <span class="n">ImmutableList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                            <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"year"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"INTEGER"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">),</span>
+                            <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"month"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"INTEGER"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">),</span>
+                            <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"day"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"INTEGER"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">),</span>
+                            <span class="k">new</span> <span class="nf">TableFieldSchema</span><span class="o">()</span>
+                                <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">"maxTemp"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"FLOAT"</span><span class="o">)</span>
+                                <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"NULLABLE"</span><span class="o">)));</span>
+              <span class="o">}</span>
+            <span class="o">})</span>
+        <span class="o">.</span><span class="na">withFormatFunction</span><span class="o">(</span>
+            <span class="o">(</span><span class="n">WeatherData</span> <span class="n">elem</span><span class="o">)</span> <span class="o">-&gt;</span>
+                <span class="k">new</span> <span class="nf">TableRow</span><span class="o">()</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"year"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">year</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"month"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">month</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"day"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">day</span><span class="o">)</span>
+                    <span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"maxTemp"</span><span class="o">,</span> <span class="n">elem</span><span class="o">.</span><span class="na">maxTemp</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_TRUNCATE</span><span class="o">));</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support dynamic destinations.</span>
+</code></pre>
+</div>
+
+<h3 id="using-time-partitioning">Using time partitioning</h3>
+
+<blockquote class="language-py">
+  <p>The Beam SDK for Python does not currently support time partitioning.</p>
+</blockquote>
+
+<p>BigQuery time partitioning divides your table into smaller partitions, which is
+called a <a href="https://cloud.google.com/bigquery/docs/partitioned-tables">partitioned table</a>.
+Partitioned tables make it easier for you to manage and query your data.</p>
+
+<!-- Java specific -->
+
+<p class="language-java">To use BigQuery time partitioning, use one of these two methods:</p>
+
+<ul class="language-java">
+  <li>
+    <p><code class="highlighter-rouge">withTimePartitioning</code>: This method takes a <code class="highlighter-rouge">TimePartitioning</code> class, and is
+only usable if you are writing to a single table.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">withJsonTimePartitioning</code>: This method is the same as
+<code class="highlighter-rouge">withTimePartitioning</code>, but takes a JSON-serialized String object.</p>
+  </li>
+</ul>
+
+<p class="language-java">This example generates one partition per day.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Java snippet not yet available and tracked in JIRA: BEAM-5503</span>
+</code></pre>
+</div>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Beam SDK for Python does not currently support time partitioning.</span>
+</code></pre>
+</div>
+
+<h2 id="limitations">Limitations</h2>
+
+<p>BigQueryIO currently has the following limitations.</p>
+
+<ol>
+  <li>
+    <p>You can’t sequence the completion of a BigQuery write with other steps of
+your pipeline.</p>
+  </li>
+  <li>
+    <p>If you are using the Beam SDK for Python, you might have import size quota
+issues if you write a very large dataset. As a workaround, you can partition
+the dataset (for example, using Beam’s <code class="highlighter-rouge">Partition</code> transform) and write to
+multiple BigQuery tables. The Beam SDK for Java does not have this limitation
+as it partitions your dataset for you.</p>
+  </li>
+</ol>
+
+<h2 id="additional-examples">Additional examples</h2>
+
+<p>You can find additional examples that use BigQuery in Beam’s examples
+directories.</p>
+
+<h3 id="java-cookbook-examples">Java cookbook examples</h3>
+
+<p>These examples are from the Java <a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook">cookbook examples</a>
+directory.</p>
+
+<ul>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes</a>
+reads the public samples of weather data from BigQuery, counts the number of
+tornadoes that occur in each month, and writes the results to a BigQuery
+table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/CombinePerKeyExamples.java">CombinePerKeyExamples</a>
+reads the public Shakespeare data from BigQuery, and for each word in the
+dataset that exceeds a given length, generates a string containing the list of
+play names in which that word appears. The pipeline then writes the results to
+a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/FilterExamples.java">FilterExamples</a>
+reads public samples of weather data from BigQuery, performs a projection
+on the data, finds the global mean of the temperature readings, filters on
+readings for a single given month, and outputs only data (for that month)
+that has a mean temp smaller than the derived global mean.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java">JoinExamples</a>
+reads a sample of the <a href="http://goo.gl/OB6oin">GDELT “world event”</a> from
+BigQuery and joins the event <code class="highlighter-rouge">action</code> country code against a table that maps
+country codes to country names.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/MaxPerKeyExamples.java">MaxPerKeyExamples</a>
+reads the public samples of weather data from BigQuery, finds the maximum
+temperature for each month, and writes the results to a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/TriggerExample.java">TriggerExample</a>
+performs a streaming analysis of traffic data from San Diego freeways. The
+pipeline looks at the data coming in from a text file and writes the results
+to a BigQuery table.</p>
+  </li>
+</ul>
+
+<h3 id="java-complete-examples">Java complete examples</h3>
+
+<p>These examples are from the Java <a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete">complete examples</a>
+directory.</p>
+
+<ul>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/AutoComplete.java">AutoComplete</a>
+computes the most popular hash tags for every prefix, which can be used for
+auto-completion. The pipeline can optionally write the results to a BigQuery
+table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/StreamingWordExtract.java">StreamingWordExtract</a>
+reads lines of text, splits each line into individual words, capitalizes those
+words, and writes the output to a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
+reads traffic sensor data, finds the lane that had the highest recorded flow,
+and writes the results to a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TrafficRoutes.java">TrafficRoutes</a>
+reads traffic sensor data, calculates the average speed for each window and
+looks for slowdowns in routes, and writes the results to a BigQuery table.</p>
+  </li>
+</ul>
+
+<h3 id="python-cookbook-examples">Python cookbook examples</h3>
+
+<p>These examples are from the Python <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook">cookbook examples</a>
+directory.</p>
+
+<ul>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_schema.py">BigQuery schema</a>
+creates a <code class="highlighter-rouge">TableSchema</code> with nested and repeated fields, generates data with
+nested and repeated fields, and writes the data to a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_side_input.py">BigQuery side inputs</a>
+uses BigQuery sources as a side inputs. It illustrates how to insert
+side-inputs into transforms in three different forms: as a singleton, as a
+iterator, and as a list.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_tornadoes.py">BigQuery tornadoes</a>
+reads from a BigQuery table that has the ‘month’ and ‘tornado’ fields as part
+of the table schema, computes the number of tornadoes in each month, and
+outputs the results to a BigQuery table.</p>
+  </li>
+  <li>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/filters.py">BigQuery filters</a>
+reads weather station data from a BigQuery table, manipulates BigQuery rows in
+memory, and writes the results to a BigQuery table.</p>
+  </li>
+</ul>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
