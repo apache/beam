@@ -49,6 +49,8 @@ cdef class Operation(object):
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
   cdef readonly bint debug_logging_enabled
+  # For legacy workers.
+  cdef bint setup_done
 
   cdef public step_name  # initialized lazily
 

@@ -238,6 +238,14 @@ class MetricsContainer(object):
       ))
     return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
 
+  def reset(self):
+    for counter in self.counters.values():
+      counter.reset()
+    for distribution in self.distributions.values():
+      distribution.reset()
+    for gauge in self.gauges.values():
+      gauge.reset()
+
 
 class MetricUpdates(object):
   """Contains updates for several metrics.
