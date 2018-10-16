@@ -550,6 +550,12 @@ class WorkerOptions(PipelineOptions):
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.'
     )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar.'
+    )
 
   def validate(self, validator):
     errors = []
