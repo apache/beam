@@ -1499,6 +1499,7 @@ artifactId=${project.name}
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.parallelism
         useJUnit(config.testCategories)
+        dependsOn ':beam-sdks-java-container:docker'
       }
     }
   }
