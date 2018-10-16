@@ -257,11 +257,11 @@ class Stager(object):
                 'the --sdk_location command-line option.' % sdk_path)
 
     worker_options = options.view_as(WorkerOptions)
-    if hasattr(worker_options, 'dataflow_worker_jar') and \
-        worker_options.dataflow_worker_jar:
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
       jar_staged_filename = 'dataflow-worker.jar'
       staged_path = FileSystems.join(staging_location, jar_staged_filename)
-      self.stage_artifact(worker_options.dataflow_worker_jar, staged_path)
+      self.stage_artifact(dataflow_worker_jar, staged_path)
       resources.append(jar_staged_filename)
 
     # Delete all temp files created while staging job resources.
