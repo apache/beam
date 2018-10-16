@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.samza.runtime;
 
-import com.google.auto.service.AutoService;
 import com.google.common.collect.Iterators;
 import java.util.ArrayList;
 import java.util.Collection;
