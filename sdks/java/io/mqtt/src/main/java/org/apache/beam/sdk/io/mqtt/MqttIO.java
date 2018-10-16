@@ -311,6 +311,10 @@ public class MqttIO {
 
     public MqttCheckpointMark() {}
 
+    public MqttCheckpointMark(String id){
+      clientId = id;
+    }
+
     public void add(Message message, Instant timestamp) {
       if (timestamp.isBefore(oldestMessageTimestamp)) {
         oldestMessageTimestamp = timestamp;
@@ -335,8 +339,26 @@ public class MqttIO {
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
         throws IOException, ClassNotFoundException {
+      stream.defaultReadObject();
       messages = new ArrayList<>();
     }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof MqttCheckpointMark){
+        MqttCheckpointMark that = (MqttCheckpointMark)other;
+        return this.clientId.equals(that.clientId) && this.oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+      }else{
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      // Effective Java Item 11
+      return clientId.hashCode()*31 + oldestMessageTimestamp.hashCode();
+    }
+
   }
 
   @VisibleForTesting
