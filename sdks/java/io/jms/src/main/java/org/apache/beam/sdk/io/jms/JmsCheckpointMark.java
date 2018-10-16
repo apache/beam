@@ -28,6 +28,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Checkpoint for an unbounded JmsIO.Read. Consists of JMS destination name, and the latest message
@@ -35,6 +37,8 @@ import org.joda.time.Instant;
  */
 @DefaultCoder(AvroCoder.class)
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
   private final State state = new State();
 
@@ -71,7 +75,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
         Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
         snapshot.updateOldestPendingTimestampIf(currentMessageTimestamp, Instant::isAfter);
       } catch (Exception e) {
-        // nothing to do
+        LOG.error("Exception while finalizing message: {}", e);
       }
     }
     state.atomicWrite(
