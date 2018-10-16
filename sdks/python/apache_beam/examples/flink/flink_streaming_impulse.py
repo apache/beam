@@ -59,7 +59,7 @@ def run(argv=None):
 
   p = beam.Pipeline(options=pipeline_options)
 
-  messages = (p | FlinkStreamingImpulseSource())
+  messages = (p | FlinkStreamingImpulseSource().set_message_count(10000).set_interval_ms(500))
 
   (messages | 'decode' >> beam.Map(lambda x: ('', 1))
    | 'window' >> beam.WindowInto(window.GlobalWindows(),

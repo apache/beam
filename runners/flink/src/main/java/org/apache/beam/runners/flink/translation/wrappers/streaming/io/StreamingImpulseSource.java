@@ -42,7 +42,17 @@ public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedV
 
   @Override
   public void run(SourceContext<WindowedValue<byte[]>> ctx) {
-    while (!cancelled.get() && (messageCount == 0 || count < messageCount)) {
+    // in order to produce messageCount messages across all parallel subtasks, we divide by
+    // the total number of subtasks
+    int subtaskCount = messageCount / getRuntimeContext().getNumberOfParallelSubtasks();
+    // if the message count is not evenly divisible by the number of subtasks, add an estra
+    // message to the first (messageCount % subtasksCount) subtasks
+    if (getRuntimeContext().getIndexOfThisSubtask() <
+        (messageCount % getRuntimeContext().getNumberOfParallelSubtasks())) {
+      subtaskCount++;
+    }
+
+    while (!cancelled.get() && (messageCount == 0 || count < subtaskCount)) {
       synchronized (ctx.getCheckpointLock()) {
         ctx.collect(WindowedValue.valueInGlobalWindow(new byte[]{}));
         count++;

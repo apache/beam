@@ -44,7 +44,7 @@ class FlinkStreamingImpulseSource(PTransform):
     return bytes
 
   def to_runner_api_parameter(self, context):
-    assert isinstance(self, StreamingImpulseSource), \
+    assert isinstance(self, FlinkStreamingImpulseSource), \
       "expected instance of StreamingImpulseSource, but got %s" % self.__class__
     return (self.URN, json.dumps(self.config))
 
@@ -65,7 +65,7 @@ class FlinkStreamingImpulseSource(PTransform):
   @PTransform.register_urn("flink:transform:streaming_impulse:v1", None)
   def from_runner_api_parameter(spec_parameter, _unused_context):
     config = json.loads(spec_parameter)
-    instance = StreamingImpulseSource()
+    instance = FlinkStreamingImpulseSource()
     if "interval_ms" in config:
       instance.set_interval_ms(config["interval_ms"])
     if "message_count" in config:
