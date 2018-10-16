@@ -147,6 +147,10 @@ class CounterCell(Counter, MetricCell):
     super(CounterCell, self).__init__(*args)
     self.value = CounterAggregator.identity_element()
 
+  def reset(self):
+    self.commit = CellCommitState()
+    self.value = CounterAggregator.identity_element()
+
   def combine(self, other):
     result = CounterCell()
     result.inc(self.value + other.value)
@@ -189,6 +193,10 @@ class DistributionCell(Distribution, MetricCell):
     super(DistributionCell, self).__init__(*args)
     self.data = DistributionAggregator.identity_element()
 
+  def reset(self):
+    self.commit = CellCommitState()
+    self.data = DistributionAggregator.identity_element()
+
   def combine(self, other):
     result = DistributionCell()
     result.data = self.data.combine(other.data)
@@ -228,6 +236,10 @@ class GaugeCell(Gauge, MetricCell):
   """
   def __init__(self, *args):
     super(GaugeCell, self).__init__(*args)
+    self.data = GaugeAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
     self.data = GaugeAggregator.identity_element()
 
   def combine(self, other):
