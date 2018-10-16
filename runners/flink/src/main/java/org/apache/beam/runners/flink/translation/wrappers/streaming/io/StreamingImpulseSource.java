@@ -24,8 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A streaming source that periodically produces an empty byte array. This is mostly useful
- * for debugging, or for triggering periodic behavior in a portable pipeline.
+ * A streaming source that periodically produces an empty byte array. This is mostly useful for
+ * debugging, or for triggering periodic behavior in a portable pipeline.
  */
 public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedValue<byte[]>> {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingImpulseSource.class);
@@ -47,14 +47,14 @@ public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedV
     int subtaskCount = messageCount / getRuntimeContext().getNumberOfParallelSubtasks();
     // if the message count is not evenly divisible by the number of subtasks, add an estra
     // message to the first (messageCount % subtasksCount) subtasks
-    if (getRuntimeContext().getIndexOfThisSubtask() <
-        (messageCount % getRuntimeContext().getNumberOfParallelSubtasks())) {
+    if (getRuntimeContext().getIndexOfThisSubtask()
+        < (messageCount % getRuntimeContext().getNumberOfParallelSubtasks())) {
       subtaskCount++;
     }
 
     while (!cancelled.get() && (messageCount == 0 || count < subtaskCount)) {
       synchronized (ctx.getCheckpointLock()) {
-        ctx.collect(WindowedValue.valueInGlobalWindow(new byte[]{}));
+        ctx.collect(WindowedValue.valueInGlobalWindow(new byte[] {}));
         count++;
       }
 
