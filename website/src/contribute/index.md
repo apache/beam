@@ -259,7 +259,10 @@ Currently this is a manual process. Tracking bug for automating this:
 For each file to be reviewed, look for an OWNERS file in its directory. Pick a
 single reviewer from that file. If the directory doesn't contain an OWNERS file,
 go up a directory. Keep going until you find one. Try to limit the number of
-reviewers to 2 per PR if possible, to minimize reviewer load.
+reviewers to 2 per PR if possible, to minimize reviewer load. Comment on your PR
+tagging the reviewer as follows:
+
+    R: @reviewer
 
 ### Adding yourself as a reviewer
 
