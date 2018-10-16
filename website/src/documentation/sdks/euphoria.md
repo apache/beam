@@ -580,5 +580,4 @@ The translation process was designed with flexibility in mind. We wanted to allo
 
 ### Unsupported Features
 [Original Euphoria](https://github.com/seznam/euphoria) contained some features and operators not jet supported in Beam port. List of not yet supported features follows:
-* Translation of `ReduceStateByKey` operator to Beam is not supported. Therefore `TopPerKey` decomposable to RSBK is also not supported.
 * `ReduceByKey` in original Euphoria was allowed to sort output values (per key). This is also not yet translatable into Beam, therefore not supported.
