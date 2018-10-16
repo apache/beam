@@ -126,7 +126,7 @@ public class Combine {
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
       GlobalCombineFn<? super InputT, ?, OutputT> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-    return new Globally<>(fn, fnDisplayData, true, 0);
+    return new Globally<>(fn, fnDisplayData, true, 0, ImmutableList.of());
   }
 
   /**
@@ -998,18 +998,6 @@ public class Combine {
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         boolean insertDefault,
-        int fanout) {
-      this.fn = fn;
-      this.fnDisplayData = fnDisplayData;
-      this.insertDefault = insertDefault;
-      this.fanout = fanout;
-      this.sideInputs = ImmutableList.of();
-    }
-
-    private Globally(
-        GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
-        boolean insertDefault,
         int fanout,
         List<PCollectionView<?>> sideInputs) {
       this.fn = fn;
@@ -1040,7 +1028,7 @@ public class Combine {
      * and the output is not being used as a side input.
      */
     public Globally<InputT, OutputT> withoutDefaults() {
-      return new Globally<>(fn, fnDisplayData, false, fanout);
+      return new Globally<>(fn, fnDisplayData, false, fanout, sideInputs);
     }
 
     /**
@@ -1050,7 +1038,7 @@ public class Combine {
      * <p>The {@code fanout} parameter determines the number of intermediate keys that will be used.
      */
     public Globally<InputT, OutputT> withFanout(int fanout) {
-      return new Globally<>(fn, fnDisplayData, insertDefault, fanout);
+      return new Globally<>(fn, fnDisplayData, insertDefault, fanout, sideInputs);
     }
 
     /**
