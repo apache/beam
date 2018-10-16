@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.concurrent.CountDownLatch;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -42,7 +43,6 @@ public class MetricsGraphiteSinkTest {
     port = serverSocket.getLocalPort();
     serverSocket.close();
     graphiteServer = new NetworkMockServer(port);
-    Thread.sleep(200);
     graphiteServer.clear();
     graphiteServer.start();
   }
@@ -64,8 +64,10 @@ public class MetricsGraphiteSinkTest {
     pipelineOptions.setMetricsGraphitePort(port);
     pipelineOptions.setMetricsGraphiteHost("127.0.0.1");
     MetricsGraphiteSink metricsGraphiteSink = new MetricsGraphiteSink(pipelineOptions);
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    graphiteServer.setCountDownLatch(countDownLatch);
     metricsGraphiteSink.writeMetrics(metricQueryResults);
-    Thread.sleep(2000L);
+    countDownLatch.await();
     String join = String.join("\n", graphiteServer.getMessages());
     String regexpr =
         "beam.counter.ns1.n1.committed.value 10 [0-9]+\\n"
@@ -92,8 +94,10 @@ public class MetricsGraphiteSinkTest {
     pipelineOptions.setMetricsGraphitePort(port);
     pipelineOptions.setMetricsGraphiteHost("127.0.0.1");
     MetricsGraphiteSink metricsGraphiteSink = new MetricsGraphiteSink(pipelineOptions);
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    graphiteServer.setCountDownLatch(countDownLatch);
     metricsGraphiteSink.writeMetrics(metricQueryResults);
-    Thread.sleep(2000L);
+    countDownLatch.await();
     String join = String.join("\n", graphiteServer.getMessages());
     String regexpr =
         "beam.counter.ns1.n1.attempted.value 20 [0-9]+\\n"
