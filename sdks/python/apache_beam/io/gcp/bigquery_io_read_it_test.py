@@ -36,6 +36,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class BigqueryIOReadIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   DEFAULT_DATASET = "big_query_import_export"
   DEFAULT_TABLE_PREFIX = "export_"
   NUM_RECORDS = {"empty": 0,

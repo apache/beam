@@ -46,6 +46,9 @@ MESSAGE_MATCHER_TIMEOUT_S = 5 * 60
 
 class PubSubIntegrationTest(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   ID_LABEL = 'id'
   TIMESTAMP_ATTRIBUTE = 'timestamp'
   INPUT_MESSAGES = {
