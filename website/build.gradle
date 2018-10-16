@@ -265,9 +265,7 @@ task stageWebsite << {
   def gcs_path = "gs://${gcs_bucket}/${baseUrl}"
 
   // Fixup the links to index.html files
-  shell "cd ${buildDir} && ln -s generated-gcs-content content || true"
-  shell ". ${envdir}/bin/activate && cd ${buildDir} && " +
-        "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
+  shell ". ${envdir}/bin/activate && python append_index_html_to_internal_links.py ${buildContentDir('gcs')}"
 
   // Copy the build website to GCS
   shell "gsutil -m rsync -r -d ${buildContentDir('gcs')} ${gcs_path}"

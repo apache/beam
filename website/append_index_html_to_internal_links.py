@@ -31,6 +31,7 @@ Dependencies:
 """
 from __future__ import print_function
 
+import argparse
 import fnmatch
 import os
 import re
@@ -53,10 +54,13 @@ anchorMatch1 = r'(.+\/)(#[^\/]+$)'
 # groups for ease of inserting 'index.html'.
 anchorMatch2 = r'(.+\/[a-zA-Z0-9]+)(#[^\/]+$)'
 
+parser = argparse.ArgumentParser(description='Fix links in the staged website.')
+parser.add_argument('content_dir', help='Generated content directory to fix links in')
+args = parser.parse_args()
 
 matches = []
 # Recursively walk content directory and find all html files.
-for root, dirnames, filenames in os.walk('content'):
+for root, dirnames, filenames in os.walk(args.content_dir):
   for filename in fnmatch.filter(filenames, '*.html'):
     # Javadoc does not have the index.html problem, so omit it.
     if 'javadoc' not in root:
