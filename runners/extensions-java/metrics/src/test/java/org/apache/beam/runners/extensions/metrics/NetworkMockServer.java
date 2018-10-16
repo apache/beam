@@ -25,6 +25,7 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Mock of a network server. */
@@ -32,6 +33,7 @@ class NetworkMockServer {
   private final int port;
   private ServerSocket serverSocket;
   private ServerThread thread;
+  private CountDownLatch countDownLatch;
 
   private Collection<String> messages = new CopyOnWriteArrayList<String>();
 
@@ -39,8 +41,8 @@ class NetworkMockServer {
     this.port = port;
   }
 
-  public int getPort() {
-    return port;
+  public void setCountDownLatch(CountDownLatch countDownLatch) {
+    this.countDownLatch = countDownLatch;
   }
 
   public NetworkMockServer start() throws IOException {
@@ -63,7 +65,7 @@ class NetworkMockServer {
     messages.clear();
   }
 
-  private static class ServerThread extends Thread {
+  private class ServerThread extends Thread {
     private final Collection<String> messages;
 
     private final AtomicBoolean done = new AtomicBoolean(false);
@@ -91,6 +93,7 @@ class NetworkMockServer {
                 messages.add(line);
               }
             } finally {
+              countDownLatch.countDown();
               s.close();
             }
           }

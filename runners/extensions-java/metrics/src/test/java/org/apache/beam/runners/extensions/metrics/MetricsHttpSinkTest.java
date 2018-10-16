@@ -30,6 +30,7 @@ import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -43,6 +44,7 @@ public class MetricsHttpSinkTest {
   private static int port;
   private static List<String> messages = new ArrayList<>();
   private static HttpServer httpServer;
+  private static CountDownLatch countDownLatch;
 
   @BeforeClass
   public static void beforeClass() throws IOException {
@@ -66,6 +68,7 @@ public class MetricsHttpSinkTest {
               }
               httpExchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0L);
               httpExchange.close();
+              countDownLatch.countDown();
             });
     httpServer.start();
   }
@@ -81,8 +84,9 @@ public class MetricsHttpSinkTest {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
+    countDownLatch = new CountDownLatch(1);
     metricsHttpSink.writeMetrics(metricQueryResults);
-    Thread.sleep(2000L);
+    countDownLatch.await();
     String expected =
         "{\"counters\":[{\"attempted\":20,\"committed\":10,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
@@ -102,8 +106,9 @@ public class MetricsHttpSinkTest {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
     MetricsHttpSink metricsHttpSink = new MetricsHttpSink(pipelineOptions);
+    countDownLatch = new CountDownLatch(1);
     metricsHttpSink.writeMetrics(metricQueryResults);
-    Thread.sleep(2000L);
+    countDownLatch.await();
     String expected =
         "{\"counters\":[{\"attempted\":20,\"name\":{\"name\":\"n1\","
             + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
