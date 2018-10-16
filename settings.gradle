@@ -78,6 +78,10 @@ include "beam-sdks-java-container"
 project(":beam-sdks-java-container").dir = file("sdks/java/container")
 include "beam-sdks-java-core"
 project(":beam-sdks-java-core").dir = file("sdks/java/core")
+include "beam-sdks-java-extensions-euphoria"
+project(":beam-sdks-java-extensions-euphoria").dir = file("sdks/java/extensions/euphoria")
+include "beam-sdks-java-extensions-kryo"
+project(":beam-sdks-java-extensions-kryo").dir = file("sdks/java/extensions/kryo")
 include "beam-sdks-java-extensions-google-cloud-platform-core"
 project(":beam-sdks-java-extensions-google-cloud-platform-core").dir = file("sdks/java/extensions/google-cloud-platform-core")
 include "beam-sdks-java-extensions-json-jackson"
