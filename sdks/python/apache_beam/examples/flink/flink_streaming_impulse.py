@@ -25,24 +25,28 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-from apache_beam.io.flink.flink_streaming_impulse_source import FlinkStreamingImpulseSource
-from apache_beam.transforms.trigger import AfterProcessingTime, AccumulationMode, Repeatedly
-
 import apache_beam as beam
 import apache_beam.transforms.window as window
+from apache_beam.io.flink.flink_streaming_impulse_source import FlinkStreamingImpulseSource
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import Repeatedly
+
 
 def split(s):
   a = s.split("-")
   return a[0], int(a[1])
 
+
 def count(x):
   return x[0], sum(x[1])
 
+
 def apply_timestamp(element):
   import time
-  import apache_beam.transforms.window as window
   yield window.TimestampedValue(element, time.time())
+
 
 def run(argv=None):
   """Build and run the pipeline."""
@@ -53,21 +57,25 @@ def run(argv=None):
     args.extend(argv)
 
   parser = argparse.ArgumentParser()
-  known_args, pipeline_args = parser.parse_known_args(args)
+  _, pipeline_args = parser.parse_known_args(args)
 
   pipeline_options = PipelineOptions(pipeline_args)
 
   p = beam.Pipeline(options=pipeline_options)
 
-  messages = (p | FlinkStreamingImpulseSource().set_message_count(10000).set_interval_ms(500))
+  messages = (p | FlinkStreamingImpulseSource()
+              .set_message_count(10000)
+              .set_interval_ms(500))
 
-  (messages | 'decode' >> beam.Map(lambda x: ('', 1))
-   | 'window' >> beam.WindowInto(window.GlobalWindows(),
-                                 trigger=Repeatedly(AfterProcessingTime(5 * 1000)),
-                                 accumulation_mode=AccumulationMode.DISCARDING)
-   | 'group' >> beam.GroupByKey()
-   | 'count' >> beam.Map(count)
-   | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
+  _ = (messages | 'decode' >> beam.Map(lambda x: ('', 1))
+       | 'window' >> beam.WindowInto(window.GlobalWindows(),
+                                     trigger=Repeatedly(
+                                         AfterProcessingTime(5 * 1000)),
+                                     accumulation_mode=
+                                     AccumulationMode.DISCARDING)
+       | 'group' >> beam.GroupByKey()
+       | 'count' >> beam.Map(count)
+       | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
 
   result = p.run()
   result.wait_until_finish()
