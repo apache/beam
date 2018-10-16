@@ -170,6 +170,11 @@ public class FlinkJobServerDriver implements Runnable {
     }
   }
 
+  public String start() throws IOException {
+    jobServer = createJobServer();
+    return jobServer.getApiServiceDescriptor().getUrl();
+  }
+
   public void stop() {
     if (jobServer != null) {
       try {
