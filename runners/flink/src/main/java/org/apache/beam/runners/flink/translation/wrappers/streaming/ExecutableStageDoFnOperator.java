@@ -83,6 +83,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StageBundleFactory stageBundleFactory;
   private transient LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
   private transient ExecutableStage executableStage;
+  private transient RemoteBundle remoteBundle;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -159,49 +160,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
   }
 
-  // TODO: currently assumes that every element is a separate bundle,
-  // but this can be changed by pushing some of this logic into the "DoFnRunner"
-  private void processElementWithSdkHarness(WindowedValue<InputT> element) throws Exception {
-    checkState(
-        stageBundleFactory != null, "%s not yet prepared", StageBundleFactory.class.getName());
-    checkState(
-        stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
-
-    OutputReceiverFactory receiverFactory =
-        new OutputReceiverFactory() {
-          @Override
-          public FnDataReceiver<OutputT> create(String pCollectionId) {
-            return (receivedElement) -> {
-              // handover to queue, do not block the grpc thread
-              outputQueue.put(KV.of(pCollectionId, receivedElement));
-            };
-          }
-        };
-
-    try (RemoteBundle bundle =
-        stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
-      LOG.debug(String.format("Sending value: %s", element));
-      // TODO(BEAM-4681): Add support to Flink to support portable timers.
-      Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(element);
-      // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
-    }
-
-    // RemoteBundle close blocks until all results are received
-    KV<String, OutputT> result;
-    while ((result = outputQueue.poll()) != null) {
-      outputManager.output(outputMap.get(result.getKey()), (WindowedValue) result.getValue());
-    }
-  }
-
   @Override
-  public void close() throws Exception {
+  public void dispose() throws Exception {
+    // DoFnOperator generates another "bundle" for the final watermark
+    super.dispose();
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     try (@SuppressWarnings("unused")
             AutoCloseable bundleFactoryCloser = stageBundleFactory;
         @SuppressWarnings("unused")
             AutoCloseable closable = stageContext) {}
     stageContext = null;
-    super.close();
   }
 
   @Override
@@ -213,7 +181,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     sideInputHandler.addSideInputValue(sideInput, value.withValue(value.getValue().getValue()));
   }
 
-  // TODO: remove single element bundle assumption
   @Override
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
       DoFnRunner<InputT, OutputT> wrappedRunner) {
@@ -222,15 +189,41 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   private class SdkHarnessDoFnRunner implements DoFnRunner<InputT, OutputT> {
     @Override
-    public void startBundle() {}
+    public void startBundle() {
+      checkState(
+          stageBundleFactory != null, "%s not yet prepared", StageBundleFactory.class.getName());
+      checkState(
+          stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
+      OutputReceiverFactory receiverFactory =
+          new OutputReceiverFactory() {
+            @Override
+            public FnDataReceiver<OutputT> create(String pCollectionId) {
+              return (receivedElement) -> {
+                // handover to queue, do not block the grpc thread
+                outputQueue.put(KV.of(pCollectionId, receivedElement));
+              };
+            }
+          };
+
+      try {
+        remoteBundle =
+            stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to start remote bundle", e);
+      }
+    }
 
     @Override
-    public void processElement(WindowedValue<InputT> elem) {
+    public void processElement(WindowedValue<InputT> element) {
+      checkState(remoteBundle != null, "%s not yet prepared", RemoteBundle.class.getName());
       try {
-        processElementWithSdkHarness(elem);
+        LOG.debug(String.format("Sending value: %s", element));
+        // TODO(BEAM-4681): Add support to Flink to support portable timers.
+        Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()).accept(element);
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to process element with SDK harness.", e);
       }
+      emitResults();
     }
 
     @Override
@@ -238,7 +231,23 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
 
     @Override
-    public void finishBundle() {}
+    public void finishBundle() {
+      try {
+        // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
+        // close blocks until all results are received
+        remoteBundle.close();
+        emitResults();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to finish remote bundle", e);
+      }
+    }
+
+    private void emitResults() {
+      KV<String, OutputT> result;
+      while ((result = outputQueue.poll()) != null) {
+        outputManager.output(outputMap.get(result.getKey()), (WindowedValue) result.getValue());
+      }
+    }
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
