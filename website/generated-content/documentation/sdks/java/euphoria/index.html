@@ -846,7 +846,6 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="unsupported-features">Unsupported Features</h3>
 <p><a href="https://github.com/seznam/euphoria">Original Euphoria</a> contained some features and operators not jet supported in Beam port. List of not yet supported features follows:</p>
 <ul>
-  <li>Translation of <code class="highlighter-rouge">ReduceStateByKey</code> operator to Beam is not supported. Therefore <code class="highlighter-rouge">TopPerKey</code> decomposable to RSBK is also not supported.</li>
   <li><code class="highlighter-rouge">ReduceByKey</code> in original Euphoria was allowed to sort output values (per key). This is also not yet translatable into Beam, therefore not supported.</li>
 </ul>
 
