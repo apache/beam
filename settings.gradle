@@ -183,7 +183,7 @@ project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-ja
 include "beam-website"
 project(":beam-website").dir = file("website")
 include "beam-runners-google-cloud-dataflow-java-legacy-worker"
-project(":beam-runners-google-cloud-dataflow-java-legacy-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+project(":beam-runners-google-cloud-dataflow-java-legacy-worker").dir = file("runners/google-cloud-dataflow-java/worker/legacy-worker")
 include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
 project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
 include "beam-runners-google-cloud-dataflow-java-windmill"
