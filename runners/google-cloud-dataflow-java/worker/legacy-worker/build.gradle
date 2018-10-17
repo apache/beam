@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 
+// There is no actual src dir under legacy-worker/ since legacy-worker is built against the
+// same sourceSets as fn-api-worker. The reason why legacy-worker has a separated dir is:
+// 1. Instead of point both legacy-worker and fn-api-worker project to the same worker/,
+// make them point to different dirs.
+// 2. Make built artifacts and test reports go to worker/build for fn-api-worker and
+// legacy-worker/build for legacy worker.
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
