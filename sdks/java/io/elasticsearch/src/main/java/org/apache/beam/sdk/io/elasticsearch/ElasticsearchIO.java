@@ -719,7 +719,7 @@ public class ElasticsearchIO {
     private boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
       //stop if no more data
       JsonNode hits = searchResult.path("hits").path("hits");
-      if (hits.isEmpty()) {
+      if (hits.size() == 0) {
         current = null;
         batchIterator = null;
         return false;

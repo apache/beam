@@ -58,7 +58,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       inputStreams.add(ctx.getMessageStream(input));
     }
 
-    if (inputStreams.isEmpty()) {
+    if (inputStreams.size() == 0) {
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));

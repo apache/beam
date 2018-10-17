@@ -149,7 +149,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
 
     final List<Message> messages = receiveMessageResult.getMessages();
 
-    if (messages == null || messages.isEmpty()) {
+    if (messages == null || messages.size() == 0) {
       return;
     }
 

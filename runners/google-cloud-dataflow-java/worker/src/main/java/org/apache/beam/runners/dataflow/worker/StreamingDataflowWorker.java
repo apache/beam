@@ -691,7 +691,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.getQueue().isEmpty();
+    return workUnitExecutor.getQueue().size() == 0;
   }
 
   public void start() {

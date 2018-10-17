@@ -77,7 +77,7 @@ public class RequiresStableInputIT {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       MatchResult matchResult = FileSystems.match(outputPrefix + "*");
-      boolean firstTime = matchResult.metadata().isEmpty();
+      boolean firstTime = (matchResult.metadata().size() == 0);
 
       KV<String, String> kv = c.element();
       writeTextToFileSideEffect(kv.getValue(), outputPrefix + kv.getKey());

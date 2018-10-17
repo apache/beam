@@ -317,7 +317,7 @@ public class OrderedCode {
    */
   public byte[] readBytes() {
     if ((encodedArrays == null)
-        || (encodedArrays.isEmpty())
+        || (encodedArrays.size() == 0)
         || ((encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -405,7 +405,7 @@ public class OrderedCode {
    */
   public long readNumIncreasing() {
     if ((encodedArrays == null)
-        || (encodedArrays.isEmpty())
+        || (encodedArrays.size() == 0)
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -442,7 +442,7 @@ public class OrderedCode {
    */
   public long readSignedNumIncreasing() {
     if ((encodedArrays == null)
-        || (encodedArrays.isEmpty())
+        || (encodedArrays.size() == 0)
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -519,7 +519,7 @@ public class OrderedCode {
    */
   public boolean readInfinity() {
     if ((encodedArrays == null)
-        || (encodedArrays.isEmpty())
+        || (encodedArrays.size() == 0)
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -555,7 +555,7 @@ public class OrderedCode {
 
     byte[] store = encodedArrays.get(0);
     encodedArrays.remove(0);
-    assert encodedArrays.isEmpty();
+    assert encodedArrays.size() == 0;
     return Arrays.copyOfRange(store, firstArrayPosition, store.length);
   }
 
@@ -566,7 +566,7 @@ public class OrderedCode {
    */
   public byte[] readBytes(int len) {
     if ((encodedArrays == null)
-        || (encodedArrays.isEmpty())
+        || (encodedArrays.size() == 0)
         || ((encodedArrays.get(0)).length - firstArrayPosition < len)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -593,7 +593,7 @@ public class OrderedCode {
    * performance. Therefore the returned array should not be modified.</b>
    */
   public byte[] getEncodedBytes() {
-    if (encodedArrays.isEmpty()) {
+    if (encodedArrays.size() == 0) {
       return new byte[0];
     }
     if ((encodedArrays.size() == 1) && (firstArrayPosition == 0)) {
