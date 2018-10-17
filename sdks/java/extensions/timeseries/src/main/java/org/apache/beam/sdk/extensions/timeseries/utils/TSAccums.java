@@ -18,12 +18,14 @@
 
 package org.apache.beam.sdk.extensions.timeseries.utils;
 
+import static com.google.protobuf.util.Timestamps.toMillis;
+import static java.util.Comparator.comparing;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
-import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -76,11 +78,11 @@ public class TSAccums {
 
   public static Timestamp getMinTimeStamp(Timestamp a, Timestamp b) {
 
-    if (Timestamps.toMillis(a) == 0 && Timestamps.toMillis(b) > 0) {
+    if (toMillis(a) == 0 && toMillis(b) > 0) {
       return b;
     }
 
-    if (Timestamps.toMillis(b) == 0) {
+    if (toMillis(b) == 0) {
       return a;
     }
 
@@ -155,17 +157,13 @@ public class TSAccums {
     features.putFeature(
         "LOWER_WINDOW_BOUNDARY",
         Feature.newBuilder()
-            .setInt64List(
-                Int64List.newBuilder()
-                    .addValue(Timestamps.toMillis(accum.getLowerWindowBoundary())))
+            .setInt64List(Int64List.newBuilder().addValue(toMillis(accum.getLowerWindowBoundary())))
             .build());
 
     features.putFeature(
         "UPPER_WINDOW_BOUNDARY",
         Feature.newBuilder()
-            .setInt64List(
-                Int64List.newBuilder()
-                    .addValue(Timestamps.toMillis(accum.getUpperWindowBoundary())))
+            .setInt64List(Int64List.newBuilder().addValue(toMillis(accum.getUpperWindowBoundary())))
             .build());
 
     features.putFeature(
@@ -213,25 +211,9 @@ public class TSAccums {
     return features.build();
   }
 
-  public static List<TimeSeriesData.TSAccum> sortAccumList(List<TimeSeriesData.TSAccum> accums) {
-
-    accums.sort(
-        new Comparator<TimeSeriesData.TSAccum>() {
-
-          @Override
-          public int compare(TimeSeriesData.TSAccum o1, TimeSeriesData.TSAccum o2) {
-            if (Timestamps.toMillis(o1.getUpperWindowBoundary())
-                > Timestamps.toMillis(o2.getUpperWindowBoundary())) {
-              return 1;
-            }
-            if (Timestamps.toMillis(o1.getUpperWindowBoundary())
-                < Timestamps.toMillis(o2.getUpperWindowBoundary())) {
-              return -1;
-            }
-            return 0;
-          }
-        });
-
+  public static List<TimeSeriesData.TSAccum> sortByUpperBoundary(
+      List<TimeSeriesData.TSAccum> accums) {
+    accums.sort(comparing(tsAccum -> toMillis(tsAccum.getUpperWindowBoundary())));
     return accums;
   }
 
@@ -268,8 +250,8 @@ public class TSAccums {
               "-",
               accum.getKey().getMajorKey(),
               Long.toString(Durations.toMillis(accum.getDuration())),
-              Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-              Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))));
+              Long.toString(toMillis(accum.getLowerWindowBoundary())),
+              Long.toString(toMillis(accum.getUpperWindowBoundary()))));
     }
   }
 
@@ -290,7 +272,7 @@ public class TSAccums {
       public void processElement(
           DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c) throws Exception {
         c.outputWithTimestamp(
-            c.element(), new Instant(Timestamps.toMillis(c.element().getLowerWindowBoundary())));
+            c.element(), new Instant(toMillis(c.element().getLowerWindowBoundary())));
       }
     }
   }
@@ -348,8 +330,8 @@ public class TSAccums {
                   "-",
                   key.getMajorKey(),
                   key.getMinorKeyString(),
-                  Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-                  Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))),
+                  Long.toString(toMillis(accum.getLowerWindowBoundary())),
+                  Long.toString(toMillis(accum.getUpperWindowBoundary()))),
               accum));
     }
   }
@@ -382,8 +364,8 @@ public class TSAccums {
         "-",
         key.getMajorKey(),
         key.getMinorKeyString(),
-        Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-        Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary())));
+        Long.toString(toMillis(accum.getLowerWindowBoundary())),
+        Long.toString(toMillis(accum.getUpperWindowBoundary())));
   }
 
   public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum) {

@@ -503,7 +503,7 @@ public class TimeseriesTest implements Serializable {
 
     for (List<TimeSeriesData.TSAccum> list : keyMap.values()) {
       // Sort List
-      TSAccums.sortAccumList(list);
+      TSAccums.sortByUpperBoundary(list);
       // Walk list adding previous value to current
 
       Iterator<TimeSeriesData.TSAccum> accumIterator = list.iterator();
@@ -580,7 +580,7 @@ public class TimeseriesTest implements Serializable {
     for (List<TimeSeriesData.TSAccum> keyLists : map.values()) {
 
       // Sort list and then detect gaps and fill with heartbeat values
-      TSAccums.sortAccumList(keyLists);
+      TSAccums.sortByUpperBoundary(keyLists);
 
       Iterator<TimeSeriesData.TSAccum> accumIterator = keyLists.iterator();
 
