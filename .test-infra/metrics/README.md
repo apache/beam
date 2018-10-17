@@ -102,13 +102,22 @@ docker push gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1
 ## Kubernetes update
 https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
 
-1. Build and publish sync containers
 ```sh
+# Build and publish sync containers
 cd sync/jenkins
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1 .
 docker push -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1
+
+# If needed check current pod status
+kubectl get pods
+kubectl describe pod <pod_id>
+
+# Update container image via one of the following.
+## update image for container 
+kubectl set image deployment/beamgrafana container=<new_image_name>
+## or update deployemnt from yaml file 
+kubectl replace -f beamgrafana-deploy.yaml
 ```
-1. Update image for container `kubectl set image deployment/beamgrafana container=<new_image_name>`
 
 
 ## Useful Kubernetes commands and hints
