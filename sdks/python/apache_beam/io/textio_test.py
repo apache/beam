@@ -487,7 +487,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with bz2.BZ2File(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write(b'\n'.join(lines))
 
       with open(file_name, 'wb') as f:
         f.write('corrupt')
@@ -566,7 +566,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write(b'\n'.join(lines))
 
       with open(file_name, 'wb') as f:
         f.write('corrupt')
