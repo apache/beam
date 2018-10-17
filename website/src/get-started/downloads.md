@@ -91,7 +91,7 @@ versions denoted `0.x.y`.
 ## Releases
 
 ### 2.7.0 (2018-10-02)
-Official [source code download](https://www.apache.org/dist/beam/2.7.0/apache-beam-2.7.0-source-release.zip).
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.7.0/apache-beam-2.7.0-source-release.zip).
 [SHA-512](https://www.apache.org/dist/beam/2.7.0/apache-beam-2.7.0-source-release.zip.sha512).
 [signature](https://www.apache.org/dist/beam/2.7.0/apache-beam-2.7.0-source-release.zip.asc).
 
