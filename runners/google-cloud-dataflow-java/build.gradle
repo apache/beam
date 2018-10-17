@@ -151,10 +151,7 @@ task googleCloudPlatformIntegrationTest(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar')
-  if (!project.findProperty('dataflowWorkerJar')) {
-    dataflowWorkerJar = project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
-  }
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
