@@ -53,7 +53,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
       String stepName,
-      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
+      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> windowedInputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
@@ -66,7 +66,9 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     super(
         null,
         stepName,
-        inputCoder,
+        windowedInputCoder,
+        null,
+        Collections.emptyMap(),
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,

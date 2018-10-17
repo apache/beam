@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -290,7 +290,7 @@ public class PCollectionViews {
     public Map<K, Iterable<V>> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
       // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
       // using structural value equality.
-      Multimap<K, V> multimap = HashMultimap.create();
+      Multimap<K, V> multimap = ArrayListMultimap.create();
       for (KV<K, V> elem : primitiveViewT.get(null)) {
         multimap.put(elem.getKey(), elem.getValue());
       }

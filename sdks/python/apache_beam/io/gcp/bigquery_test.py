@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import datetime
+import decimal
 import json
 import logging
 import re
@@ -57,6 +58,21 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     test_value = {'s': 'abc', 'i': 123, 'f': 123.456, 'b': True}
     self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
 
+  def test_decimal_in_row_as_dict(self):
+    decimal_value = decimal.Decimal('123456789.987654321')
+    coder = RowAsDictJsonCoder()
+    # Bigquery IO uses decimals to represent NUMERIC types.
+    # To export to BQ, it's necessary to convert to strings, due to the
+    # lower precision of JSON numbers. This means that we can't recognize
+    # a NUMERIC when we decode from JSON, thus we match the string here.
+    test_value = {'f': 123.456,
+                  'b': True,
+                  'numerico': decimal_value}
+    output_value = {'f': 123.456,
+                    'b': True,
+                    'numerico': str(decimal_value)}
+    self.assertEqual(output_value, coder.decode(coder.encode(test_value)))
+
   def json_compliance_exception(self, value):
     with self.assertRaisesRegexp(ValueError, re.escape(JSON_COMPLIANCE_ERROR)):
       coder = RowAsDictJsonCoder()
@@ -82,20 +98,35 @@ class TestTableRowJsonCoder(unittest.TestCase):
         ('i', 'INTEGER'),
         ('f', 'FLOAT'),
         ('b', 'BOOLEAN'),
+        ('n', 'NUMERIC'),
         ('r', 'RECORD')]
-    data_defination = [
+    data_definition = [
         'abc',
         123,
         123.456,
         True,
+        decimal.Decimal('987654321.987654321'),
         {'a': 'b'}]
-    str_def = '{"s": "abc", "i": 123, "f": 123.456, "b": true, "r": {"a": "b"}}'
+    str_def = ('{"s": "abc", '
+               '"i": 123, '
+               '"f": 123.456, '
+               '"b": true, '
+               '"n": "987654321.987654321", '
+               '"r": {"a": "b"}}')
     schema = bigquery.TableSchema(
         fields=[bigquery.TableFieldSchema(name=k, type=v)
                 for k, v in schema_definition])
     coder = TableRowJsonCoder(table_schema=schema)
+
+    def value_or_decimal_to_json(val):
+      if isinstance(val, decimal.Decimal):
+        return to_json_value(str(val))
+      else:
+        return to_json_value(val)
+
     test_row = bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in data_defination])
+        f=[bigquery.TableCell(v=value_or_decimal_to_json(e))
+           for e in data_definition])
 
     self.assertEqual(str_def, coder.encode(test_row))
     self.assertEqual(test_row, coder.decode(coder.encode(test_row)))
@@ -795,7 +826,7 @@ class TestBigQueryWrapper(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
     with self.assertRaises(RuntimeError):
-      wrapper.create_temporary_dataset('project_id')
+      wrapper.create_temporary_dataset('project_id', 'location')
     self.assertTrue(client.datasets.Get.called)
 
   def test_get_or_create_dataset_created(self):

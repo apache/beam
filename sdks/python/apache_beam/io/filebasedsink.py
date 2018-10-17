@@ -28,6 +28,7 @@ from builtins import range
 from builtins import zip
 
 from future.utils import iteritems
+from past.builtins import unicode
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
@@ -42,11 +43,6 @@ from apache_beam.transforms.display import DisplayDataItem
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
 __all__ = ['FileBasedSink']
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 
 class FileBasedSink(iobase.Sink):
@@ -64,6 +60,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
+  __hash__ = None
 
   def __init__(self,
                file_path_prefix,

@@ -25,6 +25,7 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.calcite.linq4j.tree.Expression;
+import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
@@ -67,6 +68,16 @@ public class BeamCalciteSchema implements Schema {
   @Override
   public Set<String> getTableNames() {
     return tableProvider.getTables().keySet();
+  }
+
+  @Override
+  public RelProtoDataType getType(String name) {
+    return null;
+  }
+
+  @Override
+  public Set<String> getTypeNames() {
+    return Collections.emptySet();
   }
 
   @Override

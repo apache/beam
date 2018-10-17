@@ -61,7 +61,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -108,7 +107,7 @@ class FlinkBatchTransformTranslators {
         new CreatePCollectionViewTranslatorBatch());
 
     TRANSLATORS.put(
-        PTransformTranslation.COMBINE_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
+        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
@@ -476,16 +475,6 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              FlinkRunner.class.getSimpleName(), doFn));
-    }
-  }
-
   private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
           PTransform<PCollection<InputT>, PCollectionTuple>> {
@@ -501,7 +490,10 @@ class FlinkBatchTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      rejectSplittable(doFn);
+      checkState(
+          !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+          "Not expected to directly translate splittable DoFn, should have been overridden: %s",
+          doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
@@ -579,12 +571,11 @@ class FlinkBatchTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
+
       String fullName = getCurrentTransformName(context);
       if (usesStateOrTimers) {
-        // Based on the fact that the signature is stateful, DoFnSignatures ensures
-        // that it is also keyed
-        KvCoder<?, InputT> inputCoder = (KvCoder<?, InputT>) context.getInput(transform).getCoder();
-
+        KvCoder<?, ?> inputCoder = (KvCoder<?, ?>) context.getInput(transform).getCoder();
         FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper =
             new FlinkStatefulDoFnFunction<>(
                 (DoFn) doFn,
@@ -593,8 +584,12 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                (TupleTag<OutputT>) mainOutputTag);
+                (TupleTag<OutputT>) mainOutputTag,
+                inputCoder,
+                outputCoderMap);
 
+        // Based on the fact that the signature is stateful, DoFnSignatures ensures
+        // that it is also keyed.
         Grouping<WindowedValue<InputT>> grouping =
             inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
 
@@ -609,7 +604,9 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                mainOutputTag);
+                mainOutputTag,
+                context.getInput(transform).getCoder(),
+                outputCoderMap);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);

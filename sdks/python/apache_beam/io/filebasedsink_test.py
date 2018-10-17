@@ -24,6 +24,7 @@ import glob
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from builtins import range
@@ -75,6 +76,10 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
 
 class MyFileBasedSink(filebasedsink.FileBasedSink):
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.'
+                   'TODO: BEAM-5627, TODO:5618')
   def open(self, temp_path):
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).open(temp_path)
@@ -95,6 +100,12 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
@@ -136,7 +147,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
+    self.assertCountEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
@@ -277,7 +288,7 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
           open(shard_name).read(), ('[start][a][b][%s][end]' % uuid))
 
     # Check that any temp files are deleted.
-    self.assertItemsEqual(res, glob.glob(temp_path + '*'))
+    self.assertCountEqual(res, glob.glob(temp_path + '*'))
 
   @mock.patch.object(filebasedsink.FileSystems, 'rename')
   def test_file_sink_rename_error(self, rename_mock):

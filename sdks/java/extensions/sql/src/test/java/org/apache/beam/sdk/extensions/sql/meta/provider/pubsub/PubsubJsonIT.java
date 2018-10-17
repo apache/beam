@@ -40,7 +40,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -54,13 +56,16 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,7 +91,8 @@ public class PubsubJsonIT implements Serializable {
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule public transient TestPubsubSignal resultSignal = TestPubsubSignal.create();
+  @Rule public transient TestPubsubSignal dlqSignal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   /**
@@ -100,7 +106,7 @@ public class PubsubJsonIT implements Serializable {
   @Test
   public void testSelectsPayloadContent() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -116,19 +122,24 @@ public class PubsubJsonIT implements Serializable {
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
+    // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
             message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
 
+    // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
-
     sqlEnv.executeDdl(createTableString);
+
+    // Apply the PTransform to query the pubsub topic
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
+    // Observe the query results and send success signal after seeing the expected messages
     queryOutput.apply(
         "waitForSuccess",
-        signal.signalSuccessWhen(
-            PAYLOAD_SCHEMA.getRowCoder(),
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(
+                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
             observedRows ->
                 observedRows.equals(
                     ImmutableSet.of(
@@ -136,19 +147,28 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(signal.signalStart());
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(resultSignal.signalStart());
+
+    // Start the pipeline
     pipeline.run();
+
+    // Wait until got the start response from the signalling topic
     start.get();
 
+    // Start publishing the messages when main pipeline is started and signaling topic is ready
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(60));
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardSeconds(60));
   }
 
+  @Ignore("Disable flake tracked at https://issues.apache.org/jira/browse/BEAM-5122")
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -170,42 +190,75 @@ public class PubsubJsonIT implements Serializable {
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
+    // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
             message(ts(1), 3, "foo"),
             message(ts(2), 5, "bar"),
             message(ts(3), 7, "baz"),
-            message(ts(4), "{ - }"), // invalid
-            message(ts(5), "{ + }")); // invalid
+            message(ts(4), "{ - }"), // invalid message, will go to DLQ
+            message(ts(5), "{ + }")); // invalid message, will go to DLQ
 
+    // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
-
     sqlEnv.executeDdl(createTableString);
-    query(sqlEnv, pipeline, queryString);
+
+    // Apply the PTransform to query the pubsub topic
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    // Observe the query results and send success signal after seeing the expected messages
+    queryOutput.apply(
+        "waitForSuccess",
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(
+                PAYLOAD_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()),
+            observedRows ->
+                observedRows.equals(
+                    ImmutableSet.of(
+                        row(PAYLOAD_SCHEMA, 3, "foo"),
+                        row(PAYLOAD_SCHEMA, 5, "bar"),
+                        row(PAYLOAD_SCHEMA, 7, "baz")))));
+
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply("signal query results started", resultSignal.signalStart());
+
+    // Another PCollection, reads from DLQ
     PCollection<PubsubMessage> dlq =
         pipeline.apply(
             PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
 
+    // Observe DLQ contents and send success signal after seeing the expected messages
     dlq.apply(
         "waitForDlq",
-        signal.signalSuccessWhen(
+        dlqSignal.signalSuccessWhen(
             PubsubMessageWithAttributesCoder.of(),
             dlqMessages ->
                 containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(signal.signalStart());
-    pipeline.run();
-    start.get();
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> startDlq = dlqSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply("signal DLQ started", dlqSignal.signalStart());
 
+    // Start the pipeline
+    pipeline.run();
+
+    // Wait until got the response from the signalling topics
+    start.get();
+    startDlq.get();
+
+    // Start publishing the messages when main pipeline is started and signaling topics are ready
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(60));
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardMinutes(2));
+    dlqSignal.waitForSuccess(Duration.standardMinutes(2));
   }
 
   @Test
   public void testSQLLimit() throws Exception {
     String createTableString =
-        "CREATE TABLE message (\n"
+        "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
             + "payload ROW< \n"
@@ -235,7 +288,8 @@ public class PubsubJsonIT implements Serializable {
             message(ts(6), 13, "ba4"),
             message(ts(7), 15, "ba5"));
 
-    // We need the default options on the schema to include the project passed in for the integration test
+    // We need the default options on the schema to include the project passed in for the
+    // integration test
     CalciteConnection connection = connect(pipeline.getOptions(), new PubsubJsonTableProvider());
 
     Statement statement = connection.createStatement();
@@ -259,10 +313,10 @@ public class PubsubJsonIT implements Serializable {
                   return result.build();
                 });
 
-    // wait one minute to allow subscription creation.
-    Thread.sleep(60 * 1000);
+    eventsTopic.checkIfAnySubscriptionExists(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(1));
     eventsTopic.publish(messages);
-    assertThat(queryResult.get().size(), equalTo(3));
+    assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
   }
 

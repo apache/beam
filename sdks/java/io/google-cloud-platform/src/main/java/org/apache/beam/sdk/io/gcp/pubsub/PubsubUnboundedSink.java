@@ -84,10 +84,10 @@ import org.joda.time.Duration;
  */
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /** Default maximum number of messages per publish. */
-  private static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
+  static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
 
   /** Default maximum size of a publish batch, in bytes. */
-  private static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
+  static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
 
   /** Default longest delay between receiving a message and pushing it to Pubsub. */
   private static final Duration DEFAULT_MAX_LATENCY = Duration.standardSeconds(2);
@@ -367,6 +367,25 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         RecordIdMethod.RANDOM);
   }
 
+  public PubsubUnboundedSink(
+      PubsubClientFactory pubsubFactory,
+      ValueProvider<TopicPath> topic,
+      String timestampAttribute,
+      String idAttribute,
+      int numShards,
+      int publishBatchSize,
+      int publishBatchBytes) {
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        publishBatchSize,
+        publishBatchBytes,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM);
+  }
   /** Get the topic being written to. */
   public TopicPath getTopic() {
     return topic.get();

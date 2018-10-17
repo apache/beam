@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
@@ -27,13 +26,11 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -41,8 +38,6 @@ import org.junit.Test;
 public class SqlQuery5Test {
 
   private static final NexmarkConfiguration config = new NexmarkConfiguration();
-
-  private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
   private static final List<Bid> BIDS =
       ImmutableList.of(newBid(1L, 1L), newBid(1L, 3L), newBid(1L, 4L), newBid(2L, 4L));
@@ -69,8 +64,7 @@ public class SqlQuery5Test {
   public void testBids() throws Exception {
     assertEquals(Long.valueOf(config.windowSizeSec), Long.valueOf(config.windowPeriodSec * 2));
 
-    PCollection<Event> bids =
-        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery5(config))).containsInAnyOrder(RESULTS);
 
@@ -79,12 +73,10 @@ public class SqlQuery5Test {
 
   private static Bid newBid(long auction, long index) {
     return new Bid(
-        auction, 3L, 100L, 432342L + index * config.windowPeriodSec * 1000, "extra_" + auction);
-  }
-
-  private static Row newBidRow(Bid bid) {
-    return Row.withSchema(BID_ADAPTER.getSchema())
-        .addValues(BID_ADAPTER.getFieldsValues(bid))
-        .build();
+        auction,
+        3L,
+        100L,
+        new Instant(432342L + index * config.windowPeriodSec * 1000),
+        "extra_" + auction);
   }
 }

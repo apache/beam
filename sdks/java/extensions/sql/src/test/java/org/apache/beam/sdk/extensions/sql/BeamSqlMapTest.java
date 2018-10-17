@@ -22,7 +22,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -92,6 +92,29 @@ public class BeamSqlMapTest {
   }
 
   @Test
+  public void testSelectMapFieldKeyValueSameType() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.STRING)
+            .build();
+
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery",
+            SqlTransform.query("SELECT 42, MAP['aa', '1'] as `f_map` FROM PCOLLECTION"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", "1")).build(),
+            Row.withSchema(resultType).addValues(42, ImmutableMap.of("aa", "1")).build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testAccessMapElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
@@ -111,18 +134,20 @@ public class BeamSqlMapTest {
   }
 
   private PCollection<Row> pCollectionOf2Elements() {
-    return PBegin.in(pipeline)
-        .apply(
-            "boundedInput1",
-            Create.of(
-                    Row.withSchema(INPUT_ROW_TYPE)
-                        .addValues(1)
-                        .addValue(ImmutableMap.of("key11", 11, "key22", 22))
-                        .build(),
-                    Row.withSchema(INPUT_ROW_TYPE)
-                        .addValues(2)
-                        .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
-                        .build())
-                .withCoder(INPUT_ROW_TYPE.getRowCoder()));
+    return pipeline.apply(
+        "boundedInput1",
+        Create.of(
+                Row.withSchema(INPUT_ROW_TYPE)
+                    .addValues(1)
+                    .addValue(ImmutableMap.of("key11", 11, "key22", 22))
+                    .build(),
+                Row.withSchema(INPUT_ROW_TYPE)
+                    .addValues(2)
+                    .addValue(ImmutableMap.of("key33", 33, "key44", 44, "key55", 55))
+                    .build())
+            .withSchema(
+                INPUT_ROW_TYPE,
+                SerializableFunctions.identity(),
+                SerializableFunctions.identity()));
   }
 }

@@ -29,6 +29,8 @@ from builtins import object
 from collections import namedtuple
 
 from future.utils import iteritems
+from past.builtins import long
+from past.builtins import unicode
 
 import vcf
 
@@ -38,13 +40,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
-
-try:
-  unicode  # pylint: disable=unicode-builtin
-  int        # Python 2
-except NameError:
-  unicode = str
-  long = int  # Python 3
 
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
@@ -78,6 +73,7 @@ class Variant(object):
 
   Each object corresponds to a single record in a VCF file.
   """
+  __hash__ = None
 
   def __init__(self,
                reference_name=None,
@@ -192,6 +188,8 @@ class VariantCall(object):
   A call represents the determination of genotype with respect to a particular
   variant. It may include associated information such as quality and phasing.
   """
+
+  __hash__ = None
 
   def __init__(self, name=None, genotype=None, phaseset=None, info=None):
     """Initialize the :class:`VariantCall` object.
@@ -323,6 +321,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
     def __iter__(self):
       return self
 
+    # pylint: disable=next-method-defined
     def next(self):
       return self.__next__()
 
@@ -413,7 +412,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, int, str, unicode, bool))):
+              isinstance(data, (int, float, long, str, unicode, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)

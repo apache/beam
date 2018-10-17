@@ -20,19 +20,18 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import codecs
 import logging
 import math
 import threading
+from builtins import zip
+
+from past.builtins import long
 
 from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
-
-try:
-  long  # pylint: disable=long-builtin
-except NameError:
-  long = int
 
 
 class OffsetRangeTracker(iobase.RangeTracker):
@@ -89,17 +88,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
           'Trying to return a record [starting at %d] which is before the '
           'last-returned record [starting at %d]' %
           (record_start, self._last_record_start))
-
-    if split_point:
-      if (self._offset_of_last_split_point != -1 and
-          record_start == self._offset_of_last_split_point):
-        raise ValueError(
-            'Record at a split point has same offset as the previous split '
-            'point: %d' % record_start)
-    elif self._last_record_start == -1:
-      raise ValueError(
-          'The first record [starting at %d] must be at a split point' %
-          record_start)
 
     if (split_point and self._offset_of_last_split_point != -1 and
         record_start == self._offset_of_last_split_point):
@@ -405,7 +393,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       s += '\0' * (prec - len(s))
     else:
       s = s[:prec]
-    return int(s.encode('hex'), 16)
+    return int(codecs.encode(s, 'hex'), 16)
 
   @staticmethod
   def _string_from_int(i, prec):
@@ -413,4 +401,4 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     Inverse of _string_to_int.
     """
     h = '%x' % i
-    return ('0' * (2 * prec - len(h)) + h).decode('hex')
+    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')

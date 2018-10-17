@@ -16,12 +16,15 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+from __future__ import absolute_import
+from __future__ import division
 
 import itertools
 import random
 import unittest
 
 import hamcrest as hc
+from future.builtins import range
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -286,7 +289,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(actual[0].items())
       return match
     assert_that(result, matcher())
     pipeline.run()

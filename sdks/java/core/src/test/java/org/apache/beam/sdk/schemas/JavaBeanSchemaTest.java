@@ -101,13 +101,13 @@ public class JavaBeanSchemaTest {
 
     assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString("str"));
-    assertEquals((byte) 1, row.getByte("aByte"));
-    assertEquals((short) 2, row.getInt16("aShort"));
-    assertEquals((int) 3, row.getInt32("anInt"));
-    assertEquals((long) 4, row.getInt64("aLong"));
-    assertEquals(true, row.getBoolean("aBoolean"));
-    assertEquals(DATE, row.getDateTime("dateTime"));
-    assertEquals(DATE, row.getDateTime("instant"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
+    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
     assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
@@ -155,13 +155,13 @@ public class JavaBeanSchemaTest {
 
     Row nestedRow = row.getRow("nested");
     assertEquals("string", nestedRow.getString("str"));
-    assertEquals((byte) 1, nestedRow.getByte("aByte"));
-    assertEquals((short) 2, nestedRow.getInt16("aShort"));
-    assertEquals((int) 3, nestedRow.getInt32("anInt"));
-    assertEquals((long) 4, nestedRow.getInt64("aLong"));
+    assertEquals((byte) 1, (Object) nestedRow.getByte("aByte"));
+    assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
+    assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
+    assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
     assertEquals(true, nestedRow.getBoolean("aBoolean"));
-    assertEquals(DATE, nestedRow.getDateTime("dateTime"));
-    assertEquals(DATE, nestedRow.getDateTime("instant"));
+    assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), nestedRow.getDateTime("instant"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("byteBuffer"));
     assertEquals(BigDecimal.ONE, nestedRow.getDecimal("bigDecimal"));

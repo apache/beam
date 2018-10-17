@@ -23,9 +23,6 @@ import CommonJobProperties as commonJobProperties
 job('beam_PostRelease_NightlySnapshot') {
   description('Runs post release verification of the nightly snapshot.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 

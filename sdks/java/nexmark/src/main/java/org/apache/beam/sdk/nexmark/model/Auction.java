@@ -27,12 +27,18 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.joda.time.Instant;
 
 /** An auction submitted by a person. */
+@DefaultSchema(JavaFieldSchema.class)
 public class Auction implements KnownSize, Serializable {
+  private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
@@ -46,8 +52,8 @@ public class Auction implements KnownSize, Serializable {
           STRING_CODER.encode(value.description, outStream);
           LONG_CODER.encode(value.initialBid, outStream);
           LONG_CODER.encode(value.reserve, outStream);
-          LONG_CODER.encode(value.dateTime, outStream);
-          LONG_CODER.encode(value.expires, outStream);
+          INSTANT_CODER.encode(value.dateTime, outStream);
+          INSTANT_CODER.encode(value.expires, outStream);
           LONG_CODER.encode(value.seller, outStream);
           LONG_CODER.encode(value.category, outStream);
           STRING_CODER.encode(value.extra, outStream);
@@ -60,8 +66,8 @@ public class Auction implements KnownSize, Serializable {
           String description = STRING_CODER.decode(inStream);
           long initialBid = LONG_CODER.decode(inStream);
           long reserve = LONG_CODER.decode(inStream);
-          long dateTime = LONG_CODER.decode(inStream);
-          long expires = LONG_CODER.decode(inStream);
+          Instant dateTime = INSTANT_CODER.decode(inStream);
+          Instant expires = INSTANT_CODER.decode(inStream);
           long seller = LONG_CODER.decode(inStream);
           long category = LONG_CODER.decode(inStream);
           String extra = STRING_CODER.decode(inStream);
@@ -85,43 +91,43 @@ public class Auction implements KnownSize, Serializable {
       };
 
   /** Id of auction. */
-  @JsonProperty public final long id; // primary key
+  @JsonProperty public long id; // primary key
 
   /** Extra auction properties. */
-  @JsonProperty public final String itemName;
+  @JsonProperty public String itemName;
 
-  @JsonProperty public final String description;
+  @JsonProperty public String description;
 
   /** Initial bid price, in cents. */
-  @JsonProperty public final long initialBid;
+  @JsonProperty public long initialBid;
 
   /** Reserve price, in cents. */
-  @JsonProperty public final long reserve;
+  @JsonProperty public long reserve;
 
-  @JsonProperty public final long dateTime;
+  @JsonProperty public Instant dateTime;
 
   /** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
-  @JsonProperty public final long expires;
+  @JsonProperty public Instant expires;
 
   /** Id of person who instigated auction. */
-  @JsonProperty public final long seller; // foreign key: Person.id
+  @JsonProperty public long seller; // foreign key: Person.id
 
   /** Id of category auction is listed under. */
-  @JsonProperty public final long category; // foreign key: Category.id
+  @JsonProperty public long category; // foreign key: Category.id
 
   /** Additional arbitrary payload for performance testing. */
-  @JsonProperty public final String extra;
+  @JsonProperty public String extra;
 
   // For Avro only.
   @SuppressWarnings("unused")
-  private Auction() {
+  public Auction() {
     id = 0;
     itemName = null;
     description = null;
     initialBid = 0;
     reserve = 0;
-    dateTime = 0;
-    expires = 0;
+    dateTime = null;
+    expires = null;
     seller = 0;
     category = 0;
     extra = null;
@@ -133,8 +139,8 @@ public class Auction implements KnownSize, Serializable {
       String description,
       long initialBid,
       long reserve,
-      long dateTime,
-      long expires,
+      Instant dateTime,
+      Instant expires,
       long seller,
       long category,
       String extra) {
@@ -227,8 +233,8 @@ public class Auction implements KnownSize, Serializable {
     return id == auction.id
         && initialBid == auction.initialBid
         && reserve == auction.reserve
-        && dateTime == auction.dateTime
-        && expires == auction.expires
+        && Objects.equal(dateTime, auction.dateTime)
+        && Objects.equal(expires, auction.expires)
         && seller == auction.seller
         && category == auction.category
         && Objects.equal(itemName, auction.itemName)

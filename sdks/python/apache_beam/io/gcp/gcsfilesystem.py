@@ -266,6 +266,19 @@ class GCSFileSystem(FileSystem):
     """
     return gcsio.GcsIO().size(path)
 
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+
+    Args:
+      path: string path of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    return gcsio.GcsIO().last_updated(path)
+
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
     :class:`~apache_beam.io.filesystem.FileSystem`.

@@ -50,7 +50,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
   private final List<Bid> bidsWithoutAuctions;
 
   /** Timestamp of last new auction or bid event (ms since epoch). */
-  private long lastTimestamp;
+  private Instant lastTimestamp;
 
   public WinningBidsSimulator(NexmarkConfiguration configuration) {
     super(NexmarkUtils.standardEventIterator(configuration));
@@ -58,7 +58,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     closedAuctions = new TreeSet<>();
     bestBids = new TreeMap<>();
     bidsWithoutAuctions = new ArrayList<>();
-    lastTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+    lastTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
   }
 
   /**
@@ -122,16 +122,16 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
    * state. Retire auctions in order of expire time.
    */
   @Nullable
-  private TimestampedValue<AuctionBid> nextWinningBid(long timestamp) {
-    Map<Long, List<Long>> toBeRetired = new TreeMap<>();
+  private TimestampedValue<AuctionBid> nextWinningBid(Instant timestamp) {
+    Map<Instant, List<Long>> toBeRetired = new TreeMap<>();
     for (Map.Entry<Long, Auction> entry : openAuctions.entrySet()) {
-      if (entry.getValue().expires <= timestamp) {
+      if (entry.getValue().expires.compareTo(timestamp) <= 0) {
         List<Long> idsAtTime =
             toBeRetired.computeIfAbsent(entry.getValue().expires, k -> new ArrayList<>());
         idsAtTime.add(entry.getKey());
       }
     }
-    for (Map.Entry<Long, List<Long>> entry : toBeRetired.entrySet()) {
+    for (Map.Entry<Instant, List<Long>> entry : toBeRetired.entrySet()) {
       for (long id : entry.getValue()) {
         Auction auction = openAuctions.get(id);
         NexmarkUtils.info("retiring auction: %s", auction);
@@ -139,7 +139,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
         Bid bestBid = bestBids.get(id);
         if (bestBid != null) {
           TimestampedValue<AuctionBid> result =
-              TimestampedValue.of(new AuctionBid(auction, bestBid), new Instant(auction.expires));
+              TimestampedValue.of(new AuctionBid(auction, bestBid), auction.expires);
           NexmarkUtils.info("winning: %s", result);
           return result;
         }
@@ -150,7 +150,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
 
   @Override
   protected void run() {
-    if (lastTimestamp > BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()) {
+    if (lastTimestamp.compareTo(BoundedWindow.TIMESTAMP_MIN_VALUE) > 0) {
       // We may have finally seen the auction a bid was intended for.
       flushBidsWithoutAuctions();
       TimestampedValue<AuctionBid> result = nextWinningBid(lastTimestamp);
@@ -163,8 +163,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     TimestampedValue<Event> timestampedEvent = nextInput();
     if (timestampedEvent == null) {
       // No more events. Flush any still open auctions.
-      TimestampedValue<AuctionBid> result =
-          nextWinningBid(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+      TimestampedValue<AuctionBid> result = nextWinningBid(BoundedWindow.TIMESTAMP_MAX_VALUE);
       if (result == null) {
         // We are done.
         allDone();
@@ -180,7 +179,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
       return;
     }
 
-    lastTimestamp = timestampedEvent.getTimestamp().getMillis();
+    lastTimestamp = timestampedEvent.getTimestamp();
     if (event.newAuction != null) {
       // Add this new open auction to our state.
       openAuctions.put(event.newAuction.id, event.newAuction);

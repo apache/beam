@@ -34,6 +34,7 @@ import org.apache.beam.sdk.nexmark.sources.generator.GeneratorCheckpoint;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -78,6 +79,7 @@ public class UnboundedEventSourceTest {
    * Check aggressively checkpointing and resuming a reader gives us exactly the same event stream
    * as reading directly.
    */
+  @Ignore("TODO(BEAM-5070) Test is flaky. Fix before reenabling.")
   @Test
   public void resumeFromCheckpoint() throws IOException {
     Random random = new Random(297);

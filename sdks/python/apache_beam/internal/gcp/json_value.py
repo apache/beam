@@ -19,6 +19,9 @@
 
 from __future__ import absolute_import
 
+from past.builtins import long
+from past.builtins import unicode
+
 from apache_beam.options.value_provider import ValueProvider
 
 # Protect against environments where apitools library is not available.
@@ -29,12 +32,6 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-try:              # Python 2
-  unicode         # pylint: disable=unicode-builtin
-  long            # pylint: disable=long-builtin
-except NameError: # Python 3
-  unicode = str
-  long = int
 
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)

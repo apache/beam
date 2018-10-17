@@ -24,7 +24,7 @@ data: {
         "org.apache.calcite.schema.ColumnStrategy"
         "org.apache.calcite.sql.SqlCreate"
         "org.apache.calcite.sql.SqlDrop"
-        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.schemas.Schema"
@@ -48,9 +48,15 @@ data: {
         "TBLPROPERTIES"
       ]
 
+      # List of additional join types. Each is a method with no arguments.
+      # Example: LeftSemiJoin()
+      joinTypes: [
+      ]
+
       # List of methods for parsing custom SQL statements.
       statementParserMethods: [
         "SqlSetOptionBeam(Span.of(), null)"
+        "SqlCreateExternalTable()"
       ]
 
       # List of methods for parsing custom literals.
@@ -71,7 +77,7 @@ data: {
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
-        "SqlCreateTable"
+        SqlCreateTableNotSupportedMessage
       ]
 
       # List of methods for parsing extensions to "DROP" calls.

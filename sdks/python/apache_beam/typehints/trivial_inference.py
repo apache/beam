@@ -55,6 +55,7 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
+    # pylint: disable=deprecated-types-field
     if sys.version_info[0] == 2 and t == types.InstanceType:
       return o.__class__
     if t == BoundMethod:

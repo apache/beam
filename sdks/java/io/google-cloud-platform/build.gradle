@@ -76,6 +76,7 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
+  shadowTest library.java.powermock
   shadowTest library.java.slf4j_jdk14
 }
 
@@ -96,6 +97,8 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryToTableIT.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

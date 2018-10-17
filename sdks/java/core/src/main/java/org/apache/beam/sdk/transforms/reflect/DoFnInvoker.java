@@ -57,6 +57,9 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
 
+  /** Invoke the {@link DoFn.OnWindowExpiration} method on the bound {@link DoFn}. */
+  void invokeOnWindowExpiration(ArgumentProvider<InputT, OutputT> arguments);
+
   /**
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *

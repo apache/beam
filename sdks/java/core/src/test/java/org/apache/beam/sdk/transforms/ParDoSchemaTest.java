@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
@@ -386,6 +388,19 @@ public class ParDoSchemaTest implements Serializable {
                       }
                     }));
     PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testSchemasPassedThrough() {
+    List<InferredPojo> pojoList =
+        Lists.newArrayList(
+            new InferredPojo("a", 1), new InferredPojo("b", 2), new InferredPojo("c", 3));
+
+    PCollection<InferredPojo> out = pipeline.apply(Create.of(pojoList)).apply(Filter.by(e -> true));
+    assertTrue(out.hasSchema());
+
     pipeline.run();
   }
 }

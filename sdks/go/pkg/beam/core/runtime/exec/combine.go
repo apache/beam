@@ -36,7 +36,7 @@ type Combine struct {
 	UsesKey bool
 	Out     Node
 
-	mergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
+	binaryMergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
 
 	status Status
 	err    errorx.GuardedError
@@ -59,13 +59,34 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 
 	if n.Fn.AddInputFn() == nil {
-		n.mergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
+		n.optimizeMergeFn()
 	}
 	return nil
 }
 
+func (n *Combine) optimizeMergeFn() {
+	typ := n.Fn.MergeAccumulatorsFn().Fn.Type()
+	if typ.NumIn() == 2 && typ.NumOut() == 1 {
+		n.binaryMergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
+	}
+}
+
+func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (interface{}, error) {
+	if n.binaryMergeFn != nil {
+		// Fast path for binary MergeAccumulatorsFn
+		return n.binaryMergeFn.Call2x1(a, b), nil
+	}
+
+	in := &MainInput{Key: FullValue{Elm: a}}
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.MergeAccumulatorsFn(), in, b)
+	if err != nil {
+		return nil, n.fail(fmt.Errorf("MergeAccumulators failed: %v", err))
+	}
+	return val.Elm, nil
+}
+
 // StartBundle initializes processing this bundle for combines.
-func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
@@ -93,7 +114,10 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	}
 	first := true
 
-	stream := values[0].Open()
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
 	defer stream.Close()
 	for {
 		v, err := stream.Read()
@@ -176,7 +200,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 		// TODO(herohde) 7/5/2017: do we want to allow addInput to be optional
 		// if non-binary merge is defined?
 
-		return n.mergeFn.Call2x1(accum, value), nil
+		return n.mergeAccumulators(ctx, accum, value)
 	}
 
 	opt := &MainInput{
@@ -243,7 +267,7 @@ func (n *LiftedCombine) String() string {
 }
 
 // StartBundle initializes the in memory cache of keys to accumulators.
-func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
@@ -334,7 +358,10 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value FullValue,
 	}
 	first := true
 
-	stream := values[0].Open()
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
 	defer stream.Close()
 	for {
 		v, err := stream.Read()
@@ -349,7 +376,10 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value FullValue,
 			first = false
 			continue
 		}
-		a = n.mergeFn.Call2x1(a, v.Elm)
+		a, err = n.mergeAccumulators(ctx, a, v.Elm)
+		if err != nil {
+			return err
+		}
 	}
 	return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
 }
@@ -359,7 +389,7 @@ func (n *MergeAccumulators) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.mergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
+	n.optimizeMergeFn()
 	return nil
 }
 

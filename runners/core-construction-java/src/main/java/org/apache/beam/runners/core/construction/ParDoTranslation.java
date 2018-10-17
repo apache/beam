@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -130,9 +131,9 @@ public class ParDoTranslation {
               .setPayload(payload.toByteString())
               .build());
 
-      String mainInputId = getMainInputId(builder, payload);
+      String mainInputName = getMainInputName(builder, payload);
       PCollection<KV<?, ?>> mainInput =
-          (PCollection) appliedPTransform.getInputs().get(new TupleTag(mainInputId));
+          (PCollection) appliedPTransform.getInputs().get(new TupleTag(mainInputName));
 
       // https://s.apache.org/beam-portability-timers
       // Add a PCollection and coder for each timer. Also treat them as inputs and outputs.
@@ -300,6 +301,15 @@ public class ParDoTranslation {
     return TupleTagList.of(additionalOutputTags);
   }
 
+  public static Map<TupleTag<?>, Coder<?>> getOutputCoders(AppliedPTransform<?, ?, ?> application) {
+    return application
+        .getOutputs()
+        .entrySet()
+        .stream()
+        .filter(e -> e.getValue() instanceof PCollection)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+  }
+
   public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
       throws IOException {
     PTransform<?, ?> transform = application.getTransform();
@@ -335,13 +345,23 @@ public class ParDoTranslation {
         ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());
     return components.getPcollectionsOrThrow(
-        ptransform.getInputsOrThrow(getMainInputId(ptransform, payload)));
+        ptransform.getInputsOrThrow(getMainInputName(ptransform)));
   }
 
-  /** Returns the main input id of the ptransform. */
-  private static String getMainInputId(
+  /** Returns the name of the main input of the ptransform. */
+  public static String getMainInputName(RunnerApi.PTransformOrBuilder ptransform)
+      throws IOException {
+    checkArgument(
+        ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
+        "Unexpected payload type %s",
+        ptransform.getSpec().getUrn());
+    ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());
+    return getMainInputName(ptransform, payload);
+  }
+
+  /** Returns the name of the main input of the ptransform. */
+  private static String getMainInputName(
       RunnerApi.PTransformOrBuilder ptransform, RunnerApi.ParDoPayload payload) {
     return Iterables.getOnlyElement(
         Sets.difference(

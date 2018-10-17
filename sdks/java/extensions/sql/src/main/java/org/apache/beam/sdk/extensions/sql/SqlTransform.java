@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.SchemaHelper.toRows;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -87,27 +85,35 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract List<UdafDefinition> udafDefinitions();
 
+  abstract boolean autoUdfUdafLoad();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
     registerFunctions(sqlEnv);
+    if (autoUdfUdafLoad()) {
+      sqlEnv.loadUdfUdafFromProvider();
+    }
 
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
 
+  @SuppressWarnings("unchecked")
   private Map<String, BeamSqlTable> toTableMap(PInput inputs) {
     /**
      * A single PCollection is transformed to a table named PCOLLECTION, other input types are
      * expanded and converted to tables using the tags as names.
      */
     if (inputs instanceof PCollection) {
-      return ImmutableMap.of(PCOLLECTION_NAME, new BeamPCollectionTable(toRows(inputs)));
+      PCollection<?> pCollection = (PCollection<?>) inputs;
+      return ImmutableMap.of(PCOLLECTION_NAME, new BeamPCollectionTable(pCollection));
     }
 
     ImmutableMap.Builder<String, BeamSqlTable> tables = ImmutableMap.builder();
     for (Map.Entry<TupleTag<?>, PValue> input : inputs.expand().entrySet()) {
-      tables.put(input.getKey().getId(), new BeamPCollectionTable(toRows(input.getValue())));
+      PCollection<?> pCollection = (PCollection<?>) input.getValue();
+      tables.put(input.getKey().getId(), new BeamPCollectionTable(pCollection));
     }
     return tables.build();
   }
@@ -147,9 +153,13 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
         .setQueryString(queryString)
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
+        .setAutoUdfUdafLoad(false)
         .build();
   }
 
+  public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
+    return toBuilder().setAutoUdfUdafLoad(autoUdfUdafLoad).build();
+  }
   /**
    * register a UDF function used in this query.
    *
@@ -201,6 +211,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
+
+    abstract Builder setAutoUdfUdafLoad(boolean autoUdfUdafLoad);
 
     abstract SqlTransform build();
   }

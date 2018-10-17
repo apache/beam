@@ -107,4 +107,12 @@ public class MovingFunctionTest {
     assertEquals(1, f.get(SAMPLE_PERIOD + 3 * SAMPLE_UPDATE));
     assertEquals(0, f.get(SAMPLE_PERIOD * 2));
   }
+
+  @Test
+  public void properlyFlushStaleValues() {
+    MovingFunction f = newFunc();
+    f.add(0, 1);
+    f.add(SAMPLE_PERIOD * 3, 1);
+    assertEquals(1, f.get(SAMPLE_PERIOD * 3));
+  }
 }

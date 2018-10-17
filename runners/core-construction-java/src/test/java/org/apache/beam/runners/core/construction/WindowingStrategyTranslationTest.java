@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -96,7 +95,7 @@ public class WindowingStrategyTranslationTest {
   public void testToProtoAndBack() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
         WindowingStrategyTranslation.fromProto(
             WindowingStrategyTranslation.toMessageProto(windowingStrategy, components));
@@ -110,7 +109,7 @@ public class WindowingStrategyTranslationTest {
   public void testToProtoAndBackWithComponents() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.WindowingStrategy proto =
         WindowingStrategyTranslation.toProto(windowingStrategy, components);
     RehydratedComponents protoComponents =

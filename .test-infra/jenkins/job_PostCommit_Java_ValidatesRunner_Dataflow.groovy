@@ -29,12 +29,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
   previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
   previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
 
-  // Execute concurrent build
-  concurrentBuild()
-  throttleConcurrentBuilds {
-    maxTotal(3)
-  }
-  
   // Set common parameters. Sets a 3 hour timeout.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
 

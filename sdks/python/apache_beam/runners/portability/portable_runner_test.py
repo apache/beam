@@ -17,7 +17,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import inspect
 import logging
+import os
 import platform
 import signal
 import socket
@@ -33,11 +35,14 @@ import grpc
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
+from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -82,19 +87,12 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def _start_local_runner_subprocess_job_service(cls):
-    if cls._subprocess:
-      # Kill the old one if it exists.
-      cls._subprocess.kill()
+    cls._maybe_kill_subprocess()
     # TODO(robertwb): Consider letting the subprocess pick one and
     # communicate it back...
     port = cls._pick_unused_port()
     logging.info('Starting server on port %d.', port)
-    cls._subprocess = subprocess.Popen([
-        sys.executable, '-m',
-        'apache_beam.runners.portability.local_job_service_main', '-p',
-        str(port), '--worker_command_line',
-        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
-    ])
+    cls._subprocess = subprocess.Popen(cls._subprocess_command(port))
     address = 'localhost:%d' % port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         grpc.insecure_channel(address))
@@ -116,7 +114,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
               beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
           break
         except grpc.RpcError as exn:
-          if exn.code != grpc.StatusCode.UNAVAILABLE:
+          if exn.code() != grpc.StatusCode.UNAVAILABLE:
             # We were able to contact the service for our fake state request.
             break
     logging.info('Server ready.')
@@ -147,14 +145,30 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def tearDownClass(cls):
-    if hasattr(cls, '_subprocess'):
+    cls._maybe_kill_subprocess()
+
+  @classmethod
+  def _maybe_kill_subprocess(cls):
+    if hasattr(cls, '_subprocess') and cls._subprocess.poll() is None:
       cls._subprocess.kill()
       time.sleep(0.1)
 
-  def create_pipeline(self):
-    options = PipelineOptions()
+  def create_options(self):
+    def get_pipeline_name():
+      for _, _, _, method_name, _, _ in inspect.stack():
+        if method_name.find('test') != -1:
+          return method_name
+      return 'unknown_test'
+
+    # Set the job name for better debugging.
+    options = PipelineOptions.from_dictionary({
+        'job_name': get_pipeline_name() + '_' + str(time.time())
+    })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
-    return beam.Pipeline(self.get_runner(), options)
+    return options
+
+  def create_pipeline(self):
+    return beam.Pipeline(self.get_runner(), self.create_options())
 
   def test_assert_that(self):
     # TODO: figure out a way for runner to parse and raise the
@@ -163,6 +177,10 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test is flaky on on Python 3. '
+                   'TODO: BEAM-5692')
   def test_error_message_includes_stage(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
@@ -194,6 +212,67 @@ class PortableRunnerTestWithGrpc(PortableRunnerTest):
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
+
+  @classmethod
+  def _subprocess_command(cls, port):
+    return [
+        sys.executable,
+        '-m', 'apache_beam.runners.portability.local_job_service_main',
+        '-p', str(port),
+        '--worker_command_line',
+        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
+    ]
+
+
+class PortableRunnerInternalTest(unittest.TestCase):
+  def test__create_default_environment(self):
+    docker_image = PortableRunner.default_docker_image()
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
+        beam_runner_api_pb2.Environment(
+            url=docker_image,
+            urn=common_urns.environments.DOCKER.urn,
+            payload=beam_runner_api_pb2.DockerPayload(
+                container_image=docker_image
+            ).SerializeToString()))
+
+  def test__create_docker_environment(self):
+    docker_image = 'py-docker'
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': 'DOCKER',
+            'environment_config': docker_image,
+        })), beam_runner_api_pb2.Environment(
+            url=docker_image,
+            urn=common_urns.environments.DOCKER.urn,
+            payload=beam_runner_api_pb2.DockerPayload(
+                container_image=docker_image
+            ).SerializeToString()))
+
+  def test__create_process_environment(self):
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': "PROCESS",
+            'environment_config': '{"os": "linux", "arch": "amd64", '
+                                  '"command": "run.sh", '
+                                  '"env":{"k1": "v1"} }',
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.PROCESS.urn,
+            payload=beam_runner_api_pb2.ProcessPayload(
+                os='linux',
+                arch='amd64',
+                command='run.sh',
+                env={'k1': 'v1'},
+            ).SerializeToString()))
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+            'environment_type': 'PROCESS',
+            'environment_config': '{"command": "run.sh"}',
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.PROCESS.urn,
+            payload=beam_runner_api_pb2.ProcessPayload(
+                command='run.sh',
+            ).SerializeToString()))
 
 
 if __name__ == '__main__':

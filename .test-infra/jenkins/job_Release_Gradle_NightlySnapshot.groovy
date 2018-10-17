@@ -45,6 +45,17 @@ job('beam_Release_Gradle_NightlySnapshot') {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('clean')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('build')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+      switches('--continue')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('publish')
       commonJobProperties.setGradleSwitches(delegate)
       // Publish a snapshot build.
@@ -52,6 +63,7 @@ job('beam_Release_Gradle_NightlySnapshot') {
       // Don't run tasks in parallel, currently the maven-publish/signing plugins
       // cause build failures when run in parallel with messages like 'error snapshotting'
       switches('--no-parallel')
+      switches('--continue')
     }
   }
 }

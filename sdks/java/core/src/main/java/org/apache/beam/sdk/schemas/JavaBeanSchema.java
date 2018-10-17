@@ -20,19 +20,23 @@ package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.utils.JavaBeanGetterFactory;
+import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.reflect.FieldValueGetterFactory;
-import org.apache.beam.sdk.values.reflect.FieldValueSetterFactory;
-import org.apache.beam.sdk.values.reflect.JavaBeanGetterFactory;
-import org.apache.beam.sdk.values.reflect.JavaBeanSetterFactory;
 
 /**
  * A {@link SchemaProvider} for Java Bean objects.
  *
  * <p>This provider finds (recursively) all public getters and setters in a Java object, and creates
  * schemas and rows that bind to those fields. The field order in the schema is not guaranteed to
- * match the method order in the class.
+ * match the method order in the class. The Java object is expected to have implemented a correct
+ * .equals() and .hashCode methods The equals method must be completely determined by the schema
+ * fields. i.e. if the object has hidden fields that are not reflected in the schema but are
+ * compared in equals, then results will be incorrect.
+ *
+ * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
+ * on the schema.
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {

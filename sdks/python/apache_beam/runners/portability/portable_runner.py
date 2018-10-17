@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import os
 import threading
@@ -27,13 +28,16 @@ from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import portable_stager
+from apache_beam.runners.portability.job_server import DockerizedJobServer
 
 __all__ = ['PortableRunner']
 
@@ -68,17 +72,52 @@ class PortableRunner(runner.PipelineRunner):
       logging.warning('Could not find a Python SDK docker image.')
       return 'unknown'
 
+  @staticmethod
+  def _create_environment(options):
+    portable_options = options.view_as(PortableOptions)
+    environment_urn = common_urns.environments.DOCKER.urn
+    if portable_options.environment_type == 'DOCKER':
+      environment_urn = common_urns.environments.DOCKER.urn
+    elif portable_options.environment_type == 'PROCESS':
+      environment_urn = common_urns.environments.PROCESS.urn
+
+    if environment_urn == common_urns.environments.DOCKER.urn:
+      docker_image = (
+          portable_options.environment_config
+          or PortableRunner.default_docker_image())
+      return beam_runner_api_pb2.Environment(
+          url=docker_image,
+          urn=common_urns.environments.DOCKER.urn,
+          payload=beam_runner_api_pb2.DockerPayload(
+              container_image=docker_image
+          ).SerializeToString())
+    elif environment_urn == common_urns.environments.PROCESS.urn:
+      config = json.loads(portable_options.environment_config)
+      return beam_runner_api_pb2.Environment(
+          urn=common_urns.environments.PROCESS.urn,
+          payload=beam_runner_api_pb2.ProcessPayload(
+              os=(config.get('os') or ''),
+              arch=(config.get('arch') or ''),
+              command=config.get('command'),
+              env=(config.get('env') or '')
+          ).SerializeToString())
+
   def run_pipeline(self, pipeline):
-    docker_image = (
-        pipeline.options.view_as(PortableOptions).harness_docker_image
-        or self.default_docker_image())
-    job_endpoint = pipeline.options.view_as(PortableOptions).job_endpoint
+    portable_options = pipeline.options.view_as(PortableOptions)
+    job_endpoint = portable_options.job_endpoint
+
+    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # portable runner specific default
+    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
+      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+
     if not job_endpoint:
-      raise ValueError(
-          'job_endpoint should be provided while creating runner.')
+      docker = DockerizedJobServer()
+      job_endpoint = docker.start()
 
     proto_context = pipeline_context.PipelineContext(
-        default_environment_url=docker_image)
+        default_environment=PortableRunner._create_environment(
+            portable_options))
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
 
     if not self.is_embedded_fnapi_runner:
@@ -104,16 +143,33 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # TODO: Define URNs for options.
-    options = {'beam:option:' + k + ':v1': v
-               for k, v in pipeline._options.get_all_options().iteritems()
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+               for k, v in pipeline._options.get_all_options().items()
                if v is not None}
 
-    job_service = beam_job_api_pb2_grpc.JobServiceStub(
-        grpc.insecure_channel(job_endpoint))
-    prepare_response = job_service.Prepare(
-        beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline,
-            pipeline_options=job_utils.dict_to_struct(options)))
+    channel = grpc.insecure_channel(job_endpoint)
+    grpc.channel_ready_future(channel).result()
+    job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
+
+    # Sends the PrepareRequest but retries in case the channel is not ready
+    def send_prepare_request(max_retries=5):
+      num_retries = 0
+      while True:
+        try:
+          # This reports channel is READY but connections may fail
+          # Seems to be only an issue on Mac with port forwardings
+          grpc.channel_ready_future(channel).result()
+          return job_service.Prepare(
+              beam_job_api_pb2.PrepareJobRequest(
+                  job_name='job', pipeline=proto_pipeline,
+                  pipeline_options=job_utils.dict_to_struct(options)))
+        except grpc._channel._Rendezvous as e:
+          num_retries += 1
+          if num_retries > max_retries:
+            raise e
+
+    prepare_response = send_prepare_request()
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
@@ -149,7 +205,8 @@ class PipelineResult(runner.PipelineResult):
     self._messages = []
 
   def cancel(self):
-    self._job_service.Cancel()
+    self._job_service.Cancel(beam_job_api_pb2.CancelJobRequest(
+        job_id=self._job_id))
 
   @property
   def state(self):

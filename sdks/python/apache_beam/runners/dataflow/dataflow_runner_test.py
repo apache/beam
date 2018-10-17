@@ -198,6 +198,15 @@ class DataflowRunnerTest(unittest.TestCase):
         '_starting_signal/')
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
 
+  def test_biqquery_read_streaming_fail(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append("--streaming")
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+    with self.assertRaisesRegexp(ValueError,
+                                 r'source is not currently available'):
+      p.run()
+
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,

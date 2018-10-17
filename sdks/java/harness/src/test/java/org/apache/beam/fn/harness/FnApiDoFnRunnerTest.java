@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -28,18 +29,20 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Suppliers;
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -52,7 +55,12 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -76,6 +84,7 @@ import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -83,6 +92,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link FnApiDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class FnApiDoFnRunnerTest implements Serializable {
+
+  @Rule public transient ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
   public static final String TEST_PTRANSFORM_ID = "pTransformId";
 
@@ -173,7 +184,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 bagUserStateKey("combine", "X"), encode("X0")));
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
@@ -311,7 +322,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
 
     SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId =
         sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
@@ -332,7 +343,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
@@ -434,7 +445,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 .withSideInputs(iterableSideInputView));
 
     SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
 
@@ -459,7 +470,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
@@ -505,8 +516,221 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertEquals(stateData, fakeClient.getData());
   }
 
+  private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
+    @TimerId("event")
+    private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @TimerId("processing")
+    private final TimerSpec processingTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @ProcessElement
+    public void processElement(
+        ProcessContext context,
+        @TimerId("event") Timer eventTimeTimer,
+        @TimerId("processing") Timer processingTimeTimer) {
+      context.output("main" + context.element().getKey());
+      eventTimeTimer.set(context.timestamp().plus(1L));
+      processingTimeTimer.offset(Duration.millis(2L));
+      processingTimeTimer.setRelative();
+    }
+
+    @OnTimer("event")
+    public void eventTimer(
+        OnTimerContext context,
+        @TimerId("event") Timer eventTimeTimer,
+        @TimerId("processing") Timer processingTimeTimer) {
+      context.output("event");
+      eventTimeTimer.set(context.timestamp().plus(11L));
+      processingTimeTimer.offset(Duration.millis(12L));
+      processingTimeTimer.setRelative();
+    }
+
+    @OnTimer("processing")
+    public void processingTimer(
+        OnTimerContext context,
+        @TimerId("event") Timer eventTimeTimer,
+        @TimerId("processing") Timer processingTimeTimer) {
+      context.output("processing");
+      eventTimeTimer.set(context.timestamp().plus(21L));
+      processingTimeTimer.offset(Duration.millis(22L));
+      processingTimeTimer.setRelative();
+    }
+  }
+
+  @Test
+  public void testTimers() throws Exception {
+    dateTimeProvider.setDateTimeFixed(10000L);
+
+    Pipeline p = Pipeline.create();
+    PCollection<KV<String, String>> valuePCollection =
+        p.apply(Create.of(KV.of("unused", "unused")));
+    PCollection<String> outputPCollection =
+        valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(new TestTimerfulDoFn()));
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+    // Note that the pipeline translation for timers creates a loop between the ParDo with
+    // the timer and the PCollection for that timer. This loop is unrolled by runners
+    // during execution which we redo here manually.
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+    String eventTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event";
+    String eventTimerOutputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event.output";
+    String processingTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).processing";
+    String processingTimerOutputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful).processing.output";
+
+    RunnerApi.PTransform pTransform =
+        pProto
+            .getComponents()
+            .getTransformsOrThrow(
+                pProto.getComponents().getTransformsOrThrow(TEST_PTRANSFORM_ID).getSubtransforms(0))
+            .toBuilder()
+            // We need to re-write the "output" PCollections that a runner would have inserted
+            // on the way to a output sink.
+            .putOutputs("event", eventTimerOutputPCollectionId)
+            .putOutputs("processing", processingTimerOutputPCollectionId)
+            .build();
+
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
+
+    List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+    List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
+    List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    consumers.put(
+        outputPCollectionId,
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+    consumers.put(
+        eventTimerOutputPCollectionId,
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Timer>>>) eventTimerOutputValues::add);
+    consumers.put(
+        processingTimerOutputPCollectionId,
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
+
+    List<ThrowingRunnable> startFunctions = new ArrayList<>();
+    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+
+    new FnApiDoFnRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            fakeClient,
+            TEST_PTRANSFORM_ID,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            ImmutableMap.<String, RunnerApi.PCollection>builder()
+                .putAll(pProto.getComponents().getPcollectionsMap())
+                // We need to insert the "output" PCollections that a runner would have inserted
+                // on the way to a output sink.
+                .put(
+                    eventTimerOutputPCollectionId,
+                    pProto.getComponents().getPcollectionsOrThrow(eventTimerInputPCollectionId))
+                .put(
+                    processingTimerOutputPCollectionId,
+                    pProto
+                        .getComponents()
+                        .getPcollectionsOrThrow(processingTimerInputPCollectionId))
+                .build(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
+            consumers,
+            startFunctions::add,
+            finishFunctions::add,
+            null /* splitListener */);
+
+    Iterables.getOnlyElement(startFunctions).run();
+    mainOutputValues.clear();
+
+    assertThat(
+        consumers.keySet(),
+        containsInAnyOrder(
+            inputPCollectionId,
+            outputPCollectionId,
+            eventTimerInputPCollectionId,
+            eventTimerOutputPCollectionId,
+            processingTimerInputPCollectionId,
+            processingTimerOutputPCollectionId));
+
+    // Ensure that bag user state that is initially empty or populated works.
+    // Ensure that the key order does not matter when we traverse over KV pairs.
+    FnDataReceiver<WindowedValue<?>> mainInput =
+        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> eventTimerInput =
+        Iterables.getOnlyElement(consumers.get(eventTimerInputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> processingTimerInput =
+        Iterables.getOnlyElement(consumers.get(processingTimerInputPCollectionId));
+    mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
+    mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
+    mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
+    mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y2"), new Instant(1300L)));
+    eventTimerInput.accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+    eventTimerInput.accept(timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
+    eventTimerInput.accept(timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
+    processingTimerInput.accept(timerInGlobalWindow("C", new Instant(1700L), new Instant(2700L)));
+    processingTimerInput.accept(timerInGlobalWindow("D", new Instant(1800L), new Instant(2800L)));
+    processingTimerInput.accept(timerInGlobalWindow("C", new Instant(1900L), new Instant(2900L)));
+    assertThat(
+        mainOutputValues,
+        contains(
+            timestampedValueInGlobalWindow("mainX", new Instant(1000L)),
+            timestampedValueInGlobalWindow("mainY", new Instant(1100L)),
+            timestampedValueInGlobalWindow("mainX", new Instant(1200L)),
+            timestampedValueInGlobalWindow("mainY", new Instant(1300L)),
+            timestampedValueInGlobalWindow("event", new Instant(1400L)),
+            timestampedValueInGlobalWindow("event", new Instant(1500L)),
+            timestampedValueInGlobalWindow("event", new Instant(1600L)),
+            timestampedValueInGlobalWindow("processing", new Instant(1700L)),
+            timestampedValueInGlobalWindow("processing", new Instant(1800L)),
+            timestampedValueInGlobalWindow("processing", new Instant(1900L))));
+    assertThat(
+        eventTimerOutputValues,
+        contains(
+            timerInGlobalWindow("X", new Instant(1000L), new Instant(1001L)),
+            timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
+            timerInGlobalWindow("X", new Instant(1200L), new Instant(1201L)),
+            timerInGlobalWindow("Y", new Instant(1300L), new Instant(1301L)),
+            timerInGlobalWindow("A", new Instant(1400L), new Instant(1411L)),
+            timerInGlobalWindow("B", new Instant(1500L), new Instant(1511L)),
+            timerInGlobalWindow("A", new Instant(1600L), new Instant(1611L)),
+            timerInGlobalWindow("C", new Instant(1700L), new Instant(1721L)),
+            timerInGlobalWindow("D", new Instant(1800L), new Instant(1821L)),
+            timerInGlobalWindow("C", new Instant(1900L), new Instant(1921L))));
+    assertThat(
+        processingTimerOutputValues,
+        contains(
+            timerInGlobalWindow("X", new Instant(1000L), new Instant(10002L)),
+            timerInGlobalWindow("Y", new Instant(1100L), new Instant(10002L)),
+            timerInGlobalWindow("X", new Instant(1200L), new Instant(10002L)),
+            timerInGlobalWindow("Y", new Instant(1300L), new Instant(10002L)),
+            timerInGlobalWindow("A", new Instant(1400L), new Instant(10012L)),
+            timerInGlobalWindow("B", new Instant(1500L), new Instant(10012L)),
+            timerInGlobalWindow("A", new Instant(1600L), new Instant(10012L)),
+            timerInGlobalWindow("C", new Instant(1700L), new Instant(10022L)),
+            timerInGlobalWindow("D", new Instant(1800L), new Instant(10022L)),
+            timerInGlobalWindow("C", new Instant(1900L), new Instant(10022L))));
+    mainOutputValues.clear();
+
+    Iterables.getOnlyElement(finishFunctions).run();
+    assertThat(mainOutputValues, empty());
+
+    assertEquals(ImmutableMap.of(), fakeClient.getData());
+    mainOutputValues.clear();
+  }
+
   private <T> WindowedValue<T> valueInWindow(T value, BoundedWindow window) {
     return WindowedValue.of(value, window.maxTimestamp(), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+  }
+
+  private <T>
+      WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
+          T value, Instant valueTimestamp, Instant scheduledTimestamp) {
+    return timestampedValueInGlobalWindow(
+        KV.of(value, org.apache.beam.runners.core.construction.Timer.of(scheduledTimestamp)),
+        valueTimestamp);
   }
 
   /**

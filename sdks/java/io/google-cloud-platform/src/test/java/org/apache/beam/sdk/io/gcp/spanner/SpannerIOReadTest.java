@@ -78,12 +78,12 @@ public class SpannerIOReadTest implements Serializable {
 
   private static final List<Struct> FAKE_ROWS =
       Arrays.asList(
-          Struct.newBuilder().add("id", Value.int64(1)).add("name", Value.string("Alice")).build(),
-          Struct.newBuilder().add("id", Value.int64(2)).add("name", Value.string("Bob")).build(),
-          Struct.newBuilder().add("id", Value.int64(3)).add("name", Value.string("Carl")).build(),
-          Struct.newBuilder().add("id", Value.int64(4)).add("name", Value.string("Dan")).build(),
-          Struct.newBuilder().add("id", Value.int64(5)).add("name", Value.string("Evan")).build(),
-          Struct.newBuilder().add("id", Value.int64(6)).add("name", Value.string("Floyd")).build());
+          Struct.newBuilder().set("id").to(Value.int64(1)).set("name").to("Alice").build(),
+          Struct.newBuilder().set("id").to(Value.int64(2)).set("name").to("Bob").build(),
+          Struct.newBuilder().set("id").to(Value.int64(3)).set("name").to("Carl").build(),
+          Struct.newBuilder().set("id").to(Value.int64(4)).set("name").to("Dan").build(),
+          Struct.newBuilder().set("id").to(Value.int64(5)).set("name").to("Evan").build(),
+          Struct.newBuilder().set("id").to(Value.int64(6)).set("name").to("Floyd").build());
 
   @Before
   @SuppressWarnings("unchecked")

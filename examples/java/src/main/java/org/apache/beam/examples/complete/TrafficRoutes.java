@@ -339,16 +339,7 @@ public class TrafficRoutes {
     void setWindowSlideEvery(Integer value);
   }
 
-  /**
-   * Sets up and starts streaming pipeline.
-   *
-   * @throws IOException if there is a problem setting up resources
-   */
-  public static void main(String[] args) throws IOException {
-    TrafficRoutesOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
+  public static void runTrafficRoutes(TrafficRoutesOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
@@ -376,6 +367,20 @@ public class TrafficRoutes {
 
     // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
+  }
+
+  /**
+   * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
+   */
+  public static void main(String[] args) throws IOException {
+    TrafficRoutesOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
+
+    options.setBigQuerySchema(FormatStatsFn.getSchema());
+
+    runTrafficRoutes(options);
   }
 
   private static Double tryParseAvgSpeed(String[] inputItems) {

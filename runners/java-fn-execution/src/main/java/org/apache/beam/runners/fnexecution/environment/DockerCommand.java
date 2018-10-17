@@ -33,9 +33,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A docker command wrapper. Simplifies communications with the Docker daemon. */
 class DockerCommand {
+  private static final Logger LOG = LoggerFactory.getLogger(DockerCommand.class);
 
   private static final String DEFAULT_DOCKER_COMMAND = "docker";
   // TODO: Should we require 64-character container ids? Docker technically allows abbreviated ids,
@@ -70,8 +73,16 @@ class DockerCommand {
       throws IOException, TimeoutException, InterruptedException {
     checkArgument(!imageTag.isEmpty(), "Docker image tag required");
     // Pull the image from docker repo. This will be no-op if the image already exists.
-    runShortCommand(
-        ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
+    try {
+      runShortCommand(
+          ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
+    } catch (IOException | TimeoutException | InterruptedException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Unable to pull docker image {}", imageTag, e);
+      } else {
+        LOG.warn("Unable to pull docker image {}, cause: {}", imageTag, e.getMessage());
+      }
+    }
     // TODO: Validate args?
     return runShortCommand(
         ImmutableList.<String>builder()

@@ -74,11 +74,14 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link BeamFileSystemArtifactStagingService} and {@link
  * BeamFileSystemArtifactRetrievalService}.
  */
+@RunWith(JUnit4.class)
 public class BeamFileSystemArtifactServicesTest {
   private static final int DATA_1KB = 1 << 10;
   private GrpcFnServer<BeamFileSystemArtifactStagingService> stagingServer;
@@ -133,12 +136,13 @@ public class BeamFileSystemArtifactServicesTest {
 
   private void putArtifact(String stagingSessionToken, final String filePath, final String fileName)
       throws Exception {
+    CompletableFuture<Boolean> complete = new CompletableFuture<>();
     StreamObserver<PutArtifactRequest> outputStreamObserver =
         stagingStub.putArtifact(
             new StreamObserver<PutArtifactResponse>() {
               @Override
               public void onNext(PutArtifactResponse putArtifactResponse) {
-                Assert.fail("OnNext should never be called.");
+                // Do nothing.
               }
 
               @Override
@@ -148,7 +152,9 @@ public class BeamFileSystemArtifactServicesTest {
               }
 
               @Override
-              public void onCompleted() {}
+              public void onCompleted() {
+                complete.complete(Boolean.TRUE);
+              }
             });
     outputStreamObserver.onNext(
         PutArtifactRequest.newBuilder()
@@ -169,6 +175,7 @@ public class BeamFileSystemArtifactServicesTest {
                 .build());
       }
       outputStreamObserver.onCompleted();
+      complete.get(10, TimeUnit.SECONDS);
     }
   }
 
@@ -189,6 +196,14 @@ public class BeamFileSystemArtifactServicesTest {
         BeamFileSystemArtifactStagingService.generateStagingSessionToken("abc123", basePath);
     Assert.assertEquals(
         "{\"sessionId\":\"abc123\",\"basePath\":\"" + basePath + "\"}", stagingToken);
+  }
+
+  void checkCleanup(String stagingSessionToken, String stagingSession) throws Exception {
+    Assert.assertTrue(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
+    stagingService.removeArtifacts(stagingSessionToken);
+    Assert.assertFalse(
+        Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
   }
 
   @Test
@@ -212,6 +227,7 @@ public class BeamFileSystemArtifactServicesTest {
             BeamFileSystemArtifactStagingService.MANIFEST),
         Paths.get(stagingToken));
     assertFiles(Collections.singleton(fileName), stagingToken);
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -265,6 +281,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -325,6 +343,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -411,6 +431,9 @@ public class BeamFileSystemArtifactServicesTest {
         retrievalToken2);
     assertFiles(files1.keySet(), retrievalToken1);
     assertFiles(files2.keySet(), retrievalToken2);
+
+    checkCleanup(stagingSessionToken1, stagingSession1);
+    checkCleanup(stagingSessionToken2, stagingSession2);
   }
 
   private void assertFiles(Set<String> files, String retrievalToken) throws Exception {

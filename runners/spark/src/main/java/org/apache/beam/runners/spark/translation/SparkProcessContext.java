@@ -62,8 +62,6 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       return new ArrayList<>();
     }
 
-    // setup DoFn.
-    DoFnInvokers.invokerFor(doFn).invokeSetup();
     // process the partition; finishBundle() is called from within the output iterator.
     return this.getOutputIterable(partition, doFnRunner);
   }

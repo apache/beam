@@ -240,6 +240,7 @@ public class FlinkBatchSideInputHandlerFactoryTest {
         sideInputs,
         Collections.emptyList(),
         Collections.emptyList(),
+        Collections.emptyList(),
         Collections.emptyList());
   }
 

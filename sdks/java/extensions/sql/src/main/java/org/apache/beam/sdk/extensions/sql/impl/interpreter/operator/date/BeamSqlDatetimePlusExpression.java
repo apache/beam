@@ -21,10 +21,8 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
-import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -40,16 +38,6 @@ import org.joda.time.DateTime;
  * <p>Input and output are expected to be of type TIMESTAMP.
  */
 public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
-
-  private static final Set<SqlTypeName> SUPPORTED_INTERVAL_TYPES =
-      ImmutableSet.of(
-          SqlTypeName.INTERVAL_SECOND,
-          SqlTypeName.INTERVAL_MINUTE,
-          SqlTypeName.INTERVAL_HOUR,
-          SqlTypeName.INTERVAL_DAY,
-          SqlTypeName.INTERVAL_MONTH,
-          SqlTypeName.INTERVAL_YEAR);
-
   public BeamSqlDatetimePlusExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIMESTAMP);
   }
@@ -59,7 +47,7 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   public boolean accept() {
     return operands.size() == 2
         && SqlTypeName.DATETIME_TYPES.contains(operands.get(0).getOutputType())
-        && SUPPORTED_INTERVAL_TYPES.contains(operands.get(1).getOutputType());
+        && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }
 
   /**
@@ -95,7 +83,7 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
 
   private BeamSqlPrimitive getIntervalOperand(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES)
+    return findExpressionOfType(operands, TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet())
         .get()
         .evaluate(inputRow, window, env);
   }

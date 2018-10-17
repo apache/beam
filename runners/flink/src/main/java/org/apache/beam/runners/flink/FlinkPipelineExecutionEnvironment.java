@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -69,7 +70,7 @@ class FlinkPipelineExecutionEnvironment {
    * org.apache.flink.api.java.DataSet} or {@link
    * org.apache.flink.streaming.api.datastream.DataStream} one.
    */
-  public void translate(FlinkRunner flinkRunner, Pipeline pipeline) {
+  public void translate(Pipeline pipeline) {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
@@ -82,12 +83,14 @@ class FlinkPipelineExecutionEnvironment {
     pipeline.replaceAll(
         FlinkTransformOverrides.getDefaultOverrides(translationMode == TranslationMode.STREAMING));
 
+    prepareFilesToStageForRemoteClusterExecution(options);
+
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
           FlinkExecutionEnvironments.createBatchExecutionEnvironment(
@@ -96,6 +99,19 @@ class FlinkPipelineExecutionEnvironment {
     }
 
     translator.translate(pipeline);
+  }
+
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
+    if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
+    }
   }
 
   /** Launches the program execution. */

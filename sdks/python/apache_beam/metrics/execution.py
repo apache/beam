@@ -36,9 +36,11 @@ import threading
 from builtins import object
 from collections import defaultdict
 
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
 
@@ -122,38 +124,16 @@ class _MetricsEnvironment(object):
   def __init__(self):
     self.METRICS_SUPPORTED = False
     self._METRICS_SUPPORTED_LOCK = threading.Lock()
-    self.PER_THREAD = threading.local()
-    self.set_container_stack()
-
-  def set_container_stack(self):
-    if not hasattr(self.PER_THREAD, 'container'):
-      self.PER_THREAD.container = []
-
-  def container_stack(self):
-    self.set_container_stack()
-    return self.PER_THREAD.container
 
   def set_metrics_supported(self, supported):
-    self.set_container_stack()
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
-
-  def _old_style_container(self):
-    """Gets the current MetricsContainer based on the container stack.
-
-    The container stack is the old method, and will be deprecated. Should
-    rely on StateSampler instead."""
-    self.set_container_stack()
-    index = len(self.PER_THREAD.container) - 1
-    if index < 0:
-      return None
-    return self.PER_THREAD.container[index]
 
   def current_container(self):
     """Returns the current MetricsContainer."""
     sampler = statesampler.get_current_tracker()
     if sampler is None:
-      return self._old_style_container()
+      return None
     return sampler.current_state().metrics_container
 
 
@@ -233,26 +213,30 @@ class MetricsContainer(object):
          for k, v in self.gauges.items()]
     )
 
+  def to_runner_api_monitoring_infos(self, transform_id):
+    """Returns a list of MonitoringInfos for the metrics in this container."""
+    all_user_metrics = []
+    for k, v in self.counters.items():
+      all_user_metrics.append(monitoring_infos.int64_counter(
+          user_metric_urn(k.namespace, k.name),
+          v.to_runner_api_monitoring_info(),
+          ptransform=transform_id
+      ))
 
-class ScopedMetricsContainer(object):
+    for k, v in self.distributions.items():
+      all_user_metrics.append(monitoring_infos.int64_distribution(
+          user_metric_urn(k.namespace, k.name),
+          v.get_cumulative().to_runner_api_monitoring_info(),
+          ptransform=transform_id
+      ))
 
-  def __init__(self, container=None):
-    self._stack = MetricsEnvironment.container_stack()
-    self._container = container
-
-  def enter(self):
-    if self._container:
-      self._stack.append(self._container)
-
-  def exit(self):
-    if self._container:
-      self._stack.pop()
-
-  def __enter__(self):
-    self.enter()
-
-  def __exit__(self, type, value, traceback):
-    self.exit()
+    for k, v in self.gauges.items():
+      all_user_metrics.append(monitoring_infos.int64_gauge(
+          user_metric_urn(k.namespace, k.name),
+          v.get_cumulative().to_runner_api_monitoring_info(),
+          ptransform=transform_id
+      ))
+    return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
 
 
 class MetricUpdates(object):

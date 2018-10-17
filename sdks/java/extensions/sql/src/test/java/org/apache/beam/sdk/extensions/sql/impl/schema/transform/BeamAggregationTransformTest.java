@@ -24,17 +24,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -64,10 +66,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
   private Schema aggPartType;
   private Schema outputType;
 
-  private RowCoder inRecordCoder;
-  private RowCoder keyCoder;
-  private RowCoder aggCoder;
-  private RowCoder outRecordCoder;
+  private Coder<Row> inRecordCoder;
+  private Coder<Row> keyCoder;
+  private Coder<Row> aggCoder;
 
   /**
    * This step equals to below query.
@@ -132,7 +133,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
         aggregatedStream.apply(
             "mergeRecord",
             ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, -1)));
-    mergedStream.setCoder(outRecordCoder);
+    mergedStream.setRowSchema(outputType);
 
     // assert function BeamAggregationTransform.AggregationGroupByKeyFn
     PAssert.that(exGroupByStream).containsInAnyOrder(prepareResultOfAggregationGroupByKeyFn());
@@ -415,11 +416,14 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
   /** Coders used in aggregation steps. */
   private void prepareTypeAndCoder() {
-    inRecordCoder = inputSchema.getRowCoder();
+    inRecordCoder =
+        SchemaCoder.of(
+            inputSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     keyType = Schema.builder().addInt32Field("f_int").build();
 
-    keyCoder = keyType.getRowCoder();
+    keyCoder =
+        SchemaCoder.of(keyType, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     aggPartType =
         Schema.builder()
@@ -452,10 +456,11 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .addInt32Field("min8")
             .build();
 
-    aggCoder = aggPartType.getRowCoder();
+    aggCoder =
+        SchemaCoder.of(
+            aggPartType, SerializableFunctions.identity(), SerializableFunctions.identity());
 
     outputType = prepareFinalSchema();
-    outRecordCoder = outputType.getRowCoder();
   }
 
   /** expected results after {@link BeamAggregationTransforms.AggregationGroupByKeyFn}. */

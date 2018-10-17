@@ -21,11 +21,14 @@ package org.apache.beam.sdk.schemas;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import com.google.common.collect.ImmutableList;
@@ -43,6 +46,8 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.values.Row;
@@ -107,12 +112,12 @@ public class JavaFieldSchemaTest {
 
     assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString("str"));
-    assertEquals((byte) 1, row.getByte("aByte"));
-    assertEquals((short) 2, row.getInt16("aShort"));
-    assertEquals((int) 3, row.getInt32("anInt"));
-    assertEquals((long) 4, row.getInt64("aLong"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
     assertEquals(true, row.getBoolean("aBoolean"));
-    assertEquals(DATE, row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(INSTANT, row.getDateTime("instant").toInstant());
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
     assertArrayEquals(BYTE_BUFFER.array(), row.getBytes("byteBuffer"));
@@ -161,12 +166,12 @@ public class JavaFieldSchemaTest {
 
     Row nestedRow = row.getRow("nested");
     assertEquals("string", nestedRow.getString("str"));
-    assertEquals((byte) 1, nestedRow.getByte("aByte"));
-    assertEquals((short) 2, nestedRow.getInt16("aShort"));
-    assertEquals((int) 3, nestedRow.getInt32("anInt"));
-    assertEquals((long) 4, nestedRow.getInt64("aLong"));
+    assertEquals((byte) 1, (Object) nestedRow.getByte("aByte"));
+    assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
+    assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
+    assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
     assertEquals(true, nestedRow.getBoolean("aBoolean"));
-    assertEquals(DATE, nestedRow.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
     assertEquals(INSTANT, nestedRow.getDateTime("instant").toInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
     assertArrayEquals("not equal", BYTE_BUFFER.array(), nestedRow.getBytes("byteBuffer"));
@@ -340,5 +345,46 @@ public class JavaFieldSchemaTest {
     assertEquals("string1", pojo.map.get("simple1").str);
     assertEquals("string2", pojo.map.get("simple2").str);
     assertEquals("string3", pojo.map.get("simple3").str);
+  }
+
+  @Test
+  public void testNullValuesGetters() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    Row row =
+        registry.getToRowFunction(POJOWithNullables.class).apply(new POJOWithNullables(null, 42));
+    assertNull(row.getString("str"));
+    assertEquals(42, (Object) row.getInt32("anInt"));
+  }
+
+  @Test
+  public void testNullValuesSetters() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    Row row = Row.withSchema(NULLABLES_SCHEMA).addValues(null, 42).build();
+    POJOWithNullables pojo = registry.getFromRowFunction(POJOWithNullables.class).apply(row);
+    assertNull(pojo.str);
+    assertEquals(42, pojo.anInt);
+  }
+
+  @Test
+  public void testNestedNullValuesGetters() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    Row row =
+        registry
+            .getToRowFunction(POJOWithNestedNullable.class)
+            .apply(new POJOWithNestedNullable(null));
+    assertNull(row.getValue("nested"));
+  }
+
+  @Test
+  public void testNNestedullValuesSetters() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    Row row = Row.withSchema(NESTED_NULLABLE_SCHEMA).addValue(null).build();
+    POJOWithNestedNullable pojo =
+        registry.getFromRowFunction(POJOWithNestedNullable.class).apply(row);
+    assertNull(pojo.nested);
   }
 }

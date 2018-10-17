@@ -25,7 +25,7 @@ The Python SDK for Apache Beam provides a simple, powerful API for building batc
 
 Get started with the [Beam Python SDK quickstart]({{ site.baseurl }}/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide]({{ site.baseurl }}/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
 
-See the [Python API reference]({{ site.baseurl }}/documentation/sdks/pydoc/) for more information on individual APIs.
+See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more information on individual APIs.
 
 ## Python streaming pipelines
 

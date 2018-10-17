@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerat
 import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.joda.time.Instant;
 
 /** Generates bids. */
 public class BidGenerator {
@@ -66,6 +67,6 @@ public class BidGenerator {
     long price = PriceGenerator.nextPrice(random);
     int currentSize = 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgBidByteSize());
-    return new Bid(auction, bidder, price, timestamp, extra);
+    return new Bid(auction, bidder, price, new Instant(timestamp), extra);
   }
 }

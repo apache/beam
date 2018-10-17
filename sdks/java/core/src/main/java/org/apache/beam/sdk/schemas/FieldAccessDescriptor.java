@@ -106,7 +106,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
-    return builder().setFieldNamesAccessed(Sets.newHashSet(fieldNames)).build();
+    return builder().setFieldNamesAccessed(Sets.newTreeSet(fieldNames)).build();
   }
 
   /**
@@ -128,7 +128,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
-    return builder().setFieldIdsAccessed(Sets.newHashSet(ids)).build();
+    return builder().setFieldIdsAccessed(Sets.newTreeSet(ids)).build();
+  }
+
+  /** Return an empty {@link FieldAccessDescriptor}. */
+  public static FieldAccessDescriptor create() {
+    return builder().build();
   }
 
   /**
@@ -194,7 +199,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
-    Set<Integer> fieldIds = Sets.newHashSetWithExpectedSize(getFieldIdsAccessed().size());
+    Set<Integer> fieldIds = Sets.newTreeSet();
     for (int fieldId : getFieldIdsAccessed()) {
       fieldIds.add(validateFieldId(schema, fieldId));
     }
@@ -229,7 +234,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   private Map<Integer, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
-    Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newHashMap();
+    Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newTreeMap();
 
     nestedFields.putAll(
         getNestedFieldsAccessedByName()

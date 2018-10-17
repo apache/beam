@@ -36,8 +36,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.OutputDeduplicator.DeduplicationResult;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -59,22 +61,41 @@ public class OutputDeduplicatorTest {
      *              \-> two -> .out /
      */
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PTransform red =
+        PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
+            .putOutputs("out", redOut.getUniqueName())
+            .build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
     PTransform one =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", oneOut.getUniqueName())
             .build();
     PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
     PTransform two =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", twoOut.getUniqueName())
             .build();
     PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("one", oneOut.getUniqueName())
             .putInputs("two", twoOut.getUniqueName())
             .putOutputs("out", blueOut.getUniqueName())
@@ -97,6 +118,7 @@ public class OutputDeduplicatorTest {
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one)),
             ImmutableList.of(PipelineNode.pCollection(oneOut.getUniqueName(), oneOut)));
     ExecutableStage twoStage =
@@ -104,6 +126,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("two", two)),
@@ -143,22 +166,41 @@ public class OutputDeduplicatorTest {
      *             --> [two -> .out -> shared ->] .out:1 /
      */
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PTransform red =
+        PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
+            .putOutputs("out", redOut.getUniqueName())
+            .build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
     PTransform one =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", oneOut.getUniqueName())
             .build();
     PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
     PTransform two =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", twoOut.getUniqueName())
             .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("one", oneOut.getUniqueName())
             .putInputs("two", twoOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
@@ -166,6 +208,10 @@ public class OutputDeduplicatorTest {
     PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", sharedOut.getUniqueName())
             .putOutputs("out", blueOut.getUniqueName())
             .build();
@@ -189,6 +235,7 @@ public class OutputDeduplicatorTest {
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -197,6 +244,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(
@@ -263,16 +311,31 @@ public class OutputDeduplicatorTest {
      *             -----------------> shared:0 -> .out:1 /
      */
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PTransform red =
+        PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
+            .putOutputs("out", redOut.getUniqueName())
+            .build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
     PTransform one =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", oneOut.getUniqueName())
             .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("one", oneOut.getUniqueName())
             .putInputs("red", redOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
@@ -280,6 +343,10 @@ public class OutputDeduplicatorTest {
     PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", sharedOut.getUniqueName())
             .putOutputs("out", blueOut.getUniqueName())
             .build();
@@ -300,6 +367,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one), sharedTransform),
@@ -379,28 +447,51 @@ public class OutputDeduplicatorTest {
      *           [-> three -> .out -> otherShared -> .out:1] ---/
      */
     PCollection redOut = PCollection.newBuilder().setUniqueName("red.out").build();
-    PTransform red = PTransform.newBuilder().putOutputs("out", redOut.getUniqueName()).build();
+    PTransform red =
+        PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
+            .putOutputs("out", redOut.getUniqueName())
+            .build();
     PCollection threeOut = PCollection.newBuilder().setUniqueName("three.out").build();
     PTransform three =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", threeOut.getUniqueName())
             .build();
     PCollection oneOut = PCollection.newBuilder().setUniqueName("one.out").build();
     PTransform one =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", oneOut.getUniqueName())
             .build();
     PCollection twoOut = PCollection.newBuilder().setUniqueName("two.out").build();
     PTransform two =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", redOut.getUniqueName())
             .putOutputs("out", twoOut.getUniqueName())
             .build();
     PCollection sharedOut = PCollection.newBuilder().setUniqueName("shared.out").build();
     PTransform shared =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("one", oneOut.getUniqueName())
             .putInputs("two", twoOut.getUniqueName())
             .putOutputs("shared", sharedOut.getUniqueName())
@@ -408,6 +499,10 @@ public class OutputDeduplicatorTest {
     PCollection otherSharedOut = PCollection.newBuilder().setUniqueName("shared.out2").build();
     PTransform otherShared =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("multi", threeOut.getUniqueName())
             .putInputs("two", twoOut.getUniqueName())
             .putOutputs("out", otherSharedOut.getUniqueName())
@@ -415,6 +510,10 @@ public class OutputDeduplicatorTest {
     PCollection blueOut = PCollection.newBuilder().setUniqueName("blue.out").build();
     PTransform blue =
         PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .build())
             .putInputs("in", sharedOut.getUniqueName())
             .putOutputs("out", blueOut.getUniqueName())
             .build();
@@ -442,6 +541,7 @@ public class OutputDeduplicatorTest {
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("multi", three),
                 PipelineNode.pTransform("shared", shared),
@@ -456,6 +556,7 @@ public class OutputDeduplicatorTest {
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
             ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
@@ -464,6 +565,7 @@ public class OutputDeduplicatorTest {
             components,
             Environment.getDefaultInstance(),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(

@@ -60,8 +60,13 @@ class ElasticSearchIOTestUtils {
     deleteIndex(restClient, connectionConfiguration.getIndex());
   }
 
+  private static void closeIndex(RestClient restClient, String index) throws IOException {
+    restClient.performRequest("POST", String.format("/%s/_close", index));
+  }
+
   private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
+      closeIndex(restClient, index);
       restClient.performRequest("DELETE", String.format("/%s", index));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,

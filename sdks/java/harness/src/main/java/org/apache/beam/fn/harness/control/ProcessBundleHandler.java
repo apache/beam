@@ -29,6 +29,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -145,6 +146,7 @@ public class ProcessBundleHandler {
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      Set<String> processedPTransformIds,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
       BundleSplitListener splitListener)
@@ -154,10 +156,6 @@ public class ProcessBundleHandler {
     // Since we are creating the consumers first, we know that the we are building the DAG
     // in reverse topological order.
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
-      // If we have created the consumers for this PCollection we can skip it.
-      if (pCollectionIdsToConsumers.containsKey(pCollectionId)) {
-        continue;
-      }
 
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
@@ -168,6 +166,7 @@ public class ProcessBundleHandler {
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
+            processedPTransformIds,
             addStartFunction,
             addFinishFunction,
             splitListener);
@@ -185,23 +184,26 @@ public class ProcessBundleHandler {
           String.format(
               "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
     }
-
-    urnToPTransformRunnerFactoryMap
-        .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
-        .createRunnerForPTransform(
-            options,
-            beamFnDataClient,
-            beamFnStateClient,
-            pTransformId,
-            pTransform,
-            processBundleInstructionId,
-            processBundleDescriptor.getPcollectionsMap(),
-            processBundleDescriptor.getCodersMap(),
-            processBundleDescriptor.getWindowingStrategiesMap(),
-            pCollectionIdsToConsumers,
-            addStartFunction,
-            addFinishFunction,
-            splitListener);
+    // Skip reprocessing processed pTransforms.
+    if (!processedPTransformIds.contains(pTransformId)) {
+      urnToPTransformRunnerFactoryMap
+          .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
+          .createRunnerForPTransform(
+              options,
+              beamFnDataClient,
+              beamFnStateClient,
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              processBundleDescriptor.getPcollectionsMap(),
+              processBundleDescriptor.getCodersMap(),
+              processBundleDescriptor.getWindowingStrategiesMap(),
+              pCollectionIdsToConsumers,
+              addStartFunction,
+              addFinishFunction,
+              splitListener);
+      processedPTransformIds.add(pTransformId);
+    }
   }
 
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
@@ -213,6 +215,7 @@ public class ProcessBundleHandler {
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
         ArrayListMultimap.create();
+    HashSet<String> processedPTransformIds = new HashSet<>();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
@@ -271,6 +274,7 @@ public class ProcessBundleHandler {
             bundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
+            processedPTransformIds,
             startFunctions::add,
             finishFunctions::add,
             splitListener);
@@ -386,7 +390,7 @@ public class ProcessBundleHandler {
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {

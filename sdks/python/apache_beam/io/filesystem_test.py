@@ -23,21 +23,23 @@ from __future__ import division
 import bz2
 import gzip
 import logging
+import ntpath
 import os
+import posixpath
+import sys
 import tempfile
 import unittest
 from builtins import range
 from io import BytesIO
 
-from future import standard_library
 from future.utils import iteritems
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-
-standard_library.install_aliases()
 
 
 class TestingFileSystem(FileSystem):
@@ -92,6 +94,9 @@ class TestingFileSystem(FileSystem):
   def size(self, path):
     raise NotImplementedError
 
+  def last_updated(self, path):
+    raise NotImplementedError
+
   def checksum(self, path):
     raise NotImplementedError
 
@@ -109,8 +114,61 @@ class TestFileSystem(unittest.TestCase):
             for match_result in match_results
             for file_metadata in match_result.metadata_list]
 
-  def test_match_glob(self):
-    bucket_name = 'gcsio-test'
+  @parameterized.expand([
+      ('gs://gcsio-test/**', all),
+      # Does not match root-level files
+      ('gs://gcsio-test/**/*', lambda n, i: n not in ['cat.png']),
+      # Only matches root-level files
+      ('gs://gcsio-test/*', [
+          ('cat.png', 19)
+      ]),
+      ('gs://gcsio-test/cow/**', [
+          ('cow/cat/fish', 2),
+          ('cow/cat/blubber', 3),
+          ('cow/dog/blubber', 4),
+      ]),
+      ('gs://gcsio-test/cow/ca**', [
+          ('cow/cat/fish', 2),
+          ('cow/cat/blubber', 3),
+      ]),
+      ('gs://gcsio-test/apple/[df]ish/ca*', [
+          ('apple/fish/cat', 10),
+          ('apple/fish/cart', 11),
+          ('apple/fish/carl', 12),
+          ('apple/dish/cat', 14),
+          ('apple/dish/carl', 15),
+      ]),
+      ('gs://gcsio-test/apple/?ish/?a?', [
+          ('apple/fish/cat', 10),
+          ('apple/dish/bat', 13),
+          ('apple/dish/cat', 14),
+      ]),
+      ('gs://gcsio-test/apple/fish/car?', [
+          ('apple/fish/cart', 11),
+          ('apple/fish/carl', 12),
+      ]),
+      ('gs://gcsio-test/apple/fish/b*', [
+          ('apple/fish/blubber', 6),
+          ('apple/fish/blowfish', 7),
+          ('apple/fish/bambi', 8),
+          ('apple/fish/balloon', 9),
+      ]),
+      ('gs://gcsio-test/apple/f*/b*', [
+          ('apple/fish/blubber', 6),
+          ('apple/fish/blowfish', 7),
+          ('apple/fish/bambi', 8),
+          ('apple/fish/balloon', 9),
+      ]),
+      ('gs://gcsio-test/apple/dish/[cb]at', [
+          ('apple/dish/bat', 13),
+          ('apple/dish/cat', 14),
+      ]),
+      ('gs://gcsio-test/banana/cyrano.m?', [
+          ('banana/cyrano.md', 17),
+          ('banana/cyrano.mb', 18),
+      ]),
+  ])
+  def test_match_glob(self, file_pattern, expected_object_names):
     objects = [
         ('cow/cat/fish', 2),
         ('cow/cat/blubber', 3),
@@ -126,66 +184,69 @@ class TestFileSystem(unittest.TestCase):
         ('apple/dish/bat', 13),
         ('apple/dish/cat', 14),
         ('apple/dish/carl', 15),
+        ('banana/cat', 16),
+        ('banana/cyrano.md', 17),
+        ('banana/cyrano.mb', 18),
+        ('cat.png', 19)
     ]
-    for (object_name, size) in objects:
+    bucket_name = 'gcsio-test'
+
+    if callable(expected_object_names):
+      # A hack around the fact that the parameters do not have access to
+      # the "objects" list.
+
+      if expected_object_names is all:
+        # It's a placeholder for "all" objects
+        expected_object_names = objects
+      else:
+        # It's a filter function of type (str, int) -> bool
+        # that returns true for expected objects
+        filter_func = expected_object_names
+        expected_object_names = [
+            (short_path, size) for short_path, size in objects
+            if filter_func(short_path, size)
+        ]
+
+    for object_name, size in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self.fs._insert_random_file(file_name, size)
-    test_cases = [
-        ('gs://*', objects),
-        ('gs://gcsio-test/*', objects),
-        ('gs://gcsio-test/cow/*', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-            ('cow/dog/blubber', 4),
-        ]),
-        ('gs://gcsio-test/cow/ca*', [
-            ('cow/cat/fish', 2),
-            ('cow/cat/blubber', 3),
-        ]),
-        ('gs://gcsio-test/apple/[df]ish/ca*', [
-            ('apple/fish/cat', 10),
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-            ('apple/dish/cat', 14),
-            ('apple/dish/carl', 15),
-        ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-        ('gs://gcsio-test/apple/fish/b*', [
-            ('apple/fish/blubber', 6),
-            ('apple/fish/blowfish', 7),
-            ('apple/fish/bambi', 8),
-            ('apple/fish/balloon', 9),
-        ]),
-        ('gs://gcsio-test/apple/f*/b*', [
-            ('apple/fish/blubber', 6),
-            ('apple/fish/blowfish', 7),
-            ('apple/fish/bambi', 8),
-            ('apple/fish/balloon', 9),
-        ]),
-        ('gs://gcsio-test/apple/dish/[cb]at', [
-            ('apple/dish/bat', 13),
-            ('apple/dish/cat', 14),
-        ]),
+
+    expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
+                           for object_name, size in expected_object_names]
+    actual_file_names = [
+        (file_metadata.path, file_metadata.size_in_bytes)
+        for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
     ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                             for (object_name, size) in expected_object_names]
-      self.assertEqual(
-          set([(file_metadata.path, file_metadata.size_in_bytes)
-               for file_metadata in
-               self._flatten_match(self.fs.match([file_pattern]))]),
-          set(expected_file_names))
+
+    self.assertEqual(set(actual_file_names), set(expected_file_names))
 
     # Check if limits are followed correctly
     limit = 3
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self._flatten_match(self.fs.match([file_pattern], [limit]))),
-          expected_num_items)
+    expected_num_items = min(len(expected_object_names), limit)
+    self.assertEqual(
+        len(self._flatten_match(self.fs.match([file_pattern], [limit]))),
+        expected_num_items)
+
+  @parameterized.expand([
+      param(os_path=posixpath, sep_re='\\/'),
+      param(os_path=ntpath, sep_re='\\\\'),
+  ])
+  def test_translate_pattern(self, os_path, sep_re):
+    star = r'[^/\\]*'
+    double_star = r'.*'
+    join = os_path.join
+
+    sep = os_path.sep
+    pattern__expected = [
+        (join('a', '*'), sep_re.join(['a', star])),
+        (join('b', '*') + sep, sep_re.join(['b', star]) + sep_re),
+        (r'*[abc\]', star + r'[abc\\]'),
+        (join('d', '**', '*'), sep_re.join(['d', double_star, star])),
+    ]
+    for pattern, expected in pattern__expected:
+      expected += r'\Z(?ms)'
+      result = self.fs.translate_pattern(pattern)
+      self.assertEqual(result, expected)
 
 
 class TestFileSystemWithDirs(TestFileSystem):
@@ -227,6 +288,10 @@ atomized in instants hammered around the
     self._tempfiles.append(path)
     return path
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def _create_compressed_file(self, compression_type, content):
     file_name = self._create_temp_file()
 
@@ -367,6 +432,10 @@ atomized in instants hammered around the
 
         self.assertEqual(first_pass, second_pass)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_tell(self):
     lines = ['line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()

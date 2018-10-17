@@ -68,18 +68,20 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
-      return input.apply(
-          "decodeRecord",
-          ParDo.of(
-              new DoFn<KV<byte[], byte[]>, Row>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  String rowInString = new String(c.element().getValue(), UTF_8);
-                  for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
-                    c.output(row);
-                  }
-                }
-              }));
+      return input
+          .apply(
+              "decodeRecord",
+              ParDo.of(
+                  new DoFn<KV<byte[], byte[]>, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      String rowInString = new String(c.element().getValue(), UTF_8);
+                      for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
+                        c.output(row);
+                      }
+                    }
+                  }))
+          .setRowSchema(schema);
     }
   }
 

@@ -107,6 +107,20 @@ import org.slf4j.LoggerFactory;
  *         .withFilter(filter));
  * }</pre>
  *
+ * <p>{@link HBaseIO#readAll()} allows to execute multiple {@link Scan}s to multiple {@link Table}s.
+ * These queries are encapsulated via an initial {@link PCollection} of {@link HBaseQuery}s and can
+ * be used to create advanced compositional patterns like reading from a Source and then based on
+ * the data create new HBase scans.
+ *
+ * <p><b>Note:</b> {@link HBaseIO.ReadAll} only works with <a
+ * href="https://beam.apache.org/documentation/runners/capability-matrix/">runners that support
+ * Splittable DoFn</a>.
+ *
+ * <pre>{@code
+ * PCollection<HBaseQuery> queries = ...;
+ * queries.apply("readAll", HBaseIO.readAll().withConfiguration(configuration));
+ * }</pre>
+ *
  * <h3>Writing to HBase</h3>
  *
  * <p>The HBase sink executes a set of row mutations on a single table. It takes as input a {@link
@@ -145,7 +159,6 @@ public class HBaseIO {
    * and a {@link HBaseIO.Read#withTableId tableId} that specifies which table to read. A {@link
    * Filter} may also optionally be specified using {@link HBaseIO.Read#withFilter}.
    */
-  @Experimental
   public static Read read() {
     return new Read(null, "", new SerializableScan(new Scan()));
   }
@@ -219,11 +232,9 @@ public class HBaseIO {
       } catch (IOException e) {
         LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
       }
-      return input
-          .getPipeline()
-          .apply(
-              org.apache.beam.sdk.io.Read.from(
-                  new HBaseSource(this, null /* estimatedSizeBytes */)));
+
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(new HBaseSource(this, null /* estimatedSizeBytes */)));
     }
 
     @Override
@@ -234,12 +245,16 @@ public class HBaseIO {
       builder.addIfNotNull(DisplayData.item("scan", serializableScan.get().toString()));
     }
 
+    public Configuration getConfiguration() {
+      return serializableConfiguration.get();
+    }
+
     public String getTableId() {
       return tableId;
     }
 
-    public Configuration getConfiguration() {
-      return serializableConfiguration.get();
+    public Scan getScan() {
+      return serializableScan.get();
     }
 
     /** Returns the range of keys that will be read from the table. */
@@ -252,6 +267,36 @@ public class HBaseIO {
     private final SerializableConfiguration serializableConfiguration;
     private final String tableId;
     private final SerializableScan serializableScan;
+  }
+
+  /**
+   * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
+   * {@link PCollection} of {@link HBaseQuery}.
+   */
+  public static ReadAll readAll() {
+    return new ReadAll(null);
+  }
+
+  /** Implementation of {@link #readAll}. */
+  public static class ReadAll extends PTransform<PCollection<HBaseQuery>, PCollection<Result>> {
+
+    private ReadAll(SerializableConfiguration serializableConfiguration) {
+      this.serializableConfiguration = serializableConfiguration;
+    }
+
+    /** Reads from the HBase instance indicated by the* given configuration. */
+    public ReadAll withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return new ReadAll(new SerializableConfiguration(configuration));
+    }
+
+    @Override
+    public PCollection<Result> expand(PCollection<HBaseQuery> input) {
+      checkArgument(serializableConfiguration != null, "withConfiguration() is required");
+      return input.apply(ParDo.of(new HBaseReadSplittableDoFn(serializableConfiguration)));
+    }
+
+    private SerializableConfiguration serializableConfiguration;
   }
 
   static class HBaseSource extends BoundedSource<Result> {

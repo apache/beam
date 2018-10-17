@@ -132,10 +132,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "linesToRows",
-          MapElements.into(TypeDescriptors.rows())
-              .via(s -> Row.withSchema(SCHEMA).addValue(s).build()));
+      return input
+          .apply(
+              "linesToRows",
+              MapElements.into(TypeDescriptors.rows())
+                  .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
+          .setRowSchema(SCHEMA);
     }
   }
 
@@ -183,10 +185,12 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public PCollection<Row> expand(PCollection<String> input) {
-      return input.apply(
-          "csvToRow",
-          FlatMapElements.into(TypeDescriptors.rows())
-              .via(s -> csvLines2BeamRows(csvFormat, s, schema)));
+      return input
+          .apply(
+              "csvToRow",
+              FlatMapElements.into(TypeDescriptors.rows())
+                  .via(s -> csvLines2BeamRows(csvFormat, s, schema)))
+          .setRowSchema(schema);
     }
   }
 }

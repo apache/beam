@@ -29,28 +29,48 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_MAP_BEAN
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithBoxedFields;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithByteArray;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedCollectionBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.joda.time.DateTime;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Tests for the {@link JavaBeanUtils} class. */
 public class JavaBeanUtilsTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testNullable() {
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NullableBean.class);
+    assertTrue(schema.getField("str").getNullable());
+    assertFalse(schema.getField("anInt").getNullable());
+  }
+
+  @Test
+  public void testMismatchingNullable() {
+    thrown.expect(RuntimeException.class);
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(MismatchingNullableBean.class);
+  }
 
   @Test
   public void testSimpleBean() {
@@ -120,8 +140,8 @@ public class JavaBeanUtilsTest {
     assertEquals((int) 43, getters.get(3).get(simpleBean));
     assertEquals((long) 44, getters.get(4).get(simpleBean));
     assertEquals(true, getters.get(5).get(simpleBean));
-    assertEquals(DateTime.parse("1979-03-14"), getters.get(6).get(simpleBean));
-    assertEquals(DateTime.parse("1979-03-15"), getters.get(7).get(simpleBean));
+    assertEquals(DateTime.parse("1979-03-14").toInstant(), getters.get(6).get(simpleBean));
+    assertEquals(DateTime.parse("1979-03-15").toInstant(), getters.get(7).get(simpleBean));
     assertArrayEquals(
         "Unexpected bytes",
         "bytes1".getBytes(Charset.defaultCharset()),
@@ -146,8 +166,8 @@ public class JavaBeanUtilsTest {
     setters.get(3).set(simpleBean, (int) 43);
     setters.get(4).set(simpleBean, (long) 44);
     setters.get(5).set(simpleBean, true);
-    setters.get(6).set(simpleBean, DateTime.parse("1979-03-14"));
-    setters.get(7).set(simpleBean, DateTime.parse("1979-03-15"));
+    setters.get(6).set(simpleBean, DateTime.parse("1979-03-14").toInstant());
+    setters.get(7).set(simpleBean, DateTime.parse("1979-03-15").toInstant());
     setters.get(8).set(simpleBean, "bytes1".getBytes(Charset.defaultCharset()));
     setters.get(9).set(simpleBean, "bytes2".getBytes(Charset.defaultCharset()));
     setters.get(10).set(simpleBean, new BigDecimal(42));

@@ -86,6 +86,41 @@ public class ServerFactoryTest {
     assertThat(descriptorBuilder.getUrl(), is("foo"));
   }
 
+  @Test
+  public void defaultServerWithPortSupplier() throws Exception {
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        runTestUsing(
+            ServerFactory.createWithPortSupplier(() -> 65535),
+            ManagedChannelFactory.createDefault());
+    HostAndPort hostAndPort = HostAndPort.fromString(apiServiceDescriptor.getUrl());
+    assertThat(
+        hostAndPort.getHost(),
+        anyOf(
+            equalTo(InetAddress.getLoopbackAddress().getHostName()),
+            equalTo(InetAddress.getLoopbackAddress().getHostAddress())));
+    assertThat(hostAndPort.getPort(), is(65535));
+  }
+
+  @Test
+  public void urlFactoryWithPortSupplier() throws Exception {
+    ServerFactory serverFactory =
+        ServerFactory.createWithUrlFactoryAndPortSupplier(
+            (host, port) -> "foo" + ":" + port, () -> 65535);
+    CallStreamObserver<Elements> observer =
+        TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
+    TestDataService service = new TestDataService(observer);
+    ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
+    Server server = null;
+    try {
+      server = serverFactory.allocatePortAndCreate(service, descriptorBuilder);
+      assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
+    } finally {
+      if (server != null) {
+        server.shutdown();
+      }
+    }
+  }
+
   private Endpoints.ApiServiceDescriptor runTestUsing(
       ServerFactory serverFactory, ManagedChannelFactory channelFactory) throws Exception {
     Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptorBuilder =

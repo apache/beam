@@ -121,6 +121,15 @@ public class DoFnSignatures {
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class);
 
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.WindowParameter.class,
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
+              Parameter.StateParameter.class);
+
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
@@ -336,7 +345,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.FinishBundle.class, fnClass, false);
     Method setupMethod = findAnnotatedMethod(errors, DoFn.Setup.class, fnClass, false);
     Method teardownMethod = findAnnotatedMethod(errors, DoFn.Teardown.class, fnClass, false);
-
+    Method onWindowExpirationMethod =
+        findAnnotatedMethod(errors, DoFn.OnWindowExpiration.class, fnClass, false);
     Method getInitialRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
@@ -410,6 +420,12 @@ public class DoFnSignatures {
       signatureBuilder.setTeardown(
           analyzeLifecycleMethod(
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
+    }
+
+    if (onWindowExpirationMethod != null) {
+      signatureBuilder.setOnWindowExpiration(
+          analyzeOnWindowExpirationMethod(
+              errors, fnT, onWindowExpirationMethod, inputT, outputT, fnContext));
     }
 
     ErrorReporter getInitialRestrictionErrors;
@@ -737,6 +753,50 @@ public class DoFnSignatures {
 
     return DoFnSignature.OnTimerMethod.create(
         m, timerId, requiresStableInput, windowT, extraParameters);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.OnWindowExpirationMethod analyzeOnWindowExpirationMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    Type[] params = m.getGenericParameterTypes();
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
+
+    @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+
+    List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
+    ErrorReporter onWindowExpirationErrors = errors.forMethod(DoFn.OnWindowExpiration.class, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter parameter =
+          analyzeExtraParameter(
+              onWindowExpirationErrors,
+              fnContext,
+              methodContext,
+              fnClass,
+              ParameterDescription.of(
+                  m,
+                  i,
+                  fnClass.resolveType(params[i]),
+                  Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      checkParameterOneOf(errors, parameter, ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS);
+
+      extraParameters.add(parameter);
+    }
+
+    return DoFnSignature.OnWindowExpirationMethod.create(
+        m, requiresStableInput, windowT, extraParameters);
   }
 
   @VisibleForTesting

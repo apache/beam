@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpre
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -47,7 +48,18 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return getOperands().size() == 1 && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
+    if (getOperands().size() != 1) {
+      return false;
+    }
+
+    // Interval types will be already converted into BIGINT after evaluation.
+    SqlTypeFamily opTypeFamily = opType(0).getFamily();
+    if (opTypeFamily.equals(SqlTypeFamily.INTERVAL_DAY_TIME)
+        || opTypeFamily.equals(SqlTypeFamily.INTERVAL_YEAR_MONTH)) {
+      return true;
+    }
+
+    return REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
   @Override

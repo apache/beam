@@ -151,7 +151,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     return actualChecksum;
   }
 
-  private String computeHash(@Nonnull List<String> strs) {
+  private static String computeHash(@Nonnull List<String> strs) {
     if (strs.isEmpty()) {
       return Hashing.sha1().hashString("", StandardCharsets.UTF_8).toString();
     }

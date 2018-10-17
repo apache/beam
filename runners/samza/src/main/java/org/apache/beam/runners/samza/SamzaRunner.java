@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
-import org.apache.samza.config.MapConfig;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.operators.ContextManager;
 import org.apache.samza.operators.StreamGraph;
@@ -76,20 +75,18 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     // Add a dummy source for use in special cases (TestStream, empty flatten)
     final PValue dummySource = pipeline.apply("Dummy Input Source", Create.of("dummy"));
-
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-    final Map<String, String> config = ConfigBuilder.buildConfig(pipeline, options, idMap);
+
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(pipeline, idMap, configBuilder);
+    final ApplicationRunner runner = ApplicationRunner.fromConfig(configBuilder.build());
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext();
-
-    final ApplicationRunner runner = ApplicationRunner.fromConfig(new MapConfig(config));
 
     final StreamApplication app =
         new StreamApplication() {
           @Override
           public void init(StreamGraph streamGraph, Config config) {
-            // TODO: we should probably not be creating the execution context this early since it needs
-            // to be shipped off to various tasks.
             streamGraph.withContextManager(
                 new ContextManager() {
                   @Override

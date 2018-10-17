@@ -69,14 +69,53 @@ type ctxKey string
 const bundleKey ctxKey = "beam:bundle"
 const ptransformKey ctxKey = "beam:ptransform"
 
+// beamCtx is a caching context for IDs necessary to place metric updates.
+//  Allocating contexts and searching for PTransformIDs for every element
+// is expensive, so we avoid it if possible.
+type beamCtx struct {
+	context.Context
+	bundleID, ptransformID string
+}
+
+// Value lifts the beam contLift the keys value for faster lookups when not available.
+func (ctx *beamCtx) Value(key interface{}) interface{} {
+	switch key {
+	case bundleKey:
+		if ctx.bundleID == "" {
+			if id := ctx.Value(key); id != nil {
+				ctx.bundleID = id.(string)
+			}
+		}
+		return ctx.bundleID
+	case ptransformKey:
+		if ctx.ptransformID == "" {
+			if id := ctx.Value(key); id != nil {
+				ctx.ptransformID = id.(string)
+			}
+		}
+		return ctx.ptransformID
+	}
+	return ctx.Context.Value(key)
+}
+
 // SetBundleID sets the id of the current Bundle.
 func SetBundleID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, bundleKey, id)
+	// Checking for *beamCtx is an optimization, so we don't dig deeply
+	// for ids if not necessary.
+	if bctx, ok := ctx.(*beamCtx); ok {
+		return &beamCtx{Context: bctx.Context, bundleID: id, ptransformID: bctx.ptransformID}
+	}
+	return &beamCtx{Context: ctx, bundleID: id}
 }
 
 // SetPTransformID sets the id of the current PTransform.
 func SetPTransformID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, ptransformKey, id)
+	// Checking for *beamCtx is an optimization, so we don't dig deeply
+	// for ids if not necessary.
+	if bctx, ok := ctx.(*beamCtx); ok {
+		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, ptransformID: id}
+	}
+	return &beamCtx{Context: ctx, ptransformID: id}
 }
 
 func getContextKey(ctx context.Context, n name) key {
@@ -130,12 +169,12 @@ var (
 	// simplifies code understanding, since each only contains a single type of
 	// cell.
 
-	// counters is a map[key]*counter
-	counters = sync.Map{}
-	// distributions is a map[key]*distribution
-	distributions = sync.Map{}
-	// gauges is a map[key]*gauge
-	gauges = sync.Map{}
+	countersMu      sync.RWMutex
+	counters        = make(map[key]*counter)
+	distributionsMu sync.RWMutex
+	distributions   = make(map[key]*distribution)
+	gaugesMu        sync.RWMutex
+	gauges          = make(map[key]*gauge)
 )
 
 // TODO(lostluck): 2018/03/05 Use a common internal beam now() instead, once that exists.
@@ -144,37 +183,54 @@ var now = time.Now
 // Counter is a simple counter for incrementing and decrementing a value.
 type Counter struct {
 	name name
+	// The following are a fast cache of the key and storage
+	mu sync.Mutex
+	k  key
+	c  *counter
 }
 
-func (m Counter) String() string {
+func (m *Counter) String() string {
 	return fmt.Sprintf("Counter metric %s", m.name)
 }
 
 // NewCounter returns the Counter with the given namespace and name.
-func NewCounter(ns, n string) Counter {
+func NewCounter(ns, n string) *Counter {
 	mn := newName(ns, n)
-	return Counter{
+	return &Counter{
 		name: mn,
 	}
 }
 
 // Inc increments the counter within the given PTransform context by v.
-func (m Counter) Inc(ctx context.Context, v int64) {
+func (m *Counter) Inc(ctx context.Context, v int64) {
 	key := getContextKey(ctx, m.name)
 	cs := &counter{
 		value: v,
 	}
-	if m, loaded := counters.LoadOrStore(key, cs); loaded {
-		c := m.(*counter)
-		c.inc(v)
-	} else {
-		c := m.(*counter)
-		storeMetric(key, c)
+	m.mu.Lock()
+	if m.k == key {
+		m.c.inc(v)
+		m.mu.Unlock()
+		return
 	}
+	m.k = key
+	countersMu.Lock()
+	if c, loaded := counters[key]; loaded {
+		m.c = c
+		countersMu.Unlock()
+		m.mu.Unlock()
+		c.inc(v)
+		return
+	}
+	m.c = cs
+	counters[key] = cs
+	countersMu.Unlock()
+	m.mu.Unlock()
+	storeMetric(key, cs)
 }
 
 // Dec decrements the counter within the given PTransform context by v.
-func (m Counter) Dec(ctx context.Context, v int64) {
+func (m *Counter) Dec(ctx context.Context, v int64) {
 	m.Inc(ctx, -v)
 }
 
@@ -211,22 +267,27 @@ func (m *counter) toProto() *fnexecution_v1.Metrics_User {
 // Distribution is a simple distribution of values.
 type Distribution struct {
 	name name
+
+	// The following are a fast cache of the key and storage
+	mu sync.Mutex
+	k  key
+	d  *distribution
 }
 
-func (m Distribution) String() string {
+func (m *Distribution) String() string {
 	return fmt.Sprintf("Distribution metric %s", m.name)
 }
 
 // NewDistribution returns the Distribution with the given namespace and name.
-func NewDistribution(ns, n string) Distribution {
+func NewDistribution(ns, n string) *Distribution {
 	mn := newName(ns, n)
-	return Distribution{
+	return &Distribution{
 		name: mn,
 	}
 }
 
 // Update updates the distribution within the given PTransform context with v.
-func (m Distribution) Update(ctx context.Context, v int64) {
+func (m *Distribution) Update(ctx context.Context, v int64) {
 	key := getContextKey(ctx, m.name)
 	ds := &distribution{
 		count: 1,
@@ -234,13 +295,26 @@ func (m Distribution) Update(ctx context.Context, v int64) {
 		min:   v,
 		max:   v,
 	}
-	if m, loaded := distributions.LoadOrStore(key, ds); loaded {
-		d := m.(*distribution)
-		d.update(v)
-	} else {
-		d := m.(*distribution)
-		storeMetric(key, d)
+	m.mu.Lock()
+	if m.k == key {
+		m.d.update(v)
+		m.mu.Unlock()
+		return
 	}
+	m.k = key
+	distributionsMu.Lock()
+	if d, loaded := distributions[key]; loaded {
+		m.d = d
+		distributionsMu.Unlock()
+		m.mu.Unlock()
+		d.update(v)
+		return
+	}
+	m.d = ds
+	distributions[key] = ds
+	distributionsMu.Unlock()
+	m.mu.Unlock()
+	storeMetric(key, ds)
 }
 
 // distribution is a metric cell for distribution values.
@@ -286,37 +360,57 @@ func (m *distribution) toProto() *fnexecution_v1.Metrics_User {
 // Gauge is a time, value pair metric.
 type Gauge struct {
 	name name
+
+	// The following are a fast cache of the key and storage
+	mu sync.Mutex
+	k  key
+	g  *gauge
 }
 
-func (m Gauge) String() string {
+func (m *Gauge) String() string {
 	return fmt.Sprintf("Guage metric %s", m.name)
 }
 
 // NewGauge returns the Gauge with the given namespace and name.
-func NewGauge(ns, n string) Gauge {
+func NewGauge(ns, n string) *Gauge {
 	mn := newName(ns, n)
-	return Gauge{
+	return &Gauge{
 		name: mn,
 	}
 }
 
 // Set sets the gauge to the given value, and associates it with the current time on the clock.
-func (m Gauge) Set(ctx context.Context, v int64) {
+func (m *Gauge) Set(ctx context.Context, v int64) {
 	key := getContextKey(ctx, m.name)
 	gs := &gauge{
 		t: now(),
 		v: v,
 	}
-	if m, loaded := gauges.LoadOrStore(key, gs); loaded {
-		g := m.(*gauge)
-		g.set(v)
-	} else {
-		g := m.(*gauge)
-		storeMetric(key, g)
+	m.mu.Lock()
+	if m.k == key {
+		m.g.set(v)
+		m.mu.Unlock()
+		return
 	}
+	m.k = key
+	gaugesMu.Lock()
+	if g, loaded := gauges[key]; loaded {
+		m.g = g
+		gaugesMu.Unlock()
+		m.mu.Unlock()
+		g.set(v)
+		return
+	}
+	m.g = gs
+	gauges[key] = gs
+	gaugesMu.Unlock()
+	m.mu.Unlock()
+	storeMetric(key, gs)
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.
+// In the event of a name collision, storeMetric can panic, so it's prudent to release
+// locks if they are no longer required.
 func storeMetric(key key, m userMetric) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -402,6 +496,12 @@ func DumpToOut() {
 func dumpTo(p func(format string, args ...interface{})) {
 	mu.RLock()
 	defer mu.RUnlock()
+	countersMu.RLock()
+	defer countersMu.RUnlock()
+	distributionsMu.RLock()
+	defer distributionsMu.RUnlock()
+	gaugesMu.RLock()
+	defer gaugesMu.RUnlock()
 	var bs []string
 	for b := range store {
 		bs = append(bs, b)
@@ -430,13 +530,13 @@ func dumpTo(p func(format string, args ...interface{})) {
 			p("Bundle: %q - PTransformID: %q", b, pt)
 			for _, n := range ns {
 				key := key{name: n, bundle: b, ptransform: pt}
-				if m, ok := counters.Load(key); ok {
+				if m, ok := counters[key]; ok {
 					p("\t%s - %s", key.name, m)
 				}
-				if m, ok := distributions.Load(key); ok {
+				if m, ok := distributions[key]; ok {
 					p("\t%s - %s", key.name, m)
 				}
-				if m, ok := gauges.Load(key); ok {
+				if m, ok := gauges[key]; ok {
 					p("\t%s - %s", key.name, m)
 				}
 			}
@@ -449,9 +549,9 @@ func dumpTo(p func(format string, args ...interface{})) {
 func Clear() {
 	mu.Lock()
 	store = make(map[string]map[string]map[name]userMetric)
-	counters = sync.Map{}
-	distributions = sync.Map{}
-	gauges = sync.Map{}
+	counters = make(map[key]*counter)
+	distributions = make(map[key]*distribution)
+	gauges = make(map[key]*gauge)
 	mu.Unlock()
 }
 
@@ -462,14 +562,20 @@ func ClearBundleData(b string) {
 	// and the metric cell sync.Maps are goroutine safe.
 	mu.Lock()
 	pts := store[b]
+	countersMu.Lock()
+	distributionsMu.Lock()
+	gaugesMu.Lock()
 	for pt, m := range pts {
 		for n := range m {
 			key := key{name: n, bundle: b, ptransform: pt}
-			counters.Delete(key)
-			distributions.Delete(key)
-			gauges.Delete(key)
+			delete(counters, key)
+			delete(distributions, key)
+			delete(gauges, key)
 		}
 	}
+	countersMu.Unlock()
+	distributionsMu.Unlock()
+	gaugesMu.Unlock()
 	delete(store, b)
 	mu.Unlock()
 }

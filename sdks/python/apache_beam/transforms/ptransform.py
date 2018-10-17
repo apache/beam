@@ -43,6 +43,9 @@ import operator
 import os
 import sys
 import threading
+from builtins import hex
+from builtins import object
+from builtins import zip
 from functools import reduce
 
 from google.protobuf import message
@@ -547,6 +550,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         urn=urn,
         payload=typed_param.SerializeToString()
         if isinstance(typed_param, message.Message)
+        else typed_param.encode('utf-8') if isinstance(typed_param, str)
         else typed_param)
 
   @classmethod
@@ -622,7 +626,7 @@ class PTransformWithSideInputs(PTransform):
     super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
+        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '

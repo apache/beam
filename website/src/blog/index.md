@@ -26,7 +26,9 @@ for the project.
 {% assign authors = post.authors %}
 
 ### <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-<i>{{ post.date | date: "%b %-d, %Y" }}{% if authors %} • {% include authors-list.md %}{% endif %}</i>
+<i>{{ post.date | date: "%b %-d, %Y" }}{% if authors %} •
+{% assign count = authors | size %}{% for name in authors %}{% if forloop.first == false and count > 2 %},{% endif %}{% if forloop.last and count > 1 %} &amp;{% endif %}{% assign author = site.data.authors[name] %} {{ author.name }} {% if author.twitter %}[<a href="https://twitter.com/{{ author.twitter }}">@{{ author.twitter }}</a>]{% endif %}{% endfor %}
+{% endif %}</i>
 
 {{ post.excerpt }}
 

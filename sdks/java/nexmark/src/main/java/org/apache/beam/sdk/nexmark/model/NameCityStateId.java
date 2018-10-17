@@ -30,8 +30,11 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 
 /** Result of Query3. */
+@DefaultSchema(JavaFieldSchema.class)
 public class NameCityStateId implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
@@ -65,17 +68,17 @@ public class NameCityStateId implements KnownSize, Serializable {
         }
       };
 
-  @JsonProperty public final String name;
+  @JsonProperty public String name;
 
-  @JsonProperty public final String city;
+  @JsonProperty public String city;
 
-  @JsonProperty public final String state;
+  @JsonProperty public String state;
 
-  @JsonProperty public final long id;
+  @JsonProperty public long id;
 
   // For Avro only.
   @SuppressWarnings("unused")
-  private NameCityStateId() {
+  public NameCityStateId() {
     name = null;
     city = null;
     state = null;

@@ -76,8 +76,9 @@ def InjectorThread = Thread.start() {
   t.run(mobileGamingCommands.createInjectorCommand())
 }
 
+jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
 def LeaderBoardThread = Thread.start() {
-  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner))
+  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 }
 
 t.run("gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1")
@@ -101,7 +102,7 @@ while((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXEC
 }
 InjectorThread.stop()
 LeaderBoardThread.stop()
-t.run("gcloud dataflow jobs cancel \$(gcloud dataflow jobs list | grep leaderboard-jenkins | grep Running | cut -d' ' -f1)")
+t.run("gcloud dataflow jobs cancel \$(gcloud dataflow jobs list | grep ${jobName} | grep Running | cut -d' ' -f1)")
 
 if(!isSuccess){
   t.error("FAILED: Failed running LeaderBoard on DataflowRunner")

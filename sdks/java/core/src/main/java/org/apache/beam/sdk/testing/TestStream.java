@@ -29,11 +29,15 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -59,6 +63,13 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
    */
   public static <T> Builder<T> create(Coder<T> coder) {
     return new Builder<>(coder);
+  }
+
+  public static <T> Builder<T> create(
+      Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) {
+    return create(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
   }
 
   private TestStream(Coder<T> coder, List<Event<T>> events) {

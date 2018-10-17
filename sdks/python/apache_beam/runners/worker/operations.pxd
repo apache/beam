@@ -20,8 +20,7 @@ cimport cython
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
-
+#from libcpp.string cimport string
 
 cdef WindowedValue _globally_windowed_value
 cdef type _global_window_type
@@ -46,7 +45,6 @@ cdef class Operation(object):
   cdef object consumers
   cdef readonly counter_factory
   cdef public metrics_container
-  cdef public ScopedMetricsContainer scoped_metrics_container
   # Public for access by Fn harness operations.
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
@@ -64,7 +62,10 @@ cdef class Operation(object):
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
-  cpdef progress_metrics(self)
+  cpdef execution_time_monitoring_infos(self, transform_id)
+  cpdef user_monitoring_infos(self, transform_id)
+  cpdef element_count_monitoring_infos(self, transform_id)
+  cpdef monitoring_infos(self, transform_id)
 
 
 cdef class ReadOperation(Operation):
@@ -72,11 +73,20 @@ cdef class ReadOperation(Operation):
   cpdef start(self)
 
 
+cdef class ImpulseReadOperation(Operation):
+  cdef object source
+  @cython.locals(windowed_value=WindowedValue)
+  cpdef process(self, WindowedValue impulse)
+
+
 cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
   cdef object tagged_receivers
   cdef object side_input_maps
+  cdef object user_state_context
+  cdef public dict timer_inputs
+  cdef dict timer_specs
 
 
 cdef class CombineOperation(Operation):

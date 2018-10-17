@@ -33,6 +33,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.Unbounded
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -53,22 +54,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link UnboundedSourceWrapper}. */
 public class UnboundedSourceWrapperTest {
 
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapperTest.class);
+
   /** Parameterized tests. */
   @RunWith(Parameterized.class)
-  public static class UnboundedSourceWrapperTestWithParams {
+  public static class ParameterizedUnboundedSourceWrapperTest {
     private final int numTasks;
     private final int numSplits;
 
-    public UnboundedSourceWrapperTestWithParams(int numTasks, int numSplits) {
+    public ParameterizedUnboundedSourceWrapperTest(int numTasks, int numSplits) {
       this.numTasks = numTasks;
       this.numSplits = numSplits;
     }
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "numTasks = {0}; numSplits={1}")
     public static Collection<Object[]> data() {
       /*
        * Parameters for initializing the tests:
@@ -87,77 +92,115 @@ public class UnboundedSourceWrapperTest {
      * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
      * numSplits > numTasks the source has one source will manage multiple readers.
      */
-    @Test
+    @Test(timeout = 30_000)
     public void testValueEmission() throws Exception {
-      final int numElements = 20;
-      final Object checkpointLock = new Object();
+      final int numElementsPerShard = 20;
       PipelineOptions options = PipelineOptionsFactory.create();
 
-      // this source will emit exactly NUM_ELEMENTS across all parallel readers,
+      final long[] numElementsReceived = {0L};
+      final int[] numWatermarksReceived = {0};
+
+      // this source will emit exactly NUM_ELEMENTS for each parallel reader,
       // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
       // elements later.
-      TestCountingSource source = new TestCountingSource(numElements);
-      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
+      TestCountingSource source =
+          new TestCountingSource(numElementsPerShard).withFixedNumSplits(numSplits);
 
-      assertEquals(numSplits, flinkWrapper.getSplitSources().size());
+      for (int subtaskIndex = 0; subtaskIndex < numTasks; subtaskIndex++) {
+        UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
+            new UnboundedSourceWrapper<>("stepName", options, source, numTasks);
 
-      StreamSource<
-              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-              UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
-          sourceOperator = new StreamSource<>(flinkWrapper);
+        // the source wrapper will only request as many splits as there are tasks and the source
+        // will create at most numSplits splits
+        assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
-      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
-          testHarness =
-              new AbstractStreamOperatorTestHarness<>(
-                  sourceOperator,
-                  numTasks /* max parallelism */,
-                  numTasks /* parallelism */,
-                  0 /* subtask index */);
+        StreamSource<
+                WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+                UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+            sourceOperator = new StreamSource<>(flinkWrapper);
 
-      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+        AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+            testHarness =
+                new AbstractStreamOperatorTestHarness<>(
+                    sourceOperator,
+                    numTasks /* max parallelism */,
+                    numTasks /* parallelism */,
+                    subtaskIndex /* subtask index */);
 
-      try {
-        testHarness.open();
-        sourceOperator.run(
-            checkpointLock,
-            new TestStreamStatusMaintainer(),
-            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
-              private int count = 0;
+        testHarness.setProcessingTime(System.currentTimeMillis());
 
+        // start a thread that advances processing time, so that we eventually get the final
+        // watermark which is only updated via a processing-time trigger
+        Thread processingTimeUpdateThread =
+            new Thread() {
               @Override
-              public void emitWatermark(Watermark watermark) {}
-
-              @Override
-              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
-                collect((StreamRecord) streamRecord);
-              }
-
-              @Override
-              public void emitLatencyMarker(LatencyMarker latencyMarker) {}
-
-              @Override
-              public void collect(
-                  StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
-                      windowedValueStreamRecord) {
-
-                count++;
-                if (count >= numElements) {
-                  throw new SuccessException();
+              public void run() {
+                while (true) {
+                  try {
+                    testHarness.setProcessingTime(System.currentTimeMillis());
+                    Thread.sleep(1000);
+                  } catch (InterruptedException e) {
+                    // this is ok
+                    break;
+                  } catch (Exception e) {
+                    LOG.error("Unexpected error advancing processing time", e);
+                    break;
+                  }
                 }
               }
+            };
+        processingTimeUpdateThread.start();
 
-              @Override
-              public void close() {}
-            });
-      } catch (SuccessException e) {
+        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
-        assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+        try {
+          testHarness.open();
+          sourceOperator.run(
+              testHarness.getCheckpointLock(),
+              new TestStreamStatusMaintainer(),
+              new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+                private boolean hasSeenMaxWatermark = false;
 
-        // success
-        return;
+                @Override
+                public void emitWatermark(Watermark watermark) {
+                  // we get this when there is no more data
+                  // it can happen that we get the max watermark several times, so guard against
+                  // this
+                  if (!hasSeenMaxWatermark
+                      && watermark.getTimestamp()
+                          >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+                    numWatermarksReceived[0]++;
+                    hasSeenMaxWatermark = true;
+                  }
+                }
+
+                @Override
+                public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                  collect((StreamRecord) streamRecord);
+                }
+
+                @Override
+                public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+                @Override
+                public void collect(
+                    StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+                        windowedValueStreamRecord) {
+                  numElementsReceived[0]++;
+                }
+
+                @Override
+                public void close() {}
+              });
+        } finally {
+          processingTimeUpdateThread.interrupt();
+          processingTimeUpdateThread.join();
+        }
       }
-      fail("Read terminated without producing expected number of outputs");
+      // verify that we get the expected count across all subtasks
+      assertEquals(numElementsPerShard * numSplits, numElementsReceived[0]);
+      // and that we get as many final watermarks as there are subtasks
+      assertEquals(numTasks, numWatermarksReceived[0]);
     }
 
     /**
@@ -238,7 +281,7 @@ public class UnboundedSourceWrapperTest {
                         public void close() {}
                       });
                 } catch (Exception e) {
-                  System.out.println("Caught exception: " + e);
+                  LOG.info("Caught exception:", e);
                   caughtExceptions.add(e);
                 }
               });

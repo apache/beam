@@ -161,14 +161,6 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
     return new MultimapSideInputHandler(multimap.build(), keyCoder, valueCoder, windowCoder);
   }
 
-  private <T> List<WindowedValue<T>> getBroadcastVariable(String transformId, String sideInputId) {
-    PCollectionNode collectionNode =
-        sideInputToCollection.get(
-            SideInputId.newBuilder().setTransformId(transformId).setLocalName(sideInputId).build());
-    checkArgument(collectionNode != null, "No side input for %s/%s", transformId, sideInputId);
-    return runtimeContext.getBroadcastVariable(collectionNode.getId());
-  }
-
   private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>
       implements SideInputHandler<V, W> {
 
