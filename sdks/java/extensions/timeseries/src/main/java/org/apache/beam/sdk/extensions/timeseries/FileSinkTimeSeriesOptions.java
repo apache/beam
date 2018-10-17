@@ -22,6 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
+/** Pipeline options that allow configuring the output path. */
 @Experimental
 public interface FileSinkTimeSeriesOptions extends TimeSeriesOptions {
 

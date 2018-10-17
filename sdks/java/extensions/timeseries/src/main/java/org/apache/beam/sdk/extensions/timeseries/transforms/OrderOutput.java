@@ -40,7 +40,9 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -82,7 +84,7 @@ public class OrderOutput
             Window.<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>into(
                     FixedWindows.of(options.downSampleDuration()))
                 // TODO: DirectRunner not showing results with exact late date match
-                //.withAllowedLateness(options.downSampleDuration().plus(options.downSampleDuration()))
+                // .withAllowedLateness(options.downSampleDuration().plus(options.downSampleDuration()))
                 .withAllowedLateness(Duration.standardDays(1))
                 .discardingFiredPanes());
   }
@@ -104,8 +106,8 @@ public class OrderOutput
    * time values.
    *
    * <p>NOTE: Need to see if this is really needed In case there is more than one element arriving
-   * before the timer fires, we will also hold a List of elements If the list of elements is > 0
-   * then we loop through the core logic until the list is exhausted
+   * before the timer fires, we will also hold a List of elements If the list of elements is greater
+   * than 0 then we loop through the core logic until the list is exhausted.
    */
   @Experimental
   public static class GetPreviousData
@@ -159,8 +161,8 @@ public class OrderOutput
      * This one is a little more complex...
      *
      * <p>In terms of timers, first we need to see if there are no new Accums, If not we check the
-     * last heartbeat accum value and see if the current time - time of last Accum is > then max TTL
-     * We also now set the previous values into the current value
+     * last heartbeat accum value and see if the current time minus time of last Accum is greater
+     * than then max TTL We also now set the previous values into the current value
      *
      * @param c
      * @param holdingList

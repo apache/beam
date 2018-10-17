@@ -42,7 +42,11 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tensorflow.example.*;
+import org.tensorflow.example.BytesList;
+import org.tensorflow.example.Example;
+import org.tensorflow.example.Feature;
+import org.tensorflow.example.Features;
+import org.tensorflow.example.Int64List;
 
 /** Utility functions for TSAccum. */
 @Experimental
@@ -231,7 +235,7 @@ public class TSAccums {
     return accums;
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable */
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<Mutation>> {
 
@@ -243,6 +247,7 @@ public class TSAccums {
       return input.apply(ParDo.of(new WriteTFAccumToBigTable()));
     }
 
+    /** Write to BigTable. */
     public static class WriteTFAccumToBigTable extends DoFn<TimeSeriesData.TSAccum, Mutation> {
 
       @ProcessElement
@@ -268,7 +273,7 @@ public class TSAccums {
     }
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable */
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutputAccumWithTimestamp
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<TimeSeriesData.TSAccum>> {
 
@@ -277,6 +282,7 @@ public class TSAccums {
       return input.apply(ParDo.of(new ExtractTimestamp()));
     }
 
+    /** Extract timestamps. */
     public static class ExtractTimestamp
         extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
 
@@ -316,6 +322,7 @@ public class TSAccums {
     }
   }
 
+  /** Assign keys. */
   public static class OutPutTSAccumAsKV
       extends DoFn<TimeSeriesData.TSAccum, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
 
@@ -325,6 +332,7 @@ public class TSAccums {
     }
   }
 
+  /** Assign timestamped keys. */
   public static class OutPutTSAccumAsKVWithTimeBoundary
       extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
 
@@ -346,13 +354,13 @@ public class TSAccums {
     }
   }
 
+  /** Assign keys with pretty printed timestamps. */
   public static class OutPutTSAccumAsKVWithPrettyTimeBoundary
       extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
 
-      TimeSeriesData.TSKey key = c.element().getKey();
       TimeSeriesData.TSAccum accum = c.element();
 
       c.output(KV.of(getTSAccumKeyWithPrettyTimeBoundary(accum), accum));
@@ -460,6 +468,7 @@ public class TSAccums {
     return sb.toString();
   }
 
+  /** Create CSV. */
   public static class CreateCsv
       extends PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PDone> {
 

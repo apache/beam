@@ -22,24 +22,37 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.beam.examples.timeseries.configuration.TSConfiguration;
-import org.apache.beam.examples.timeseries.protos.TimeSeriesData;
-import org.apache.beam.examples.timeseries.transforms.ExtractAggregates;
-import org.apache.beam.examples.timeseries.transforms.GetValueFromKV;
-import org.apache.beam.examples.timeseries.transforms.OrderOutput;
-import org.apache.beam.examples.timeseries.utils.TSAccums;
-import org.apache.beam.examples.timeseries.utils.TSDatas;
-import org.apache.beam.examples.timeseries.utils.TSMultiVariateDataPoints;
+import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.transforms.ExtractAggregates;
+import org.apache.beam.sdk.extensions.timeseries.transforms.GetValueFromKV;
+import org.apache.beam.sdk.extensions.timeseries.transforms.OrderOutput;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -88,7 +101,7 @@ public class TimeseriesTest implements Serializable {
         p.apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-            .apply(new ExtractAggregates(configuration))
+            .apply(new ExtractAggregates())
             .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
@@ -128,8 +141,8 @@ public class TimeseriesTest implements Serializable {
         p.apply("Get Test Data", Create.of(SampleTimeseriesDataWithGaps.generateData(true, null)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-            .apply(new ExtractAggregates(configuration))
-            .apply(new OrderOutput(configuration))
+            .apply(new ExtractAggregates())
+            .apply(new OrderOutput())
             .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
@@ -187,8 +200,8 @@ public class TimeseriesTest implements Serializable {
                 Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-            .apply(new ExtractAggregates(configuration))
-            .apply(new OrderOutput(configuration))
+            .apply(new ExtractAggregates())
+            .apply(new OrderOutput())
             .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
@@ -258,8 +271,8 @@ public class TimeseriesTest implements Serializable {
                 Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
-            .apply(new ExtractAggregates(configuration))
-            .apply(new OrderOutput(configuration))
+            .apply(new ExtractAggregates())
+            .apply(new OrderOutput())
             .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",

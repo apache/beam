@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,23 +16,5 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.timeseries;
-
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.Description;
-
-/** Pipeline options that allow configuring GCP options. */
-@Experimental
-public interface GCPTimeSeriesOptions extends TimeSeriesOptions, DataflowPipelineOptions {
-
-  @Description("BigTable Instance ID - Used for GCP I/O ")
-  String getBigTableInstanceId();
-
-  void setBigTableInstanceId(String bigTableInstanceId);
-
-  @Description("BigTable Table ID - Used for GCP I/O ")
-  String getBigTableTableId();
-
-  void setBigTableTableId(String projectId);
-}
+/** TimeSeries PTransforms. */
+package org.apache.beam.sdk.extensions.timeseries.transforms;

@@ -29,6 +29,7 @@ import org.joda.time.DateTime;
 @Experimental
 public class TSMultiVariateDataPoints {
 
+  /** Convert to uni. */
   public static class ConvertMultiToUniDataPoint
       extends DoFn<
           TimeSeriesData.TSMultiVariateDataPoint,
@@ -48,6 +49,7 @@ public class TSMultiVariateDataPoints {
     }
   }
 
+  /** Extract timestamp. */
   public static class ExtractTimeStamp
       extends DoFn<TimeSeriesData.TSMultiVariateDataPoint, TimeSeriesData.TSMultiVariateDataPoint> {
 
