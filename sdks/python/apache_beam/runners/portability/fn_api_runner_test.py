@@ -647,6 +647,13 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
                 sdk_worker.SdkHarness, worker_count=2)))
 
 
+class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(use_grpc=False, bundle_repeat=3))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
