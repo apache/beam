@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
+import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -32,6 +33,24 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         expInt.getValue(),
         expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+  }
+
+  @Test
+  public void testPrimitiveBytes1() {
+    BeamSqlPrimitive<byte[]> expBytes =
+        BeamSqlPrimitive.of(SqlTypeName.VARBINARY, new byte[] {1, 2, 3});
+    Assert.assertEquals(
+        expBytes.getValue(),
+        expBytes.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+  }
+
+  @Test
+  public void testPrimitiveBytes2() {
+    BeamSqlPrimitive<ByteString> expBytes =
+        BeamSqlPrimitive.of(SqlTypeName.VARBINARY, ByteString.of("123ABC", 16));
+    Assert.assertEquals(
+        expBytes.getValue(),
+        expBytes.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -64,5 +83,13 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         expInt.getValue(),
         expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPrimitiveTypeUnMatch5() {
+    BeamSqlPrimitive expBytes = BeamSqlPrimitive.of(SqlTypeName.VARBINARY, 100L);
+    Assert.assertEquals(
+        expBytes.getValue(),
+        expBytes.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 }

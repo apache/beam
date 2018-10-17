@@ -64,7 +64,7 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
-  shadow "org.tukaani:xz:1.5"
+  shadow "org.tukaani:xz:1.8"
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
@@ -72,5 +72,7 @@ dependencies {
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
 }

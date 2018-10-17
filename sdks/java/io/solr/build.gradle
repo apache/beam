@@ -27,7 +27,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.commons_compress
   shadow "org.apache.solr:solr-solrj:5.5.4"
-  compileOnly "org.apache.httpcomponents:httpclient:4.4.1"
+  compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")

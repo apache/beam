@@ -16,8 +16,12 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
+from __future__ import absolute_import
+from __future__ import division
+
 import logging
 import unittest
+from builtins import range
 
 from apache_beam import Create
 from apache_beam.coders import FastPrimitivesCoder
@@ -33,13 +37,15 @@ class CreateTest(unittest.TestCase):
 
   def test_create_transform(self):
     with TestPipeline() as p:
-      assert_that(p | Create(range(10)), equal_to(range(10)))
+      assert_that(p | 'Empty' >> Create([]), equal_to([]), label='empty')
+      assert_that(p | 'One' >> Create([None]), equal_to([None]), label='one')
+      assert_that(p | Create(list(range(10))), equal_to(list(range(10))))
 
   def test_create_source_read(self):
     self.check_read([], self.coder)
     self.check_read([1], self.coder)
     # multiple values.
-    self.check_read(range(10), self.coder)
+    self.check_read(list(range(10)), self.coder)
 
   def check_read(self, values, coder):
     source = Create._create_source_from_iterable(values, coder)
@@ -49,7 +55,7 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_with_initial_splits(self):
     self.check_read_with_initial_splits([], self.coder, num_splits=2)
     self.check_read_with_initial_splits([1], self.coder, num_splits=2)
-    values = range(8)
+    values = list(range(8))
     # multiple values with a single split.
     self.check_read_with_initial_splits(values, self.coder, num_splits=1)
     # multiple values with a single split with a large desired bundle size
@@ -70,7 +76,7 @@ class CreateTest(unittest.TestCase):
     from the split sources.
     """
     source = Create._create_source_from_iterable(values, coder)
-    desired_bundle_size = source._total_size / num_splits
+    desired_bundle_size = source._total_size // num_splits
     splits = source.split(desired_bundle_size)
     splits_info = [
         (split.source, split.start_position, split.stop_position)

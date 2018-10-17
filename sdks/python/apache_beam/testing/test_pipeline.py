@@ -94,6 +94,7 @@ class TestPipeline(Pipeline):
         of the expected type.
     """
     self.is_integration_test = is_integration_test
+    self.not_use_test_runner_api = False
     self.options_list = self._parse_test_option_args(argv)
     self.blocking = blocking
     if options is None:
@@ -101,7 +102,9 @@ class TestPipeline(Pipeline):
     super(TestPipeline, self).__init__(runner, options)
 
   def run(self, test_runner_api=True):
-    result = super(TestPipeline, self).run(test_runner_api)
+    result = super(TestPipeline, self).run(
+        test_runner_api=(False if self.not_use_test_runner_api
+                         else test_runner_api))
     if self.blocking:
       state = result.wait_until_finish()
       assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
@@ -126,6 +129,10 @@ class TestPipeline(Pipeline):
                         type=str,
                         action='store',
                         help='only run tests providing service options')
+    parser.add_argument('--not-use-test-runner-api',
+                        action='store_true',
+                        default=False,
+                        help='whether not to use test-runner-api')
     known, unused_argv = parser.parse_known_args(argv)
 
     if self.is_integration_test and not known.test_pipeline_options:
@@ -135,6 +142,7 @@ class TestPipeline(Pipeline):
       raise SkipTest('IT is skipped because --test-pipeline-options '
                      'is not specified')
 
+    self.not_use_test_runner_api = known.not_use_test_runner_api
     return shlex.split(known.test_pipeline_options) \
       if known.test_pipeline_options else []
 
@@ -152,7 +160,7 @@ class TestPipeline(Pipeline):
       elif isinstance(v, bool) and v:
         options.append('--%s' % k)
       elif 'matcher' in k:
-        options.append('--%s=%s' % (k, pickler.dumps(v)))
+        options.append('--%s=%s' % (k, pickler.dumps(v).decode()))
       else:
         options.append('--%s=%s' % (k, v))
     return options

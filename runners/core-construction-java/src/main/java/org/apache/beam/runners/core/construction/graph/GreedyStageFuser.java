@@ -82,6 +82,7 @@ public class GreedyStageFuser {
 
     Set<SideInputReference> sideInputs = new LinkedHashSet<>();
     Set<UserStateReference> userStates = new LinkedHashSet<>();
+    Set<TimerReference> timers = new LinkedHashSet<>();
     Set<PCollectionNode> fusedCollections = new LinkedHashSet<>();
     Set<PCollectionNode> materializedPCollections = new LinkedHashSet<>();
 
@@ -90,6 +91,7 @@ public class GreedyStageFuser {
       fusionCandidates.addAll(pipeline.getOutputPCollections(initialConsumer));
       sideInputs.addAll(pipeline.getSideInputs(initialConsumer));
       userStates.addAll(pipeline.getUserStates(initialConsumer));
+      timers.addAll(pipeline.getTimers(initialConsumer));
     }
     while (!fusionCandidates.isEmpty()) {
       PCollectionNode candidate = fusionCandidates.poll();
@@ -134,6 +136,7 @@ public class GreedyStageFuser {
         inputPCollection,
         sideInputs,
         userStates,
+        timers,
         fusedTransforms.build(),
         materializedPCollections);
   }
@@ -168,7 +171,8 @@ public class GreedyStageFuser {
       Environment environment,
       Set<PCollectionNode> fusedPCollections) {
     for (PTransformNode node : pipeline.getPerElementConsumers(candidate)) {
-      if (!(GreedyPCollectionFusers.canFuse(node, environment, fusedPCollections, pipeline))) {
+      if (!(GreedyPCollectionFusers.canFuse(
+          node, environment, candidate, fusedPCollections, pipeline))) {
         // Some of the consumers can't be fused into this subgraph, so the PCollection has to be
         // materialized.
         // TODO: Potentially, some of the consumers can be fused back into this stage later

@@ -29,7 +29,6 @@ import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.Value;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -49,18 +48,25 @@ public class ReadSpannerSchemaTest {
 
   private static Struct columnMetadata(String tableName, String columnName, String type) {
     return Struct.newBuilder()
-        .add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName))
-        .add("spanner_type", Value.string(type))
-        .add("cells_mutated", Value.int64(3L))
+        .set("table_name")
+        .to(tableName)
+        .set("column_name")
+        .to(columnName)
+        .set("spanner_type")
+        .to(type)
+        .set("cells_mutated")
+        .to(3L)
         .build();
   }
 
   private static Struct pkMetadata(String tableName, String columnName, String ordering) {
     return Struct.newBuilder()
-        .add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName))
-        .add("column_ordering", Value.string(ordering))
+        .set("table_name")
+        .to(tableName)
+        .set("column_name")
+        .to(columnName)
+        .set("column_ordering")
+        .to(ordering)
         .build();
   }
 

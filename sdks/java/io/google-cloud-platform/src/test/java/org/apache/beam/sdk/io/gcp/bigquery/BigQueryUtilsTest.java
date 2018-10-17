@@ -83,6 +83,9 @@ public class BigQueryUtilsTest {
           .addValues(123L, 123.456, "test", new DateTime(123456), false)
           .build();
 
+  private static final Row NULL_FLAT_ROW =
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
+
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
@@ -172,5 +175,17 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("value", 123.456));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", false));
+  }
+
+  @Test
+  public void testToTableRow_null_row() {
+    TableRow row = toTableRow().apply(NULL_FLAT_ROW);
+
+    assertThat(row.size(), equalTo(5));
+    assertThat(row, hasEntry("id", null));
+    assertThat(row, hasEntry("value", null));
+    assertThat(row, hasEntry("name", null));
+    assertThat(row, hasEntry("timestamp", null));
+    assertThat(row, hasEntry("valid", null));
   }
 }

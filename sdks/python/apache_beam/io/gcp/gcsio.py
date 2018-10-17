@@ -142,10 +142,10 @@ def get_new_http():
                        timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
 
 
-def parse_gcs_path(gcs_path):
+def parse_gcs_path(gcs_path, object_optional=False):
   """Return the bucket and object names of the given gs:// path."""
-  match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
-  if match is None:
+  match = re.match('^gs://([^/]+)/(.*)$', gcs_path)
+  if match is None or (match.group(2) == '' and not object_optional):
     raise ValueError('GCS path must be in the form gs://<bucket>/<object>.')
   return match.group(1), match.group(2)
 
@@ -412,16 +412,33 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def last_updated(self, path):
+    """Returns the last updated epoch time of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: last updated time of the GCS object in second.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    datetime = self.client.objects.Get(request).updated
+    return (time.mktime(datetime.timetuple()) - time.timezone
+            + datetime.microsecond / 1000000.0)
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def list_prefix(self, path):
     """Lists files matching the prefix.
 
     Args:
-      path: GCS file path pattern in the form gs://<bucket>/<name>.
+      path: GCS file path pattern in the form gs://<bucket>/[name].
 
     Returns:
       Dictionary of file name -> size.
     """
-    bucket, prefix = parse_gcs_path(path)
+    bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0

@@ -42,14 +42,14 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
 @Experimental(Kind.SCHEMAS)
@@ -94,7 +94,15 @@ public class JavaBeanUtils {
       }
       if (!type.equals(setterType)) {
         throw new RuntimeException(
-            "JavaBean contained mismatching setter for field" + type.getName());
+            "JavaBean contained setter for field "
+                + type.getName()
+                + " that had a mismatching type.");
+      }
+      if (!type.isNullable() == setterType.isNullable()) {
+        throw new RuntimeException(
+            "JavaBean contained setter for field "
+                + type.getName()
+                + " that had a mismatching nullable attribute.");
       }
     }
   }

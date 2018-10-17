@@ -83,11 +83,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.debug("Classpath elements: {}", flinkOptions.getFilesToStage());
     }
 
-    // Set Flink Master to [auto] if no option was specified.
-    if (flinkOptions.getFlinkMaster() == null) {
-      flinkOptions.setFlinkMaster("[auto]");
-    }
-
     return new FlinkRunner(flinkOptions);
   }
 
@@ -107,7 +102,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
 
     LOG.info("Translating pipeline to Flink program.");
-    env.translate(this, pipeline);
+    env.translate(pipeline);
 
     JobExecutionResult result;
     try {
@@ -123,9 +118,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
       // no metricsPusher because metrics are not supported in detached mode
-      return flinkDetachedRunnerResult;
+      return new FlinkDetachedRunnerResult();
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();

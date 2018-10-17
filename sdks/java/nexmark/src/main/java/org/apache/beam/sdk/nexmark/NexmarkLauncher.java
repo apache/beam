@@ -1210,6 +1210,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }
 
       NexmarkQuery query = getNexmarkQuery();
+      if (query == null) {
+        NexmarkUtils.console("skipping since configuration is not implemented");
+        return null;
+      }
+
       queryName = query.getName();
 
       NexmarkQueryModel model = getNexmarkQueryModel();
@@ -1297,8 +1302,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     List<NexmarkQuery> queries = createQueries();
 
     if (configuration.query >= queries.size()) {
-      throw new UnsupportedOperationException(
-          "Query " + options.getQuery() + " is not implemented yet");
+      return null;
     }
 
     return queries.get(configuration.query);

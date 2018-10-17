@@ -17,9 +17,14 @@
 
 """Unit tests for the transform.util classes."""
 
+from __future__ import absolute_import
+
 import logging
+import random
 import time
 import unittest
+from builtins import object
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -120,6 +125,75 @@ class BatchElementsTest(unittest.TestCase):
       with batch_estimator.record_time(actual_sizes[-1]):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
+
+  def test_variance(self):
+    clock = FakeClock()
+    variance = 0.25
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=.05, target_batch_duration_secs=None,
+        variance=variance, clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    expected_target = 27
+    actual_sizes = []
+    for _ in range(util._BatchSizeEstimator._MAX_DATA_POINTS - 1):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    # Check that we're testing a good range of values.
+    stable_set = set(actual_sizes[-20:])
+    self.assertGreater(len(stable_set), 3)
+    self.assertGreater(
+        min(stable_set), expected_target - expected_target * variance)
+    self.assertLess(
+        max(stable_set), expected_target + expected_target * variance)
+
+  def _run_regression_test(self, linear_regression_fn, test_outliers):
+    xs = [random.random() for _ in range(10)]
+    ys = [2*x + 1 for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 1)
+    self.assertAlmostEqual(b, 2)
+
+    xs = [1 + random.random() for _ in range(100)]
+    ys = [7*x + 5 + 0.01 * random.random() for x in xs]
+    a, b = linear_regression_fn(xs, ys)
+    self.assertAlmostEqual(a, 5, delta=0.01)
+    self.assertAlmostEqual(b, 7, delta=0.01)
+
+    if test_outliers:
+      xs = [1 + random.random() for _ in range(100)]
+      ys = [2*x + 1 for x in xs]
+      a, b = linear_regression_fn(xs, ys)
+      self.assertAlmostEqual(a, 1)
+      self.assertAlmostEqual(b, 2)
+
+      # An outlier or two doesn't affect the result.
+      for _ in range(2):
+        xs += [10]
+        ys += [30]
+        a, b = linear_regression_fn(xs, ys)
+        self.assertAlmostEqual(a, 1)
+        self.assertAlmostEqual(b, 2)
+
+      # But enough of them, and they're no longer outliers.
+      xs += [10] * 10
+      ys += [30] * 10
+      a, b = linear_regression_fn(xs, ys)
+      self.assertLess(a, 0.5)
+      self.assertGreater(b, 2.5)
+
+  def test_no_numpy_regression(self):
+    self._run_regression_test(
+        util._BatchSizeEstimator.linear_regression_no_numpy, False)
+
+  def test_numpy_regression(self):
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      import numpy as _
+    except ImportError:
+      self.skipTest('numpy not available')
+    self._run_regression_test(
+        util._BatchSizeEstimator.linear_regression_numpy, True)
 
 
 class IdentityWindowTest(unittest.TestCase):
@@ -231,11 +305,11 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_windows_unchanged(self):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in
-                     [((1, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((2, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
-                      ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
-                      ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
     before_reshuffle = (pipeline
                         | 'start' >> beam.Create(data)
                         | 'add_timestamp' >> beam.Map(

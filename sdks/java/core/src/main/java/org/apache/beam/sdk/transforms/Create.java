@@ -288,6 +288,19 @@ public class Create<T> {
     }
 
     /**
+     * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
+     * to represent objects.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public Values<T> withRowSchema(Schema schema) {
+      return withCoder(
+          SchemaCoder.of(
+              schema,
+              (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
+              (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity()));
+    }
+
+    /**
      * Returns a {@link Create.Values} PTransform like this one that uses the given {@code
      * TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects into a
      * value of type {@code T}. Note that a default coder must be registered for the class described

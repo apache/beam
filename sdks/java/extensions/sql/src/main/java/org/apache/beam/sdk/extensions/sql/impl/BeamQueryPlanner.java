@@ -31,7 +31,6 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.prepare.CalciteCatalogReader;
-import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
@@ -76,8 +75,7 @@ class BeamQueryPlanner {
     final SchemaPlus schema = connection.getRootSchema();
     final SchemaPlus defaultSchema = JdbcDriver.getDefaultSchema(connection);
 
-    final ImmutableList<RelTraitDef> traitDefs =
-        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
+    final ImmutableList<RelTraitDef> traitDefs = ImmutableList.of(ConventionTraitDef.INSTANCE);
 
     final CalciteCatalogReader catalogReader =
         new CalciteCatalogReader(

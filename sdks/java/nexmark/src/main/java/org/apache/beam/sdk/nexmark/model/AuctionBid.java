@@ -54,13 +54,12 @@ public class AuctionBid implements KnownSize, Serializable {
         }
       };
 
-  @JsonProperty public final Auction auction;
+  @JsonProperty public Auction auction;
 
-  @JsonProperty public final Bid bid;
+  @JsonProperty public Bid bid;
 
-  // For Avro only.
   @SuppressWarnings("unused")
-  private AuctionBid() {
+  public AuctionBid() {
     auction = null;
     bid = null;
   }

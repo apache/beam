@@ -50,7 +50,7 @@ _KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'BundleBasedDirectRunner',
                          'SwitchingDirectRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
-_KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
+_KNOWN_TEST_RUNNERS = ('TestDataflowRunner', 'TestDirectRunner')
 _KNOWN_PORTABLE_RUNNERS = ('PortableRunner',)
 
 _RUNNER_MAP = {}
@@ -76,8 +76,8 @@ def create_runner(runner_name):
   Creates a runner instance from a runner class name.
 
   Args:
-    runner_name: Name of the pipeline runner. Possible values are:
-      DirectRunner, DataflowRunner and TestDataflowRunner.
+    runner_name: Name of the pipeline runner. Possible values are listed in
+      _RUNNER_MAP above.
 
   Returns:
     A runner object.
@@ -96,7 +96,7 @@ def create_runner(runner_name):
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
     try:
-      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+      return getattr(__import__(module, {}, {}, [runner], 0), runner)()
     except ImportError:
       if runner_name in _KNOWN_DATAFLOW_RUNNERS:
         raise ImportError(
@@ -332,6 +332,11 @@ class PipelineState(object):
   PENDING = 'PENDING' # the job has been created but is not yet running.
   CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
                             # in the process of stopping
+
+  @classmethod
+  def is_terminal(cls, state):
+    return state in [cls.STOPPED, cls.DONE, cls.FAILED, cls.CANCELLED,
+                     cls.UPDATED, cls.DRAINED]
 
 
 class PipelineResult(object):

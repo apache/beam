@@ -43,7 +43,7 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 0));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
@@ -60,7 +60,7 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
@@ -77,7 +77,7 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);

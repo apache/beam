@@ -27,6 +27,7 @@ import inspect
 import types
 
 from future.utils import raise_with_traceback
+from past.builtins import unicode
 
 from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
@@ -40,11 +41,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
-
-try:                # Python 2
-  unicode           # pylint: disable=unicode-builtin
-except NameError:   # Python 3
-  unicode = str
 
 
 class AbstractDoFnWrapper(DoFn):

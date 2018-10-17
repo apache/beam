@@ -44,13 +44,25 @@ One common solution for the diamond dependency problem is [semantic versioning](
 
 A big part of keeping dependencies up to date involves identifying outdated dependencies of Beam that the community should try to upgrade.
 
-Beam currently executes a weekly Jenkins job that tries to identify outdated dependencies for various SDKs. This Jenkins job generates a weekly report that is shared in Beam dev list. In the future we hope to automatically create JIRAs based on this report.
+Beam currently executes a weekly Jenkins job that tries to identify outdated dependencies for various SDKs. This Jenkins job generates a weekly report that is shared in Beam dev list.
 
 In addition to this, Beam community members might identify other critical dependency updates that have to be manually performed. For example,
 * A minor release of a dependency due to a critical security vulnerability. 
 * A dependency conflict that was was triggered by a minor version release of a Beam dependency (this does not apply to Java SDK that depends on exact minor versions of dependencies).
 
 These kind of urgently required upgrades might not get automatically picked up by the Jenkins job for few months. So Beam community has to act to identify such issues and perform upgrades early.
+
+## JIRA Issue Automation
+
+In order to track the dependency upgrade process, JIRA tickets will be created per significant outdated dependency based on the report. A bot named *Beam Jira Bot* was created for managing JIRA issues. Beam community agrees on the following policies that creates and updates issues.
+* Title (summary) of the issues will be in the format "Beam Dependency Update Request: <dep_name>" where <dep_name> is the dependency artifact name.
+* Issues will be created under the component *"dependencies"*.
+* Owners of dependencies will be notified by tagging the corresponding JIRA IDs mentioned in the ownership files in the issue description. See [Java Dependency Owners](https://github.com/apache/beam/blob/master/ownership/JAVA_DEPENDENCY_OWNERS.yaml) and [Python Dependency Owners](https://github.com/apache/beam/blob/master/ownership/PYTHON_DEPENDENCY_OWNERS.yaml) for current owners for Java SDK and Python SDK dependencies respectively.
+* Automated tool will not create duplicate issues for the same dependency. Instead the tool will look for an existing JIRA when one has to be created for a given dependency and description of the JIRA will be updated with latest information, for example, current version of the dependency.
+* If a Beam community member determines that a given dependency should not be upgraded the corresponding JIRA issue can be closed with a fix version specified.
+* Automated tool will reopen a JIRA for a given dependency when one of following conditions is met:
+  * Next SDK release is for a fix version mentioned in the JIRA. 
+  * Six months __and__ three or more minor releases have passed since the JIRA was closed.
 
 ## Upgrading identified outdated dependencies
 
@@ -72,7 +84,7 @@ For manually identified critical dependency updates, Beam community members shou
 
 __Dependency declarations may identify owners that are responsible for upgrading respective dependencies.__
 
-Owners can be mentioned in a comment. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.
+Owners can be mentioned in the yaml files. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.
 
 __Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.__
 
@@ -80,4 +92,4 @@ __Dependencies of Java SDK components that may cause issues to other components 
 
 ## Dependency updates and backwards compatibility 
 
-Beam releases [adhere to](https://beam.apache.org/get-started/downloads/) semantic versioning. Hence, community members should take care when updating dependencies. Minor version updates to dependencies should be backwards compatible in most cases. Some updates to dependencies though may result in backwards incompatible API or functionality changes to Beam. PR reviewers and committers should take care to detect any dependency updates that could potentially introduce backwards incompatible changes to Beam before merging and PRs that update dependencies should include a statement regarding this verification in the form of a PR comment. Dependency updates that result in backwards incompatible changes to non-experimental features of Beam should be held till next major version release of Beam. Any exceptions to this policy should only occur in extreme cases (for example, due to a security vulnerability of an existing dependency that is only fixed in a subsequent major version) and should be discussed in the Beam dev list. Note that backwards incompatible changes to experimental features may be introduced in a minor version release. 
+Beam releases [adhere to]({{ site.baseurl }}/get-started/downloads/) semantic versioning. Hence, community members should take care when updating dependencies. Minor version updates to dependencies should be backwards compatible in most cases. Some updates to dependencies though may result in backwards incompatible API or functionality changes to Beam. PR reviewers and committers should take care to detect any dependency updates that could potentially introduce backwards incompatible changes to Beam before merging and PRs that update dependencies should include a statement regarding this verification in the form of a PR comment. Dependency updates that result in backwards incompatible changes to non-experimental features of Beam should be held till next major version release of Beam. Any exceptions to this policy should only occur in extreme cases (for example, due to a security vulnerability of an existing dependency that is only fixed in a subsequent major version) and should be discussed in the Beam dev list. Note that backwards incompatible changes to experimental features may be introduced in a minor version release. 

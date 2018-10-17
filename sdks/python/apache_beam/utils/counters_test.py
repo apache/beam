@@ -27,6 +27,17 @@ from apache_beam.utils.counters import CounterName
 
 class CounterNameTest(unittest.TestCase):
 
+  def test_name_string_representation(self):
+    counter_name = CounterName('counter_name',
+                               'stage_name',
+                               'step_name')
+
+    # This string representation is utilized by the worker to report progress.
+    # Change only if the worker code has also been changed.
+    self.assertEqual('stage_name-step_name-counter_name', str(counter_name))
+    self.assertIn('<CounterName<stage_name-step_name-counter_name> at 0x',
+                  repr(counter_name))
+
   def test_equal_objects(self):
     self.assertEqual(CounterName('counter_name',
                                  'stage_name',

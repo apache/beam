@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
@@ -31,6 +30,7 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -132,7 +132,16 @@ public final class TransformTranslator {
 
         // --- group by key only.
         JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
+            GroupCombineFunctions.groupByKeyOnly(
+                inRDD,
+                keyCoder,
+                wvCoder,
+                context
+                        .getSerializableOptions()
+                        .get()
+                        .as(SparkPipelineOptions.class)
+                        .getBundleSize()
+                    > 0);
 
         // --- now group also by window.
         // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -336,13 +345,17 @@ public final class TransformTranslator {
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
-        rejectSplittable(doFn);
+        checkState(
+            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            "Not expected to directly translate splittable DoFn, should have been overridden: %s",
+            doFn);
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
-
+        Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
         DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
@@ -357,6 +370,8 @@ public final class TransformTranslator {
                 context.getSerializableOptions(),
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
+                inputCoder,
+                outputCoders,
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                 windowingStrategy,
                 stateful);
@@ -419,7 +434,7 @@ public final class TransformTranslator {
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, true);
 
     return groupRDD
         .map(

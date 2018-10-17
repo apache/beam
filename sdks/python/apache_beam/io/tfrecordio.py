@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import codecs
 import logging
 import struct
 from builtins import object
@@ -59,7 +60,7 @@ class _TFRecordUtil(object):
   """Provides basic TFRecord encoding/decoding with consistency checks.
 
   For detailed TFRecord format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
 
   Note that masks and length are represented in LittleEndian order.
   """
@@ -120,24 +121,24 @@ class _TFRecordUtil(object):
     # Validate all length related payloads.
     if len(buf) != buf_length_expected:
       raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, buf.encode('hex')))
+                       (buf_length_expected, codecs.encode(buf, 'hex')))
     length, length_mask_expected = struct.unpack('<QI', buf)
     length_mask_actual = cls._masked_crc32c(buf[:8])
     if length_mask_actual != length_mask_expected:
       raise ValueError('Not a valid TFRecord. Mismatch of length mask: %s' %
-                       buf.encode('hex'))
+                       codecs.encode(buf, 'hex'))
 
     # Validate all data related payloads.
     buf_length_expected = length + 4
     buf = file_handle.read(buf_length_expected)
     if len(buf) != buf_length_expected:
       raise ValueError('Not a valid TFRecord. Fewer than %d bytes: %s' %
-                       (buf_length_expected, buf.encode('hex')))
+                       (buf_length_expected, codecs.encode(buf, 'hex')))
     data, data_mask_expected = struct.unpack('<%dsI' % length, buf)
     data_mask_actual = cls._masked_crc32c(data)
     if data_mask_actual != data_mask_expected:
       raise ValueError('Not a valid TFRecord. Mismatch of data mask: %s' %
-                       buf.encode('hex'))
+                       codecs.encode(buf, 'hex'))
 
     # All validation checks passed.
     return data
@@ -147,7 +148,7 @@ class _TFRecordSource(FileBasedSource):
   """A File source for reading files of TFRecords.
 
   For detailed TFRecords format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
   def __init__(self,
@@ -181,7 +182,7 @@ class _TFRecordSource(FileBasedSource):
           yield self._coder.decode(record)
 
 
-def _create_tfrcordio_source(
+def _create_tfrecordio_source(
     file_pattern=None, coder=None, compression_type=None):
   # We intentionally disable validation for ReadAll pattern so that reading does
   # not fail for globs (elements) that are empty.
@@ -209,7 +210,7 @@ class ReadAllFromTFRecord(PTransform):
     """
     super(ReadAllFromTFRecord, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_tfrcordio_source, compression_type=compression_type,
+        _create_tfrecordio_source, compression_type=compression_type,
         coder=coder)
     # Desired and min bundle sizes do not matter since TFRecord files are
     # unsplittable.
@@ -259,7 +260,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
   """Sink for writing TFRecords files.
 
   For detailed TFRecord format description see:
-    https://www.tensorflow.org/versions/master/api_docs/python/python_io.html#tfrecords-format-details
+    https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
   def __init__(self, file_path_prefix, coder, file_name_suffix, num_shards,

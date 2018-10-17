@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -126,6 +127,141 @@ func TestInvoke(t *testing.T) {
 }
 
 // Benchmarks
+
+// Invoke is implemented as a single use of a cached invoker, so a measure of
+// correctness is that the cached version takes less time per operation than the
+// single use version.
+//
+// NOTE(lostluck) 2018/07/24: run on a amd64 linux desktop
+//
+// BenchmarkInvoke/SingleInvoker_Void_function-12         	 5000000	       300 ns/op	     128 B/op	       1 allocs/op
+// BenchmarkInvoke/CachedInvoker_Void_function-12         	10000000	       195 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkInvoke/SingleInvoker_Contexts_and_errors_are_allowed_and_handled-12         	 2000000	       967 ns/op	     256 B/op	       6 allocs/op
+// BenchmarkInvoke/CachedInvoker_Contexts_and_errors_are_allowed_and_handled-12         	 2000000	       854 ns/op	     112 B/op	       4 allocs/op
+// BenchmarkInvoke/SingleInvoker_Sum-12                                                 	 2000000	       805 ns/op	     464 B/op	      11 allocs/op
+// BenchmarkInvoke/CachedInvoker_Sum-12                                                 	 3000000	       523 ns/op	     224 B/op	       5 allocs/op
+// BenchmarkInvoke/SingleInvoker_Concat-12                                              	 2000000	       892 ns/op	     504 B/op	      12 allocs/op
+// BenchmarkInvoke/CachedInvoker_Concat-12                                              	 2000000	       594 ns/op	     259 B/op	       6 allocs/op
+// BenchmarkInvoke/SingleInvoker_Length_(slice_type)-12                                 	 2000000	       661 ns/op	     384 B/op	       9 allocs/op
+// BenchmarkInvoke/CachedInvoker_Length_(slice_type)-12                                 	 3000000	       492 ns/op	     224 B/op	       5 allocs/op
+// BenchmarkInvoke/SingleInvoker_Emitter-12                                             	 3000000	       412 ns/op	     184 B/op	       4 allocs/op
+// BenchmarkInvoke/CachedInvoker_Emitter-12                                             	 5000000	       268 ns/op	      32 B/op	       1 allocs/op
+// BenchmarkInvoke/SingleInvoker_Side_input-12                                          	 2000000	       743 ns/op	     392 B/op	      11 allocs/op
+// BenchmarkInvoke/CachedInvoker_Side_input-12                                          	 3000000	       506 ns/op	     200 B/op	       6 allocs/op
+// BenchmarkInvoke/SingleInvoker_Sum_as_Main-12                                         	 2000000	       810 ns/op	     464 B/op	      11 allocs/op
+// BenchmarkInvoke/CachedInvoker_Sum_as_Main-12                                         	 3000000	       548 ns/op	     224 B/op	       5 allocs/op
+// BenchmarkInvoke/SingleInvoker_Sum_as_Main_KV-12                                      	 2000000	       823 ns/op	     464 B/op	      11 allocs/op
+// BenchmarkInvoke/CachedInvoker_Sum_as_Main_KV-12                                      	 3000000	       547 ns/op	     224 B/op	       5 allocs/op
+// BenchmarkInvoke/SingleInvoker_EventTime-12                                           	 2000000	       711 ns/op	     376 B/op	      10 allocs/op
+// BenchmarkInvoke/CachedInvoker_EventTime-12                                           	 3000000	       513 ns/op	     200 B/op	       6 allocs/op
+// BenchmarkInvoke/SingleInvoker_Window-12                                              	 1000000	      1023 ns/op	     368 B/op	       9 allocs/op
+// BenchmarkInvoke/CachedInvoker_Window-12                                              	 2000000	       838 ns/op	     192 B/op	       5 allocs/op
+
+func BenchmarkInvoke(b *testing.B) {
+	tests := []struct {
+		Name     string
+		Fn       interface{}
+		Opt      *MainInput
+		Args     []interface{}
+		Expected interface{}
+	}{
+		{
+			Name: "Void function",
+			Fn:   func() {},
+		},
+		{
+			Name: "Contexts and errors are allowed and handled",
+			Fn:   func(ctx context.Context) error { return nil },
+		},
+		{
+			Name:     "Sum",
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Args:     []interface{}{1, 2, 3},
+			Expected: 6,
+		},
+		{
+			Name:     "Concat",
+			Fn:       func(a, b, c string) string { return a + b + c },
+			Args:     []interface{}{"a", "b", "c"},
+			Expected: "abc",
+		},
+		{
+			Name:     "Length (slice type)",
+			Fn:       func(list []int) (int, error) { return len(list), nil },
+			Args:     []interface{}{[]int{1, 2, 3}},
+			Expected: 3,
+		},
+		{
+			Name: "Emitter",
+			Fn:   func(emit func(int)) { emit(1) },
+			Args: []interface{}{func(int) {}},
+		},
+		{
+			Name: "Side input",
+			Fn: func(a int, get func(*int) bool) int {
+				var ret int
+				if !get(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []interface{}{1, func(out *int) bool { *out = 2; return true }},
+			Expected: 2,
+		},
+		{
+			Name:     "Sum as Main",
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Args:     []interface{}{2, 3},
+			Expected: 6,
+		},
+		{
+			Name:     "Sum as Main KV",
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Opt:      &MainInput{Key: FullValue{Elm: 1, Elm2: 2}},
+			Args:     []interface{}{3},
+			Expected: 6,
+		},
+		{
+			Name:     "EventTime",
+			Fn:       func(ts typex.EventTime, a int) int { return int(ts.Milliseconds()) + a },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Expected: 3,
+		},
+		{
+			Name:     "Window",
+			Fn:       func(w typex.Window, a int) int64 { return w.MaxTimestamp().Milliseconds() },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
+		},
+	}
+
+	for _, test := range tests {
+		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
+		if err != nil {
+			b.Fatalf("function not valid: %v", err)
+		}
+
+		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
+		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+				if err != nil {
+					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+				}
+			}
+		})
+		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
+			inv := newInvoker(fn)
+			for i := 0; i < b.N; i++ {
+				_, err := inv.Invoke(context.Background(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+				if err != nil {
+					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+				}
+			}
+		})
+	}
+}
 
 // NOTE(herohde) 12/19/2017: example run on a laptop
 //

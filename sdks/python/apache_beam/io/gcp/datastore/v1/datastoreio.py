@@ -22,6 +22,7 @@ from __future__ import division
 import logging
 import time
 from builtins import object
+from builtins import round
 
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.io.gcp.datastore.v1 import query_splitter

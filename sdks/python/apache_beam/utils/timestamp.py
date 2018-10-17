@@ -29,11 +29,7 @@ import re
 from builtins import object
 
 import pytz
-
-try:                # Python 2
-  long              # pylint: disable=long-builtin
-except NameError:   # Python 3
-  long = int
+from past.builtins import long
 
 
 @functools.total_ordering

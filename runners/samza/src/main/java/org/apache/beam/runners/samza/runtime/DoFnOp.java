@@ -92,11 +92,15 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient DoFnSignature signature;
   private transient TaskContext context;
   private transient SamzaPipelineOptions pipelineOptions;
+  private Coder<InT> inputCoder;
+  private Map<TupleTag<?>, Coder<?>> outputCoders;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
       DoFn<InT, FnOutT> doFn,
       Coder<?> keyCoder,
+      Coder<InT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       Collection<PCollectionView<?>> sideInputs,
       List<TupleTag<?>> sideOutputTags,
       WindowingStrategy windowingStrategy,
@@ -107,6 +111,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.doFn = doFn;
     this.sideInputs = sideInputs;
     this.sideOutputTags = sideOutputTags;
+    this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.windowingStrategy = windowingStrategy;
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
@@ -150,6 +156,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             outputManagerFactory.create(emitter),
             mainOutputTag,
             sideOutputTags,
+            inputCoder,
+            outputCoders,
             stateInternalsFactory,
             timerInternalsFactory,
             windowingStrategy,

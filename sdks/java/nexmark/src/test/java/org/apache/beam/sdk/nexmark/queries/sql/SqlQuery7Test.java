@@ -18,19 +18,16 @@
 
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
-
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -38,8 +35,6 @@ import org.junit.Test;
 public class SqlQuery7Test {
 
   private static final NexmarkConfiguration config = new NexmarkConfiguration();
-
-  private static final ModelFieldsAdapter<Bid> BID_ADAPTER = ADAPTERS.get(Bid.class);
 
   private static final List<Bid> BIDS =
       ImmutableList.of(
@@ -64,8 +59,7 @@ public class SqlQuery7Test {
 
   @Test
   public void testBids() throws Exception {
-    PCollection<Event> bids =
-        PBegin.in(testPipeline).apply(Create.of(BIDS_EVENTS).withCoder(Event.CODER));
+    PCollection<Event> bids = testPipeline.apply(Create.of(BIDS_EVENTS));
 
     PAssert.that(bids.apply(new SqlQuery7(config))).containsInAnyOrder(RESULTS);
 
@@ -74,6 +68,10 @@ public class SqlQuery7Test {
 
   private static Bid newBid(long auction, long bidder, long price, long index) {
     return new Bid(
-        auction, bidder, price, 432342L + index * config.windowSizeSec * 1000, "extra_" + auction);
+        auction,
+        bidder,
+        price,
+        new Instant(432342L + index * config.windowSizeSec * 1000),
+        "extra_" + auction);
   }
 }

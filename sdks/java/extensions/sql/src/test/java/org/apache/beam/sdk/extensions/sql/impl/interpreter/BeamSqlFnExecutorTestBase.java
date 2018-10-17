@@ -30,7 +30,6 @@ import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
@@ -65,13 +64,12 @@ public class BeamSqlFnExecutorTestBase {
             .build();
 
     row =
-        Row.withSchema(CalciteUtils.toBeamSchema(relDataType))
+        Row.withSchema(CalciteUtils.toSchema(relDataType))
             .addValues(1234567L, 0, 8.9, 1234567L, "This is an order.")
             .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
-    final ImmutableList<RelTraitDef> traitDefs =
-        ImmutableList.of(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
+    final ImmutableList<RelTraitDef> traitDefs = ImmutableList.of(ConventionTraitDef.INSTANCE);
     FrameworkConfig config =
         Frameworks.newConfigBuilder()
             .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())

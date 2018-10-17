@@ -100,7 +100,7 @@ public class BeamFileSystemArtifactRetrievalService
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.ArtifactChunk> responseObserver) {
-    LOG.info("GetArtifact {}", request);
+    LOG.debug("GetArtifact {}", request);
     String name = request.getName();
     try {
       ArtifactApi.ProxyManifest proxyManifest = MANIFEST_CACHE.get(request.getRetrievalToken());
@@ -131,7 +131,7 @@ public class BeamFileSystemArtifactRetrievalService
 
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
-      LOG.info("Artifact {} located in {}", name, artifactResourceId);
+      LOG.debug("Artifact {} located in {}", name, artifactResourceId);
       Hasher hasher = Hashing.md5().newHasher();
       byte[] data = new byte[ARTIFACT_CHUNK_SIZE_BYTES];
       try (InputStream stream = Channels.newInputStream(FileSystems.open(artifactResourceId))) {
@@ -182,6 +182,10 @@ public class BeamFileSystemArtifactRetrievalService
     LOG.info("Loading manifest for retrieval token {}", retrievalToken);
     // look for manifest file at $retrieval_token
     ResourceId manifestResourceId = getManifestLocationFromToken(retrievalToken);
+    return loadManifest(manifestResourceId);
+  }
+
+  static ProxyManifest loadManifest(ResourceId manifestResourceId) throws IOException {
     ProxyManifest.Builder manifestBuilder = ProxyManifest.newBuilder();
     try (InputStream stream = Channels.newInputStream(FileSystems.open(manifestResourceId))) {
       String contents = new String(ByteStreams.toByteArray(stream), StandardCharsets.UTF_8);

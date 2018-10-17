@@ -172,7 +172,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     offsetFetcherThread.scheduleAtFixedRate(
         this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
-    nextBatch();
     return advance();
   }
 
@@ -376,6 +375,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // like 100 milliseconds does not work well. This along with large receive buffer for
   // consumer achieved best throughput in tests (see `defaultConsumerProperties`).
   private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
+  private AtomicReference<Exception> consumerPollException = new AtomicReference<>();
   private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
       new SynchronousQueue<>();
   private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
@@ -391,7 +391,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       Executors.newSingleThreadScheduledExecutor();
   private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
 
-  static final long UNINITIALIZED_OFFSET = -1;
+  private static final long UNINITIALIZED_OFFSET = -1;
 
   //Add SpEL instance to cover the interface difference of Kafka client
   private transient ConsumerSpEL consumerSpEL;
@@ -570,28 +570,33 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
 
-    ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
-    while (!closed.get()) {
-      try {
-        if (records.isEmpty()) {
-          records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-        } else if (availableRecordsQueue.offer(
-            records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-          records = ConsumerRecords.empty();
+    try {
+      ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
+      while (!closed.get()) {
+        try {
+          if (records.isEmpty()) {
+            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+          } else if (availableRecordsQueue.offer(
+              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
+            records = ConsumerRecords.empty();
+          }
+          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+          if (checkpointMark != null) {
+            commitCheckpointMark(checkpointMark);
+          }
+        } catch (InterruptedException e) {
+          LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
+          break;
+        } catch (WakeupException e) {
+          break;
         }
-        KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-        if (checkpointMark != null) {
-          commitCheckpointMark(checkpointMark);
-        }
-      } catch (InterruptedException e) {
-        LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
-        break;
-      } catch (WakeupException e) {
-        break;
       }
+      LOG.info("{}: Returning from consumer pool loop", this);
+    } catch (Exception e) { // mostly an unrecoverable KafkaException.
+      LOG.error("{}: Exception while reading from Kafka", this, e);
+      consumerPollException.set(e);
+      throw e;
     }
-
-    LOG.info("{}: Returning from consumer pool loop", this);
   }
 
   private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
@@ -622,7 +627,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     checkpointMarkCommitsEnqueued.inc();
   }
 
-  private void nextBatch() {
+  private void nextBatch() throws IOException {
     curBatch = Collections.emptyIterator();
 
     ConsumerRecords<byte[], byte[]> records;
@@ -638,6 +643,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     if (records == null) {
+      // Check if the poll thread failed with an exception.
+      if (consumerPollException.get() != null) {
+        throw new IOException("Exception while reading from Kafka", consumerPollException.get());
+      }
       return;
     }
 
@@ -653,7 +662,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     if (pState.nextOffset != UNINITIALIZED_OFFSET) {
       consumer.seek(pState.topicPartition, pState.nextOffset);
     } else {
-      // nextOffset is unininitialized here, meaning start reading from latest record as of now
+      // nextOffset is uninitialized here, meaning start reading from latest record as of now
       // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
       // Remember the current position without waiting until the first record is read. This
       // ensures checkpoint is accurate even if the reader is closed before reading any records.

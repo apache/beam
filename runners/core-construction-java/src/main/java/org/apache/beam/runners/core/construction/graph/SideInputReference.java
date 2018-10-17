@@ -52,7 +52,7 @@ public abstract class SideInputReference {
         PipelineNode.pCollection(collectionId, collection));
   }
 
-  /** The id of the PTransform that uses this side input. */
+  /** The PTransform that uses this side input. */
   public abstract PTransformNode transform();
   /** The local name the referencing PTransform uses to refer to this side input. */
   public abstract String localName();

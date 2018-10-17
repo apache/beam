@@ -45,14 +45,13 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
-import org.joda.time.DateTime;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 class ByteBuddyUtils {
@@ -61,7 +60,7 @@ class ByteBuddyUtils {
   private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
   private static final ForLoadedType BYTE_BUFFER_TYPE = new ForLoadedType(ByteBuffer.class);
   private static final ForLoadedType CHAR_SEQUENCE_TYPE = new ForLoadedType(CharSequence.class);
-  private static final ForLoadedType DATE_TIME_TYPE = new ForLoadedType(DateTime.class);
+  private static final ForLoadedType INSTANT_TYPE = new ForLoadedType(Instant.class);
   private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
@@ -166,7 +165,7 @@ class ByteBuddyUtils {
 
     @Override
     protected Type convertDateTime(TypeDescriptor<?> type) {
-      return ReadableInstant.class;
+      return Instant.class;
     }
 
     @Override
@@ -258,16 +257,16 @@ class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
-      // If the class type is a ReadableDateTime, then return it.
-      if (ReadableDateTime.class.isAssignableFrom(type.getRawType())) {
+      // If the class type is an Instant, then return it.
+      if (Instant.class.isAssignableFrom(type.getRawType())) {
         return readValue;
       }
       // Otherwise, generate the following code:
-      //   return new DateTime(value.getMillis());
+      //   return new Instant(value.getMillis());
 
       return new StackManipulation.Compound(
           // Create a new instance of the target type.
-          TypeCreation.of(DATE_TIME_TYPE),
+          TypeCreation.of(INSTANT_TYPE),
           Duplication.SINGLE,
           readValue,
           TypeCasting.to(READABLE_INSTANT_TYPE),
@@ -279,7 +278,7 @@ class ByteBuddyUtils {
                   .getOnly()),
           // Construct a DateTime object containing the millis.
           MethodInvocation.invoke(
-              DATE_TIME_TYPE
+              INSTANT_TYPE
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.isConstructor()

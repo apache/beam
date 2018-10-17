@@ -17,62 +17,15 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 
 /** Utilities for testing schemas. */
 public class SchemaTestUtils {
   // Assert that two schemas are equivalent, ignoring field order. This tests that both schemas
   // (recursively) contain the same fields with the same names, but possibly different orders.
   public static void assertSchemaEquivalent(Schema expected, Schema actual) {
-    List<Field> expectedFields =
-        expected
-            .getFields()
-            .stream()
-            .sorted(Comparator.comparing(Field::getName))
-            .collect(Collectors.toList());
-    List<Field> actualFields =
-        actual
-            .getFields()
-            .stream()
-            .sorted(Comparator.comparing(Field::getName))
-            .collect(Collectors.toList());
-    assertEquals(expectedFields.size(), actualFields.size());
-
-    for (int i = 0; i < expectedFields.size(); ++i) {
-      Field expectedField = expectedFields.get(i);
-      Field actualField = actualFields.get(i);
-      assertFieldEquivalent(expectedField, actualField);
-    }
-  }
-
-  public static void assertFieldEquivalent(Field expectedField, Field actualField) {
-    assertEquals(expectedField.getName(), actualField.getName());
-    assertEquals(expectedField.getNullable(), actualField.getNullable());
-    assertFieldTypeEquivalent(expectedField.getType(), actualField.getType());
-  }
-
-  public static void assertFieldTypeEquivalent(
-      FieldType expectedFieldType, FieldType actualFieldType) {
-    assertEquals(expectedFieldType.getTypeName(), actualFieldType.getTypeName());
-    if (TypeName.ROW.equals(expectedFieldType.getTypeName())) {
-      assertSchemaEquivalent(expectedFieldType.getRowSchema(), actualFieldType.getRowSchema());
-    } else if (TypeName.ARRAY.equals(expectedFieldType.getTypeName())) {
-      assertFieldTypeEquivalent(
-          expectedFieldType.getCollectionElementType(), actualFieldType.getCollectionElementType());
-    } else if (TypeName.MAP.equals(expectedFieldType.getTypeName())) {
-      assertFieldTypeEquivalent(expectedFieldType.getMapKeyType(), actualFieldType.getMapKeyType());
-      assertFieldTypeEquivalent(
-          expectedFieldType.getMapValueType(), actualFieldType.getMapValueType());
-    } else {
-      assertEquals(expectedFieldType, actualFieldType);
-    }
+    assertTrue(actual.equivalent(expected));
   }
 }

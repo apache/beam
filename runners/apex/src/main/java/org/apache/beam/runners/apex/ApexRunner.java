@@ -32,7 +32,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.apex.api.EmbeddedAppLauncher;
@@ -44,9 +43,10 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
@@ -56,20 +56,15 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 
@@ -129,11 +124,21 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
                 new StreamingWrapSingletonInList.Factory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.splittableParDoMulti(), new SplittableParDoOverrideFactory<>()))
+                PTransformMatchers.splittableParDoMulti(), new SplittableParDo.OverrideFactory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
+                PTransformMatchers.splittableProcessKeyedBounded(),
+                new SplittableParDoNaiveBounded.OverrideFactory<>()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableProcessKeyedUnbounded(),
                 new SplittableParDoViaKeyedWorkItems.OverrideFactory<>()))
+        // TODO: [BEAM-5360] Support @RequiresStableInput on Apex runner
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.requiresStableInputParDoMulti(),
+                UnsupportedOverrideFactory.withMessage(
+                    "Apex runner currently doesn't support @RequiresStableInput annotation.")))
         .build();
   }
 
@@ -381,29 +386,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     @Override
     public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return ListCoder.of(inputCoder);
-    }
-  }
-
-  /**
-   * A {@link PTransformOverrideFactory} that overrides a <a
-   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with {@link SplittableParDo}.
-   */
-  static class SplittableParDoOverrideFactory<InputT, OutputT>
-      implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
-    @Override
-    public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
-            transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          SplittableParDo.forAppliedParDo(transform));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
-      return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
 }

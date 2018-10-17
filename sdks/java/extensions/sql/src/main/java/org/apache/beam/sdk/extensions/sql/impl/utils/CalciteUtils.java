@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -56,12 +54,12 @@ public class CalciteUtils {
           .put(
               FieldType.DATETIME.withMetadata("TIME_WITH_LOCAL_TZ"),
               SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.DATETIME.withMetadata("TS"), SqlTypeName.TIMESTAMP)
+          .put(FieldType.DATETIME, SqlTypeName.TIMESTAMP)
           .put(
               FieldType.DATETIME.withMetadata("TS_WITH_LOCAL_TZ"),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .put(FieldType.STRING.withMetadata("CHAR"), SqlTypeName.CHAR)
-          .put(FieldType.STRING.withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
+          .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();
 
   private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
@@ -90,12 +88,8 @@ public class CalciteUtils {
           FieldType.STRING, SqlTypeName.VARCHAR);
 
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
-  public static Schema toBeamSchema(RelDataType tableInfo) {
-    return tableInfo
-        .getFieldList()
-        .stream()
-        .map(CalciteUtils::toBeamSchemaField)
-        .collect(toSchema());
+  public static Schema toSchema(RelDataType tableInfo) {
+    return tableInfo.getFieldList().stream().map(CalciteUtils::toField).collect(Schema.toSchema());
   }
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
@@ -130,8 +124,16 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).withMetadata((byte[]) null);
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName);
     }
+  }
+
+  public static Schema.Field toField(RelDataTypeField calciteField) {
+    return toField(calciteField.getName(), calciteField.getType());
+  }
+
+  public static Schema.Field toField(String name, RelDataType calciteType) {
+    return Schema.Field.of(name, toFieldType(calciteType)).withNullable(calciteType.isNullable());
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
@@ -143,17 +145,11 @@ public class CalciteUtils {
         return FieldType.map(
             toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
       case ROW:
-        return FieldType.row(toBeamSchema(calciteType));
+        return FieldType.row(toSchema(calciteType));
 
       default:
         return toFieldType(calciteType.getSqlTypeName());
     }
-  }
-
-  public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
-    FieldType fieldType = toFieldType(calciteField.getType());
-    // TODO: We should support Calcite's nullable annotations.
-    return Schema.Field.of(calciteField.getName(), fieldType).withNullable(true);
   }
 
   /** Create an instance of {@code RelDataType} so it can be used to create a table. */
@@ -190,6 +186,8 @@ public class CalciteUtils {
   private static RelDataType toRelDataType(
       RelDataTypeFactory dataTypeFactory, Schema schema, int fieldIndex) {
     Schema.Field field = schema.getField(fieldIndex);
-    return toRelDataType(dataTypeFactory, field.getType());
+    RelDataType type = toRelDataType(dataTypeFactory, field.getType());
+
+    return dataTypeFactory.createTypeWithNullability(type, field.getNullable());
   }
 }

@@ -25,6 +25,8 @@ import (
 
 	"net/http"
 
+	"path"
+
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -136,4 +138,14 @@ func ParseObject(object string) (bucket, path string, err error) {
 
 	// remove leading "/" in URL path
 	return parsed.Host, parsed.Path[1:], nil
+}
+
+// Join joins a GCS path with an element. Preserves
+// the gs:// prefix.
+func Join(object string, elms ...string) string {
+	bucket, prefix, err := ParseObject(object)
+	if err != nil {
+		panic(err)
+	}
+	return MakeObject(bucket, path.Join(prefix, path.Join(elms...)))
 }

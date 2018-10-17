@@ -61,6 +61,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
@@ -71,6 +72,7 @@ import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
@@ -110,6 +112,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -339,7 +342,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
+    boolean fnApiEnabled = hasExperiment(options, "beam_fn_api");
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
+
     // Create is implemented in terms of a Read, so it must precede the override to Read in
     // streaming
     overridesBuilder
@@ -349,7 +354,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 DeduplicatedFlattenFactory.create()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+                PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()))
+        // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
+        // However, we want a different expansion for single-output splittable ParDo.
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDoSingle(),
+                new ReflectiveOneToOneOverrideFactory(
+                    SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDoMulti(),
+                new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
     if (streaming) {
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(
@@ -363,27 +379,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
-      if (hasExperiment(options, "beam_fn_api")) {
+      if (fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(Create.Values.class),
                 new StreamingFnApiCreateOverrideFactory()));
       }
       overridesBuilder
-          // Support Splittable DoFn for now only in streaming mode.
-          // The order of the following overrides is important because they are applied in order.
-
-          // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
-          // However, we want a different expansion for single-output splittable ParDo.
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.splittableParDoSingle(),
-                  new ReflectiveOneToOneOverrideFactory(
-                      SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.splittableParDoMulti(),
-                  new SplittableParDoOverrides.SplittableParDoOverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.writeWithRunnerDeterminedSharding(),
@@ -398,12 +400,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
                   new StreamingUnboundedReadOverrideFactory()));
-      if (!hasExperiment(options, "beam_fn_api")) {
+      if (!fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
                 new StreamingCreatePCollectionViewFactory()));
       }
+      // Dataflow Streaming runner overrides the SPLITTABLE_PROCESS_KEYED transform
+      // natively in the Dataflow service.
     } else {
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -415,7 +419,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)));
-      if (!hasExperiment(options, "beam_fn_api")) {
+      // Dataflow Batch runner uses the naive override of the SPLITTABLE_PROCESS_KEYED transform
+      // for now, but eventually (when liquid sharding is implemented) will also override it
+      // natively in the Dataflow service.
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.splittableProcessKeyedBounded(),
+              new SplittableParDoNaiveBounded.OverrideFactory()));
+      if (!fnApiEnabled) {
         overridesBuilder
             .add(
                 PTransformOverride.of(
@@ -454,27 +465,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
-    if (hasExperiment(options, "beam_fn_api")) {
+    if (fnApiEnabled) {
       overridesBuilder.add(
           PTransformOverride.of(
               PTransformMatchers.classEqualTo(Read.Bounded.class),
               new FnApiBoundedReadOverrideFactory()));
     }
-    overridesBuilder.add(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()));
-    // Order is important. Streaming views almost all use Combine internally.
-    // TODO (BEAM-4118) Remove this check once combiner lifting is implemented for the FnAPI.
-    if (!hasExperiment(options, "beam_fn_api")) {
-      overridesBuilder.add(
-          PTransformOverride.of(
-              PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-              new PrimitiveCombineGroupedValuesOverrideFactory()));
-    }
-    overridesBuilder.add(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
-            new PrimitiveParDoSingleFactory()));
+    overridesBuilder
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()))
+        // Order is important. Streaming views almost all use Combine internally.
+        .add(
+            PTransformOverride.of(
+                combineValuesTranslation(fnApiEnabled),
+                new PrimitiveCombineGroupedValuesOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+                new PrimitiveParDoSingleFactory()));
     return overridesBuilder.build();
   }
 
@@ -623,6 +632,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  /**
+   * Returns a {@link PTransformMatcher} that matches {@link PTransform}s of class {@link
+   * Combine.GroupedValues} that will be translated into CombineValues transforms in Dataflow's Job
+   * API and skips those that should be expanded into ParDos.
+   *
+   * @param fnApiEnabled Flag indicating whether this matcher is being retrieved for a fnapi or
+   *     non-fnapi pipeline.
+   */
+  private static PTransformMatcher combineValuesTranslation(boolean fnApiEnabled) {
+    if (fnApiEnabled) {
+      return new DataflowPTransformMatchers.CombineValuesWithParentCheckPTransformMatcher();
+    } else {
+      return new DataflowPTransformMatchers.CombineValuesWithoutSideInputsPTransformMatcher();
+    }
+  }
+
   private String debuggerMessage(String projectId, String uniquifier) {
     return String.format(
         "To debug your job, visit Google Cloud Debugger at: "
@@ -716,6 +741,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+      List<String> experiments =
+          dataflowOptions.getExperiments() == null
+              ? new ArrayList<>()
+              : dataflowOptions.getExperiments();
+      experiments.add("use_staged_dataflow_worker_jar");
+      dataflowOptions.setExperiments(experiments);
+    }
+
     Job newJob = jobSpecification.getJob();
     try {
       newJob
@@ -745,7 +779,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               dataflowOptions.getPathValidator().verifyPath(options.getGcpTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
-    newJob.getEnvironment().setExperiments(options.getExperiments());
+
+    // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
+    List<String> experiments =
+        firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
+    if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
+
+      List<String> minCpuFlags =
+          experiments
+              .stream()
+              .filter(p -> p.startsWith("min_cpu_platform"))
+              .collect(Collectors.toList());
+
+      if (minCpuFlags.isEmpty()) {
+        experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+      } else {
+        LOG.warn(
+            "Flag min_cpu_platform is defined in both top level PipelineOption, "
+                + "as well as under experiments. Proceed using {}.",
+            minCpuFlags.get(0));
+      }
+    }
+
+    newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.

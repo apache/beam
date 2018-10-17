@@ -113,7 +113,7 @@ import apache_beam as beam
 
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
-  'hamcrest': ('https://pyhamcrest.readthedocs.io/en/latest/', None),
+  'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -178,6 +178,7 @@ nitpicky = True
 nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
+nitpick_ignore += [('py:exc', 'ValueError')]
 EOF
 
 #=== index.rst ===#

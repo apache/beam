@@ -54,7 +54,6 @@ import org.apache.calcite.rel.rules.ProjectSortTransposeRule;
 import org.apache.calcite.rel.rules.ProjectToCalcRule;
 import org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.calcite.rel.rules.SortProjectTransposeRule;
-import org.apache.calcite.rel.rules.SortRemoveRule;
 import org.apache.calcite.rel.rules.UnionEliminatorRule;
 import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.tools.RuleSet;
@@ -120,7 +119,8 @@ public class BeamRuleSets {
           // AggregateReduceFunctionsRule.INSTANCE,
 
           // remove unnecessary sort rule
-          SortRemoveRule.INSTANCE,
+          // https://issues.apache.org/jira/browse/BEAM-5073
+          // SortRemoveRule.INSTANCE,
 
           // prune empty results rules
           PruneEmptyRules.AGGREGATE_INSTANCE,

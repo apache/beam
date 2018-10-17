@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
@@ -147,6 +148,21 @@ public class CoderRegistryTest {
             listUnknownToken, UnknownType.class.getName()));
 
     registry.getCoder(listUnknownToken);
+  }
+
+  @Test
+  public void testParameterizedWildcardTypeIsUnknown() throws Exception {
+    CoderRegistry registry = CoderRegistry.createDefault();
+    TypeDescriptor<List<? extends MyValue>> wildcardUnknownToken =
+        new TypeDescriptor<List<? extends MyValue>>() {};
+
+    thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage(
+        String.format(
+            "Cannot provide coder for parameterized type %s: Cannot provide a coder for wildcard type %s.",
+            wildcardUnknownToken,
+            ((ParameterizedType) wildcardUnknownToken.getType()).getActualTypeArguments()[0]));
+    registry.getCoder(wildcardUnknownToken);
   }
 
   @Test

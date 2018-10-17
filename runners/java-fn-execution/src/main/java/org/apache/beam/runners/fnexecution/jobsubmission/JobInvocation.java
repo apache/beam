@@ -42,4 +42,16 @@ public interface JobInvocation {
 
   /** Listen for job messages with a {@link Consumer}. */
   void addMessageListener(Consumer<JobMessage> messageStreamObserver);
+
+  static Boolean isTerminated(Enum state) {
+    switch (state) {
+      case DONE:
+      case FAILED:
+      case CANCELLED:
+      case DRAINED:
+        return true;
+      default:
+        return false;
+    }
+  }
 }

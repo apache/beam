@@ -42,10 +42,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.sql.impl.parser.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -82,7 +82,7 @@ public class JdbcDriverTest {
           "test",
           ImmutableMap.of(
               "test",
-              MockedBoundedTable.of(
+              TestBoundedTable.of(
                       Schema.FieldType.INT32, "id",
                       Schema.FieldType.STRING, "name")
                   .addRows(1, "first")));
@@ -164,9 +164,9 @@ public class JdbcDriverTest {
     ResultSet resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
     assertFalse(resultSet.next());
 
-    // Create tables
+    // create external tables
     Statement statement = connection.createStatement();
-    assertEquals(0, statement.executeUpdate("CREATE TABLE test (id INTEGER) TYPE 'text'"));
+    assertEquals(0, statement.executeUpdate("CREATE EXTERNAL TABLE test (id INTEGER) TYPE 'text'"));
 
     // Ensure table test
     resultSet = metadata.getTables(null, null, null, new String[] {"TABLE"});
@@ -174,7 +174,6 @@ public class JdbcDriverTest {
     assertEquals("test", resultSet.getString("TABLE_NAME"));
     assertFalse(resultSet.next());
 
-    // Create tables
     assertEquals(0, statement.executeUpdate("DROP TABLE test"));
 
     // Ensure no tables
@@ -189,7 +188,7 @@ public class JdbcDriverTest {
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
 
     tableProvider.addRows("person", row(1L, "aaa"), row(2L, "bbb"));
 
@@ -206,14 +205,15 @@ public class JdbcDriverTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/CALCITE-2394")
   public void testTimestampWithDefaultTimezone() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     Connection connection = JdbcDriver.connect(tableProvider);
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -242,7 +242,9 @@ public class JdbcDriverTest {
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -270,7 +272,9 @@ public class JdbcDriverTest {
 
     // A table with one TIMESTAMP column
     Schema schema = Schema.builder().addDateTimeField("ts").build();
-    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+    connection
+        .createStatement()
+        .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
     ReadableInstant july1 =
         ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
@@ -298,7 +302,7 @@ public class JdbcDriverTest {
     connection
         .createStatement()
         .executeUpdate(
-            "CREATE TABLE person ( \n"
+            "CREATE EXTERNAL TABLE person ( \n"
                 + "description VARCHAR, \n"
                 + "nestedRow ROW< \n"
                 + "              id BIGINT, \n"
@@ -332,11 +336,11 @@ public class JdbcDriverTest {
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person (id BIGINT, name VARCHAR) TYPE 'test'");
 
     connection
         .createStatement()
-        .executeUpdate("CREATE TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
+        .executeUpdate("CREATE EXTERNAL TABLE person_src (id BIGINT, name VARCHAR) TYPE 'test'");
     tableProvider.addRows("person_src", row(1L, "aaa"), row(2L, "bbb"));
 
     connection.createStatement().execute("INSERT INTO person SELECT id, name FROM person_src");
@@ -371,7 +375,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")
@@ -410,7 +414,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedUnboundedTable.of(
+                TestUnboundedTable.of(
                         Schema.FieldType.INT32, "order_id",
                         Schema.FieldType.INT32, "site_id",
                         Schema.FieldType.INT32, "price",

@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +36,10 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
@@ -53,8 +58,10 @@ import org.slf4j.LoggerFactory;
 /** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
+  private static final int WAIT_MS = 1000;
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    LOG.info("Starting {}", ReferenceRunnerJobService.class);
     return new ReferenceRunnerJobService(
         serverFactory, () -> Files.createTempDirectory("reference-runner-staging"));
   }
@@ -64,7 +71,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
 
   private final ConcurrentMap<String, PreparingJob> unpreparedJobs;
   private final ConcurrentMap<String, ReferenceRunner> runningJobs;
+  private final ConcurrentMap<String, JobState.Enum> jobStates;
   private final ExecutorService executor;
+  private final ConcurrentLinkedQueue<GrpcFnServer<LocalFileSystemArtifactStagerService>>
+      artifactStagingServices;
 
   private ReferenceRunnerJobService(
       ServerFactory serverFactory, Callable<Path> stagingPathCallable) {
@@ -72,12 +82,14 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     this.stagingPathCallable = stagingPathCallable;
     unpreparedJobs = new ConcurrentHashMap<>();
     runningJobs = new ConcurrentHashMap<>();
+    jobStates = new ConcurrentHashMap<>();
     executor =
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder()
                 .setDaemon(false)
                 .setNameFormat("reference-runner-pipeline-%s")
                 .build());
+    artifactStagingServices = new ConcurrentLinkedQueue<>();
   }
 
   public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
@@ -95,6 +107,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       Path tempDir = stagingPathCallable.call();
       GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
           createArtifactStagingService(tempDir);
+      artifactStagingServices.add(artifactStagingService);
       PreparingJob previous =
           unpreparedJobs.putIfAbsent(
               preparationId,
@@ -156,14 +169,22 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
               preparingJob.getPipeline(),
               preparingJob.getOptions(),
               preparingJob.getStagingLocation().toFile());
-      String jobId = preparingJob + Integer.toString(ThreadLocalRandom.current().nextInt());
+      String jobId = "job-" + Integer.toString(ThreadLocalRandom.current().nextInt());
       responseObserver.onNext(RunJobResponse.newBuilder().setJobId(jobId).build());
       responseObserver.onCompleted();
       runningJobs.put(jobId, runner);
+      jobStates.putIfAbsent(jobId, Enum.RUNNING);
       executor.submit(
           () -> {
-            runner.execute();
-            return null;
+            try {
+              jobStates.computeIfPresent(jobId, (id, status) -> Enum.RUNNING);
+              runner.execute();
+              jobStates.computeIfPresent(jobId, (id, status) -> Enum.DONE);
+              return null;
+            } catch (Exception e) {
+              jobStates.computeIfPresent(jobId, (id, status) -> Enum.FAILED);
+              throw e;
+            }
           });
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
@@ -176,10 +197,41 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
-    responseObserver.onError(
-        Status.NOT_FOUND
-            .withDescription(String.format("Unknown Job ID %s", request.getJobId()))
-            .asException());
+    responseObserver.onNext(
+        GetJobStateResponse.newBuilder()
+            .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED))
+            .build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getStateStream(
+      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
+    try {
+      Thread.sleep(WAIT_MS);
+      Enum state = jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED);
+      responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
+      while (Enum.RUNNING.equals(state)) {
+        Thread.sleep(WAIT_MS);
+        state = jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED);
+      }
+      responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getMessageStream(
+      JobMessagesRequest request, StreamObserver<JobMessagesResponse> responseObserver) {
+    // Not implemented
+    LOG.trace("{} {}", JobMessagesRequest.class.getSimpleName(), request);
   }
 
   @Override
@@ -198,6 +250,17 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
         preparingJob.close();
       } catch (Exception e) {
         LOG.warn("Exception while closing preparing job {}", preparingJob);
+      }
+    }
+    while (!artifactStagingServices.isEmpty()) {
+      GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
+          artifactStagingServices.remove();
+      try {
+        artifactStagingService.close();
+      } catch (Exception e) {
+        LOG.error(
+            "Unable to close staging sevice started on %s",
+            artifactStagingService.getApiServiceDescriptor().getUrl(), e);
       }
     }
   }

@@ -127,4 +127,5 @@ $(document).ready(function() {
 
     Switcher({"class-prefix":"language","default":"java"}).render();
     Switcher({"class-prefix":"runner","default":"direct"}).render();
+    Switcher({"class-prefix":"shell","default":"unix"}).render();
 });

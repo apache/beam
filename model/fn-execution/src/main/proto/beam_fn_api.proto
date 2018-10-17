@@ -40,6 +40,7 @@ option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
 import "endpoints.proto";
+import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -250,11 +251,16 @@ message ProcessBundleRequest {
 message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
+  // DEPRECATED
   Metrics metrics = 1;
 
   // (Optional) Specifies that the bundle has been split since the last
   // ProcessBundleProgressResponse was sent.
   BundleSplit split = 2;
+
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated MonitoringInfo monitoring_infos = 3;
 }
 
 // A request to report progress information for a given bundle.
@@ -275,9 +281,9 @@ message MonitoringInfo {
   // Sub types like field formats - int64, double, string.
   // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
   // valid values are:
-  // beam:metrics:[SumInt64|LatestInt64|Top-NInt64|Bottom-NInt64|
-  //     SumDouble|LatestDouble|Top-NDouble|Bottom-NDouble|DistributionInt64|
-  //     DistributionDouble|MonitoringDataTable]
+  // beam:metrics:[sum_int_64|latest_int_64|top_n_int_64|bottom_n_int_64|
+  //     sum_double|latest_double|top_n_double|bottom_n_double|
+  //     distribution_int_64|distribution_double|monitoring_data_table
   string type = 2;
 
   // The Metric or monitored state.
@@ -302,6 +308,45 @@ message MonitoringInfo {
   // Some systems such as Stackdriver will be able to aggregate the metrics
   // using a subset of the provided labels
   map<string, string> labels = 5;
+
+  // The walltime of the most recent update.
+  // Useful for aggregation for Latest types such as LatestInt64.
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+message MonitoringInfoUrns {
+  enum Enum {
+    USER_COUNTER_URN_PREFIX = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metric:user"];
+
+    ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metric:element_count:v1"];
+
+    START_BUNDLE_MSECS = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:metric:pardo_execution_time:start_bundle_msecs:v1"];
+
+    PROCESS_BUNDLE_MSECS = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metric:pardo_execution_time:process_bundle_msecs:v1"];
+
+    FINISH_BUNDLE_MSECS = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metric:pardo_execution_time:finish_bundle_msecs:v1"];
+
+    TOTAL_MSECS = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metric:ptransform_execution_time:total_msecs:v1"];
+  }
+}
+
+message MonitoringInfoTypeUrns {
+  enum Enum {
+    SUM_INT64_TYPE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metrics:sum_int_64"];
+
+    DISTRIBUTION_INT64_TYPE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:metrics:distribution_int_64"];
+
+    LATEST_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:metrics:latest_int_64"];
+  }
 }
 
 message Metric {
@@ -525,12 +570,16 @@ message Metrics {
 }
 
 message ProcessBundleProgressResponse {
-  // (Required)
+  // DEPRECATED (Required)
   Metrics metrics = 1;
 
   // (Optional) Specifies that the bundle has been split since the last
   // ProcessBundleProgressResponse was sent.
   BundleSplit split = 2;
+
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated MonitoringInfo monitoring_infos = 3;
 }
 
 message ProcessBundleSplitRequest {
@@ -795,7 +844,6 @@ message LogEntry {
     enum Enum {
       // Unspecified level information. Will be logged at the TRACE level.
       UNSPECIFIED = 0;
-      // Trace level information.
       TRACE = 1;
       // Debugging information.
       DEBUG = 2;
@@ -863,4 +911,3 @@ service BeamFnLogging {
     stream LogControl
   ) {}
 }
-

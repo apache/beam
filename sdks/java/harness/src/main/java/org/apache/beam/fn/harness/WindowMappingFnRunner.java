@@ -32,9 +32,17 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * Maps windows using a window mapping fn. The input is {@link KV} with the key being a nonce and
- * the value being a window, the output must be a {@link KV} with the key being the same nonce as
- * the input and the value being the mapped window.
+ * Represents mapping of main input window onto side input window.
+ *
+ * <p>Side input window mapping function:
+ *
+ * <ul>
+ *   <li>Input: {@code KV<nonce, MainInputWindow>}
+ *   <li>Output: {@code KV<nonce, SideInputWindow>}
+ * </ul>
+ *
+ * <p>For each main input window, the side input window is returned. The nonce is used by a runner
+ * to associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
 public class WindowMappingFnRunner {
   static final String URN = BeamUrns.getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);

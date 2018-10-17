@@ -66,6 +66,7 @@ task validatesRunnerStreaming(type: Test) {
           "--streaming=true",
   ])
 
+
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
@@ -74,7 +75,8 @@ task validatesRunnerStreaming(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'

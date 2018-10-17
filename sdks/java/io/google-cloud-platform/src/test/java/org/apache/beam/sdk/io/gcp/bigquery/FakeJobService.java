@@ -84,6 +84,10 @@ public class FakeJobService implements JobService, Serializable {
   // the next 2 will return the job as running, and only then will the job report as done.
   private static final int GET_JOBS_TRANSITION_INTERVAL = 2;
 
+  // The number of times to simulate a failure and trigger a retry.
+  private int numFailuresExpected;
+  private int numFailures = 0;
+
   private final FakeDatasetService datasetService;
 
   private static class JobInfo {
@@ -102,7 +106,16 @@ public class FakeJobService implements JobService, Serializable {
   private static com.google.common.collect.Table<String, String, JobStatistics> dryRunQueryResults;
 
   public FakeJobService() {
+    this(0);
+  }
+
+  public FakeJobService(int numFailures) {
     this.datasetService = new FakeDatasetService();
+    this.numFailuresExpected = numFailures;
+  }
+
+  public void setNumFailuresExpected(int numFailuresExpected) {
+    this.numFailuresExpected = numFailuresExpected;
   }
 
   public static void setUp() {
@@ -247,10 +260,17 @@ public class FakeJobService implements JobService, Serializable {
         }
         try {
           ++job.getJobCount;
-          if (job.getJobCount == GET_JOBS_TRANSITION_INTERVAL + 1) {
-            job.job.getStatus().setState("RUNNING");
-          } else if (job.getJobCount == 2 * GET_JOBS_TRANSITION_INTERVAL + 1) {
-            job.job.setStatus(runJob(job.job));
+          if (!"FAILED".equals(job.job.getStatus().getState())) {
+            if (numFailures < numFailuresExpected) {
+              ++numFailures;
+              throw new Exception("Failure number " + numFailures);
+            }
+
+            if (job.getJobCount == GET_JOBS_TRANSITION_INTERVAL + 1) {
+              job.job.getStatus().setState("RUNNING");
+            } else if (job.getJobCount == 2 * GET_JOBS_TRANSITION_INTERVAL + 1) {
+              job.job.setStatus(runJob(job.job));
+            }
           }
         } catch (Exception e) {
           job.job
@@ -261,6 +281,9 @@ public class FakeJobService implements JobService, Serializable {
                       .setMessage(
                           String.format(
                               "Job %s failed: %s", job.job.getConfiguration(), e.toString())));
+          List<ResourceId> sourceFiles =
+              filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
+          FileSystems.delete(sourceFiles);
         }
         return JSON_FACTORY.fromString(JSON_FACTORY.toString(job.job), Job.class);
       }

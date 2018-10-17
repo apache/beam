@@ -37,9 +37,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -62,19 +62,19 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testNoDedup() throws Exception {
     test(false, false);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDedup() throws Exception {
     test(true, false);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testTimeBound() throws Exception {
     test(false, true);
   }

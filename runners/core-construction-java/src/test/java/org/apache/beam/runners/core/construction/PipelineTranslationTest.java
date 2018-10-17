@@ -110,20 +110,30 @@ public class PipelineTranslationTest {
 
   @Test
   public void testProtoDirectly() {
-    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, false));
+  }
+
+  @Test
+  public void testProtoDirectlyWithViewTransform() {
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, true);
+    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, true));
   }
 
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {
 
     private final RunnerApi.Pipeline pipelineProto;
+    private boolean useDeprecatedViewTransforms;
     Set<Node> transforms;
     Set<PCollection<?>> pcollections;
     Set<Equivalence.Wrapper<? extends Coder<?>>> coders;
     Set<WindowingStrategy<?, ?>> windowingStrategies;
+    int missingViewTransforms = 0;
 
-    public PipelineProtoVerificationVisitor(RunnerApi.Pipeline pipelineProto) {
+    public PipelineProtoVerificationVisitor(
+        RunnerApi.Pipeline pipelineProto, boolean useDeprecatedViewTransforms) {
       this.pipelineProto = pipelineProto;
+      this.useDeprecatedViewTransforms = useDeprecatedViewTransforms;
       transforms = new HashSet<>();
       pcollections = new HashSet<>();
       coders = new HashSet<>();
@@ -136,11 +146,11 @@ public class PipelineTranslationTest {
         assertThat(
             "Unexpected number of PTransforms",
             pipelineProto.getComponents().getTransformsCount(),
-            equalTo(transforms.size()));
+            equalTo(transforms.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of PCollections",
             pipelineProto.getComponents().getPcollectionsCount(),
-            equalTo(pcollections.size()));
+            equalTo(pcollections.size() - missingViewTransforms));
         assertThat(
             "Unexpected number of Coders",
             pipelineProto.getComponents().getCodersCount(),
@@ -151,7 +161,7 @@ public class PipelineTranslationTest {
             equalTo(windowingStrategies.size()));
       } else {
         transforms.add(node);
-        if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
+        if (PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
           // Combine translation introduces a coder that is not assigned to any PCollection
           // in the default expansion, and must be explicitly added here.
@@ -167,6 +177,11 @@ public class PipelineTranslationTest {
     @Override
     public void visitPrimitiveTransform(Node node) {
       transforms.add(node);
+      if (!useDeprecatedViewTransforms
+          && PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+        missingViewTransforms += 1;
+      }
     }
 
     @Override

@@ -103,7 +103,17 @@ func main() {
 		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
 	}
+
+	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 	for _, md := range artifacts {
+		if hasWorkerExperiment {
+			if strings.HasPrefix(md.Name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
+				continue
+			}
+			if md.Name == "dataflow-worker.jar" {
+				continue
+			}
+		}
 		cp = append(cp, filepath.Join(dir, filepath.FromSlash(md.Name)))
 	}
 

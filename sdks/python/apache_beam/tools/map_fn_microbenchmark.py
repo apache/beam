@@ -61,7 +61,7 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
   gradient, intercept, r_value, p_value, std_err = stats.linregress(
       *list(zip(*list(timings.items()))))
   print("Fixed cost  ", intercept)
-  print("Per-element ", gradient // num_maps)
+  print("Per-element ", gradient / num_maps)
   print("R^2         ", r_value**2)
 
 

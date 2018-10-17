@@ -41,10 +41,11 @@ from __future__ import absolute_import
 import calendar
 import inspect
 import json
+from builtins import object
 from datetime import datetime
 from datetime import timedelta
 
-import six
+from past.builtins import unicode
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
@@ -169,7 +170,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
-              six.text_type:'STRING',
+              unicode:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',

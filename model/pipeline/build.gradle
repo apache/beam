@@ -21,3 +21,11 @@ applyPortabilityNature()
 
 description = "Apache Beam :: Model :: Pipeline"
 ext.summary = "Portable definitions for building pipelines"
+
+configurations {
+    unshaded
+}
+
+artifacts {
+    unshaded jar
+}

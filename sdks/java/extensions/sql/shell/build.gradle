@@ -37,3 +37,19 @@ processResources {
 }
 
 mainClassName = "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+
+/**
+ * Gradle console will interfere with SQL shell, so to run this command
+ * we need to configure it:
+ *  - disable daemon with '--no-daemon';
+ *  - decrease verbosity with '--console plain';
+ *  - quiet it with '-q';
+ *
+ * So, correct gradle invocation to start the SQL shell
+ * looks something like this:
+ *
+ *   ./gradlew :beam-sdks-java-extensions-sql-shell:run --console plain -q --no-daemon
+ */
+run {
+  standardInput System.in
+}

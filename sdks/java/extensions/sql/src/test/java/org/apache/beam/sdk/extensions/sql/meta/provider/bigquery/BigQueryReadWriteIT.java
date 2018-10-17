@@ -47,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -92,7 +93,7 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE TEST( \n"
+        "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -158,7 +159,7 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE TEST( \n"
+        "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
             + "   c_tinyint TINYINT, \n"
             + "   c_smallint SMALLINT, \n"
@@ -226,7 +227,7 @@ public class BigQueryReadWriteIT implements Serializable {
             new BigQueryTableProvider());
 
     String createTableStatement =
-        "CREATE TABLE ORDERS_BQ( \n"
+        "CREATE EXTERNAL TABLE ORDERS_BQ( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR, \n "
             + "   arr ARRAY<VARCHAR> \n"
@@ -266,7 +267,10 @@ public class BigQueryReadWriteIT implements Serializable {
   }
 
   private PCollection<Row> createPCollection(Pipeline pipeline, Row... rows) {
-    return pipeline.apply(Create.of(Arrays.asList(rows)).withCoder(SOURCE_SCHEMA.getRowCoder()));
+    return pipeline.apply(
+        Create.of(Arrays.asList(rows))
+            .withSchema(
+                SOURCE_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()));
   }
 
   private Row row(Schema schema, Object... values) {

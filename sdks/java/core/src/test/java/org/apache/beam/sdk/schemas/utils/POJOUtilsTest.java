@@ -29,11 +29,15 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_MAP_POJO_SCH
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedCollectionPOJO;
@@ -41,11 +45,10 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithBoxedFields;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithByteArray;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
-import org.apache.beam.sdk.values.reflect.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.FieldValueSetter;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -57,6 +60,13 @@ public class POJOUtilsTest {
   static final byte[] BYTE_ARRAY = "byteArray".getBytes(Charset.defaultCharset());
   static final ByteBuffer BYTE_BUFFER =
       ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
+
+  @Test
+  public void testNullables() {
+    Schema schema = POJOUtils.schemaFromPojoClass(POJOWithNullables.class);
+    assertTrue(schema.getField("str").getNullable());
+    assertFalse(schema.getField("anInt").getNullable());
+  }
 
   @Test
   public void testSimplePOJO() {
@@ -126,8 +136,8 @@ public class POJOUtilsTest {
     assertEquals((int) 43, getters.get(3).get(simplePojo));
     assertEquals((long) 44, getters.get(4).get(simplePojo));
     assertEquals(true, getters.get(5).get(simplePojo));
-    assertEquals(DATE, getters.get(6).get(simplePojo));
-    assertEquals(INSTANT, ((DateTime) getters.get(7).get(simplePojo)).toInstant());
+    assertEquals(DATE.toInstant(), getters.get(6).get(simplePojo));
+    assertEquals(INSTANT, getters.get(7).get(simplePojo));
     assertArrayEquals("Unexpected bytes", BYTE_ARRAY, (byte[]) getters.get(8).get(simplePojo));
     assertArrayEquals(
         "Unexpected bytes", BYTE_BUFFER.array(), (byte[]) getters.get(9).get(simplePojo));
@@ -147,7 +157,7 @@ public class POJOUtilsTest {
     setters.get(3).set(simplePojo, (int) 43);
     setters.get(4).set(simplePojo, (long) 44);
     setters.get(5).set(simplePojo, true);
-    setters.get(6).set(simplePojo, DATE);
+    setters.get(6).set(simplePojo, DATE.toInstant());
     setters.get(7).set(simplePojo, INSTANT);
     setters.get(8).set(simplePojo, BYTE_ARRAY);
     setters.get(9).set(simplePojo, BYTE_BUFFER.array());

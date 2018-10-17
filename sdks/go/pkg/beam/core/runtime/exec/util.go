@@ -43,7 +43,7 @@ func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error
 }
 
 // MultiStartBundle calls StartBundle on multiple nodes. Convenience function.
-func MultiStartBundle(ctx context.Context, id string, data DataManager, list ...Node) error {
+func MultiStartBundle(ctx context.Context, id string, data DataContext, list ...Node) error {
 	for _, n := range list {
 		if err := n.StartBundle(ctx, id, data); err != nil {
 			return err

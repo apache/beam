@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 from builtins import object
 
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 
@@ -51,6 +52,9 @@ side_inputs = PropertiesFromEnumType(
 
 coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
 
+environments = PropertiesFromEnumType(
+    beam_runner_api_pb2.StandardEnvironments.Environments)
+
 
 def PropertiesFromPayloadType(payload_type):
   return PropertiesFromEnumType(payload_type.Enum).PROPERTIES
@@ -64,3 +68,8 @@ sliding_windows = PropertiesFromPayloadType(
     standard_window_fns_pb2.SlidingWindowsPayload)
 session_windows = PropertiesFromPayloadType(
     standard_window_fns_pb2.SessionsPayload)
+
+monitoring_infos = PropertiesFromEnumType(
+    beam_fn_api_pb2.MonitoringInfoUrns.Enum)
+monitoring_info_types = PropertiesFromEnumType(
+    beam_fn_api_pb2.MonitoringInfoTypeUrns.Enum)

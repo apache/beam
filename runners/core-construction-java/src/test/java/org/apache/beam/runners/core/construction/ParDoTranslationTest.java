@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.coders.Coder;
@@ -117,7 +116,7 @@ public class ParDoTranslationTest {
     @Test
     public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
       ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
@@ -130,12 +129,12 @@ public class ParDoTranslationTest {
     @Test
     public void toTransformProto() throws Exception {
       Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-      inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
+      inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
       inputs.putAll(parDo.getAdditionalInputs());
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
 
       // Encode
       RunnerApi.PTransform protoTransform =
@@ -170,6 +169,7 @@ public class ParDoTranslationTest {
       assertThat(
           ParDoTranslation.getMainInput(protoTransform, components),
           equalTo(components.getPcollectionsOrThrow(mainInputId)));
+      assertThat(ParDoTranslation.getMainInputName(protoTransform), equalTo("mainInputName"));
 
       // Validate that the timer PCollections are added correctly.
       DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
@@ -221,7 +221,7 @@ public class ParDoTranslationTest {
     public void testStateSpecToFromProto() throws Exception {
       // Encode
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       RunnerApi.StateSpec stateSpecProto =
           ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
 

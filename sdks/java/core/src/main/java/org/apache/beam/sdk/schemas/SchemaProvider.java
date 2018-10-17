@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.schemas;
 
+import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -31,7 +32,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * contacts an external schema-registry service to determine the schema for a type.
  */
 @Experimental(Kind.SCHEMAS)
-public interface SchemaProvider {
+public interface SchemaProvider extends Serializable {
 
   /** Lookup a schema for the given type. If no schema exists, returns null. */
   @Nullable

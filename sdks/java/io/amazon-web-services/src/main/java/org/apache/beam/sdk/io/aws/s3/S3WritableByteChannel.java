@@ -29,12 +29,15 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
+import com.amazonaws.util.Base64;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
@@ -53,6 +56,7 @@ class S3WritableByteChannel implements WritableByteChannel {
   // AWS S3 parts are 1-indexed, not zero-indexed.
   private int partNumber = 1;
   private boolean open = true;
+  private final MessageDigest md5 = md5();
 
   S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType, S3Options options)
       throws IOException {
@@ -95,6 +99,14 @@ class S3WritableByteChannel implements WritableByteChannel {
     uploadId = result.getUploadId();
   }
 
+  private static MessageDigest md5() {
+    try {
+      return MessageDigest.getInstance("MD5");
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   @Override
   public int write(ByteBuffer sourceBuffer) throws IOException {
     if (!isOpen()) {
@@ -109,6 +121,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       byte[] copyBuffer = new byte[bytesWritten];
       sourceBuffer.get(copyBuffer);
       uploadBuffer.put(copyBuffer);
+      md5.update(copyBuffer);
 
       if (!uploadBuffer.hasRemaining() || sourceBuffer.hasRemaining()) {
         flush();
@@ -129,6 +142,7 @@ class S3WritableByteChannel implements WritableByteChannel {
             .withUploadId(uploadId)
             .withPartNumber(partNumber++)
             .withPartSize(uploadBuffer.remaining())
+            .withMD5Digest(Base64.encodeAsString(md5.digest()))
             .withInputStream(inputStream);
     request.setSSECustomerKey(options.getSSECustomerKey());
 
@@ -139,6 +153,7 @@ class S3WritableByteChannel implements WritableByteChannel {
       throw new IOException(e);
     }
     uploadBuffer.clear();
+    md5.reset();
     eTags.add(result.getPartETag());
   }
 

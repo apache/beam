@@ -26,10 +26,12 @@ import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -89,7 +91,11 @@ public class RowSizeTest {
   public void testParDoConvertsToRecordSize() throws Exception {
     PCollection<Row> rows =
         testPipeline.apply(
-            TestStream.create(ROW_TYPE.getRowCoder())
+            TestStream.create(
+                    SchemaCoder.of(
+                        ROW_TYPE,
+                        SerializableFunctions.identity(),
+                        SerializableFunctions.identity()))
                 .addElements(ROW)
                 .advanceWatermarkToInfinity());
 

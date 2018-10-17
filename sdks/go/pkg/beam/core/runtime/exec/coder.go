@@ -16,10 +16,11 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"reflect"
+
+	"bytes"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
@@ -28,45 +29,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
-
-// Port represents the connection port of external operations.
-type Port struct {
-	URL string
-}
-
-// Target represents the target of external operations.
-type Target struct {
-	ID   string
-	Name string
-}
-
-// StreamID represents the information needed to identify a data stream.
-type StreamID struct {
-	Port   Port
-	Target Target
-	InstID string
-}
-
-func (id StreamID) String() string {
-	return fmt.Sprintf("S:%v:[%v:%v]:%v", id.Port.URL, id.Target.ID, id.Target.Name, id.InstID)
-}
-
-// DataReader is the interface for reading data elements from a particular stream.
-type DataReader interface {
-	OpenRead(ctx context.Context, id StreamID) (io.ReadCloser, error)
-}
-
-// DataWriter is the interface for writing data elements to a particular stream.
-type DataWriter interface {
-	OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error)
-}
-
-// DataManager manages external data byte streams. Each data stream can be
-// opened by one consumer only.
-type DataManager interface {
-	DataReader
-	DataWriter
-}
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
 // nested streams. Hence, a simple read-one-element-at-a-time approach doesn't
@@ -78,6 +40,16 @@ type DataManager interface {
 type ElementEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode(FullValue, io.Writer) error
+}
+
+// EncodeElement is a convenience function for encoding a single element into a
+// byte slice.
+func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := c.Encode(FullValue{Elm: val}, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // ElementDecoder handles FullValue deserialization from a byte stream. The decoder
@@ -282,6 +254,16 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 type WindowEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode([]typex.Window, io.Writer) error
+}
+
+// EncodeWindow is a convenience function for encoding a single window into a
+// byte slice.
+func EncodeWindow(c WindowEncoder, w typex.Window) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := c.Encode([]typex.Window{w}, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // WindowDecoder handles Window deserialization from a byte stream. The decoder

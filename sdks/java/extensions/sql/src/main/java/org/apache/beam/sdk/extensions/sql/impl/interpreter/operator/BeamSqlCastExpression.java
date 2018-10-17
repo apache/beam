@@ -111,8 +111,9 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
             SqlFunctions.toFloat(opValueEvaluated(index, inputRow, window, env)));
       case CHAR:
       case VARCHAR:
+        // TODO: We should do standards-compliant string conversions here.
         return BeamSqlPrimitive.of(
-            SqlTypeName.VARCHAR, (String) opValueEvaluated(index, inputRow, window, env));
+            SqlTypeName.VARCHAR, opValueEvaluated(index, inputRow, window, env).toString());
       case DATE:
         return BeamSqlPrimitive.of(
             SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, window, env)));

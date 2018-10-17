@@ -22,13 +22,11 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,8 +34,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -55,8 +59,8 @@ import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
+  private WindowFn<Row, IntervalWindow> windowFn;
   private final int windowFieldIndex;
-  private Optional<AggregateWindowField> windowField;
 
   public BeamAggregationRel(
       RelOptCluster cluster,
@@ -66,11 +70,45 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls,
-      Optional<AggregateWindowField> windowField) {
+      WindowFn<Row, IntervalWindow> windowFn,
+      int windowFieldIndex) {
 
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
-    this.windowField = windowField;
-    this.windowFieldIndex = windowField.map(AggregateWindowField::fieldIndex).orElse(-1);
+
+    this.windowFn = windowFn;
+    this.windowFieldIndex = windowFieldIndex;
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    super.explainTerms(pw);
+    if (this.windowFn != null) {
+      WindowFn windowFn = this.windowFn;
+      String window = windowFn.getClass().getSimpleName() + "($" + String.valueOf(windowFieldIndex);
+      if (windowFn instanceof FixedWindows) {
+        FixedWindows fn = (FixedWindows) windowFn;
+        window = window + ", " + fn.getSize().toString() + ", " + fn.getOffset().toString();
+      } else if (windowFn instanceof SlidingWindows) {
+        SlidingWindows fn = (SlidingWindows) windowFn;
+        window =
+            window
+                + ", "
+                + fn.getPeriod().toString()
+                + ", "
+                + fn.getSize().toString()
+                + ", "
+                + fn.getOffset().toString();
+      } else if (windowFn instanceof Sessions) {
+        Sessions fn = (Sessions) windowFn;
+        window = window + ", " + fn.getGapDuration().toString();
+      } else {
+        throw new RuntimeException(
+            "Unknown window function " + windowFn.getClass().getSimpleName());
+      }
+      window = window + ")";
+      pw.item("window", window);
+    }
+    return pw;
   }
 
   @Override
@@ -88,7 +126,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           BeamAggregationRel.class.getSimpleName(),
           pinput);
       PCollection<Row> upstream = pinput.get(0);
-      if (windowField.isPresent()) {
+      PCollection<Row> windowedStream = upstream;
+      if (windowFn != null) {
         upstream =
             upstream
                 .apply(
@@ -97,17 +136,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                             new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
                         .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
                 .setCoder(upstream.getCoder());
+        windowedStream = upstream.apply(Window.into(windowFn));
       }
-
-      PCollection<Row> windowedStream =
-          windowField.isPresent()
-              ? upstream.apply(Window.into(windowField.get().windowFn()))
-              : upstream;
 
       validateWindowIsSupported(windowedStream);
 
       Schema keySchema = exKeyFieldsSchema(input.getRowType());
-      RowCoder keyCoder = keySchema.getRowCoder();
+      SchemaCoder<Row> keyCoder = SchemaCoder.of(keySchema);
       PCollection<KV<Row, Row>> exCombineByStream =
           windowedStream
               .apply(
@@ -117,7 +152,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                           keySchema, windowFieldIndex, groupSet)))
               .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
-      RowCoder aggCoder = exAggFieldsSchema().getRowCoder();
+      SchemaCoder<Row> aggCoder = SchemaCoder.of(exAggFieldsSchema());
 
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
@@ -125,7 +160,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                   "combineBy",
                   Combine.perKey(
                       new BeamAggregationTransforms.AggregationAdaptor(
-                          getNamedAggCalls(), CalciteUtils.toBeamSchema(input.getRowType()))))
+                          getNamedAggCalls(), CalciteUtils.toSchema(input.getRowType()))))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
@@ -133,8 +168,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
-                      CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+                      CalciteUtils.toSchema(getRowType()), windowFieldIndex)));
+      mergedStream.setRowSchema(CalciteUtils.toSchema(getRowType()));
 
       return mergedStream;
     }
@@ -164,7 +199,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     /** Type of sub-rowrecord used as Group-By keys. */
     private Schema exKeyFieldsSchema(RelDataType relDataType) {
-      Schema inputSchema = CalciteUtils.toBeamSchema(relDataType);
+      Schema inputSchema = CalciteUtils.toSchema(relDataType);
       return groupSet
           .asList()
           .stream()
@@ -183,9 +218,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     }
 
     private Schema.Field newRowField(Pair<AggregateCall, String> namedAggCall) {
-      return Schema.Field.of(
-              namedAggCall.right, CalciteUtils.toFieldType(namedAggCall.left.getType()))
-          .withNullable(namedAggCall.left.getType().isNullable());
+      return CalciteUtils.toField(namedAggCall.right, namedAggCall.left.getType());
     }
   }
 
@@ -198,6 +231,14 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls) {
     return new BeamAggregationRel(
-        getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls, windowField);
+        getCluster(),
+        traitSet,
+        input,
+        indicator,
+        groupSet,
+        groupSets,
+        aggCalls,
+        windowFn,
+        windowFieldIndex);
   }
 }

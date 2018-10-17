@@ -529,6 +529,36 @@ public class MutationGroupEncoderTest {
   }
 
   @Test
+  public void decodeBasicTimestampMutationGroup() {
+    SpannerSchema spannerSchemaTimestamp =
+        SpannerSchema.builder().addColumn("timestampTest", "timestamp", "TIMESTAMP").build();
+    Timestamp timestamp1 = Timestamp.now();
+    Mutation mutation1 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp1).build();
+    encodeAndVerify(g(mutation1), spannerSchemaTimestamp);
+
+    Timestamp timestamp2 = Timestamp.parseTimestamp("2001-01-01T00:00:00Z");
+    Mutation mutation2 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp2).build();
+    encodeAndVerify(g(mutation2), spannerSchemaTimestamp);
+  }
+
+  @Test
+  public void decodeMinAndMaxTimestampMutationGroup() {
+    SpannerSchema spannerSchemaTimestamp =
+        SpannerSchema.builder().addColumn("timestampTest", "timestamp", "TIMESTAMP").build();
+    Timestamp timestamp1 = Timestamp.MIN_VALUE;
+    Mutation mutation1 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp1).build();
+    encodeAndVerify(g(mutation1), spannerSchemaTimestamp);
+
+    Timestamp timestamp2 = Timestamp.MAX_VALUE;
+    Mutation mutation2 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp2).build();
+    encodeAndVerify(g(mutation2), spannerSchemaTimestamp);
+  }
+
+  @Test
   public void timestampKeys() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
 

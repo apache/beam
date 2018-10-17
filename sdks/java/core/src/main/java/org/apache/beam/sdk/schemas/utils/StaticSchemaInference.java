@@ -81,7 +81,7 @@ public class StaticSchemaInference {
       return new TypeInformation(
           field.getName(),
           TypeDescriptor.of(field.getGenericType()),
-          field.getAnnotation(Nullable.class) != null);
+          field.isAnnotationPresent(Nullable.class));
     }
 
     /** Construct a {@link TypeInformation} from a class getter. */
@@ -95,7 +95,7 @@ public class StaticSchemaInference {
         throw new RuntimeException("Getter has wrong prefix " + method.getName());
       }
       TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
-      boolean nullable = method.getAnnotation(Nullable.class) != null;
+      boolean nullable = method.isAnnotationPresent(Nullable.class);
       return new TypeInformation(name, type, nullable);
     }
 
@@ -159,8 +159,12 @@ public class StaticSchemaInference {
       Class<?> clazz, Function<Class, List<TypeInformation>> getTypesForClass) {
     Schema.Builder builder = Schema.builder();
     for (TypeInformation type : getTypesForClass.apply(clazz)) {
-      // TODO: look for nullable annotation.
-      builder.addField(type.getName(), fieldFromType(type.getType(), getTypesForClass));
+      Schema.FieldType fieldType = fieldFromType(type.getType(), getTypesForClass);
+      if (type.isNullable()) {
+        builder.addNullableField(type.getName(), fieldType);
+      } else {
+        builder.addField(type.getName(), fieldType);
+      }
     }
     return builder.build();
   }

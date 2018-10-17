@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -75,8 +76,8 @@ import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
@@ -155,7 +156,7 @@ public class ReferenceRunner {
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     EvaluationContext ctxt =
         EvaluationContext.create(Instant::new, bundleFactory, graph, getKeyedPCollections(graph));
-    RootProviderRegistry rootRegistry = RootProviderRegistry.impulseRegistry(bundleFactory);
+    RootProviderRegistry rootRegistry = RootProviderRegistry.javaPortableRegistry(bundleFactory);
     int targetParallelism = Math.max(Runtime.getRuntime().availableProcessors(), 3);
     ServerFactory serverFactory = createServerFactory();
     ControlClientPool controlClientPool = MapControlClientPool.create();
@@ -195,8 +196,7 @@ public class ReferenceRunner {
             GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 
       EnvironmentFactory environmentFactory =
-          createEnvironmentFactory(
-              control, logging, artifact, provisioning, controlClientPool.getSource());
+          createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
       JobBundleFactory jobBundleFactory =
           SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
 
@@ -234,19 +234,20 @@ public class ReferenceRunner {
       GrpcFnServer<GrpcLoggingService> logging,
       GrpcFnServer<ArtifactRetrievalService> artifact,
       GrpcFnServer<StaticGrpcProvisionService> provisioning,
-      ControlClientPool.Source controlClientSource) {
+      ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:
-        return DockerEnvironmentFactory.forServices(
-            control,
-            logging,
-            artifact,
-            provisioning,
-            controlClientSource,
-            IdGenerators.incrementingLongs());
+        return new DockerEnvironmentFactory.Provider(PipelineOptionsTranslation.fromProto(options))
+            .createEnvironmentFactory(
+                control,
+                logging,
+                artifact,
+                provisioning,
+                controlClient,
+                IdGenerators.incrementingLongs());
       case IN_PROCESS:
-        return InProcessEnvironmentFactory.create(
-            PipelineOptionsFactory.create(), logging, control, controlClientSource);
+        return EmbeddedEnvironmentFactory.create(
+            PipelineOptionsFactory.create(), logging, control, controlClient.getSource());
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));

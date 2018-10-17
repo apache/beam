@@ -19,12 +19,16 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_PREFIX;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import sqlline.SqlLine;
+import sqlline.SqlLine.Status;
 
 /** {@link BeamSqlLine} provides default arguments to SqlLine. */
 public class BeamSqlLine {
@@ -32,28 +36,42 @@ public class BeamSqlLine {
   private static final String NICKNAME = "BeamSQL";
 
   public static void main(String[] args) throws IOException {
+    runSqlLine(args, null, System.out, System.err);
+  }
 
-    // Until we learn otherwise, we expect to add -nn <nickname> -u <url>
-    @Nullable String databaseUrl = null;
-    @Nullable String nickname = null;
+  private static String[] checkConnectionArgs(String[] args) {
+    List<String> argsList = new ArrayList<String>(Arrays.asList(args));
 
-    // Provide -u and -nn only if they do not exist
-    for (int i = 0; i < args.length; i++) {
-      if (args[i].equals("-u")) {
-        databaseUrl = args[++i];
-      } else if (args[i].equals("-nn")) {
-        nickname = args[++i];
-      }
+    if (!argsList.contains("-nn")) {
+      argsList.add("-nn");
+      argsList.add(NICKNAME);
     }
 
-    ImmutableList.Builder wrappedArgs = ImmutableList.builder().addAll(Arrays.asList(args));
-    if (databaseUrl == null) {
-      wrappedArgs.add("-u").add(CONNECT_STRING_PREFIX);
+    if (!argsList.contains("-u")) {
+      argsList.add("-u");
+      argsList.add(CONNECT_STRING_PREFIX);
     }
-    if (nickname == null) {
-      wrappedArgs.add("-nn").add(NICKNAME);
+
+    return argsList.toArray(new String[argsList.size()]);
+  }
+
+  static Status runSqlLine(
+      String[] args,
+      InputStream inputStream,
+      @Nullable OutputStream outputStream,
+      @Nullable OutputStream errorStream)
+      throws IOException {
+    String[] modifiedArgs = checkConnectionArgs(args);
+    SqlLine sqlLine = new SqlLine();
+
+    if (outputStream != null) {
+      sqlLine.setOutputStream(new PrintStream(outputStream));
     }
-    List<String> wrappedArgList = wrappedArgs.build();
-    SqlLine.main(wrappedArgList.toArray(new String[wrappedArgList.size()]));
+
+    if (errorStream != null) {
+      sqlLine.setErrorStream(new PrintStream(errorStream));
+    }
+
+    return sqlLine.begin(modifiedArgs, inputStream, true);
   }
 }

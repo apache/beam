@@ -20,11 +20,8 @@ package org.apache.beam.runners.samza.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.File;
 import java.net.URI;
 import java.util.HashMap;
@@ -32,22 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
-import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
 import org.apache.beam.runners.samza.util.Base64Serializer;
-import org.apache.beam.runners.samza.util.SamzaCoders;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
@@ -63,24 +45,27 @@ import org.apache.samza.standalone.PassthroughCoordinationUtilsFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
-public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
+public class ConfigBuilder {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
-  private final Map<PValue, String> idMap;
   private final Map<String, String> config = new HashMap<>();
-  private final Pipeline pipeline;
-  private boolean foundSource = false;
+  private final SamzaPipelineOptions options;
 
-  public static Config buildConfig(
-      Pipeline pipeline, SamzaPipelineOptions options, Map<PValue, String> idMap) {
+  public ConfigBuilder(SamzaPipelineOptions options) {
+    this.options = options;
+  }
+
+  public void put(String name, String property) {
+    config.put(name, property);
+  }
+
+  public void putAll(Map<String, String> properties) {
+    config.putAll(properties);
+  }
+
+  public Config build() {
     try {
-      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
-      pipeline.traverseTopologically(builder);
-      builder.checkFoundSource();
-      final Map<String, String> config = new HashMap<>(builder.getConfig());
-
-      createConfigForSystemStore(config);
+      config.putAll(systemStoreConfig());
 
       // apply user configs
       config.putAll(createUserConfig(options));
@@ -146,97 +131,14 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
         .build();
   }
 
-  private static void createConfigForSystemStore(Map<String, String> config) {
-    config.put(
-        "stores.beamStore.factory",
-        "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-    config.put("stores.beamStore.key.serde", "byteSerde");
-    config.put("stores.beamStore.msg.serde", "byteSerde");
-    config.put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
-  }
-
-  private ConfigBuilder(Map<PValue, String> idMap, Pipeline pipeline) {
-    this.idMap = idMap;
-    this.pipeline = pipeline;
-  }
-
-  @Override
-  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    if (node.getTransform() instanceof Read.Bounded) {
-      foundSource = true;
-      processReadBounded(node, (Read.Bounded<?>) node.getTransform());
-    } else if (node.getTransform() instanceof Read.Unbounded) {
-      foundSource = true;
-      processReadUnbounded(node, (Read.Unbounded<?>) node.getTransform());
-    } else if (node.getTransform() instanceof ParDo.MultiOutput) {
-      processParDo((ParDo.MultiOutput<?, ?>) node.getTransform());
-    }
-  }
-
-  private <T> void processReadBounded(TransformHierarchy.Node node, Read.Bounded<T> transform) {
-    final String id = getId(Iterables.getOnlyElement(node.getOutputs().values()));
-    final BoundedSource<T> source = transform.getSource();
-
-    @SuppressWarnings("unchecked")
-    final PCollection<T> output =
-        (PCollection<T>)
-            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
-    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
-
-    config.putAll(BoundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
-  }
-
-  private <T> void processReadUnbounded(TransformHierarchy.Node node, Read.Unbounded<T> transform) {
-    final String id = getId(Iterables.getOnlyElement(node.getOutputs().values()));
-    final UnboundedSource<T, ?> source = transform.getSource();
-
-    @SuppressWarnings("unchecked")
-    final PCollection<T> output =
-        (PCollection<T>)
-            Iterables.getOnlyElement(node.toAppliedPTransform(pipeline).getOutputs().values());
-    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
-
-    config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
-  }
-
-  private void processParDo(ParDo.MultiOutput<?, ?> parDo) {
-    final DoFnSignature signature = DoFnSignatures.getSignature(parDo.getFn().getClass());
-    if (signature.usesState()) {
-      // set up user state configs
-      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
-        String storeId = state.id();
-        config.put(
-            "stores." + storeId + ".factory",
-            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-        config.put("stores." + storeId + ".key.serde", "byteSerde");
-        config.put("stores." + storeId + ".msg.serde", "byteSerde");
-      }
-    }
-  }
-
-  private String getId(PValue pvalue) {
-    final String id = idMap.get(pvalue);
-    if (id == null) {
-      throw new IllegalStateException(String.format("Could not find id for pvalue: %s", pvalue));
-    }
-    return id;
-  }
-
-  private void checkFoundSource() {
-    if (!foundSource) {
-      throw new IllegalStateException("Could not find any sources in pipeline!");
-    }
-  }
-
-  private Map<String, String> getConfig() {
-    return config;
-  }
-
-  private String writeValueAsJsonString(Object object) {
-    try {
-      return objectMapper.writeValueAsString(object);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+  private static Map<String, String> systemStoreConfig() {
+    return ImmutableMap.<String, String>builder()
+        .put(
+            "stores.beamStore.factory",
+            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+        .put("stores.beamStore.key.serde", "byteSerde")
+        .put("stores.beamStore.msg.serde", "byteSerde")
+        .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
+        .build();
   }
 }

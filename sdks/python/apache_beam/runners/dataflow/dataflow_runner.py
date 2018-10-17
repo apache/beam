@@ -40,9 +40,11 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.internal import names
@@ -53,6 +55,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
@@ -153,9 +156,15 @@ class DataflowRunner(PipelineRunner):
               or str(response.currentState) == 'JOB_STATE_UPDATED'
               or str(response.currentState) == 'JOB_STATE_DRAINED'):
             break
-          # The job has failed; ensure we see any final error messages.
-          sleep_secs = 1.0      # poll faster during the final countdown
-          final_countdown_timer_secs -= sleep_secs
+
+          # Check that job is in a post-preparation state before starting the
+          # final countdown.
+          if (str(response.currentState) not in (
+              'JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
+            # The job has failed; ensure we see any final error messages.
+            sleep_secs = 1.0      # poll faster during the final countdown
+            final_countdown_timer_secs -= sleep_secs
+
       time.sleep(sleep_secs)
 
       # Get all messages since beginning of the job run or since last message.
@@ -341,6 +350,16 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
+    # Elevate "min_cpu_platform" to pipeline option, but using the existing
+    # experiment
+    debug_options = pipeline._options.view_as(DebugOptions)
+    worker_options = pipeline._options.view_as(WorkerOptions)
+    if worker_options.min_cpu_platform:
+      experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
+
     self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
@@ -362,6 +381,13 @@ class DataflowRunner(PipelineRunner):
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
+
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      experiments = ["use_staged_dataflow_worker_jar"]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
@@ -489,22 +515,28 @@ class DataflowRunner(PipelineRunner):
   def run_Impulse(self, transform_node):
     standard_options = (
         transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
+    step = self._add_step(
+        TransformNames.READ, transform_node.full_label, transform_node)
     if standard_options.streaming:
-      step = self._add_step(
-          TransformNames.READ, transform_node.full_label, transform_node)
       step.add_property(PropertyNames.FORMAT, 'pubsub')
       step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
-
-      step.encoding = self._get_encoded_output_coder(transform_node)
-      step.add_property(
-          PropertyNames.OUTPUT_INFO,
-          [{PropertyNames.USER_NAME: (
-              '%s.%s' % (
-                  transform_node.full_label, PropertyNames.OUT)),
-            PropertyNames.ENCODING: step.encoding,
-            PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     else:
-      ValueError('Impulse source for batch pipelines has not been defined.')
+      step.add_property(PropertyNames.FORMAT, 'impulse')
+      encoded_impulse_element = coders.WindowedValueCoder(
+          coders.BytesCoder(),
+          coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
+              window.GlobalWindows.windowed_value(''))
+      step.add_property(PropertyNames.IMPULSE_ELEMENT,
+                        self.byte_array_to_json_string(encoded_impulse_element))
+
+    step.encoding = self._get_encoded_output_coder(transform_node)
+    step.add_property(
+        PropertyNames.OUTPUT_INFO,
+        [{PropertyNames.USER_NAME: (
+            '%s.%s' % (
+                transform_node.full_label, PropertyNames.OUT)),
+          PropertyNames.ENCODING: step.encoding,
+          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,
@@ -714,15 +746,6 @@ class DataflowRunner(PipelineRunner):
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
-    # TODO(BEAM-2937): Disable combiner lifting for fnapi. Remove this
-    # restrictions once this feature is supported in the dataflow runner
-    # harness.
-    # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
-    if apiclient._use_fnapi(pcoll.pipeline._options):
-      return self.apply_PTransform(transform, pcoll)
-
     return pvalue.PCollection(pcoll.pipeline)
 
   def run_CombineValues(self, transform_node):
@@ -731,13 +754,24 @@ class DataflowRunner(PipelineRunner):
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
     step = self._add_step(
         TransformNames.COMBINE, transform_node.full_label, transform_node)
-    # Combiner functions do not take deferred side-inputs (i.e. PValues) and
-    # therefore the code to handle extra args/kwargs is simpler than for the
-    # DoFn's of the ParDo transform. In the last, empty argument is where
-    # side inputs information would go.
-    fn_data = (transform.fn, transform.args, transform.kwargs, ())
-    step.add_property(PropertyNames.SERIALIZED_FN,
-                      pickler.dumps(fn_data))
+
+    # The data transmitted in SERIALIZED_FN is different depending on whether
+    # this is a fnapi pipeline or not.
+    from apache_beam.runners.dataflow.internal import apiclient
+    if apiclient._use_fnapi(transform_node.inputs[0].pipeline._options):
+      # Fnapi pipelines send the transform ID of the CombineValues transform's
+      # parent composite because Dataflow expects the ID of a CombinePerKey
+      # transform.
+      serialized_data = self.proto_context.transforms.get_id(
+          transform_node.parent)
+    else:
+      # Combiner functions do not take deferred side-inputs (i.e. PValues) and
+      # therefore the code to handle extra args/kwargs is simpler than for the
+      # DoFn's of the ParDo transform. In the last, empty argument is where
+      # side inputs information would go.
+      serialized_data = pickler.dumps((transform.fn, transform.args,
+                                       transform.kwargs, ()))
+    step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
@@ -761,9 +795,18 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
-  def apply_Read(self, unused_transform, pbegin):
-    # Always consider Read to be a primitive for dataflow.
-    return beam.pvalue.PCollection(pbegin.pipeline)
+  def apply_Read(self, transform, pbegin):
+    if hasattr(transform.source, 'format'):
+      # Consider native Read to be a primitive for dataflow.
+      return beam.pvalue.PCollection(pbegin.pipeline)
+    else:
+      options = pbegin.pipeline.options.view_as(DebugOptions)
+      if options.experiments and 'beam_fn_api' in options.experiments:
+        # Expand according to FnAPI primitives.
+        return self.apply_PTransform(transform, pbegin)
+      else:
+        # Custom Read is also a primitive for non-FnAPI on dataflow.
+        return beam.pvalue.PCollection(pbegin.pipeline)
 
   def run_Read(self, transform_node):
     transform = transform_node.transform
@@ -772,6 +815,8 @@ class DataflowRunner(PipelineRunner):
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
+    standard_options = transform_node.inputs[0].pipeline.options.view_as(
+        StandardOptions)
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
       source_dict = {}
@@ -802,6 +847,9 @@ class DataflowRunner(PipelineRunner):
     elif transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'bigquery':
+      if standard_options.streaming:
+        raise ValueError('BigQuery source is not currently available for use '
+                         'in streaming pipelines.')
       step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
       # TODO(silviuc): Add table validation if transform.source.validate.
       if transform.source.table_reference is not None:
@@ -824,8 +872,6 @@ class DataflowRunner(PipelineRunner):
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query' % transform.source)
     elif transform.source.format == 'pubsub':
-      standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
@@ -841,7 +887,7 @@ class DataflowRunner(PipelineRunner):
                           transform.source.id_label)
       if transform.source.with_attributes:
         # Setting this property signals Dataflow runner to return full
-        # PubsubMessages instead of just the payload.
+        # PubsubMessages instead of just the data part of the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
       if transform.source.timestamp_attribute is not None:
         step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
@@ -925,9 +971,19 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubPayloadSink is currently available for use '
+        raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.full_topic)
+      if transform.sink.id_label:
+        step.add_property(PropertyNames.PUBSUB_ID_LABEL,
+                          transform.sink.id_label)
+      if transform.sink.with_attributes:
+        # Setting this property signals Dataflow runner that the PCollection
+        # contains PubsubMessage objects instead of just raw data.
+        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      if transform.sink.timestamp_attribute is not None:
+        step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+                          transform.sink.timestamp_attribute)
     else:
       raise ValueError(
           'Sink %r has unexpected format %s.' % (
@@ -1060,18 +1116,7 @@ class DataflowPipelineResult(PipelineResult):
   def has_job(self):
     return self._job is not None
 
-  @property
-  def state(self):
-    """Return the current state of the remote job.
-
-    Returns:
-      A PipelineState object.
-    """
-    if not self.has_job:
-      return PipelineState.UNKNOWN
-
-    self._update_job()
-
+  def _get_job_state(self):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # TODO: Move this table to a another location.
@@ -1093,15 +1138,25 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
+  @property
+  def state(self):
+    """Return the current state of the remote job.
+
+    Returns:
+      A PipelineState object.
+    """
+    if not self.has_job:
+      return PipelineState.UNKNOWN
+
+    self._update_job()
+
+    return self._get_job_state()
+
   def is_in_terminal_state(self):
     if not self.has_job:
       return True
 
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
-    return self._job.currentState in [
-        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
-        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
+    return PipelineState.is_terminal(self._get_job_state())
 
   def wait_until_finish(self, duration=None):
     if not self.is_in_terminal_state():

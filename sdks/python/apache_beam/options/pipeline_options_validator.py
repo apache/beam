@@ -102,7 +102,7 @@ class PipelineOptionsValidator(object):
     """
     errors = []
     for cls in self.OPTIONS:
-      if 'validate' in cls.__dict__:
+      if 'validate' in cls.__dict__ and callable(cls.__dict__['validate']):
         errors.extend(self.options.view_as(cls).validate(self))
     return errors
 

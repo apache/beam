@@ -24,7 +24,9 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.auto
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -60,6 +62,11 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   }
 
   @Override
+  public Map<String, String> getPipelineOptions() {
+    return ImmutableMap.of();
+  }
+
+  @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
@@ -78,11 +85,11 @@ public class BeamValuesRel extends Values implements BeamRelNode {
         throw new IllegalStateException("Values with empty tuples!");
       }
 
-      Schema schema = CalciteUtils.toBeamSchema(getRowType());
+      Schema schema = CalciteUtils.toSchema(getRowType());
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
-      return pinput.getPipeline().begin().apply(Create.of(rows)).setCoder(schema.getRowCoder());
+      return pinput.getPipeline().begin().apply(Create.of(rows)).setRowSchema(schema);
     }
   }
 

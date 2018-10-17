@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.hamcrest.Matcher;
@@ -44,6 +45,7 @@ public class GcpApiSurfaceTest {
     final ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern(BigqueryMatcher.class.getName())
+            .pruningPattern(BigqueryClient.class.getName())
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]lang.*")
@@ -62,10 +64,10 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.spanner.v1"),
-            Matchers.equalTo(com.google.api.gax.grpc.ApiException.class),
+            Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.paging.Page.class),
-            Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceName.class),
-            Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceNameType.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),

@@ -67,7 +67,14 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS);
   public static final String TEST_STREAM_TRANSFORM_URN =
       getUrn(StandardPTransforms.Primitives.TEST_STREAM);
+  public static final String MAP_WINDOWS_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
 
+  /**
+   * @deprecated SDKs should move away from creating `Read` transforms and migrate to using Impulse
+   *     + SplittableDoFns.
+   */
+  @Deprecated
   public static final String READ_TRANSFORM_URN =
       getUrn(StandardPTransforms.DeprecatedPrimitives.READ);
   /**
@@ -78,11 +85,19 @@ public class PTransformTranslation {
   public static final String CREATE_VIEW_TRANSFORM_URN =
       getUrn(StandardPTransforms.DeprecatedPrimitives.CREATE_VIEW);
 
-  public static final String COMBINE_TRANSFORM_URN =
+  public static final String COMBINE_PER_KEY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+  public static final String COMBINE_GLOBALLY_TRANSFORM_URN =
+      getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY);
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);
+
+  // SplittableParDoComponents
+  public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION);
+  public static final String SPLITTABLE_SPLIT_RESTRICTION_URN =
+      getUrn(SplittableParDoComponents.SPLIT_RESTRICTION);
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS);
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =

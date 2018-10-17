@@ -21,7 +21,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -125,7 +125,7 @@ public class CombineRunners {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
@@ -225,12 +225,7 @@ public class CombineRunners {
                 combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<InputT>> input) -> {
-      AccumT accumulator = combineFn.createAccumulator();
-      Iterable<InputT> inputValues = input.getValue();
-      for (InputT inputValue : inputValues) {
-        accumulator = combineFn.addInput(accumulator, inputValue);
-      }
-      return KV.of(input.getKey(), combineFn.extractOutput(accumulator));
+      return KV.of(input.getKey(), combineFn.apply(input.getValue()));
     };
   }
 }

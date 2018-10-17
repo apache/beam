@@ -21,9 +21,6 @@ import CommonJobProperties as commonJobProperties
 job('beam_PostRelease_Python_Candidate') {
     description('Runs verification of the Python release candidate.')
 
-    // Execute concurrent builds if necessary.
-    concurrentBuild()
-
     // Set common parameters.
     commonJobProperties.setTopLevelMainJobProperties(delegate)
 
@@ -35,8 +32,7 @@ job('beam_PostRelease_Python_Candidate') {
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('cd ' + commonJobProperties.checkoutDir +
-                ' && bash release/src/main/groovy/run_release_candidate_python_quickstart.sh' +
-                ' && bash release/src/main/groovy/run_release_candidate_python_mobile_gaming.sh')
+      shell('cd ' + commonJobProperties.checkoutDir +
+        ' && bash release/src/main/python-release/python_release_automation.sh')
     }
 }

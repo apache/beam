@@ -23,8 +23,8 @@ description = "Apache Beam :: Model :: Job Management"
 ext.summary = "Portable definitions for submitting pipelines."
 
 dependencies {
-  // We purposely depend on the unshaded classes for compilation and
+  // We purposely depend on the unshaded classes for protobuf compilation and
   // export the shaded variant as the actual runtime dependency.
-  compile project(path: ":beam-model-pipeline")
+  protobuf project(path: ":beam-model-pipeline", configuration: "unshaded")
   runtime project(path: ":beam-model-pipeline", configuration: "shadow")
 }

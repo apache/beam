@@ -340,6 +340,9 @@ class HadoopFileSystem(FileSystem):
       raise BeamIOError('File not found: %s' % url)
     return status[_FILE_STATUS_LENGTH]
 
+  def last_updated(self, url):
+    raise NotImplementedError
+
   def checksum(self, url):
     """Fetches a checksum description for a URL.
 

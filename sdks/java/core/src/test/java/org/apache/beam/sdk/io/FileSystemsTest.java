@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -68,6 +69,11 @@ public class FileSystemsTest {
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("File://home").getScheme())
             instanceof LocalFileSystem);
+    if (SystemUtils.IS_OS_WINDOWS) {
+      assertTrue(
+          FileSystems.getFileSystemInternal(toLocalResourceId("c:\\home\\").getScheme())
+              instanceof LocalFileSystem);
+    }
   }
 
   @Test
@@ -178,6 +184,19 @@ public class FileSystemsTest {
     assertThat(
         Files.readLines(destPath3.toFile(), StandardCharsets.UTF_8),
         containsInAnyOrder("content3"));
+  }
+
+  @Test
+  public void testValidMatchNewResourceForLocalFileSystem() {
+    assertEquals("file", FileSystems.matchNewResource("/tmp/f1", false).getScheme());
+    assertEquals("file", FileSystems.matchNewResource("tmp/f1", false).getScheme());
+    assertEquals("file", FileSystems.matchNewResource("c:\\tmp\\f1", false).getScheme());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testInvalidSchemaMatchNewResource() {
+    assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));
+    assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
   }
 
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {

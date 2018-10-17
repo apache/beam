@@ -508,7 +508,9 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply(
+                "CreateSideInput",
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -529,7 +531,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -540,7 +546,9 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply(
+                "CreateSideInput",
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -564,7 +572,8 @@ public class ViewTest implements Serializable {
                         })
                     .withSideInputs(view));
 
-    PAssert.that(output).containsInAnyOrder(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
 
     pipeline.run();
   }
@@ -607,7 +616,7 @@ public class ViewTest implements Serializable {
         pipeline
             .apply(
                 "CreateSideInput",
-                Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
+                Create.of(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.asMultimap());
 
@@ -629,7 +638,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -644,6 +657,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                     TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                     TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                     TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
@@ -673,7 +687,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }
@@ -688,6 +706,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                     TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                     TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                     TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
@@ -719,7 +738,8 @@ public class ViewTest implements Serializable {
                         })
                     .withSideInputs(view));
 
-    PAssert.that(output).containsInAnyOrder(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+    PAssert.that(output)
+        .containsInAnyOrder(KV.of("a", 1), KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
 
     pipeline.run();
   }
@@ -734,6 +754,7 @@ public class ViewTest implements Serializable {
                 "CreateSideInput",
                 Create.timestamped(
                         TimestampedValue.of(KV.of("a", 1), new Instant(1)),
+                        TimestampedValue.of(KV.of("a", 1), new Instant(2)),
                         TimestampedValue.of(KV.of("a", 2), new Instant(7)),
                         TimestampedValue.of(KV.of("b", 3), new Instant(14)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
@@ -764,7 +785,11 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+            KV.of("apple", 1),
+            KV.of("apple", 1),
+            KV.of("apple", 2),
+            KV.of("banana", 3),
+            KV.of("blackberry", 3));
 
     pipeline.run();
   }

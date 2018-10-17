@@ -19,15 +19,11 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-
 // This is the Go postcommit which runs a gradle build, and the current set
 // of postcommit tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
   './gradlew :goPostCommit', this) {
   description('Runs Go PostCommit tests against master.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(
@@ -40,6 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go Pos
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':goPostCommit')
       commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
     }
   }
 }

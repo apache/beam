@@ -20,8 +20,11 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,6 +34,74 @@ import org.joda.time.Instant;
 
 /** Various Java POJOs and associated schemas used in tests. */
 public class TestPOJOs {
+  /** A POJO containing one nullable and one non-nullable type. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class POJOWithNullables {
+    @Nullable public String str;
+    public int anInt;
+
+    public POJOWithNullables(@Nullable String str, int anInt) {
+      this.str = str;
+      this.anInt = anInt;
+    }
+
+    public POJOWithNullables() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithNullables that = (POJOWithNullables) o;
+      return anInt == that.anInt && Objects.equals(str, that.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(str, anInt);
+    }
+  }
+
+  /** The schema for {@link POJOWithNullables}. * */
+  public static final Schema NULLABLES_SCHEMA =
+      Schema.builder().addNullableField("str", FieldType.STRING).addInt32Field("anInt").build();
+
+  /** a POJO containing a nested nullable field. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class POJOWithNestedNullable {
+    @Nullable public POJOWithNullables nested;
+
+    public POJOWithNestedNullable(@Nullable POJOWithNullables nested) {
+      this.nested = nested;
+    }
+
+    public POJOWithNestedNullable() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithNestedNullable that = (POJOWithNestedNullable) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** The schema for {@link POJOWithNestedNullable}. * */
+  public static final Schema NESTED_NULLABLE_SCHEMA =
+      Schema.builder().addNullableField("nested", FieldType.row(NULLABLES_SCHEMA)).build();
+
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class SimplePOJO {
@@ -75,6 +146,48 @@ public class TestPOJOs {
       this.bigDecimal = bigDecimal;
       this.stringBuilder = stringBuilder;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimplePOJO that = (SimplePOJO) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder, that.stringBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
   }
 
   /** The schema for {@link SimplePOJO}. * */
@@ -104,6 +217,23 @@ public class TestPOJOs {
     }
 
     public NestedPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedPOJO that = (NestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
   }
 
   /** The schema for {@link NestedPOJO}. * */
@@ -125,6 +255,28 @@ public class TestPOJOs {
       this.integers = integers;
       this.longs = longs;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveArrayPOJO that = (PrimitiveArrayPOJO) o;
+      return Objects.equals(strings, that.strings)
+          && Arrays.equals(integers, that.integers)
+          && Arrays.equals(longs, that.longs);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(strings);
+      result = 31 * result + Arrays.hashCode(integers);
+      result = 31 * result + Arrays.hashCode(longs);
+      return result;
+    }
   }
 
   /** The schema for {@link PrimitiveArrayPOJO}. * */
@@ -145,6 +297,23 @@ public class TestPOJOs {
     }
 
     public NestedArrayPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArrayPOJO that = (NestedArrayPOJO) o;
+      return Arrays.equals(pojos, that.pojos);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(pojos);
+    }
   }
 
   /** The schema for {@link NestedArrayPOJO}. * */
@@ -161,6 +330,23 @@ public class TestPOJOs {
     }
 
     public NestedArraysPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedArraysPOJO that = (NestedArraysPOJO) o;
+      return Objects.equals(lists, that.lists);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(lists);
+    }
   }
 
   /** The schema for {@link NestedArraysPOJO}. * */
@@ -177,6 +363,24 @@ public class TestPOJOs {
     }
 
     public NestedCollectionPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedCollectionPOJO that = (NestedCollectionPOJO) o;
+      return Objects.equals(simples, that.simples);
+    }
+
+    @Override
+    public int hashCode() {
+
+      return Objects.hash(simples);
+    }
   }
 
   /** The schema for {@link NestedCollectionPOJO}. * */
@@ -193,6 +397,24 @@ public class TestPOJOs {
     }
 
     public PrimitiveMapPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PrimitiveMapPOJO that = (PrimitiveMapPOJO) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+
+      return Objects.hash(map);
+    }
   }
 
   /** The schema for {@link PrimitiveMapPOJO}. * */
@@ -209,6 +431,23 @@ public class TestPOJOs {
     }
 
     public NestedMapPOJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedMapPOJO that = (NestedMapPOJO) o;
+      return Objects.equals(map, that.map);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(map);
+    }
   }
 
   /** The schema for {@link NestedMapPOJO}. * */
@@ -236,6 +475,27 @@ public class TestPOJOs {
     }
 
     public POJOWithBoxedFields() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithBoxedFields that = (POJOWithBoxedFields) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(aByte, aShort, anInt, aLong, aBoolean);
+    }
   }
 
   /** The schema for {@link POJOWithBoxedFields}. * */
@@ -260,6 +520,25 @@ public class TestPOJOs {
     }
 
     public POJOWithByteArray() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      POJOWithByteArray that = (POJOWithByteArray) o;
+      return Arrays.equals(bytes1, that.bytes1) && Objects.equals(bytes2, that.bytes2);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(bytes2);
+      result = 31 * result + Arrays.hashCode(bytes1);
+      return result;
+    }
   }
 
   /** The schema for {@link POJOWithByteArray}. * */

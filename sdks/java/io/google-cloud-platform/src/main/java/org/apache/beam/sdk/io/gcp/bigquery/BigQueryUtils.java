@@ -238,7 +238,7 @@ public class BigQueryUtils {
               new DateTimeFormatterBuilder()
                   .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
                   .toFormatter();
-          value = ((Instant) value).toDateTime().toString(patternFormat);
+          value = value == null ? null : ((Instant) value).toDateTime().toString(patternFormat);
           break;
         default:
           value = row.getValue(i);

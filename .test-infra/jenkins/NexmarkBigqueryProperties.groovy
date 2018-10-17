@@ -24,5 +24,5 @@ class NexmarkBigqueryProperties {
                                          '--project=apache-beam-testing',
                                          '--resourceNameMode=QUERY_RUNNER_AND_MODE',
                                          '--exportSummaryToBigQuery=true',
-                                         '--tempLocation=gs://temp-storage-for-perf-tests/'].join(' ')
+                                         '--tempLocation=gs://temp-storage-for-perf-tests/nexmark'].join(' ')
 }

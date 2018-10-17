@@ -25,11 +25,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
         'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
 
   // Gradle goals for this job.
   steps {
@@ -58,6 +55,40 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DirectRunner',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING DIRECT RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--queryLanguage=sql',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING DIRECT RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-direct-java"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
               '--manageResources=false',

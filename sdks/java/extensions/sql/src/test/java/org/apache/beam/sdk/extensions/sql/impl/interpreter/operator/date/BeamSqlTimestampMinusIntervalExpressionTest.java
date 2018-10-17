@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -127,7 +126,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
   @Test
   public void testDoesNotAcceptWrongSecondOperand() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
-    unsupportedTypes.removeAll(INTERVALS_DURATIONS_TYPES.keySet());
+    unsupportedTypes.removeAll(TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet());
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
@@ -142,7 +141,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
 
   @Test
   public void testAcceptsAllSupportedIntervalTypes() {
-    for (SqlTypeName unsupportedType : INTERVALS_DURATIONS_TYPES.keySet()) {
+    for (SqlTypeName unsupportedType : TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet()) {
       BeamSqlPrimitive unsupportedOperand = mock(BeamSqlPrimitive.class);
       doReturn(unsupportedType).when(unsupportedOperand).getOutputType();
 

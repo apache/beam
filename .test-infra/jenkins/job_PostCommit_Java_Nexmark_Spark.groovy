@@ -25,11 +25,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
         'Spark Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Spark runner.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
 
   // Gradle goals for this job.
   steps {
@@ -42,6 +39,22 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
+    }
+    shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':beam-sdks-java-nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-spark"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=SparkRunner',
+              '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,

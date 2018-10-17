@@ -202,9 +202,35 @@ message StandardPTransforms {
     // Payload: TestStreamPayload
     TEST_STREAM = 5 [(beam_urn) = "urn:beam:transform:teststream:v1"];
 
-    // Represents mapping of main input window into side input window.
-    // Payload: serialized WindowMappingFn.
+    // Represents mapping of main input window onto side input window.
+    //
+    // Side input window mapping function:
+    // Input: KV<nonce, MainInputWindow>
+    // Output: KV<nonce, SideInputWindow>
+    //
+    // For each main input window, the side input window is returned. The
+    // nonce is used by a runner to associate each input with its output.
+    // The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: WindowMappingFn from SideInputSpec.
     MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
+
+    // Used to merge windows during a GroupByKey.
+    //
+    // Window merging function:
+    // Input: KV<nonce, iterable<OriginalWindow>>
+    // Output: KV<nonce, KV<iterable<UnmergedOriginalWindow>, iterable<KV<MergedWindow, iterable<ConsumedOriginalWindow>>>>
+    //
+    // For each set of original windows, a list of all unmerged windows is
+    // output alongside a map of merged window to set of consumed windows.
+    // All original windows must be contained in either the unmerged original
+    // window set or one of the consumed original window sets. Each original
+    // window can only be part of one output set. The nonce is used by a runner
+    // to associate each input with its output. The nonce is represented as an
+    // opaque set of bytes.
+    //
+    // Payload: WindowFn from WindowingStrategy.
+    MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
@@ -359,6 +385,10 @@ message ExecutableStagePayload {
   // this ExecutableStagePayload must be represented within this field.
   repeated UserStateId user_states = 7;
 
+  // The timers required for this executable stage. Each timer of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerId timers = 8;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -376,6 +406,16 @@ message ExecutableStagePayload {
     string transform_id = 1;
 
     // (Required) The local name of this user state for the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerId {
+    // (Required) The id of the PTransform that references this timer.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer for the PTransform that references it.
     string local_name = 2;
   }
 }
@@ -949,16 +989,40 @@ message SideInput {
   SdkFunctionSpec window_mapping_fn = 3;
 }
 
-// An environment for executing UDFs. Generally an SDK container URL, but
-// there can be many for a single SDK, for example to provide dependency
-// isolation.
+// An environment for executing UDFs. By default, an SDK container URL, but
+// can also be a process forked by a command, or an externally managed process.
 message Environment {
-
-  // (Required) The URL of a container
-  //
-  // TODO: reconcile with Fn API's DockerContainer structure by
-  // adding adequate metadata to know how to interpret the container
+  // Deprecated. Tracked in BEAM-5433
   string url = 1;
+
+  // (Required) The URN of the payload
+  string urn = 2;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 3;
+}
+
+message StandardEnvironments {
+  enum Environments {
+    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"]; // A managed docker container to run user code.
+
+    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
+
+    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+  }
+}
+
+// The payload of a Docker image
+message DockerPayload {
+  string container_image = 1;  // implicitly linux_amd64.
+}
+
+message ProcessPayload {
+  string os = 1;  // "linux", "darwin", ..
+  string arch = 2;  // "amd64", ..
+  string command = 3; // process to execute
+  map<string, string> env = 4; // Environment variables
 }
 
 // A specification of a user defined function.

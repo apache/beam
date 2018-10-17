@@ -30,7 +30,6 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
@@ -44,7 +43,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * A {@link JobBundleFactory} which can manage a single instance of an {@link Environment}.
  *
- * @deprecated replace with a {@link DockerJobBundleFactory} when appropriate if the {@link
+ * @deprecated replace with a {@link DefaultJobBundleFactory} when appropriate if the {@link
  *     EnvironmentFactory} is a {@link
  *     org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory}, or create an
  *     {@code InProcessJobBundleFactory} and inline the creation of the environment if appropriate.
@@ -63,7 +62,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   private final GrpcFnServer<GrpcDataService> dataService;
   private final GrpcFnServer<GrpcStateService> stateService;
 
-  private final ConcurrentMap<ExecutableStage, StageBundleFactory<?>> stageBundleFactories =
+  private final ConcurrentMap<ExecutableStage, StageBundleFactory> stageBundleFactories =
       new ConcurrentHashMap<>();
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
@@ -80,12 +79,11 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   }
 
   @Override
-  public <T> StageBundleFactory<T> forStage(ExecutableStage executableStage) {
-    return (StageBundleFactory<T>)
-        stageBundleFactories.computeIfAbsent(executableStage, this::createBundleFactory);
+  public StageBundleFactory forStage(ExecutableStage executableStage) {
+    return stageBundleFactories.computeIfAbsent(executableStage, this::createBundleFactory);
   }
 
-  private <T> StageBundleFactory<T> createBundleFactory(ExecutableStage stage) {
+  private StageBundleFactory createBundleFactory(ExecutableStage stage) {
     RemoteEnvironment remoteEnv =
         environments.computeIfAbsent(
             stage.getEnvironment(),
@@ -108,14 +106,12 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    RemoteInputDestination<? super WindowedValue<?>> destination =
-        descriptor.getRemoteInputDestination();
-    SdkHarnessClient.BundleProcessor<T> bundleProcessor =
+    SdkHarnessClient.BundleProcessor bundleProcessor =
         sdkHarnessClient.getProcessor(
             descriptor.getProcessBundleDescriptor(),
-            (RemoteInputDestination<WindowedValue<T>>) (RemoteInputDestination) destination,
+            descriptor.getRemoteInputDestinations(),
             stateService.getService());
-    return new BundleProcessorStageBundleFactory<>(descriptor, bundleProcessor);
+    return new BundleProcessorStageBundleFactory(descriptor, bundleProcessor);
   }
 
   @Override
@@ -137,19 +133,18 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     }
   }
 
-  private static class BundleProcessorStageBundleFactory<T> implements StageBundleFactory<T> {
+  private static class BundleProcessorStageBundleFactory implements StageBundleFactory {
     private final ExecutableProcessBundleDescriptor descriptor;
-    private final SdkHarnessClient.BundleProcessor<T> processor;
+    private final SdkHarnessClient.BundleProcessor processor;
 
     private BundleProcessorStageBundleFactory(
-        ExecutableProcessBundleDescriptor descriptor,
-        SdkHarnessClient.BundleProcessor<T> processor) {
+        ExecutableProcessBundleDescriptor descriptor, SdkHarnessClient.BundleProcessor processor) {
       this.descriptor = descriptor;
       this.processor = processor;
     }
 
     @Override
-    public RemoteBundle<T> getBundle(
+    public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler) {
@@ -167,7 +162,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(
             targetCoders.getKey(),
-            RemoteOutputReceiver.of((Coder) targetCoders.getValue(), outputReceiver));
+            RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
     }

@@ -38,6 +38,7 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1.io.grpc.StatusException;
@@ -70,26 +71,35 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<String> cleanupJobFn,
       JobInvoker invoker) {
-    return new InMemoryJobService(stagingServiceDescriptor, stagingServiceTokenProvider, invoker);
+    return new InMemoryJobService(
+        stagingServiceDescriptor, stagingServiceTokenProvider, cleanupJobFn, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
   private final ConcurrentMap<String, JobInvocation> invocations;
+  private final ConcurrentMap<String, String> stagingSessionTokens;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
+  private final ThrowingConsumer<String> cleanupJobFn;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<String> cleanupJobFn,
       JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
+    this.cleanupJobFn = cleanupJobFn;
     this.invoker = invoker;
 
     this.preparations = new ConcurrentHashMap<>();
     this.invocations = new ConcurrentHashMap<>();
+
+    // Map "preparation ID" to staging token
+    this.stagingSessionTokens = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -121,12 +131,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         return;
       }
 
+      String stagingSessionToken = stagingServiceTokenProvider.apply(preparationId);
+      stagingSessionTokens.putIfAbsent(preparationId, stagingSessionToken);
+
       // send response
       PrepareJobResponse response =
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(stagingServiceDescriptor)
-              .setStagingSessionToken(stagingServiceTokenProvider.apply(preparationId))
+              .setStagingSessionToken(stagingSessionToken)
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -161,6 +174,26 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           invoker.invoke(
               preparation.pipeline(), preparation.options(), request.getRetrievalToken());
       String invocationId = invocation.getId();
+
+      invocation.addStateListener(
+          (state) -> {
+            if (!JobInvocation.isTerminated(state)) {
+              return;
+            }
+            String stagingSessionToken = stagingSessionTokens.get(preparationId);
+            stagingSessionTokens.remove(preparationId);
+            if (cleanupJobFn != null) {
+              try {
+                cleanupJobFn.accept(stagingSessionToken);
+              } catch (Exception e) {
+                LOG.error(
+                    "Failed to remove job staging directory for token {}: {}",
+                    stagingSessionToken,
+                    e);
+              }
+            }
+          });
+
       invocation.start();
       invocations.put(invocationId, invocation);
       RunJobResponse response = RunJobResponse.newBuilder().setJobId(invocationId).build();
