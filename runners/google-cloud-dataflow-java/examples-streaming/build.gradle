@@ -37,7 +37,7 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 
 task preCommit(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.getArchivePath()
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
   def preCommitBeamTestPipelineOptions = [
      "--project=${gcpProject}",
