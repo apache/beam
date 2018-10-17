@@ -59,6 +59,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
@@ -125,11 +126,12 @@ public class ExecutableStageDoFnOperatorTest {
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
     when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
 
-    Exception expected = new Exception();
+    Exception expected = new RuntimeException(new Exception());
     doThrow(expected).when(bundle).close();
     thrown.expectCause(is(expected));
 
     operator.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(0)));
+    testHarness.close();
   }
 
   @Test
@@ -254,10 +256,12 @@ public class ExecutableStageDoFnOperatorTest {
         new OneInputStreamOperatorTestHarness<>(operator);
 
     testHarness.open();
-
     testHarness.processElement(new StreamRecord<>(zero));
+    testHarness.close(); // triggers finish bundle
 
-    assertThat(testHarness.getOutput(), contains(new StreamRecord<>(three)));
+    assertThat(
+        testHarness.getOutput(),
+        contains(new StreamRecord<>(three), new Watermark(Long.MAX_VALUE)));
 
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
@@ -266,8 +270,6 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2)),
         contains(new StreamRecord<>(five)));
-
-    testHarness.close();
   }
 
   @Test
@@ -280,14 +282,18 @@ public class ExecutableStageDoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
         new OneInputStreamOperatorTestHarness<>(operator);
-    testHarness.open();
 
-    operator.close();
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+    testHarness.close();
+
     verify(stageBundleFactory).close();
     verify(stageContext).close();
+    // DoFnOperator generates a final watermark, which triggers a new bundle..
+    verify(stageBundleFactory).getBundle(any(), any(), any());
     verifyNoMoreInteractions(stageBundleFactory);
-
-    testHarness.close();
   }
 
   @Test
