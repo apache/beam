@@ -745,7 +745,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       List<String> experiments =
           dataflowOptions.getExperiments() == null
               ? new ArrayList<>()
-              : dataflowOptions.getExperiments();
+              : new ArrayList<>(dataflowOptions.getExperiments());
       experiments.add("use_staged_dataflow_worker_jar");
       dataflowOptions.setExperiments(experiments);
     }
