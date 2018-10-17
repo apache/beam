@@ -97,7 +97,7 @@ def initDbTablesIfNeeded():
   connection.close()
 
 
-def fetchSyncedJobsBuildVersions(cursor):
+def fetchLastSyncTimestamp(cursor):
   fetchQuery = f'''
   select job_name, max(build_id)
   from {jenkinsBuildsTableName}
@@ -152,7 +152,7 @@ def insertRow(cursor, rowValues):
 def fetchNewData():
   connection = initConnection()
   cursor = connection.cursor()
-  syncedJobs = fetchSyncedJobsBuildVersions(cursor)
+  syncedJobs = fetchLastSyncTimestamp(cursor)
   cursor.close()
   connection.close()
 
@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
   while True:
     if not probeJenkinsIsUp():
-      print("Jenkins is unavailabel, skipping fetching data.")
+      print("Jenkins is unavailable, skipping fetching data.")
       continue
     else:
       fetchNewData()
