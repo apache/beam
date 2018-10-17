@@ -182,7 +182,7 @@ class TestPipeStream(unittest.TestCase):
   def test_pipe_stream(self):
     block_sizes = list(4**i for i in range(0, 12))
     data_blocks = list(os.urandom(size) for size in block_sizes)
-    expected = ''.join(data_blocks)
+    expected = b''.join(data_blocks)
 
     buffer_sizes = [100001, 512 * 1024, 1024 * 1024]
 
