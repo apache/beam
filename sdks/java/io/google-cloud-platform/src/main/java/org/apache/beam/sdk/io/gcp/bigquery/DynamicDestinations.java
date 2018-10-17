@@ -102,6 +102,15 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   /**
+   * Get the subset of side inputs required for calling {@link
+   * #getDestination(ValueInSingleWindow)}. Implementing this will allow the runner to write files
+   * to GCS before computing the rest of the side inputs required for the schema.
+   */
+  public List<PCollectionView<?>> getSideInputsForGetDestination() {
+    return getSideInputs();
+  }
+
+  /**
    * Returns the value of a given side input. The view must be present in {@link #getSideInputs()}.
    */
   protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {

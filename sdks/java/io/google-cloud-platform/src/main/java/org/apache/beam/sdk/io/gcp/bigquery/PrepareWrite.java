@@ -75,6 +75,6 @@ public class PrepareWrite<T, DestinationT>
                     context.output(KV.of(tableDestination, tableRow));
                   }
                 })
-            .withSideInputs(dynamicDestinations.getSideInputs()));
+            .withSideInputs(dynamicDestinations.getSideInputsForGetDestination()));
   }
 }

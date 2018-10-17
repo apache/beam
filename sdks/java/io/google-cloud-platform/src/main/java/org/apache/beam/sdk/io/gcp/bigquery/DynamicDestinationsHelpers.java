@@ -244,6 +244,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public List<PCollectionView<?>> getSideInputsForGetDestination() {
+      return inner.getSideInputsForGetDestination();
+    }
+
+    @Override
     public TableSchema getSchema(TableDestination destination) {
       Map<String, String> mapValue = sideInput(schemaView);
       String schema = mapValue.get(destination.getTableSpec());
