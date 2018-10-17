@@ -249,6 +249,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     }
 
     @Override
+    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
+      return processBundleDescriptor;
+    }
+
+    @Override
     public void close() throws Exception {
       // Clear reference to encourage cache eviction. Values are weakly referenced.
       wrappedClient = null;
