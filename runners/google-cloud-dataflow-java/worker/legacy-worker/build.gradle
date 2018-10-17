@@ -16,19 +16,7 @@
  * limitations under the License.
  */
 
-/******************************************************************************/
-// Apply BeamModulePlugin
-
-// Reuse project_root/buildSrc in this build.gradle file to reduce the
-// maintenance burden and simpily this file. See BeamModulePlugin for
-// documentation on default build tasks and properties that are enabled in
-// addition to natures that will be applied to worker.
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-
-group = "org.apache.beam.runners.dataflow"
-
-/******************************************************************************/
-// Apply Java nature with customized configurations
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
@@ -80,7 +68,7 @@ def excluded_dependencies = [
         library.java.junit,                          // Test only
 ]
 
-applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */, validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
         include(project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow"))
         include(dependency(".*:.*"))
@@ -102,9 +90,6 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
 
     exclude "META-INF/LICENSE.txt"
     exclude "about.html"
-    exclude "google/protobuf/*.proto"
-    exclude "windmill*.proto"
-
 
     relocate("com.", getWorkerRelocatedPath("com.")) {
         exclude "com.fasterxml.jackson.**"
@@ -221,7 +206,5 @@ dependencies {
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5658): fingbugs task should be enabled in the future.
-findbugsMain.enabled = false
 //TODO(BEAM-5659): javadoc task should be enabled in the future.
 javadoc.enabled = false
