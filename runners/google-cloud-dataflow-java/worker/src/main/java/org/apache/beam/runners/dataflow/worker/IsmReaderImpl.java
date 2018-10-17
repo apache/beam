@@ -159,7 +159,7 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     SideInputReadCounter readCounter = IsmReader.getCurrentSideInputCounter();
     if (keyComponents.isEmpty()) {
       checkArgument(
-          shardId == 0 && keyBytes.size() == 0,
+          shardId == 0 && keyBytes.isEmpty(),
           "Expected shard id to be 0 and key bytes to be empty "
               + "but got shard id %s and key bytes of length %s",
           shardId,

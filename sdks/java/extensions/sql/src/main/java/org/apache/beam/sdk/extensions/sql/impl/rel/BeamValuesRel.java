@@ -76,7 +76,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
       checkArgument(
-          pinput.size() == 0,
+          pinput.isEmpty(),
           "Should not have received input for %s: %s",
           BeamValuesRel.class.getSimpleName(),
           pinput);

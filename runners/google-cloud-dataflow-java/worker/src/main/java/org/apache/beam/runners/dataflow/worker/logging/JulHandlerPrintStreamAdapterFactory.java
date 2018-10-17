@@ -120,7 +120,7 @@ class JulHandlerPrintStreamAdapterFactory {
 
     private void output() {
       // If nothing was output, do not log anything
-      if (baos.size() == 0) {
+      if (baos.isEmpty()) {
         return;
       }
       try {

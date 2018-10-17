@@ -49,7 +49,7 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
     Collection<Object> collection = (Collection) opValueEvaluated(0, inputRow, window, env);
 
     if (collection.size() <= 1) {
-      return (collection.size() == 0)
+      return collection.isEmpty()
           ? BeamSqlPrimitive.of(outputType, null)
           : BeamSqlPrimitive.of(outputType, collection.iterator().next());
     }

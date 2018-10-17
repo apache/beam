@@ -55,7 +55,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
       checkArgument(
-          input.size() == 0,
+          input.isEmpty(),
           "Should not have received input for %s: %s",
           BeamIOSourceRel.class.getSimpleName(),
           input);
