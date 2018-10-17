@@ -134,6 +134,8 @@ public class BigQueryAvroUtilsTest {
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row = new TableRow().set("number", "5").set("associates", new ArrayList<TableRow>());
       assertEquals(row, convertedRow);
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
     }
     {
       // Test type conversion for:
@@ -164,6 +166,8 @@ public class BigQueryAvroUtilsTest {
               .set("anniversaryDate", "2000-01-01")
               .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
               .set("anniversaryTime", "00:00:00.000005");
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
       assertEquals(row, convertedRow);
     }
     {
@@ -182,6 +186,8 @@ public class BigQueryAvroUtilsTest {
               .set("number", "5")
               .set("birthdayMoney", birthdayMoney.toString());
       assertEquals(row, convertedRow);
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
     }
   }
 
