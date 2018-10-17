@@ -174,6 +174,8 @@ class SdkHarness(object):
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle.add(request.instruction_id)
     self._process_thread_pool.submit(task)
+    logging.debug(
+        "Currently using %s threads." % len(self._process_thread_pool._threads))
 
   def _request_process_bundle_progress(self, request):
 

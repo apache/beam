@@ -123,8 +123,11 @@ class _GroupingBuffer(object):
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
     self._windowing = windowing
+    self._grouped_output = None
 
   def append(self, elements_data):
+    if self._grouped_output:
+      raise RuntimeError('Grouping table append after read.')
     input_stream = create_InputStream(elements_data)
     coder_impl = self._pre_grouped_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
@@ -139,20 +142,24 @@ class _GroupingBuffer(object):
           else windowed_key_value.with_value(value))
 
   def __iter__(self):
-    output_stream = create_OutputStream()
-    if self._windowing.is_default():
-      globally_window = GlobalWindows.windowed_value(None).with_value
-      windowed_key_values = lambda key, values: [globally_window((key, values))]
-    else:
-      trigger_driver = trigger.create_trigger_driver(self._windowing, True)
-      windowed_key_values = trigger_driver.process_entire_key
-    coder_impl = self._post_grouped_coder.get_impl()
-    key_coder_impl = self._key_coder.get_impl()
-    for encoded_key, windowed_values in self._table.items():
-      key = key_coder_impl.decode(encoded_key)
-      for wkvs in windowed_key_values(key, windowed_values):
-        coder_impl.encode_to_stream(wkvs, output_stream, True)
-    return iter([output_stream.get()])
+    if not self._grouped_output:
+      output_stream = create_OutputStream()
+      if self._windowing.is_default():
+        globally_window = GlobalWindows.windowed_value(None).with_value
+        windowed_key_values = lambda key, values: [
+            globally_window((key, values))]
+      else:
+        trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+        windowed_key_values = trigger_driver.process_entire_key
+      coder_impl = self._post_grouped_coder.get_impl()
+      key_coder_impl = self._key_coder.get_impl()
+      for encoded_key, windowed_values in self._table.items():
+        key = key_coder_impl.decode(encoded_key)
+        for wkvs in windowed_key_values(key, windowed_values):
+          coder_impl.encode_to_stream(wkvs, output_stream, True)
+      self._grouped_output = [output_stream.get()]
+      self._table = None
+    return iter(self._grouped_output)
 
 
 class _WindowGroupingBuffer(object):
@@ -199,7 +206,7 @@ class _WindowGroupingBuffer(object):
 
 class FnApiRunner(runner.PipelineRunner):
 
-  def __init__(self, use_grpc=False, sdk_harness_factory=None):
+  def __init__(self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0):
     """Creates a new Fn API Runner.
 
     Args:
@@ -207,6 +214,8 @@ class FnApiRunner(runner.PipelineRunner):
           defaults to False
       sdk_harness_factory: callable used to instantiate customized sdk harnesses
           typcially not set by users
+      bundle_repeat: replay every bundle this many extra times, for profiling
+          and debugging
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
@@ -214,6 +223,7 @@ class FnApiRunner(runner.PipelineRunner):
     if sdk_harness_factory and not use_grpc:
       raise ValueError('GRPC must be used if a harness factory is provided.')
     self._sdk_harness_factory = sdk_harness_factory
+    self._bundle_repeat = bundle_repeat
     self._progress_frequency = None
 
   def _next_uid(self):
@@ -1132,6 +1142,15 @@ class FnApiRunner(runner.PipelineRunner):
         raise NotImplementedError(pcoll_id)
       return pcoll_buffers[pcoll_id]
 
+    for k in range(self._bundle_repeat):
+      try:
+        controller.state_handler.checkpoint()
+        BundleManager(
+            controller, lambda pcoll_id: [], process_bundle_descriptor,
+            self._progress_frequency, k).process_bundle(data_input, data_output)
+      finally:
+        controller.state_handler.restore()
+
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
         self._progress_frequency).process_bundle(data_input, data_output)
@@ -1171,7 +1190,8 @@ class FnApiRunner(runner.PipelineRunner):
             controller,
             get_buffer,
             process_bundle_descriptor,
-            self._progress_frequency).process_bundle(timer_inputs, data_output)
+            self._progress_frequency,
+            True).process_bundle(timer_inputs, data_output)
       else:
         break
 
@@ -1181,9 +1201,60 @@ class FnApiRunner(runner.PipelineRunner):
 
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
+    class CopyOnWriteState(object):
+      def __init__(self, underlying):
+        self._underlying = underlying
+        self._overlay = {}
+
+      def __getitem__(self, key):
+        if key in self._overlay:
+          return self._overlay[key]
+        else:
+          return FnApiRunner.StateServicer.CopyOnWriteList(
+              self._underlying, self._overlay, key)
+
+      def __delitem__(self, key):
+        self._overlay[key] = []
+
+      def commit(self):
+        self._underlying.update(self._overlay)
+        return self._underlying
+
+    class CopyOnWriteList(object):
+      def __init__(self, underlying, overlay, key):
+        self._underlying = underlying
+        self._overlay = overlay
+        self._key = key
+
+      def __iter__(self):
+        if self._key in self._overlay:
+          return iter(self._overlay[self._key])
+        else:
+          return iter(self._underlying[self._key])
+
+      def append(self, item):
+        if self._key not in self._overlay:
+          self._overlay[self._key] = list(self._underlying[self._key])
+        self._overlay[self._key].append(item)
+
     def __init__(self):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
+      self._checkpoint = None
+
+    def checkpoint(self):
+      assert self._checkpoint is None
+      self._checkpoint = self._state
+      self._state = FnApiRunner.StateServicer.CopyOnWriteState(self._state)
+
+    def commit(self):
+      self._state.commit()
+      self._state = self._checkpoint.commit()
+      self._checkpoint = None
+
+    def restore(self):
+      self._state = self._checkpoint
+      self._checkpoint = None
 
     @contextlib.contextmanager
     def process_instruction_id(self, unused_instruction_id):
@@ -1356,11 +1427,12 @@ class BundleManager(object):
   _uid_counter = 0
 
   def __init__(
-      self, controller, get_buffer, bundle_descriptor, progress_frequency=None):
+      self, controller, get_buffer, bundle_descriptor, progress_frequency=None,
+      skip_registration=False):
     self._controller = controller
     self._get_buffer = get_buffer
     self._bundle_descriptor = bundle_descriptor
-    self._registered = False
+    self._registered = skip_registration
     self._progress_frequency = progress_frequency
 
   def process_bundle(self, inputs, expected_outputs):
