@@ -363,7 +363,7 @@ class TestAvro(unittest.TestCase):
     # the last sync_marker.
     last_char_index = len(data) - 1
     corrupted_data = data[:last_char_index]
-    corrupted_data += 'A' if data[last_char_index] == 'B' else 'B'
+    corrupted_data += b'A' if data[last_char_index] == b'B' else b'B'
     with tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template) as f:
       f.write(corrupted_data)

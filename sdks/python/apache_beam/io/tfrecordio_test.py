@@ -132,7 +132,7 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def test_read_record(self):
     actual = _TFRecordUtil.read_record(self._as_file_handle(self.record))
-    self.assertEqual('foo', actual)
+    self.assertEqual(b'foo', actual)
 
   def test_read_record_invalid_record(self):
     self._test_error('bar', 'Not a valid TFRecord. Fewer than 12 bytes')
