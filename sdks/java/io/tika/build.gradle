@@ -22,7 +22,7 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 ext.summary = "Tika Input to parse files."
 
-def tika_version = "1.18"
+def tika_version = "1.19.1"
 def bndlib_version = "1.43.0"
 
 dependencies {
