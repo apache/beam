@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-
-group = "org.apache.beam.runners.dataflow"
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
