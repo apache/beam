@@ -51,7 +51,7 @@ cdef extern from "Python.h":
   cdef void* PyList_GET_ITEM(list, Py_ssize_t index) nogil
 
 cdef extern from "unistd.h" nogil:
-  void usleep(long)
+  void usleep(int)
 
 cdef extern from "<time.h>" nogil:
   struct timespec:
@@ -118,7 +118,7 @@ cdef class StateSampler(object):
     cdef int64_t sampling_period_us = self._sampling_period_ms_start * 1000
     with nogil:
       while True:
-        usleep(sampling_period_us)
+        usleep(<int>sampling_period_us)
         sampling_period_us = <int64_t>math.fmin(
             sampling_period_us * self._sampling_period_ratio,
             self._sampling_period_ms * 1000)
