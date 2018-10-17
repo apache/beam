@@ -23,10 +23,9 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -418,7 +417,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, byte[]> {
     @Override
     public byte[] apply(T input) {
-      return UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+      byte[] key = new byte[128];
+      ThreadLocalRandom.current().nextBytes(key);
+      return key;
     }
   }
 
