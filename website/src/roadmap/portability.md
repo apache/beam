@@ -1,8 +1,9 @@
 ---
 layout: section
-title: "Portability Framework"
-permalink: /contribute/portability/
-section_menu: section-menu/contribute.html
+title: "Portability Framework Roadmap"
+permalink: /roadmap/portability/
+section_menu: section-menu/roadmap.html
+redirect_from: /contribute/portability/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Portability Framework
-
-* TOC
-{:toc}
+# Portability Framework Roadmap
 
 ## Overview
 
@@ -77,46 +75,16 @@ support.
 The goal is that all (non-direct) runners and SDKs eventually support
 the portability API, perhaps exclusively.
 
-## Design
+If you are interested in digging in to the designs, you can find
+them on the [Beam developers' wiki](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
 
-The [model protos](https://github.com/apache/beam/tree/master/model)
-contain all aspects of the portability API and is the truth on the
-ground. The proto definitions supercede any design documents. The main
-design documents are the following:
-
- * [Runner API](https://s.apache.org/beam-runner-api). Pipeline
-   representation and discussion on primitive/composite transforms and
-   optimizations.
-
- * [Job API](https://s.apache.org/beam-job-api). Job submission and
-   management protocol.
-
- * [Fn API](https://s.apache.org/beam-fn-api). Execution-side control
-   and data protocols and overview.
-
- * [Container
-   contract](https://s.apache.org/beam-fn-api-container-contract).
-   Execution-side docker container invocation and provisioning
-   protocols. See
-   [CONTAINERS.md](https://github.com/apache/beam/blob/master/sdks/CONTAINERS.md)
-   for how to build container images.
-
-In discussion:
-
- * [Cross
-   language](https://s.apache.org/beam-mixed-language-pipelines). Options
-   and tradeoffs for how to handle various kinds of
-   multi-language/multi-SDK pipelines.
-
-## Development
+## Milestones
 
 The portability framework is a substantial effort that touches every
 Beam component. In addition to the sheer magnitude, a major challenge
 is engineering an interop layer that does not significantly compromise
 performance due to the additional serialization overhead of a
 language-neutral protocol.
-
-### Roadmap
 
 The proposed project phases are roughly as follows and are not
 strictly sequential, as various components will likely move at
@@ -161,7 +129,7 @@ portability effort. Work already done is not tracked here either.
    pipeline support, including how the ecosystem of shared transforms
    should work.
 
-### Issues
+## Issues
 
 The portability effort touches every component, so the "portability"
 label is used to identify all portability-related issues. Pure
@@ -172,13 +140,13 @@ their respective components.
 
 **JIRA:** [query](https://issues.apache.org/jira/issues/?filter=12341256)
 
-### Status
+## Status
 
 MVP in progress (near completion for Flink runner). See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
 
-#### Running Python wordcount on Flink
+### Running Python wordcount on Flink {#python-on-flink}
 
 The Flink runner is currently the only runner to support portable pipeline execution.
 To run a basic Python wordcount (in batch mode) with embedded Flink:
