@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import argparse
 import logging
+import sys
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
@@ -57,15 +58,26 @@ def run(argv=None):
     args.extend(argv)
 
   parser = argparse.ArgumentParser()
-  _, pipeline_args = parser.parse_known_args(args)
+  parser.add_argument('--count',
+                      dest='count',
+                      default=0,
+                      help='Number of triggers to generate '
+                           '(0 means emit forever).')
+  parser.add_argument('--interval_ms',
+                      dest='interval_ms',
+                      default=500,
+                      help='Interval between records per parallel '
+                           'Flink subtask.')
+
+  known_args, pipeline_args = parser.parse_known_args(args)
 
   pipeline_options = PipelineOptions(pipeline_args)
 
   p = beam.Pipeline(options=pipeline_options)
 
   messages = (p | FlinkStreamingImpulseSource()
-              .set_message_count(10000)
-              .set_interval_ms(500))
+              .set_message_count(known_args.count)
+              .set_interval_ms(known_args.interval_ms))
 
   _ = (messages | 'decode' >> beam.Map(lambda x: ('', 1))
        | 'window' >> beam.WindowInto(window.GlobalWindows(),
@@ -83,4 +95,4 @@ def run(argv=None):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  run(sys.argv[1:])
