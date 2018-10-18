@@ -151,7 +151,6 @@ class StateBackedSideInputMap(object):
     self._element_coder = coder.wrapped_value_coder
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
-    # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
 
   def __getitem__(self, window):
@@ -204,6 +203,10 @@ class StateBackedSideInputMap(object):
   def is_globally_windowed(self):
     return (self._side_input_data.window_mapping_fn
             == sideinputs._global_window_mapping_fn)
+
+  def reset(self):
+    # TODO(BEAM-5428): Cross-bundle caching respecting cache tokens.
+    self._cache = {}
 
 
 class CombiningValueRuntimeState(userstate.RuntimeState):
@@ -310,6 +313,10 @@ class FnApiUserStateContext(userstate.UserStateContext):
     else:
       raise NotImplementedError(state_spec)
 
+  def reset(self):
+    # TODO(BEAM-5428): Implement cross-bundle state caching.
+    pass
+
 
 def memoize(func):
   cache = {}
@@ -342,6 +349,8 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    for op in self.ops.values():
+      op.setup()
 
   def create_execution_tree(self, descriptor):
 
@@ -384,6 +393,13 @@ class BundleProcessor(object):
         (transform_id, get_operation(transform_id))
         for transform_id in sorted(
             descriptor.transforms, key=topological_height, reverse=True)])
+
+  def reset(self):
+    self.counter_factory.reset()
+    self.state_sampler.reset()
+    # Side input caches.
+    for op in self.ops.values():
+      op.reset()
 
   def process_bundle(self, instruction_id):
     expected_inputs = []
