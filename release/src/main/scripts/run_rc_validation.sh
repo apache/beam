@@ -24,13 +24,13 @@ function clean_up(){
   echo "Please sign up your name in the tests you have ran."
 
   echo "===========================Final Cleanup==========================="
-  if [[ ! -z `ls -a ~/.m2/settings_backup.xml` ]]; then
+  if [[ -f ~/.m2/settings_backup.xml ]]; then
     rm ~/.m2/settings.xml
     cp ~/.m2/settings_backup.xml ~/.m2/settings.xml
     echo "* Restored ~/.m2/settings.xml"
   fi
 
-  if [[ ! -z `ls -a ~/.bashrc_backup` ]]; then
+  if [[ -f ~/.bashrc_backup ]]; then
     rm ~/.bashrc
     cp ~/.bashrc_backup ~/.bashrc
     echo "* Restored ~/.bashrc"
@@ -72,6 +72,10 @@ fi
 
 echo "====================Cloning Beam Release Branch===================="
 cd ~
+if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+  rm -rf ${LOCAL_CLONE_DIR}
+fi
+
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
 git clone ${GIT_REPO_URL}
@@ -179,7 +183,7 @@ if [[ $confirmation = "y" ]]; then
   echo "Please review following GCP sources setup: "
   echo "Using GCP project: ${USER_GCP_PROJECT}"
   echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
-  echo "Will create Pubsub topic: ${MOBILE_GMAE_PUBSUB_TOPIC}"
+  echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
   echo "[Confirmation Required] Do you want to run validations with configurations above? [y|N]"
   read confirmation
   if [[ $confirmation = "y" ]]; then
@@ -223,13 +227,15 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
   read USER_REMOTE_URL
-  WORKING_BRANCH=python_validatoin_pr
+  echo "[Input Required] Please enter your github username:"
+  read GITHUB_USERNAME
+  WORKING_BRANCH=python_validation_pr
   git checkout -b ${WORKING_BRANCH}
   touch empty_file.txt
   git add empty_file.txt
   git commit -m "Add empty file in order to create PR"
   git push -f ${USER_REMOTE_URL}
-  hub pull-request -b apache:${RELEASE_BRANCH} -h boyuanzz:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
+  hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE]Run Python RC Validation Tests
 
 
   Run Python ReleaseCandidate"
@@ -310,11 +316,11 @@ if [[ $confirmation = "y" ]]; then
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
   cd ~
-  if [[ -z `ls -a ~ | grep ".m2"` ]]; then
+  if [[ -d .m2 ]]; then
     mkdir .m2
   fi
   cd .m2
-  if [[ ! -z `ls -a ~/.m2/ | grep "settings.xml"` ]]; then
+  if [[ -f ~/.m2/settings.xml ]]; then
     mv settings.xml settings_backup.xml
   fi
   touch settings.xml

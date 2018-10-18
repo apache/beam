@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -40,23 +42,6 @@ import org.slf4j.LoggerFactory;
 public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironmentFactory.class);
-
-  public static ProcessEnvironmentFactory create(
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
-    return create(
-        ProcessManager.create(),
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        clientSource,
-        idGenerator);
-  }
 
   public static ProcessEnvironmentFactory create(
       ProcessManager processManager,
@@ -104,16 +89,22 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
-    String workerId = idGenerator.getId();
+    Preconditions.checkState(
+        environment
+            .getUrn()
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
+        "The passed environment does not contain a ProcessPayload.");
+    final RunnerApi.ProcessPayload processPayload =
+        RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
+    final String workerId = idGenerator.getId();
 
-    // TODO The Environment Protobuf message needs to be changed for process environment
-    String executable = environment.getUrl();
+    String executable = processPayload.getCommand();
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    List<String> args =
+    ImmutableList<String> args =
         ImmutableList.of(
             String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),
@@ -126,7 +117,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args);
+          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
@@ -136,7 +127,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         } catch (TimeoutException timeoutEx) {
           LOG.info(
               "Still waiting for startup of environment '{}' for worker id {}",
-              environment.getUrl(),
+              processPayload.getCommand(),
               workerId);
         } catch (InterruptedException interruptEx) {
           Thread.currentThread().interrupt();
@@ -153,5 +144,26 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     }
 
     return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+  }
+
+  /** Provider of ProcessEnvironmentFactory. */
+  public static class Provider implements EnvironmentFactory.Provider {
+    @Override
+    public EnvironmentFactory createEnvironmentFactory(
+        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        ControlClientPool clientPool,
+        IdGenerator idGenerator) {
+      return create(
+          ProcessManager.create(),
+          controlServiceServer,
+          loggingServiceServer,
+          retrievalServiceServer,
+          provisioningServiceServer,
+          clientPool.getSource(),
+          idGenerator);
+    }
   }
 }

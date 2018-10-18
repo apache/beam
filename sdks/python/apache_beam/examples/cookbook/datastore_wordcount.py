@@ -69,12 +69,6 @@ import re
 import uuid
 from builtins import object
 
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from googledatastore import helper as datastore_helper
-from googledatastore import PropertyFilter
-from past.builtins import unicode
-
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
@@ -83,6 +77,18 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from googledatastore import helper as datastore_helper
+  from googledatastore import PropertyFilter
+  from past.builtins import unicode
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class WordExtractingDoFn(beam.DoFn):

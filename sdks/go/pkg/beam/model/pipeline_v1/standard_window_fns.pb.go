@@ -3,11 +3,13 @@
 
 package pipeline_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import duration "github.com/golang/protobuf/ptypes/duration"
-import timestamp "github.com/golang/protobuf/ptypes/timestamp"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	duration "github.com/golang/protobuf/ptypes/duration"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -30,6 +32,7 @@ const (
 var GlobalWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var GlobalWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -37,8 +40,9 @@ var GlobalWindowsPayload_Enum_value = map[string]int32{
 func (x GlobalWindowsPayload_Enum) String() string {
 	return proto.EnumName(GlobalWindowsPayload_Enum_name, int32(x))
 }
+
 func (GlobalWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{0, 0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{0, 0}
 }
 
 type FixedWindowsPayload_Enum int32
@@ -51,6 +55,7 @@ const (
 var FixedWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var FixedWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -58,8 +63,9 @@ var FixedWindowsPayload_Enum_value = map[string]int32{
 func (x FixedWindowsPayload_Enum) String() string {
 	return proto.EnumName(FixedWindowsPayload_Enum_name, int32(x))
 }
+
 func (FixedWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{1, 0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{1, 0}
 }
 
 type SlidingWindowsPayload_Enum int32
@@ -72,6 +78,7 @@ const (
 var SlidingWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var SlidingWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -79,8 +86,9 @@ var SlidingWindowsPayload_Enum_value = map[string]int32{
 func (x SlidingWindowsPayload_Enum) String() string {
 	return proto.EnumName(SlidingWindowsPayload_Enum_name, int32(x))
 }
+
 func (SlidingWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{2, 0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{2, 0}
 }
 
 type SessionsPayload_Enum int32
@@ -93,6 +101,7 @@ const (
 var SessionsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var SessionsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -100,8 +109,9 @@ var SessionsPayload_Enum_value = map[string]int32{
 func (x SessionsPayload_Enum) String() string {
 	return proto.EnumName(SessionsPayload_Enum_name, int32(x))
 }
+
 func (SessionsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{3, 0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{3, 0}
 }
 
 type GlobalWindowsPayload struct {
@@ -114,7 +124,7 @@ func (m *GlobalWindowsPayload) Reset()         { *m = GlobalWindowsPayload{} }
 func (m *GlobalWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*GlobalWindowsPayload) ProtoMessage()    {}
 func (*GlobalWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{0}
 }
 func (m *GlobalWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GlobalWindowsPayload.Unmarshal(m, b)
@@ -122,8 +132,8 @@ func (m *GlobalWindowsPayload) XXX_Unmarshal(b []byte) error {
 func (m *GlobalWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GlobalWindowsPayload.Marshal(b, m, deterministic)
 }
-func (dst *GlobalWindowsPayload) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GlobalWindowsPayload.Merge(dst, src)
+func (m *GlobalWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GlobalWindowsPayload.Merge(m, src)
 }
 func (m *GlobalWindowsPayload) XXX_Size() int {
 	return xxx_messageInfo_GlobalWindowsPayload.Size(m)
@@ -146,7 +156,7 @@ func (m *FixedWindowsPayload) Reset()         { *m = FixedWindowsPayload{} }
 func (m *FixedWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*FixedWindowsPayload) ProtoMessage()    {}
 func (*FixedWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{1}
+	return fileDescriptor_fab9dd76b0d0d680, []int{1}
 }
 func (m *FixedWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FixedWindowsPayload.Unmarshal(m, b)
@@ -154,8 +164,8 @@ func (m *FixedWindowsPayload) XXX_Unmarshal(b []byte) error {
 func (m *FixedWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FixedWindowsPayload.Marshal(b, m, deterministic)
 }
-func (dst *FixedWindowsPayload) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FixedWindowsPayload.Merge(dst, src)
+func (m *FixedWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FixedWindowsPayload.Merge(m, src)
 }
 func (m *FixedWindowsPayload) XXX_Size() int {
 	return xxx_messageInfo_FixedWindowsPayload.Size(m)
@@ -193,7 +203,7 @@ func (m *SlidingWindowsPayload) Reset()         { *m = SlidingWindowsPayload{} }
 func (m *SlidingWindowsPayload) String() string { return proto.CompactTextString(m) }
 func (*SlidingWindowsPayload) ProtoMessage()    {}
 func (*SlidingWindowsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{2}
+	return fileDescriptor_fab9dd76b0d0d680, []int{2}
 }
 func (m *SlidingWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SlidingWindowsPayload.Unmarshal(m, b)
@@ -201,8 +211,8 @@ func (m *SlidingWindowsPayload) XXX_Unmarshal(b []byte) error {
 func (m *SlidingWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SlidingWindowsPayload.Marshal(b, m, deterministic)
 }
-func (dst *SlidingWindowsPayload) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SlidingWindowsPayload.Merge(dst, src)
+func (m *SlidingWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SlidingWindowsPayload.Merge(m, src)
 }
 func (m *SlidingWindowsPayload) XXX_Size() int {
 	return xxx_messageInfo_SlidingWindowsPayload.Size(m)
@@ -245,7 +255,7 @@ func (m *SessionsPayload) Reset()         { *m = SessionsPayload{} }
 func (m *SessionsPayload) String() string { return proto.CompactTextString(m) }
 func (*SessionsPayload) ProtoMessage()    {}
 func (*SessionsPayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_standard_window_fns_da1ada993b818d10, []int{3}
+	return fileDescriptor_fab9dd76b0d0d680, []int{3}
 }
 func (m *SessionsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SessionsPayload.Unmarshal(m, b)
@@ -253,8 +263,8 @@ func (m *SessionsPayload) XXX_Unmarshal(b []byte) error {
 func (m *SessionsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SessionsPayload.Marshal(b, m, deterministic)
 }
-func (dst *SessionsPayload) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SessionsPayload.Merge(dst, src)
+func (m *SessionsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionsPayload.Merge(m, src)
 }
 func (m *SessionsPayload) XXX_Size() int {
 	return xxx_messageInfo_SessionsPayload.Size(m)
@@ -283,11 +293,9 @@ func init() {
 	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SessionsPayload_Enum", SessionsPayload_Enum_name, SessionsPayload_Enum_value)
 }
 
-func init() {
-	proto.RegisterFile("standard_window_fns.proto", fileDescriptor_standard_window_fns_da1ada993b818d10)
-}
+func init() { proto.RegisterFile("standard_window_fns.proto", fileDescriptor_fab9dd76b0d0d680) }
 
-var fileDescriptor_standard_window_fns_da1ada993b818d10 = []byte{
+var fileDescriptor_fab9dd76b0d0d680 = []byte{
 	// 407 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x93, 0x31, 0x4f, 0xdb, 0x40,
 	0x14, 0xc7, 0xeb, 0x36, 0x4d, 0xab, 0xcb, 0xd0, 0xd6, 0x6d, 0xa4, 0xc4, 0x43, 0x9b, 0x78, 0x68,

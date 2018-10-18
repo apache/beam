@@ -322,7 +322,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
 
     SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId =
         sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
@@ -445,7 +445,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 .withSideInputs(iterableSideInputView));
 
     SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
 

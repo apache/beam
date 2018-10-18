@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auto.service.AutoService;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
@@ -34,8 +37,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.RunnerPCollectionView;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -44,6 +47,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -52,6 +56,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKey
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.StreamingImpulseSource;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -59,7 +64,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -97,16 +101,9 @@ public class FlinkStreamingPortablePipelineTranslator
    * {@link StreamExecutionEnvironment}.
    */
   public static StreamingTranslationContext createTranslationContext(
-      JobInfo jobInfo, List<String> filesToStage) {
-    PipelineOptions pipelineOptions;
-    try {
-      pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+      JobInfo jobInfo, FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
     StreamExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            pipelineOptions.as(FlinkPipelineOptions.class), filesToStage);
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(pipelineOptions, filesToStage);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
@@ -118,12 +115,14 @@ public class FlinkStreamingPortablePipelineTranslator
       implements FlinkPortablePipelineTranslator.TranslationContext {
 
     private final JobInfo jobInfo;
-    private final PipelineOptions options;
+    private final FlinkPipelineOptions options;
     private final StreamExecutionEnvironment executionEnvironment;
     private final Map<String, DataStream<?>> dataStreams;
 
     private StreamingTranslationContext(
-        JobInfo jobInfo, PipelineOptions options, StreamExecutionEnvironment executionEnvironment) {
+        JobInfo jobInfo,
+        FlinkPipelineOptions options,
+        StreamExecutionEnvironment executionEnvironment) {
       this.jobInfo = jobInfo;
       this.options = options;
       this.executionEnvironment = executionEnvironment;
@@ -135,7 +134,8 @@ public class FlinkStreamingPortablePipelineTranslator
       return jobInfo;
     }
 
-    public PipelineOptions getPipelineOptions() {
+    @Override
+    public FlinkPipelineOptions getPipelineOptions() {
       return options;
     }
 
@@ -143,8 +143,8 @@ public class FlinkStreamingPortablePipelineTranslator
       return executionEnvironment;
     }
 
-    public <T> void addDataStream(String pCollectionId, DataStream<T> dataSet) {
-      dataStreams.put(pCollectionId, dataSet);
+    public <T> void addDataStream(String pCollectionId, DataStream<T> dataStream) {
+      dataStreams.put(pCollectionId, dataStream);
     }
 
     public <T> DataStream<T> getDataStreamOrThrow(String pCollectionId) {
@@ -161,6 +161,9 @@ public class FlinkStreamingPortablePipelineTranslator
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
+  private static final String STREAMING_IMPULSE_TRANSFORM_URN =
+      "flink:transform:streaming_impulse:v1";
+
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
       urnToTransformTranslator;
 
@@ -170,6 +173,7 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, this::translateFlatten);
     translatorMap.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, this::translateGroupByKey);
     translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, this::translateImpulse);
+    translatorMap.put(STREAMING_IMPULSE_TRANSFORM_URN, this::translateStreamingImpulse);
     translatorMap.put(
         PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, this::translateAssignWindows);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
@@ -219,8 +223,9 @@ public class FlinkStreamingPortablePipelineTranslator
       // create an empty dummy source to satisfy downstream operations
       // we cannot create an empty source in Flink, therefore we have to
       // add the flatMap that simply never forwards the single element
-      DataStreamSource<String> dummySource =
-          context.getExecutionEnvironment().fromElements("dummy");
+      boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+      DataStreamSource<WindowedValue<byte[]>> dummySource =
+          context.getExecutionEnvironment().addSource(new ImpulseSourceFunction(keepSourceAlive));
 
       DataStream<WindowedValue<T>> result =
           dummySource
@@ -397,11 +402,46 @@ public class FlinkStreamingPortablePipelineTranslator
         new CoderTypeInformation<>(
             WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
 
+    boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+    SingleOutputStreamOperator<WindowedValue<byte[]>> source =
+        context
+            .getExecutionEnvironment()
+            .addSource(new ImpulseSourceFunction(keepSourceAlive))
+            .returns(typeInfo);
+
+    context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
+  }
+
+  /** Predicate to determine whether a URN is a Flink native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return STREAMING_IMPULSE_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
+  }
+
+  private void translateStreamingImpulse(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.PTransform pTransform = pipeline.getComponents().getTransformsOrThrow(id);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    int intervalMillis;
+    int messageCount;
+    try {
+      JsonNode config = objectMapper.readTree(pTransform.getSpec().getPayload().toByteArray());
+      intervalMillis = config.path("interval_ms").asInt(100);
+      messageCount = config.path("message_count").asInt(0);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to parse configuration for streaming impulse", e);
+    }
+
     DataStreamSource<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .fromCollection(
-                Collections.singleton(WindowedValue.valueInGlobalWindow(new byte[0])), typeInfo);
+            .addSource(new StreamingImpulseSource(intervalMillis, messageCount));
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
   }
@@ -517,7 +557,7 @@ public class FlinkStreamingPortablePipelineTranslator
     DoFnOperator<InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
-            null,
+            instantiateCoder(inputPCollectionId, components),
             null,
             Collections.emptyMap(),
             mainOutputTag,
@@ -529,7 +569,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.batchFactory(),
+            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
             collectionIdToTupleTag);
 
     if (transformedSideInputs.unionTagToView.isEmpty()) {

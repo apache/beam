@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.redis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,6 +37,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -109,6 +113,7 @@ public class RedisIO {
     return new AutoValue_RedisIO_Read.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .setKeyPattern("*")
+        .setBatchSize(1000)
         .build();
   }
 
@@ -119,6 +124,7 @@ public class RedisIO {
   public static ReadAll readAll() {
     return new AutoValue_RedisIO_ReadAll.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setBatchSize(1000)
         .build();
   }
 
@@ -142,6 +148,8 @@ public class RedisIO {
     @Nullable
     abstract String keyPattern();
 
+    abstract int batchSize();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -151,6 +159,8 @@ public class RedisIO {
 
       @Nullable
       abstract Builder setKeyPattern(String keyPattern);
+
+      abstract Builder setBatchSize(int batchSize);
 
       abstract Read build();
     }
@@ -185,6 +195,10 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public Read withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       connectionConfiguration().populateDisplayData(builder);
@@ -196,7 +210,11 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
-          .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
+          .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
+          .apply(
+              RedisIO.readAll()
+                  .withConnectionConfiguration(connectionConfiguration())
+                  .withBatchSize(batchSize()));
     }
   }
 
@@ -208,12 +226,16 @@ public class RedisIO {
     @Nullable
     abstract RedisConnectionConfiguration connectionConfiguration();
 
+    abstract int batchSize();
+
     abstract ReadAll.Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       @Nullable
       abstract ReadAll.Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract ReadAll.Builder setBatchSize(int batchSize);
 
       abstract ReadAll build();
     }
@@ -243,31 +265,45 @@ public class RedisIO {
       return builder().setConnectionConfiguration(connection).build();
     }
 
+    public ReadAll withBatchSize(int batchSize) {
+      return builder().setBatchSize(batchSize).build();
+    }
+
     @Override
     public PCollection<KV<String, String>> expand(PCollection<String> input) {
       checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
 
       return input
-          .apply(ParDo.of(new ReadFn(connectionConfiguration())))
+          .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
           .apply(new Reparallelize());
     }
   }
 
-  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
-  private static class ReadFn extends DoFn<String, KV<String, String>> {
+  abstract static class BaseReadFn<T> extends DoFn<String, T> {
+    protected final RedisConnectionConfiguration connectionConfiguration;
 
-    private final RedisConnectionConfiguration connectionConfiguration;
+    transient Jedis jedis;
 
-    private transient Jedis jedis;
-
-    public ReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
     }
 
     @Setup
     public void setup() {
       jedis = connectionConfiguration.connect();
+    }
+
+    @Teardown
+    public void teardown() {
+      jedis.close();
+    }
+  }
+
+  private static class ReadKeysWithPattern extends BaseReadFn<String> {
+
+    ReadKeysWithPattern(RedisConnectionConfiguration connectionConfiguration) {
+      super(connectionConfiguration);
     }
 
     @ProcessElement
@@ -280,28 +316,77 @@ public class RedisIO {
       while (!finished) {
         ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
         List<String> keys = scanResult.getResult();
-
-        Pipeline pipeline = jedis.pipelined();
-        if (keys != null) {
-          for (String key : keys) {
-            pipeline.get(key);
-          }
-          List<Object> values = pipeline.syncAndReturnAll();
-          for (int i = 0; i < values.size(); i++) {
-            processContext.output(KV.of(keys.get(i), (String) values.get(i)));
-          }
+        for (String k : keys) {
+          processContext.output(k);
         }
-
         cursor = scanResult.getStringCursor();
         if ("0".equals(cursor)) {
           finished = true;
         }
       }
     }
+  }
+  /** A {@link DoFn} requesting Redis server to get key/value pairs. */
+  private static class ReadFn extends BaseReadFn<KV<String, String>> {
+    @Nullable transient Multimap<BoundedWindow, String> bundles = null;
+    @Nullable AtomicInteger batchCount = null;
+    private final int batchSize;
 
-    @Teardown
-    public void teardown() {
-      jedis.close();
+    @StartBundle
+    public void startBundle(StartBundleContext context) {
+      bundles = ArrayListMultimap.create();
+      batchCount = new AtomicInteger();
+    }
+
+    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
+      super(connectionConfiguration);
+      this.batchSize = batchSize;
+    }
+
+    private int getBatchSize() {
+      return batchSize;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext processContext, BoundedWindow window)
+        throws Exception {
+      String key = processContext.element();
+      bundles.put(window, key);
+      if (batchCount.incrementAndGet() > getBatchSize()) {
+        Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+        for (BoundedWindow w : kvs.keySet()) {
+          for (KV<String, String> kv : kvs.get(w)) {
+            processContext.output(kv);
+          }
+        }
+      }
+    }
+
+    private Multimap<BoundedWindow, KV<String, String>> fetchAndFlush() {
+      Multimap<BoundedWindow, KV<String, String>> kvs = ArrayListMultimap.create();
+      for (BoundedWindow w : bundles.keySet()) {
+        String[] keys = new String[bundles.get(w).size()];
+        bundles.get(w).toArray(keys);
+        List<String> results = jedis.mget(keys);
+        for (int i = 0; i < results.size(); i++) {
+          if (results.get(i) != null) {
+            kvs.put(w, KV.of(keys[i], results.get(i)));
+          }
+        }
+      }
+      bundles = ArrayListMultimap.create();
+      batchCount.set(0);
+      return kvs;
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      Multimap<BoundedWindow, KV<String, String>> kvs = fetchAndFlush();
+      for (BoundedWindow w : kvs.keySet()) {
+        for (KV<String, String> kv : kvs.get(w)) {
+          context.output(kv, w.maxTimestamp(), w);
+        }
+      }
     }
   }
 
@@ -467,6 +552,7 @@ public class RedisIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.multi();
           batchCount = 0;
         }
       }
@@ -527,7 +613,9 @@ public class RedisIO {
 
       @FinishBundle
       public void finishBundle() {
-        pipeline.exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+        }
         batchCount = 0;
       }
 

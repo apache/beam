@@ -126,7 +126,7 @@ public class Combine {
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
       GlobalCombineFn<? super InputT, ?, OutputT> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-    return new Globally<>(fn, fnDisplayData, true, 0);
+    return new Globally<>(fn, fnDisplayData, true, 0, ImmutableList.of());
   }
 
   /**
@@ -254,10 +254,26 @@ public class Combine {
    *
    * <pre>{@code
    * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
-   *   public static class Accum {
+   *   public static class Accum implements Serializable {
    *     int sum = 0;
    *     int count = 0;
+   *
+   *    {@literal@}Override
+   *     public boolean equals(Object other) {
+   *       if (other == null) return false;
+   *       if (other == this) return true;
+   *       if (!(other instanceof Accum))return false;
+   *
+   *
+   *       Accum o = (Accum)other;
+   *       if (this.sum != o.sum || this.count != o.count) {
+   *         return false;
+   *       } else {
+   *         return true;
+   *       }
+   *     }
    *   }
+   *
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
@@ -288,6 +304,24 @@ public class Combine {
    * subgroups before being combined, and their intermediate results further combined, in an
    * arbitrary tree structure. Commutativity is required because any order of the input values is
    * ignored when breaking up input values into groups.
+   *
+   * <h3>Note on Data Encoding</h3>
+   *
+   * <p>Some form of data encoding is required when using custom types in a CombineFn which do not
+   * have well-known coders. The sample code above uses a custom Accumulator which gets coder by
+   * implementing {@link java.io.Serializable}. By doing this, we are relying on the generic {@link
+   * org.apache.beam.sdk.coders.CoderProvider}, which is able to provide a coder for any {@link
+   * java.io.Serializable} if applicable. In cases where {@link java.io.Serializable} is not
+   * efficient, or inapplicable, in general there are two alternatives for encoding:
+   *
+   * <ul>
+   *   <li>Default {@link org.apache.beam.sdk.coders.CoderRegistry}. For example, implement a coder
+   *       class explicitly and use the {@code @DefaultCoder} tag. See the {@link
+   *       org.apache.beam.sdk.coders.CoderRegistry} for the numerous ways in which to bind a type
+   *       to a coder.
+   *   <li>CombineFn specific way. While extending CombineFn, overwrite both {@link
+   *       #getAccumulatorCoder} and {@link #getDefaultOutputCoder}.
+   * </ul>
    *
    * @param <InputT> type of input values
    * @param <AccumT> type of mutable accumulator values
@@ -372,6 +406,17 @@ public class Combine {
      */
     public TypeDescriptor<OutputT> getOutputType() {
       return new TypeDescriptor<OutputT>(getClass()) {};
+    }
+
+    /**
+     * Returns a {@link TypeDescriptor} capturing what is known statically about the input type of
+     * this {@code CombineFn} instance's most-derived class.
+     *
+     * <p>In the normal case of a concrete {@code CombineFn} subclass with no generic type
+     * parameters of its own, this will be a complete non-generic type.
+     */
+    public TypeDescriptor<InputT> getInputType() {
+      return new TypeDescriptor<InputT>(getClass()) {};
     }
   }
 
@@ -953,18 +998,6 @@ public class Combine {
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         boolean insertDefault,
-        int fanout) {
-      this.fn = fn;
-      this.fnDisplayData = fnDisplayData;
-      this.insertDefault = insertDefault;
-      this.fanout = fanout;
-      this.sideInputs = ImmutableList.of();
-    }
-
-    private Globally(
-        GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
-        boolean insertDefault,
         int fanout,
         List<PCollectionView<?>> sideInputs) {
       this.fn = fn;
@@ -995,7 +1028,7 @@ public class Combine {
      * and the output is not being used as a side input.
      */
     public Globally<InputT, OutputT> withoutDefaults() {
-      return new Globally<>(fn, fnDisplayData, false, fanout);
+      return new Globally<>(fn, fnDisplayData, false, fanout, sideInputs);
     }
 
     /**
@@ -1005,7 +1038,7 @@ public class Combine {
      * <p>The {@code fanout} parameter determines the number of intermediate keys that will be used.
      */
     public Globally<InputT, OutputT> withFanout(int fanout) {
-      return new Globally<>(fn, fnDisplayData, insertDefault, fanout);
+      return new Globally<>(fn, fnDisplayData, insertDefault, fanout, sideInputs);
     }
 
     /**

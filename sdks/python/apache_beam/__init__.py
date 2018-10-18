@@ -79,7 +79,8 @@ import os
 
 
 if not ((sys.version_info[0] == 2 and sys.version_info[1] == 7) or
-        (sys.version_info[0] == 3 and os.environ['BEAM_EXPERIMENTAL_PY3'])):
+        (sys.version_info[0] == 3 and
+         os.environ.get('BEAM_EXPERIMENTAL_PY3', False))):
   raise RuntimeError(
       'The Apache Beam SDK for Python is supported only on Python 2.7. '
       'It is not supported on Python ['+ str(sys.version_info) + '].')

@@ -31,6 +31,7 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
 evaluationDependsOn(":beam-sdks-java-core")
 evaluationDependsOn(":beam-examples-java")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -48,6 +49,7 @@ test {
 
 configurations {
   validatesRunner
+  coreSDKJavaIntegrationTest
   examplesJavaIntegrationTest
   googleCloudPlatformIntegrationTest
 }
@@ -89,6 +91,8 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner library.java.hamcrest_core
   validatesRunner library.java.hamcrest_library
+  coreSDKJavaIntegrationTest project(path: project.path, configuration: "shadow")
+  coreSDKJavaIntegrationTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
   examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
   googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
@@ -99,14 +103,22 @@ test {
   systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
 
+// For the following test tasks, set workerHarnessContainerImage to empty to make Dataflow pick up
+// the non-versioned container image, which handles a staged worker jar.
 task validatesRunnerTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
+
   ])
 
   // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -138,15 +150,20 @@ task validatesRunner {
 
 task googleCloudPlatformIntegrationTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOReadIT.class'
   exclude '**/PubsubReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -156,12 +173,17 @@ task googleCloudPlatformIntegrationTest(type: Test) {
 
 task examplesJavaIntegrationTest(type: Test) {
   group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
   def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
@@ -175,11 +197,34 @@ task examplesJavaIntegrationTest(type: Test) {
   useJUnit { }
 }
 
+task coreSDKJavaIntegrationTest(type: Test) {
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
+  ])
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.coreSDKJavaIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformIntegrationTest
   dependsOn examplesJavaIntegrationTest
+  dependsOn coreSDKJavaIntegrationTest
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

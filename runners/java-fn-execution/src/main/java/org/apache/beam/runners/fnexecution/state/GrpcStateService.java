@@ -28,6 +28,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.ServerCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 
 /** An implementation of the Beam Fn State service. */
@@ -51,6 +52,14 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     Exception thrown = null;
     for (Inbound inbound : clients) {
       try {
+        // the call may be cancelled because the sdk harness hung up
+        // (we terminate the environment before terminating the service endpoints)
+        if (inbound.outboundObserver instanceof ServerCallStreamObserver) {
+          if (((ServerCallStreamObserver) inbound.outboundObserver).isCancelled()) {
+            // skip to avoid call already closed exception
+            continue;
+          }
+        }
         inbound.outboundObserver.onCompleted();
       } catch (Exception t) {
         if (thrown == null) {

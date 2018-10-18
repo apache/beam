@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
@@ -65,6 +66,7 @@ public class SourceRDD {
     private final BoundedSource<T> source;
     private final SerializablePipelineOptions options;
     private final int numPartitions;
+    private final long bundleSize;
     private final String stepName;
     private final Accumulator<MetricsContainerStepMap> metricsAccum;
 
@@ -88,6 +90,7 @@ public class SourceRDD {
       // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
       this.numPartitions = sc.defaultParallelism();
       checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
+      this.bundleSize = options.get().as(SparkPipelineOptions.class).getBundleSize();
       this.stepName = stepName;
       this.metricsAccum = MetricsAccumulator.getInstance();
     }
@@ -96,19 +99,23 @@ public class SourceRDD {
 
     @Override
     public Partition[] getPartitions() {
-      long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
       try {
-        desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
-      } catch (Exception e) {
-        LOG.warn(
-            "Failed to get estimated bundle size for source {}, using default bundle "
-                + "size of {} bytes.",
-            source,
-            DEFAULT_BUNDLE_SIZE);
-      }
-      try {
-        List<? extends Source<T>> partitionedSources =
-            source.split(desiredSizeBytes, options.get());
+        List<? extends Source<T>> partitionedSources;
+        if (bundleSize > 0) {
+          partitionedSources = source.split(bundleSize, options.get());
+        } else {
+          long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
+          try {
+            desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
+          } catch (Exception e) {
+            LOG.warn(
+                "Failed to get estimated bundle size for source {}, using default bundle "
+                    + "size of {} bytes.",
+                source,
+                DEFAULT_BUNDLE_SIZE);
+          }
+          partitionedSources = source.split(desiredSizeBytes, options.get());
+        }
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));

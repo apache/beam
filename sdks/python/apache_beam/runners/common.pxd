@@ -34,6 +34,9 @@ cdef class MethodWrapper(object):
   cdef public object args
   cdef public object defaults
   cdef public object method_value
+  cdef bint has_userstate_arguments
+  cdef object state_args_to_replace
+  cdef object timer_args_to_replace
 
 
 cdef class DoFnSignature(object):
@@ -45,11 +48,14 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
   cdef public object do_fn
+  cdef public object timer_methods
+  cdef bint _is_stateful_dofn
 
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
+  cdef object user_state_context
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,

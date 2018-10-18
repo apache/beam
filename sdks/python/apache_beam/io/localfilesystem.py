@@ -111,9 +111,13 @@ class LocalFileSystem(FileSystem):
     if not self.exists(dir_or_prefix):
       return
 
+    def list_files(root):
+      for dirpath, _, files in os.walk(root):
+        for filename in files:
+          yield self.join(dirpath, filename)
+
     try:
-      for f in os.listdir(dir_or_prefix):
-        f = self.join(dir_or_prefix, f)
+      for f in list_files(dir_or_prefix):
         try:
           yield FileMetadata(f, os.path.getsize(f))
         except OSError:
@@ -144,9 +148,6 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    parent = os.path.dirname(path)
-    if not os.path.exists(parent):
-      os.makedirs(parent)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(self, path, mime_type='application/octet-stream',
@@ -188,10 +189,6 @@ class LocalFileSystem(FileSystem):
         if os.path.isdir(source):
           shutil.copytree(source, destination)
         else:
-          parent = os.path.dirname(destination)
-          if not os.path.exists(parent):
-            os.makedirs(parent)
-
           shutil.copy2(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -224,10 +221,6 @@ class LocalFileSystem(FileSystem):
     def _rename_file(source, destination):
       """Rename a single file object"""
       try:
-        parent = os.path.dirname(destination)
-        if not os.path.exists(parent):
-          os.makedirs(parent)
-
         os.rename(source, destination)
       except OSError as err:
         raise IOError(err)
@@ -321,11 +314,22 @@ class LocalFileSystem(FileSystem):
         raise IOError(err)
 
     exceptions = {}
-    for path in paths:
+
+    def try_delete(path):
       try:
         _delete_path(path)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[path] = e
+
+    for match_result in self.match(paths):
+      metadata_list = match_result.metadata_list
+
+      if not metadata_list:
+        exceptions[match_result.pattern] = \
+          IOError('No files found to delete under: %s' % match_result.pattern)
+
+      for metadata in match_result.metadata_list:
+        try_delete(metadata.path)
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)

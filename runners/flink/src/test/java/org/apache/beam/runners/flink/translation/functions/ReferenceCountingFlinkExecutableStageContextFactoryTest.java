@@ -17,10 +17,16 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Charsets;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.Creator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.junit.Assert;
@@ -76,5 +82,34 @@ public class ReferenceCountingFlinkExecutableStageContextFactoryTest {
     FlinkExecutableStageContext ac4B = factory.get(jobB); // 1 open jobB
     Assert.assertNotSame("We should get a new instance.", ac2B, ac4B);
     factory.release(ac4B); // 0 open jobB
+  }
+
+  @Test
+  public void testCatchThrowablesAndLogThem() throws Exception {
+    PrintStream oldErr = System.err;
+    oldErr.flush();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PrintStream newErr = new PrintStream(baos);
+    try {
+      System.setErr(newErr);
+      Creator creator = mock(Creator.class);
+      FlinkExecutableStageContext c1 = mock(FlinkExecutableStageContext.class);
+      when(creator.apply(any(JobInfo.class))).thenReturn(c1);
+      // throw an Throwable and ensure that it is caught and logged.
+      doThrow(new NoClassDefFoundError()).when(c1).close();
+      ReferenceCountingFlinkExecutableStageContextFactory factory =
+          ReferenceCountingFlinkExecutableStageContextFactory.create(creator);
+      JobInfo jobA = mock(JobInfo.class);
+      when(jobA.jobId()).thenReturn("jobA");
+      FlinkExecutableStageContext ac1A = factory.get(jobA);
+      factory.release(ac1A);
+      newErr.flush();
+      String output = new String(baos.toByteArray(), Charsets.UTF_8);
+      // Ensure that the error is logged
+      assertThat(output.contains("Unable to close FlinkExecutableStageContext"), is(true));
+    } finally {
+      newErr.flush();
+      System.setErr(oldErr);
+    }
   }
 }

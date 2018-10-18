@@ -54,11 +54,15 @@ public class GcsStager implements Stager {
     checkNotNull(options.getStagingLocation());
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
-
+    String dataflowWorkerJar = options.getDataflowWorkerJar();
     List<String> filesToStage = options.getFilesToStage();
 
     if (windmillBinary != null) {
       filesToStage.add("windmill_main=" + windmillBinary);
+    }
+
+    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
+      filesToStage.add("dataflow-worker.jar=" + dataflowWorkerJar);
     }
 
     return stageFiles(filesToStage);

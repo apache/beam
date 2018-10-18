@@ -73,7 +73,7 @@ be controlled within a test.
 ## Writing Deterministic Tests to Emulate Nondeterminism
 
 The Beam testing infrastructure provides the
-[PAssert]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/testing/PAssert.html)
+[PAssert](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/testing/PAssert.html)
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
 [TestStream](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java),

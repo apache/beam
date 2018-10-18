@@ -120,6 +120,9 @@ class AutoscalingEvent(_messages.Message):
       resize to use.
     time: The time this event was emitted to indicate a new target or current
       num_workers value.
+    workerPool: A short and friendly name for the worker pool this event
+      refers to, populated from the value of
+      PoolStageRelation::user_pool_name.
   """
 
   class EventTypeValueValuesEnum(_messages.Enum):
@@ -155,6 +158,7 @@ class AutoscalingEvent(_messages.Message):
   eventType = _messages.EnumField('EventTypeValueValuesEnum', 3)
   targetNumWorkers = _messages.IntegerField(4)
   time = _messages.StringField(5)
+  workerPool = _messages.StringField(6)
 
 
 class AutoscalingSettings(_messages.Message):
@@ -183,6 +187,36 @@ class AutoscalingSettings(_messages.Message):
 
   algorithm = _messages.EnumField('AlgorithmValueValuesEnum', 1)
   maxNumWorkers = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+
+
+class BigQueryIODetails(_messages.Message):
+  """Metadata for a BigQuery connector used by the job.
+
+  Fields:
+    dataset: Dataset accessed in the connection.
+    projectId: Project accessed in the connection.
+    query: Query used to access data in the connection.
+    table: Table accessed in the connection.
+  """
+
+  dataset = _messages.StringField(1)
+  projectId = _messages.StringField(2)
+  query = _messages.StringField(3)
+  table = _messages.StringField(4)
+
+
+class BigTableIODetails(_messages.Message):
+  """Metadata for a BigTable connector used by the job.
+
+  Fields:
+    instanceId: InstanceId accessed in the connection.
+    projectId: ProjectId accessed in the connection.
+    tableId: TableId accessed in the connection.
+  """
+
+  instanceId = _messages.StringField(1)
+  projectId = _messages.StringField(2)
+  tableId = _messages.StringField(3)
 
 
 class CPUTime(_messages.Message):
@@ -1308,6 +1342,18 @@ class DataflowProjectsWorkerMessagesRequest(_messages.Message):
   sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 2)
 
 
+class DatastoreIODetails(_messages.Message):
+  """Metadata for a Datastore connector used by the job.
+
+  Fields:
+    namespace: Namespace used in the connection.
+    projectId: ProjectId accessed in the connection.
+  """
+
+  namespace = _messages.StringField(1)
+  projectId = _messages.StringField(2)
+
+
 class DerivedSource(_messages.Message):
   """Specification of one of the bundles produced as a result of splitting a
   Source (e.g. when executing a SourceSplitRequest, or when splitting an
@@ -1664,13 +1710,16 @@ class ExecutionStageState(_messages.Message):
         was requested. This state is a terminal state, may only be set by the
         Cloud Dataflow service, and only as a transition from
         `JOB_STATE_DRAINING`.
-      JOB_STATE_PENDING: 'JOB_STATE_PENDING' indicates that the job has been
+      JOB_STATE_PENDING: `JOB_STATE_PENDING` indicates that the job has been
         created but is not yet running.  Jobs that are pending may only
         transition to `JOB_STATE_RUNNING`, or `JOB_STATE_FAILED`.
-      JOB_STATE_CANCELLING: 'JOB_STATE_CANCELLING' indicates that the job has
+      JOB_STATE_CANCELLING: `JOB_STATE_CANCELLING` indicates that the job has
         been explicitly cancelled and is in the process of stopping.  Jobs
-        that are cancelling may only transition to 'JOB_STATE_CANCELLED' or
-        'JOB_STATE_FAILED'.
+        that are cancelling may only transition to `JOB_STATE_CANCELLED` or
+        `JOB_STATE_FAILED`.
+      JOB_STATE_QUEUED: `JOB_STATE_QUEUED` indicates that the job has been
+        created but is being delayed until launch. Jobs that are queued may
+        only transition to `JOB_STATE_PENDING` or `JOB_STATE_CANCELLED`.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -1683,6 +1732,7 @@ class ExecutionStageState(_messages.Message):
     JOB_STATE_DRAINED = 8
     JOB_STATE_PENDING = 9
     JOB_STATE_CANCELLING = 10
+    JOB_STATE_QUEUED = 11
 
   currentStateTime = _messages.StringField(1)
   executionStageName = _messages.StringField(2)
@@ -1750,6 +1800,16 @@ class FailedLocation(_messages.Message):
   """
 
   name = _messages.StringField(1)
+
+
+class FileIODetails(_messages.Message):
+  """Metadata for a File connector used by the job.
+
+  Fields:
+    filePattern: File Pattern used to access files by the connector.
+  """
+
+  filePattern = _messages.StringField(1)
 
 
 class FlattenInstruction(_messages.Message):
@@ -1998,6 +2058,9 @@ class Job(_messages.Message):
     id: The unique ID of this job.  This field is set by the Cloud Dataflow
       service when the Job is created, and is immutable for the life of the
       job.
+    jobMetadata: This field is populated by the Dataflow service to support
+      filtering jobs by the metadata values provided here. Populated for
+      ListJobs and all GetJob views SUMMARY and higher.
     labels: User-defined labels for this job.  The labels map can contain no
       more than 64 entries.  Entries of the labels map are UTF8 strings that
       comply with the following restrictions:  * Keys must conform to regexp:
@@ -2085,13 +2148,16 @@ class Job(_messages.Message):
         was requested. This state is a terminal state, may only be set by the
         Cloud Dataflow service, and only as a transition from
         `JOB_STATE_DRAINING`.
-      JOB_STATE_PENDING: 'JOB_STATE_PENDING' indicates that the job has been
+      JOB_STATE_PENDING: `JOB_STATE_PENDING` indicates that the job has been
         created but is not yet running.  Jobs that are pending may only
         transition to `JOB_STATE_RUNNING`, or `JOB_STATE_FAILED`.
-      JOB_STATE_CANCELLING: 'JOB_STATE_CANCELLING' indicates that the job has
+      JOB_STATE_CANCELLING: `JOB_STATE_CANCELLING` indicates that the job has
         been explicitly cancelled and is in the process of stopping.  Jobs
-        that are cancelling may only transition to 'JOB_STATE_CANCELLED' or
-        'JOB_STATE_FAILED'.
+        that are cancelling may only transition to `JOB_STATE_CANCELLED` or
+        `JOB_STATE_FAILED`.
+      JOB_STATE_QUEUED: `JOB_STATE_QUEUED` indicates that the job has been
+        created but is being delayed until launch. Jobs that are queued may
+        only transition to `JOB_STATE_PENDING` or `JOB_STATE_CANCELLED`.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -2104,6 +2170,7 @@ class Job(_messages.Message):
     JOB_STATE_DRAINED = 8
     JOB_STATE_PENDING = 9
     JOB_STATE_CANCELLING = 10
+    JOB_STATE_QUEUED = 11
 
   class RequestedStateValueValuesEnum(_messages.Enum):
     """The job's requested state.  `UpdateJob` may be used to switch between
@@ -2148,13 +2215,16 @@ class Job(_messages.Message):
         was requested. This state is a terminal state, may only be set by the
         Cloud Dataflow service, and only as a transition from
         `JOB_STATE_DRAINING`.
-      JOB_STATE_PENDING: 'JOB_STATE_PENDING' indicates that the job has been
+      JOB_STATE_PENDING: `JOB_STATE_PENDING` indicates that the job has been
         created but is not yet running.  Jobs that are pending may only
         transition to `JOB_STATE_RUNNING`, or `JOB_STATE_FAILED`.
-      JOB_STATE_CANCELLING: 'JOB_STATE_CANCELLING' indicates that the job has
+      JOB_STATE_CANCELLING: `JOB_STATE_CANCELLING` indicates that the job has
         been explicitly cancelled and is in the process of stopping.  Jobs
-        that are cancelling may only transition to 'JOB_STATE_CANCELLED' or
-        'JOB_STATE_FAILED'.
+        that are cancelling may only transition to `JOB_STATE_CANCELLED` or
+        `JOB_STATE_FAILED`.
+      JOB_STATE_QUEUED: `JOB_STATE_QUEUED` indicates that the job has been
+        created but is being delayed until launch. Jobs that are queued may
+        only transition to `JOB_STATE_PENDING` or `JOB_STATE_CANCELLED`.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -2167,6 +2237,7 @@ class Job(_messages.Message):
     JOB_STATE_DRAINED = 8
     JOB_STATE_PENDING = 9
     JOB_STATE_CANCELLING = 10
+    JOB_STATE_QUEUED = 11
 
   class TypeValueValuesEnum(_messages.Enum):
     """The type of Cloud Dataflow job.
@@ -2245,19 +2316,20 @@ class Job(_messages.Message):
   environment = _messages.MessageField('Environment', 5)
   executionInfo = _messages.MessageField('JobExecutionInfo', 6)
   id = _messages.StringField(7)
-  labels = _messages.MessageField('LabelsValue', 8)
-  location = _messages.StringField(9)
-  name = _messages.StringField(10)
-  pipelineDescription = _messages.MessageField('PipelineDescription', 11)
-  projectId = _messages.StringField(12)
-  replaceJobId = _messages.StringField(13)
-  replacedByJobId = _messages.StringField(14)
-  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 15)
-  stageStates = _messages.MessageField('ExecutionStageState', 16, repeated=True)
-  steps = _messages.MessageField('Step', 17, repeated=True)
-  tempFiles = _messages.StringField(18, repeated=True)
-  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 19)
-  type = _messages.EnumField('TypeValueValuesEnum', 20)
+  jobMetadata = _messages.MessageField('JobMetadata', 8)
+  labels = _messages.MessageField('LabelsValue', 9)
+  location = _messages.StringField(10)
+  name = _messages.StringField(11)
+  pipelineDescription = _messages.MessageField('PipelineDescription', 12)
+  projectId = _messages.StringField(13)
+  replaceJobId = _messages.StringField(14)
+  replacedByJobId = _messages.StringField(15)
+  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 16)
+  stageStates = _messages.MessageField('ExecutionStageState', 17, repeated=True)
+  steps = _messages.MessageField('Step', 18, repeated=True)
+  tempFiles = _messages.StringField(19, repeated=True)
+  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 20)
+  type = _messages.EnumField('TypeValueValuesEnum', 21)
 
 
 class JobExecutionInfo(_messages.Message):
@@ -2365,6 +2437,33 @@ class JobMessage(_messages.Message):
   messageImportance = _messages.EnumField('MessageImportanceValueValuesEnum', 2)
   messageText = _messages.StringField(3)
   time = _messages.StringField(4)
+
+
+class JobMetadata(_messages.Message):
+  """Metadata available primarily for filtering jobs. Will be included in the
+  ListJob response and Job SUMMARY view+.
+
+  Fields:
+    bigTableDetails: Identification of a BigTable source used in the Dataflow
+      job.
+    bigqueryDetails: Identification of a BigQuery source used in the Dataflow
+      job.
+    datastoreDetails: Identification of a Datastore source used in the
+      Dataflow job.
+    fileDetails: Identification of a File source used in the Dataflow job.
+    pubsubDetails: Identification of a PubSub source used in the Dataflow job.
+    sdkVersion: The SDK version used to run the job.
+    spannerDetails: Identification of a Spanner source used in the Dataflow
+      job.
+  """
+
+  bigTableDetails = _messages.MessageField('BigTableIODetails', 1, repeated=True)
+  bigqueryDetails = _messages.MessageField('BigQueryIODetails', 2, repeated=True)
+  datastoreDetails = _messages.MessageField('DatastoreIODetails', 3, repeated=True)
+  fileDetails = _messages.MessageField('FileIODetails', 4, repeated=True)
+  pubsubDetails = _messages.MessageField('PubSubIODetails', 5, repeated=True)
+  sdkVersion = _messages.MessageField('SdkVersion', 6)
+  spannerDetails = _messages.MessageField('SpannerIODetails', 7, repeated=True)
 
 
 class JobMetrics(_messages.Message):
@@ -2550,6 +2649,8 @@ class MapTask(_messages.Message):
   the list before any instructions which depends on its output.
 
   Fields:
+    counterPrefix: Counter prefix that can be used to prefix counters. Not
+      currently used in Dataflow.
     instructions: The instructions in the MapTask.
     stageName: System-defined name of the stage containing this MapTask.
       Unique across the workflow.
@@ -2557,9 +2658,10 @@ class MapTask(_messages.Message):
       workflow.
   """
 
-  instructions = _messages.MessageField('ParallelInstruction', 1, repeated=True)
-  stageName = _messages.StringField(2)
-  systemName = _messages.StringField(3)
+  counterPrefix = _messages.StringField(1)
+  instructions = _messages.MessageField('ParallelInstruction', 2, repeated=True)
+  stageName = _messages.StringField(3)
+  systemName = _messages.StringField(4)
 
 
 class MetricShortId(_messages.Message):
@@ -2643,6 +2745,9 @@ class MetricUpdate(_messages.Message):
       reported as a delta that is not associated with any WorkItem.
     distribution: A struct value describing properties of a distribution of
       numeric values.
+    gauge: A struct value describing properties of a Gauge. Metrics of gauge
+      type show the value of a metric across time, and is aggregated based on
+      the newest value.
     internal: Worker-computed aggregate value for internal use by the Dataflow
       service.
     kind: Metric aggregation kind.  The possible metric aggregation kinds are
@@ -2672,14 +2777,15 @@ class MetricUpdate(_messages.Message):
 
   cumulative = _messages.BooleanField(1)
   distribution = _messages.MessageField('extra_types.JsonValue', 2)
-  internal = _messages.MessageField('extra_types.JsonValue', 3)
-  kind = _messages.StringField(4)
-  meanCount = _messages.MessageField('extra_types.JsonValue', 5)
-  meanSum = _messages.MessageField('extra_types.JsonValue', 6)
-  name = _messages.MessageField('MetricStructuredName', 7)
-  scalar = _messages.MessageField('extra_types.JsonValue', 8)
-  set = _messages.MessageField('extra_types.JsonValue', 9)
-  updateTime = _messages.StringField(10)
+  gauge = _messages.MessageField('extra_types.JsonValue', 3)
+  internal = _messages.MessageField('extra_types.JsonValue', 4)
+  kind = _messages.StringField(5)
+  meanCount = _messages.MessageField('extra_types.JsonValue', 6)
+  meanSum = _messages.MessageField('extra_types.JsonValue', 7)
+  name = _messages.MessageField('MetricStructuredName', 8)
+  scalar = _messages.MessageField('extra_types.JsonValue', 9)
+  set = _messages.MessageField('extra_types.JsonValue', 10)
+  updateTime = _messages.StringField(11)
 
 
 class MountedDataDisk(_messages.Message):
@@ -2998,6 +3104,18 @@ class Position(_messages.Message):
   shufflePosition = _messages.StringField(6)
 
 
+class PubSubIODetails(_messages.Message):
+  """Metadata for a PubSub connector used by the job.
+
+  Fields:
+    subscription: Subscription used in the connection.
+    topic: Topic accessed in the connection.
+  """
+
+  subscription = _messages.StringField(1)
+  topic = _messages.StringField(2)
+
+
 class PubsubLocation(_messages.Message):
   """Identifies a pubsub location to use for transferring data into or out of
   a streaming Dataflow job.
@@ -3140,6 +3258,42 @@ class RuntimeEnvironment(_messages.Message):
   subnetwork = _messages.StringField(7)
   tempLocation = _messages.StringField(8)
   zone = _messages.StringField(9)
+
+
+class SdkVersion(_messages.Message):
+  """The version of the SDK used to run the jobl
+
+  Enums:
+    SdkSupportStatusValueValuesEnum: The support status for this SDK version.
+
+  Fields:
+    sdkSupportStatus: The support status for this SDK version.
+    version: The version of the SDK used to run the job.
+    versionDisplayName: A readable string describing the version of the sdk.
+  """
+
+  class SdkSupportStatusValueValuesEnum(_messages.Enum):
+    """The support status for this SDK version.
+
+    Values:
+      UNKNOWN: Cloud Dataflow is unaware of this version.
+      SUPPORTED: This is a known version of an SDK, and is supported.
+      STALE: A newer version of the SDK family exists, and an update is
+        recommended.
+      DEPRECATED: This version of the SDK is deprecated and will eventually be
+        no longer supported.
+      UNSUPPORTED: Support for this SDK version has ended and it should no
+        longer be used.
+    """
+    UNKNOWN = 0
+    SUPPORTED = 1
+    STALE = 2
+    DEPRECATED = 3
+    UNSUPPORTED = 4
+
+  sdkSupportStatus = _messages.EnumField('SdkSupportStatusValueValuesEnum', 1)
+  version = _messages.StringField(2)
+  versionDisplayName = _messages.StringField(3)
 
 
 class SendDebugCaptureRequest(_messages.Message):
@@ -3694,6 +3848,20 @@ class SourceSplitShard(_messages.Message):
   source = _messages.MessageField('Source', 2)
 
 
+class SpannerIODetails(_messages.Message):
+  """Metadata for a Spanner connector used by the job.
+
+  Fields:
+    databaseId: DatabaseId accessed in the connection.
+    instanceId: InstanceId accessed in the connection.
+    projectId: ProjectId accessed in the connection.
+  """
+
+  databaseId = _messages.StringField(1)
+  instanceId = _messages.StringField(2)
+  projectId = _messages.StringField(3)
+
+
 class SplitInt64(_messages.Message):
   """A representation of an int64, n, that is immune to precision loss when
   encoded in JSON.
@@ -3736,14 +3904,12 @@ class StandardQueryParameters(_messages.Message):
     f__xgafv: V1 error format.
     access_token: OAuth access token.
     alt: Data format for response.
-    bearer_token: OAuth bearer token.
     callback: JSONP
     fields: Selector specifying which fields to include in a partial response.
     key: API key. Your API key identifies your project and provides you with
       API access, quota, and reports. Required unless you provide an OAuth 2.0
       token.
     oauth_token: OAuth 2.0 token for the current user.
-    pp: Pretty-print response.
     prettyPrint: Returns response with indentations and line breaks.
     quotaUser: Available to use for quota purposes for server-side
       applications. Can be any arbitrary string assigned to a user, but should
@@ -3779,17 +3945,15 @@ class StandardQueryParameters(_messages.Message):
   f__xgafv = _messages.EnumField('FXgafvValueValuesEnum', 1)
   access_token = _messages.StringField(2)
   alt = _messages.EnumField('AltValueValuesEnum', 3, default=u'json')
-  bearer_token = _messages.StringField(4)
-  callback = _messages.StringField(5)
-  fields = _messages.StringField(6)
-  key = _messages.StringField(7)
-  oauth_token = _messages.StringField(8)
-  pp = _messages.BooleanField(9, default=True)
-  prettyPrint = _messages.BooleanField(10, default=True)
-  quotaUser = _messages.StringField(11)
-  trace = _messages.StringField(12)
-  uploadType = _messages.StringField(13)
-  upload_protocol = _messages.StringField(14)
+  callback = _messages.StringField(4)
+  fields = _messages.StringField(5)
+  key = _messages.StringField(6)
+  oauth_token = _messages.StringField(7)
+  prettyPrint = _messages.BooleanField(8, default=True)
+  quotaUser = _messages.StringField(9)
+  trace = _messages.StringField(10)
+  uploadType = _messages.StringField(11)
+  upload_protocol = _messages.StringField(12)
 
 
 class StateFamilyConfig(_messages.Message):

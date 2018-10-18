@@ -826,7 +826,7 @@ class TestBigQueryWrapper(unittest.TestCase):
             projectId='project_id', datasetId='dataset_id'))
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
     with self.assertRaises(RuntimeError):
-      wrapper.create_temporary_dataset('project_id')
+      wrapper.create_temporary_dataset('project_id', 'location')
     self.assertTrue(client.datasets.Get.called)
 
   def test_get_or_create_dataset_created(self):

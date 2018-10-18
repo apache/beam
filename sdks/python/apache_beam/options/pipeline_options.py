@@ -20,8 +20,10 @@
 from __future__ import absolute_import
 
 import argparse
+import logging
 from builtins import list
 from builtins import object
+from collections import OrderedDict
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -213,11 +215,39 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, _ = parser.parse_known_args(self._flags)
+    known_args, unknown_args = parser.parse_known_args(self._flags)
+    # Parse args which are not known at this point but might be recognized
+    # at a later point in time, i.e. by the actual Runner.
+    if unknown_args and unknown_args[0] != '':
+      logging.info("Parsing unknown args: %s", unknown_args)
+
+      def enumerate_args(args):
+        cleaned_args = OrderedDict()
+        for arg in args:
+          if arg.startswith('--'):
+            # split argument name if it's in arg_name=value syntax
+            arg_name = arg.split('=', 1)[0]
+            # count identical arg names
+            if arg_name not in cleaned_args:
+              cleaned_args[arg_name] = 1
+            else:
+              cleaned_args[arg_name] += 1
+        return cleaned_args
+
+      for arg_name, num_times in enumerate_args(unknown_args).items():
+        parser.add_argument(arg_name,
+                            nargs='?',
+                            action='append' if num_times > 1 else 'store')
+
+      # repeat parsing with unknown options added
+      known_args, unknown_args = parser.parse_known_args(self._flags)
+      if unknown_args:
+        logging.warning("Discarding unparseable args: %s", unknown_args)
+
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result.keys():
+    for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
@@ -240,7 +270,7 @@ class PipelineOptions(HasDisplayData):
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + list(self.__dict__.keys()) +
+    return sorted(dir(type(self)) + list(self.__dict__) +
                   self._visible_option_list())
 
   def __getattr__(self, name):
@@ -520,6 +550,12 @@ class WorkerOptions(PipelineOptions):
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.'
     )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -655,11 +691,36 @@ class PortableOptions(PipelineOptions):
                         help=
                         ('Job service endpoint to use. Should be in the form '
                          'of address and port, e.g. localhost:3000'))
-    parser.add_argument('--harness_docker_image',
-                        default=None,
+    parser.add_argument(
+        '--environment_type', default=None,
+        help=('Set the default environment type for running '
+              'user code. Possible options are DOCKER and PROCESS.'))
+    parser.add_argument(
+        '--environment_config', default=None,
+        help=('Set environment configuration for running the user code.\n For '
+              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+              'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
+              '"<process to execute>", "env":{"<Environment variables 1>": '
+              '"<ENV_VAL>"} }. All fields in the json are optional except '
+              'command.'))
+
+
+class FlinkOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        type=str,
                         help=
-                        ('Docker image to use for executing Python code '
-                         'in the pipeline when running using the Fn API.'))
+                        ('Address of the Flink master where the pipeline '
+                         'should be executed. Can either be of the form '
+                         '\'host:port\' or one of the special values '
+                         '[local], [collection], or [auto].'))
+    parser.add_argument('--parallelism',
+                        type=int,
+                        help=
+                        ('The degree of parallelism to be used when '
+                         'distributing operations onto workers.'))
 
 
 class TestOptions(PipelineOptions):
@@ -691,6 +752,20 @@ class TestOptions(PipelineOptions):
     if self.view_as(TestOptions).on_success_matcher:
       errors.extend(validator.validate_test_matcher(self, 'on_success_matcher'))
     return errors
+
+
+class TestDataflowOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # This option is passed to Dataflow Runner's Pub/Sub client. The camelCase
+    # style in 'dest' matches the runner's.
+    parser.add_argument(
+        '--pubsub_root_url',
+        dest='pubsubRootUrl',
+        default=None,
+        help='Root URL for use with the Google Cloud Pub/Sub API.',)
+
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.

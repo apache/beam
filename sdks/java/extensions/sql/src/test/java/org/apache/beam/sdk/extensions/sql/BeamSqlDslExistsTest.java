@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -37,7 +37,7 @@ public class BeamSqlDslExistsTest extends BaseRelTest {
   public static void prepare() {
     registerTable(
         "CUSTOMER",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT32, "c_custkey",
                 Schema.FieldType.DOUBLE, "c_acctbal",
                 Schema.FieldType.STRING, "c_city")
@@ -45,7 +45,7 @@ public class BeamSqlDslExistsTest extends BaseRelTest {
 
     registerTable(
         "ORDERS",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
                 Schema.FieldType.INT32, "o_orderkey",
                 Schema.FieldType.INT32, "o_custkey",
                 Schema.FieldType.DOUBLE, "o_totalprice")

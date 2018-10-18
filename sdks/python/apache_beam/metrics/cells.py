@@ -147,6 +147,10 @@ class CounterCell(Counter, MetricCell):
     super(CounterCell, self).__init__(*args)
     self.value = CounterAggregator.identity_element()
 
+  def reset(self):
+    self.commit = CellCommitState()
+    self.value = CounterAggregator.identity_element()
+
   def combine(self, other):
     result = CounterCell()
     result.inc(self.value + other.value)
@@ -160,6 +164,18 @@ class CounterCell(Counter, MetricCell):
   def get_cumulative(self):
     with self._lock:
       return self.value
+
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this counter value for use in a MonitoringInfo."""
+    # TODO(ajamato): Update this code to be consisten with Gauges
+    # and Distributions. Since there is no CounterData class this method
+    # was added to CounterCell. Consider adding a CounterData class or
+    # removing the GaugeData and DistributionData classes.
+    return beam_fn_api_pb2.Metric(
+        counter_data=beam_fn_api_pb2.CounterData(
+            int64_value=self.get_cumulative()
+        )
+    )
 
 
 class DistributionCell(Distribution, MetricCell):
@@ -175,6 +191,10 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
+    self.data = DistributionAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
     self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
@@ -216,6 +236,10 @@ class GaugeCell(Gauge, MetricCell):
   """
   def __init__(self, *args):
     super(GaugeCell, self).__init__(*args)
+    self.data = GaugeAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
     self.data = GaugeAggregator.identity_element()
 
   def combine(self, other):
@@ -375,6 +399,14 @@ class GaugeData(object):
                        float(proto.timestamp.nanos) / 10**9)
     return GaugeData(proto.value, timestamp=gauge_timestamp)
 
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this value for use in a MonitoringInfo."""
+    return beam_fn_api_pb2.Metric(
+        counter_data=beam_fn_api_pb2.CounterData(
+            int64_value=self.value
+        )
+    )
+
 
 class DistributionData(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -439,6 +471,13 @@ class DistributionData(object):
   @staticmethod
   def from_runner_api(proto):
     return DistributionData(proto.sum, proto.count, proto.min, proto.max)
+
+  def to_runner_api_monitoring_info(self):
+    """Returns a Metric with this value for use in a MonitoringInfo."""
+    return beam_fn_api_pb2.Metric(
+        distribution_data=beam_fn_api_pb2.DistributionData(
+            int_distribution_data=beam_fn_api_pb2.IntDistributionData(
+                count=self.count, sum=self.sum, min=self.min, max=self.max)))
 
 
 class MetricAggregator(object):

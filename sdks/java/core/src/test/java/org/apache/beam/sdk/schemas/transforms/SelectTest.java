@@ -150,7 +150,6 @@ public class SelectTest {
 
     @Override
     public int hashCode() {
-
       return Objects.hash(field2);
     }
   }

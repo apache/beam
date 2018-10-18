@@ -81,6 +81,9 @@ if [[ $confirmation = "y" ]]; then
   echo "============Building and Staging Java Artifacts============="
   echo "--------Cloning Beam Repo and Checkout Release Branch-------"
   cd ~
+  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+    rm -rf ${LOCAL_CLONE_DIR}
+  fi
   mkdir ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
   git clone ${GIT_REPO_URL}
@@ -110,6 +113,9 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "=========Staging Source Release on dist.apache.org==========="
   cd ~
+  if [[ -d ${LOCAL_JAVA_STAGING_DIR} ]]; then
+    rm -rf ${LOCAL_JAVA_STAGING_DIR}
+  fi
   mkdir ${LOCAL_JAVA_STAGING_DIR}
   cd ${LOCAL_JAVA_STAGING_DIR}
   svn co ${ROOT_SVN_URL}
@@ -135,7 +141,7 @@ if [[ $confirmation = "y" ]]; then
     rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
     exit
   fi
-  svn commit
+  svn commit --no-auth-cache
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
 
@@ -145,6 +151,9 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging Python Binaries on dist.apache.org========="
   cd ~
+  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
+    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  fi
   mkdir ${LOCAL_PYTHON_STAGING_DIR}
   cd ${LOCAL_PYTHON_STAGING_DIR}
 
@@ -179,7 +188,7 @@ if [[ $confirmation = "y" ]]; then
     rm -rf ~/${PYTHON_ARTIFACTS_DIR}
     exit
   fi
-  svn commit
+  svn commit --no-auth-cache
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 fi
 
@@ -189,6 +198,9 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "==============Creating PR for Updating Website==============="
   cd ~
+  if [[ -d ${LOCAL_WEBSITE_UPDATE_DIR} ]]; then
+    rm -rf ${LOCAL_WEBSITE_UPDATE_DIR}
+  fi
   mkdir ${LOCAL_WEBSITE_UPDATE_DIR}
   cd ${LOCAL_WEBSITE_UPDATE_DIR}
   mkdir ${LOCAL_PYTHON_DOC}

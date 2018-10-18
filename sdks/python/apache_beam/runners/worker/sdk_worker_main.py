@@ -28,7 +28,6 @@ import threading
 import traceback
 from builtins import object
 
-from future import standard_library
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
@@ -38,8 +37,6 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
-
-standard_library.install_aliases()
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -98,7 +95,7 @@ def main(unused_argv):
 
     # Send all logs to the runner.
     fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-    # TODO(vikasrk): This should be picked up from pipeline options.
+    # TODO(BEAM-5468): This should be picked up from pipeline options.
     logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(fn_log_handler)
     logging.info('Logging handler created.')
@@ -162,7 +159,7 @@ def _parse_pipeline_options(options_json):
     return PipelineOptions.from_dictionary({
         re.match(portable_option_regex, k).group('key')
         if re.match(portable_option_regex, k) else k: v
-        for k, v in options.iteritems()
+        for k, v in options.items()
     })
 
 

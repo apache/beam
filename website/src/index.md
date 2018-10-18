@@ -18,6 +18,9 @@ logos:
 - title: Gearpump
   image_url: /images/logo_gearpump.png
   url: http://gearpump.apache.org/
+- title: Samza
+  image_url: /images/logo_samza.png
+  url: http://samza.apache.org/
 
 pillars:
 - title: Unified

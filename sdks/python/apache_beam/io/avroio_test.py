@@ -19,15 +19,21 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import sys
 import tempfile
 import unittest
 from builtins import range
 
 import avro.datafile
-import avro.schema
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import hamcrest as hc
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam import Create
@@ -59,6 +65,12 @@ class TestAvro(unittest.TestCase):
     super(TestAvro, self).__init__(methodName)
     self.use_fastavro = False
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -86,7 +98,7 @@ class TestAvro(unittest.TestCase):
                                          'favorite_number': 6,
                                          'favorite_color': 'Green'}]
 
-  SCHEMA = avro.schema.parse('''
+  SCHEMA = Parse('''
   {"namespace": "example.avro",
    "type": "record",
    "name": "User",
@@ -150,7 +162,7 @@ class TestAvro(unittest.TestCase):
           (source, None, None), sources_info)
     else:
       read_records = source_test_utils.read_from_source(source, None, None)
-      self.assertItemsEqual(expected_result, read_records)
+      self.assertCountEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
@@ -351,7 +363,7 @@ class TestAvro(unittest.TestCase):
     # the last sync_marker.
     last_char_index = len(data) - 1
     corrupted_data = data[:last_char_index]
-    corrupted_data += 'A' if data[last_char_index] == 'B' else 'B'
+    corrupted_data += b'A' if data[last_char_index] == b'B' else b'B'
     with tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template) as f:
       f.write(corrupted_data)
