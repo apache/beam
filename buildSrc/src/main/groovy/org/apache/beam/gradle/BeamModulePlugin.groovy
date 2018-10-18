@@ -1314,63 +1314,94 @@ artifactId=${project.name}
 
     /** ***********************************************************************************************/
 
+    // We specifically export the shadow closure and the dependencies closure so that they
+    // can be re-used by the beam-vendor-java-grpc-v1 project and within the applyPortabilityNature
+    // block.
+    project.ext.GRPC_V1_SHADOW_CLOSURE = {
+      // The relocation paths below specifically use the major version number of the dependency
+      // since we assume that packages following semantic versioning rules. For packages
+      // with a major version number that is 0 (implying that the dependency is unstable),
+      // we use the full version identifier in the relocated path (e.g. v0_minor_patch).
+      // For stable dependencies, if two or more packages use the same major version number,
+      // we should bias to vendoring the highest version to minimize jar files instead of
+      // vendoring using their minor or patch version numbers. Some packages may be incompatible
+      // across minor or patch versions and in those instances we should either attempt to update our
+      // usage of the dependency so we don't need to vendor both or choose to vendor
+      // both specifying the minor version in the relocation path.
+
+      // To produce the list of necessary relocations, one needs to start with a set of target
+      // packages that one wants to vendor, find all necessary transitive dependencies of that
+      // set and provide relocations for each such that all necessary packages and their
+      // dependencies are relocated. Any optional dependency that doesn't need relocation
+      // must be excluded via an 'exclude' rule. There is additional complexity of libraries that use
+      // JNI or reflection and have to be handled on case by case basis by learning whether
+      // they support relocation and how would one go about doing it by reading any documentation
+      // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
+      // ensures that there are no classes outside of the 'org.apache.beam' namespace.
+
+      // guava uses the com.google.common and com.google.thirdparty package namespaces
+      relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
+      relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
+
+      relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
+      relocate "com.google.gson", "org.apache.beam.vendor.gson.v2.com.google.gson"
+      relocate "io.grpc", "org.apache.beam.vendor.grpc.v1.io.grpc"
+      relocate "com.google.auth", "org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth"
+      relocate "com.google.api", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.api"
+      relocate "com.google.cloud", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.cloud"
+      relocate "com.google.logging", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.logging"
+      relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
+      relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
+      relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
+      relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_12_3.io.opencensus"
+
+      // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
+      relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
+      // We have to be careful with these replacements as they must not match any
+      // string in NativeLibraryLoader, else they cause corruption. Note that
+      // this includes concatenation of string literals and constants.
+      relocate 'META-INF/native/libnetty', 'META-INF/native/liborg_apache_beam_vendor_netty_v4_netty'
+      relocate 'META-INF/native/netty', 'META-INF/native/org_apache_beam_vendor_netty_v4_netty'
+
+      // Don't include errorprone, JDK8 annotations, objenesis, junit, and mockito in the bundled jar
+      exclude "com/google/errorprone/**"
+      exclude "com/google/instrumentation/**"
+      exclude "javax/annotation/**"
+      exclude "junit/**"
+      exclude "org/hamcrest/**"
+      exclude "org/junit/**"
+      exclude "org/mockito/**"
+      exclude "org/objenesis/**"
+    }
+    project.ext.GRPC_V1_DEPENDENCIES_CLOSURE = {
+      compile 'com.google.guava:guava:20.0'
+      compile 'com.google.protobuf:protobuf-java:3.6.0'
+      compile 'com.google.protobuf:protobuf-java-util:3.6.0'
+      compile 'com.google.code.gson:gson:2.7'
+      compile 'io.grpc:grpc-auth:1.13.1'
+      compile 'io.grpc:grpc-core:1.13.1'
+      compile 'io.grpc:grpc-context:1.13.1'
+      compile 'io.grpc:grpc-netty:1.13.1'
+      compile 'io.grpc:grpc-protobuf:1.13.1'
+      compile 'io.grpc:grpc-stub:1.13.1'
+      compile 'io.netty:netty-transport-native-epoll:4.1.25.Final'
+      compile 'io.netty:netty-tcnative-boringssl-static:2.0.8.Final'
+      compile 'com.google.auth:google-auth-library-credentials:0.10.0'
+      compile 'io.grpc:grpc-testing:1.13.1'
+      compile 'com.google.api.grpc:proto-google-common-protos:1.12.0'
+      compile 'io.opencensus:opencensus-api:0.12.3'
+      compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.12.3'
+      shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
+    }
     project.ext.applyPortabilityNature = {
       println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: {
-        // The relocation paths below specifically use the major version number of the dependency
-        // since we assume that packages following semantic versioning rules. For packages
-        // with a major version number that is 0 (implying that the dependency is unstable),
-        // we use the full version identifier in the relocated path (e.g. v0_minor_patch).
-        // For stable dependencies, if two or more packages use the same major version number,
-        // we should bias to vendoring the highest version to minimize jar files instead of
-        // vendoring using their minor or patch version numbers. Some packages may be incompatible
-        // across minor or patch versions and in those instances we should either attempt to update our
-        // usage of the dependency so we don't need to vendor both or choose to vendor
-        // both specifying the minor version in the relocation path.
-
-        // To produce the list of necessary relocations, one needs to start with a set of target
-        // packages that one wants to vendor, find all necessary transitive dependencies of that
-        // set and provide relocations for each such that all necessary packages and their
-        // dependencies are relocated. Any optional dependency that doesn't need relocation
-        // must be excluded via an 'exclude' rule. There is additional complexity of libraries that use
-        // JNI or reflection and have to be handled on case by case basis by learning whether
-        // they support relocation and how would one go about doing it by reading any documentation
-        // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
-        // ensures that there are no classes outside of the 'org.apache.beam' namespace.
-
-        // guava uses the com.google.common and com.google.thirdparty package namespaces
-        relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
-        relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
-
-        relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
-        relocate "com.google.gson", "org.apache.beam.vendor.gson.v2.com.google.gson"
-        relocate "io.grpc", "org.apache.beam.vendor.grpc.v1.io.grpc"
-        relocate "com.google.auth", "org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth"
-        relocate "com.google.api", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.api"
-        relocate "com.google.cloud", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.cloud"
-        relocate "com.google.logging", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.logging"
-        relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
-        relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
-        relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
-        relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_12_3.io.opencensus"
-
-        // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
-        relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
-        // We have to be careful with these replacements as they must not match any
-        // string in NativeLibraryLoader, else they cause corruption. Note that
-        // this includes concatenation of string literals and constants.
-        relocate 'META-INF/native/libnetty', 'META-INF/native/liborg_apache_beam_vendor_netty_v4_netty'
-        relocate 'META-INF/native/netty', 'META-INF/native/org_apache_beam_vendor_netty_v4_netty'
-
-        // Don't include errorprone, JDK8 annotations, objenesis, junit, and mockito in the bundled jar
-        exclude "com/google/errorprone/**"
-        exclude "com/google/instrumentation/**"
-        exclude "javax/annotation/**"
-        exclude "junit/**"
-        exclude "org/hamcrest/**"
-        exclude "org/junit/**"
-        exclude "org/mockito/**"
-        exclude "org/objenesis/**"
+      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: project.GRPC_V1_SHADOW_CLOSURE << {
+        // We perform all the code relocations but don't include
+        // any of the actual dependencies since they will be supplied
+        // by beam-vendor-java-grpc-v1
+        dependencies {
+          exclude(dependency(".*:.*"))
+        }
       })
 
       // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
@@ -1404,28 +1435,22 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies {
-        compile 'com.google.guava:guava:20.0'
-        compile 'com.google.protobuf:protobuf-java:3.6.0'
-        compile 'com.google.protobuf:protobuf-java-util:3.6.0'
-        compile 'com.google.code.gson:gson:2.7'
-        compile 'io.grpc:grpc-auth:1.13.1'
-        compile 'io.grpc:grpc-core:1.13.1'
-        compile 'io.grpc:grpc-context:1.13.1'
-        compile 'io.grpc:grpc-netty:1.13.1'
-        compile 'io.grpc:grpc-protobuf:1.13.1'
-        compile 'io.grpc:grpc-stub:1.13.1'
-        compile 'io.netty:netty-transport-native-epoll:4.1.25.Final'
-        compile 'io.netty:netty-tcnative-boringssl-static:2.0.8.Final'
-        compile 'com.google.auth:google-auth-library-credentials:0.10.0'
-        compile 'io.grpc:grpc-testing:1.13.1'
-        compile 'com.google.api.grpc:proto-google-common-protos:1.12.0'
-        compile 'io.opencensus:opencensus-api:0.12.3'
-        compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.12.3'
-        shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
+      project.dependencies project.GRPC_V1_DEPENDENCIES_CLOSURE << {
+        shadow it.project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
       }
 
-      // TODO(BEAM-4544): Integrate intellij support into this.
+      project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
+        inputs.files project.configurations.shadow.artifacts.files
+        doLast {
+          project.configurations.shadow.artifacts.files.each {
+            FileTree exportedClasses = project.zipTree(it).matching { include "org/apache/beam/vendor/**" }
+            if (exportedClasses.files) {
+              throw new GradleException("$it exported classes inside of org.apache.beam.vendor namespace: ${exportedClasses.files}")
+            }
+          }
+        }
+      }
+      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntExportVendoredDependencies
     }
 
     /** ***********************************************************************************************/

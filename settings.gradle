@@ -178,6 +178,8 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
+include "beam-vendor-java-grpc-v1"
+project(":beam-vendor-java-grpc-v1").dir = file("vendor/java-grpc-v1")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
 include "beam-website"
