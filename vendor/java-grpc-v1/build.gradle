@@ -16,25 +16,19 @@
  * limitations under the License.
  */
 
+description = "Apache Beam :: Vendored Dependencies :: Java :: gRPC :: v1"
+ext.summary = "Add support to Apache Beam for Vendored gRPC V1."
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(enableFindbugs: false, shadowClosure: GRPC_V1_SHADOW_CLOSURE)
 
-description = "Apache Beam :: SDKs :: Java :: Fn Execution"
-ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
-the Beam Portability Framework."""
-
-dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  provided library.java.junit
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+// Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
+// because we would like to have the freedom to choose which versions of dependencies we
+// are using for the portability APIs separate from what is being used inside other modules such as GCP.
+configurations.all { config ->
+  config.resolutionStrategy { forcedModules = []}
 }
+
+dependencies GRPC_V1_DEPENDENCIES_CLOSURE
+
+// TODO(BEAM-4544): Integrate intellij support into this.
