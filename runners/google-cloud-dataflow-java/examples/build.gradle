@@ -24,6 +24,7 @@ applyJavaNature(publish: false)
 // its sourceSets.test.output directly.
 evaluationDependsOn(":beam-examples-java")
 evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
 configurations { dataflowRunnerPreCommit }
 
@@ -35,8 +36,11 @@ dependencies {
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+def dockerImageRoot = "us.gcr.io/${gcpProject}/java-examples-it"
+def dockerImageContainer = "${dockerImageRoot}/java"
+def dockerTag = new Date().format('yyyyMMddHHmmss')
 
-task preCommit(type: Test) {
+task preCommitLegacyWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
@@ -55,4 +59,42 @@ task preCommit(type: Test) {
   forkEvery 1
   maxParallelForks 4
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+}
+
+project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
+project.rootProject.ext.set("docker-tag","${dockerTag}")
+evaluationDependsOn(":beam-sdks-java-container")
+
+task buildAndPushDockerContainer(type:Exec) {
+  dependsOn ":beam-sdks-java-container:docker"
+  commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+}
+
+task preCommitFnApiWorker(type: Test) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
+
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+  def preCommitBeamTestPipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempRoot=${gcsTempRoot}",
+          "--runner=TestDataflowRunner",
+          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--experiments=beam_fn_api",
+  ]
+  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  include "**/WordCountIT.class"
+  include "**/WindowedWordCountIT.class"
+  forkEvery 1
+  maxParallelForks 4
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
+  }
+}
+
+task preCommit() {
+  dependsOn preCommitLegacyWorker
+  dependsOn preCommitFnApiWorker
 }
