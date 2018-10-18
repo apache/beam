@@ -154,6 +154,11 @@ cdef class StateSampler(object):
     # pythread doesn't support conditions.
     self.sampling_thread.join()
 
+  def reset(self):
+    for state in self.scoped_states_by_index:
+      (<ScopedState>state)._nsecs = 0
+    self.started = self.finished = False
+
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]
 

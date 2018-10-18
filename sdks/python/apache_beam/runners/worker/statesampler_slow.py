@@ -65,6 +65,10 @@ class StateSampler(object):
   def stop(self):
     pass
 
+  def reset(self):
+    for state in self._states_by_name.values():
+      state.nsecs = 0
+
 
 class ScopedState(object):
 
