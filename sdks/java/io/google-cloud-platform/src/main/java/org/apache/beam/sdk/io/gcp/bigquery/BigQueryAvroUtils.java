@@ -25,7 +25,6 @@ import static com.google.common.base.Verify.verifyNotNull;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import java.math.BigDecimal;
@@ -156,17 +155,17 @@ class BigQueryAvroUtils {
     // REPEATED fields are represented as Avro arrays.
     if (v == null) {
       // Handle the case of an empty repeated field.
-      return ImmutableList.of();
+      return new ArrayList<>();
     }
     @SuppressWarnings("unchecked")
     List<Object> elements = (List<Object>) v;
-    ImmutableList.Builder<Object> values = ImmutableList.builder();
+    ArrayList<Object> values = new ArrayList<>();
     Type elementType = schema.getElementType().getType();
     LogicalType elementLogicalType = schema.getElementType().getLogicalType();
     for (Object element : elements) {
       values.add(convertRequiredField(elementType, elementLogicalType, fieldSchema, element));
     }
-    return values.build();
+    return values;
   }
 
   private static Object convertRequiredField(
