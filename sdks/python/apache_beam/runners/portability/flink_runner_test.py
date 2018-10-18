@@ -106,12 +106,6 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_pardo_state_only(self):
-      if streaming:
-        super(FlinkRunnerTest, self).test_pardo_state_only()
-      else:
-        raise unittest.SkipTest("BEAM-2918 - User state not yet supported.")
-
     def test_pardo_timers(self):
       raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
 

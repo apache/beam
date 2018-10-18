@@ -63,7 +63,7 @@ public class PortableStateExecutionTest implements Serializable {
 
   @Parameters
   public static Object[] data() {
-    return new Object[] {true};
+    return new Object[] {true, false};
   }
 
   @Parameter public boolean isStreaming;
@@ -80,11 +80,14 @@ public class PortableStateExecutionTest implements Serializable {
     flinkJobExecutor.shutdown();
   }
 
-  private static final Map<String, Integer> stateValues = new HashMap<>();
+  // State -> Key -> Value
+  private static final Map<String, Map<String, Integer>> stateValuesMap = new HashMap<>();
 
   @Before
   public void before() {
-    stateValues.clear();
+    stateValuesMap.clear();
+    stateValuesMap.put("valueState", new HashMap<>());
+    stateValuesMap.put("valueState2", new HashMap<>());
   }
 
   // Special values which clear / write out state
@@ -131,9 +134,22 @@ public class PortableStateExecutionTest implements Serializable {
                   private final StateSpec<ValueState<Integer>> valueStateSpec =
                       StateSpecs.value(VarIntCoder.of());
 
+                  @StateId("valueState2")
+                  private final StateSpec<ValueState<Integer>> valueStateSpec2 =
+                      StateSpecs.value(VarIntCoder.of());
+
                   @ProcessElement
                   public void process(
-                      ProcessContext ctx, @StateId("valueState") ValueState<Integer> valueState) {
+                      ProcessContext ctx,
+                      @StateId("valueState") ValueState<Integer> valueState,
+                      @StateId("valueState2") ValueState<Integer> valueState2) {
+                    performStateUpdates("valueState", ctx, valueState);
+                    performStateUpdates("valueState2", ctx, valueState2);
+                  }
+
+                  private void performStateUpdates(
+                      String stateId, ProcessContext ctx, ValueState<Integer> valueState) {
+                    Map<String, Integer> stateValues = stateValuesMap.get(stateId);
                     Integer value = ctx.element().getValue();
                     if (value == null) {
                       throw new IllegalStateException();
@@ -181,6 +197,8 @@ public class PortableStateExecutionTest implements Serializable {
     expected.put("bla2", 64);
     expected.put("clearedState", null);
 
-    assertThat(stateValues, equalTo(expected));
+    for (Map<String, Integer> statesValues : stateValuesMap.values()) {
+      assertThat(statesValues, equalTo(expected));
+    }
   }
 }
