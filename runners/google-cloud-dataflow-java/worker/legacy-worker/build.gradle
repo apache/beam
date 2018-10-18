@@ -17,11 +17,11 @@
  */
 
 // There is no actual src dir under legacy-worker/ since legacy-worker is built against the
-// same sourceSets as fn-api-worker. The reason why legacy-worker has a separated dir is:
-// 1. Instead of point both legacy-worker and fn-api-worker project to the same worker/,
-// make them point to different dirs.
-// 2. Make built artifacts and test reports go to worker/build for fn-api-worker and
-// legacy-worker/build for legacy worker.
+// same sourceSet as fn-api-worker. The reason why legacy-worker has a separated dir is:
+// 1. Have one location for editing worker code which is built and tested in two
+//    different ways.
+// 2. Not have artifacts such as test results and jars write over each other.
+// 3. Better compatibility with Intellij since Intellij requires separate content roots.
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
