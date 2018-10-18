@@ -552,6 +552,7 @@ public class RedisIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          pipeline.multi();
           batchCount = 0;
         }
       }
@@ -612,7 +613,9 @@ public class RedisIO {
 
       @FinishBundle
       public void finishBundle() {
-        pipeline.exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+        }
         batchCount = 0;
       }
 
