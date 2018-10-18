@@ -86,6 +86,7 @@ public class MetricsEnvironment {
    *     MetricsContainer} when closed.
    */
   public static Closeable scopedMetricsContainer(MetricsContainer container) {
+    LOG.error("ajamato call scopedMetricsContainer.");
     return new ScopedContainer(container);
   }
 
@@ -113,7 +114,11 @@ public class MetricsEnvironment {
   @Nullable
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
+    LOG.error("ajamato REPORTED_MISSING_CONTAINER " + REPORTED_MISSING_CONTAINER.get());
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
+      LOG.error("ajamato container " + container);
+      LOG.error("ajamato Unable to update metrics on the current thread. "
+                + "Most likely caused by using metrics outside the managed work-execution thread.");
       if (METRICS_SUPPORTED.get()) {
         LOG.error(
             "Unable to update metrics on the current thread. "
@@ -121,6 +126,9 @@ public class MetricsEnvironment {
       } else {
         LOG.warn("Reporting metrics are not supported in the current execution environment.");
       }
+    } else {
+      LOG.error("ajamato got Container " + container.toString());
+
     }
     return container;
   }

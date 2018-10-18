@@ -154,6 +154,7 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
+      // TODO do we need to change anything here? ajamato.
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);

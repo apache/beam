@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -60,8 +61,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -78,6 +81,8 @@ import org.slf4j.LoggerFactory;
  * <p>Finally executes the DAG based graph by starting all runners in reverse topological order, and
  * finishing all runners in forward topological order.
  */
+// TODO ajamato. Update this to have a way to access the active bundles and get metric
+// progress.
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
@@ -279,6 +284,12 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
+      // ajamato setup the MetricsContainer here.
+      MetricsContainerImpl metricsContainer =
+          new MetricsContainerImpl("TODO ajamato step name");
+      Closeable closeable = MetricsEnvironment.
+          scopedMetricsContainer(metricsContainer);
+
       // Already in reverse topological order so we don't need to do anything.
       for (ThrowingRunnable startFunction : startFunctions) {
         LOG.debug("Starting function {}", startFunction);
@@ -297,12 +308,25 @@ public class ProcessBundleHandler {
                 .addAllResidualRoots(allResiduals.values())
                 .build());
       }
+
+      closeable.close();
+      metrics
+      // pull out values (ajamato) and put them on the response.
+      // Hook in here, but no intermediate metrics.
     }
 
     // TODO do we add metrics to this progress response?
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
+
+  public MonitoringInfo () {
+
+  }
+
+  // TODO add a method which returns the metrics objects we need, this can be called on BundleProgressHandler
+  // Do this for a specific instruction id.
+
 
   /**
    * A {@link BeamFnStateClient} which counts the number of outstanding {@link StateRequest}s and

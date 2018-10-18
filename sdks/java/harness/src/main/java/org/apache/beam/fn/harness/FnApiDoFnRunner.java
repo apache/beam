@@ -215,6 +215,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     doFnInvoker.invokeStartBundle(startBundleContext);
   }
 
+  // ajamato, This is like the Operation and DoFnRunner, which calls an invoker to execute user code.
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     currentElement = elem;

@@ -66,7 +66,7 @@ abstract class DoFnPTransformRunnerFactory<
         FnInputT,
         OutputT,
         RunnerT extends DoFnPTransformRunnerFactory.DoFnPTransformRunner<TransformInputT>>
-    implements PTransformRunnerFactory<RunnerT> {
+    implements PTransformRunnerFactory<RunnerT> { // ajamato find usages of this, to find runners to add scope state enter/exit
   interface DoFnPTransformRunner<T> {
     void startBundle() throws Exception;
 

@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
+// TODO ajamato, this is part of the runner, collecting metrics
 /** Representation of multiple metric updates. */
 @Experimental(Kind.METRICS)
 @AutoValue
