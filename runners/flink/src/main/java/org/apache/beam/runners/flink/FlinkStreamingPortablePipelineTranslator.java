@@ -376,7 +376,7 @@ public class FlinkStreamingPortablePipelineTranslator
     TupleTag<KV<K, Iterable<V>>> mainTag = new TupleTag<>("main output");
 
     WindowDoFnOperator<K, V, Iterable<V>> doFnOperator =
-        new WindowDoFnOperator<K, V, Iterable<V>>(
+        new WindowDoFnOperator<>(
             reduceFn,
             operatorName,
             (Coder) windowedWorkItemCoder,

@@ -68,7 +68,7 @@ public class StreamingSideInputFetcherTest {
 
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
 
-  static TupleTag<String> mainOutputTag = new TupleTag<String>();
+  static TupleTag<String> mainOutputTag = new TupleTag<>();
   @Mock StreamingModeExecutionContext execContext;
   @Mock StreamingModeExecutionContext.StepContext stepContext;
   @Mock SideInputReader mockSideInputReader;

@@ -292,7 +292,7 @@ public class WindmillStateCache implements StatusDataProvider {
           (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
       long weightDelta = 0;
       if (weightedValue == null) {
-        weightedValue = new WeightedValue<T>();
+        weightedValue = new WeightedValue<>();
         weightDelta += HASH_MAP_ENTRY_OVERHEAD;
       } else {
         weightDelta -= weightedValue.weight;

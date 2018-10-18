@@ -127,7 +127,7 @@ public class ExecutorTestUtils {
     private final List<Integer> sizes;
 
     public TestReaderObserver(NativeReader reader) {
-      this(reader, new ArrayList<Integer>());
+      this(reader, new ArrayList<>());
     }
 
     public TestReaderObserver(NativeReader reader, List<Integer> sizes) {

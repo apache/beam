@@ -434,7 +434,7 @@ public class GroupingShuffleReaderTest {
 
   private void expectShuffleReadCounterEquals(
       TestShuffleReadCounterFactory factory, long expectedReadBytes) {
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, expectedReadBytes);
     expectShuffleReadCounterEquals(factory, expectedReadBytesMap);
   }
@@ -857,7 +857,7 @@ public class GroupingShuffleReaderTest {
   @Test
   public void testGetApproximateProgress() throws Exception {
     // Store the positions of all KVs returned.
-    List<ByteArrayShufflePosition> positionsList = new ArrayList<ByteArrayShufflePosition>();
+    List<ByteArrayShufflePosition> positionsList = new ArrayList<>();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BatchModeExecutionContext context = BatchModeExecutionContext.forTesting(options, "testStage");
@@ -972,7 +972,7 @@ public class GroupingShuffleReaderTest {
     }
     assertTrue(shuffleReader.isClosed());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 48L);
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2, 32L);
     expectShuffleReadCounterEquals(shuffleReadCounterFactory, expectedReadBytesMap);
