@@ -103,7 +103,7 @@ if [[ $confirmation = "y" ]]; then
 
   echo "-------------Staging Java Artifacts into Maven---------------"
   ./gradlew publish -PisRelease --no-parallel --no-daemon
-  echo "Please review all artifacts in https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22"
+  echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-1049/"
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
@@ -215,6 +215,7 @@ if [[ $confirmation = "y" ]]; then
   git checkout ${RELEASE_BRANCH}
   cd sdks/python && tox -e docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
+  rm -rf ${GENERATED_PYDOC}/.doctrees
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
@@ -228,20 +229,14 @@ if [[ $confirmation = "y" ]]; then
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
   git clone ${GIT_BEAM_WEBSITE}
   cd ${WEBSITE_ROOT_DIR}
-  git checkout -b updates_release_${RELEASE}
-
-  echo "..........Updating release version in _config.yml..........."
-  sed -i -e "s/release_latest: [0-9].[0-9].[0-9]/release_latest: ${RELEASE}/g" _config.yml
+  git checkout release-docs
+  git checkout -b updates_release_${RELEASE} release-docs
 
   echo "..........Copying generated javadoc into beam-site.........."
-  cp -r ${GENERATE_JAVADOC} src/documentation/sdks/javadoc/${RELEASE}
-  echo "Updating javadoc current.md with latest release version number"
-  sed -i -e "s/[0-9].[0-9].[0-9]/${RELEASE}/g" src/documentation/sdks/javadoc/current.md
+  cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
 
   echo "............Copying generated pydoc into beam-site.........."
-  cp -r ${GENERATED_PYDOC} src/documentation/sdks/pydoc/${RELEASE}
-  echo ".....Updating pydoc current.md with latest release version number......"
-  sed -i -e "s/[0-9].[0-9].[0-9]/${RELEASE}/g" src/documentation/sdks/pydoc/current.md
+  cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}"
@@ -261,7 +256,7 @@ if [[ $confirmation = "y" ]]; then
     fi
   fi
   if [[ -z `which hub` ]]; then
-    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:asf-site
+    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
   else
     echo "Without hub, you need to create PR manually."
   fi
