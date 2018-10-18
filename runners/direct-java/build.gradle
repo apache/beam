@@ -64,6 +64,7 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.args4j
