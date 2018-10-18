@@ -344,8 +344,8 @@ public abstract class Coder<T> implements Serializable {
 
     @Override
     public String getMessage() {
-      return String.format(
-          "%s is not deterministic because:%n  %s", coder, Joiner.on("%n  ").join(reasons));
+      String reasonsStr = Joiner.on("\n\t").join(reasons);
+      return coder + " is not deterministic because:\n\t" + reasonsStr;
     }
   }
 }
