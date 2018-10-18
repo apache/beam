@@ -140,7 +140,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     this.streamingRpcBatchLimit = options.getWindmillServiceStreamingRpcBatchLimit();
     this.endpoints = ImmutableSet.of();
     if (options.getWindmillServiceEndpoint() != null) {
-      Set<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      Set<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(options.getWindmillServiceEndpoint())) {
         endpoints.add(
             HostAndPort.fromString(endpoint).withDefaultPort(options.getWindmillServicePort()));
