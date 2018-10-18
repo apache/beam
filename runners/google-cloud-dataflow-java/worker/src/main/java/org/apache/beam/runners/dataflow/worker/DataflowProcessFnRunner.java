@@ -43,11 +43,11 @@ import org.joda.time.Instant;
  * from the runner-agnostic code in runners-core. If that code is ever unified, so can this class.
  */
 class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
-    implements DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
-  private final DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> simpleRunner;
+    implements DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+  private final DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner;
 
   DataflowProcessFnRunner(
-      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> simpleRunner) {
+      DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner) {
     this.simpleRunner = simpleRunner;
   }
 
@@ -58,14 +58,14 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
 
   @Override
   public void processElement(
-      WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>> compressedElem) {
+      WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> compressedElem) {
     simpleRunner.processElement(placeIntoElementWindow(compressedElem));
   }
 
-  private static <T> WindowedValue<KeyedWorkItem<String, T>> placeIntoElementWindow(
-      WindowedValue<KeyedWorkItem<String, T>> compressedElem) {
+  private static <T> WindowedValue<KeyedWorkItem<byte[], T>> placeIntoElementWindow(
+      WindowedValue<KeyedWorkItem<byte[], T>> compressedElem) {
     checkTrivialOuterWindows(compressedElem);
-    WindowedValue<KeyedWorkItem<String, T>> res =
+    WindowedValue<KeyedWorkItem<byte[], T>> res =
         WindowedValue.of(
             compressedElem.getValue(),
             BoundedWindow.TIMESTAMP_MIN_VALUE,
@@ -76,7 +76,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
 
   // TODO: move this and the next function into ProcessFn.
   private static <T> void checkTrivialOuterWindows(
-      WindowedValue<KeyedWorkItem<String, T>> windowedKWI) {
+      WindowedValue<KeyedWorkItem<byte[], T>> windowedKWI) {
     // In practice it will be in 0 or 1 windows (ValueInEmptyWindows or ValueInGlobalWindow)
     Collection<? extends BoundedWindow> outerWindows = windowedKWI.getWindows();
     if (!outerWindows.isEmpty()) {
@@ -92,7 +92,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
     }
   }
 
-  private static <T> BoundedWindow getUnderlyingWindow(KeyedWorkItem<String, T> kwi) {
+  private static <T> BoundedWindow getUnderlyingWindow(KeyedWorkItem<byte[], T> kwi) {
     if (Iterables.isEmpty(kwi.elementsIterable())) {
       // ProcessFn sets only a single timer.
       TimerData timer = Iterables.getOnlyElement(kwi.timersIterable());
@@ -119,7 +119,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> getFn() {
+  public DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> getFn() {
     return simpleRunner.getFn();
   }
 }

@@ -53,9 +53,9 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOp
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -476,8 +476,8 @@ class FlinkStreamingTransformTranslators {
         inputDataStream = inputDataStream.keyBy(keySelector);
         stateful = true;
       } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
-        // we know that it is keyed on String
-        keyCoder = StringUtf8Coder.of();
+        // we know that it is keyed on byte[]
+        keyCoder = ByteArrayCoder.of();
         stateful = true;
       }
 
