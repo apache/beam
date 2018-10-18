@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
           delegate,
           'Stream Integration Check',
-          'Run Stream Integration Check')`
+          'Run Stream Integration Check')
 
   // Execute gradle task to test Python SDK.
   steps {
