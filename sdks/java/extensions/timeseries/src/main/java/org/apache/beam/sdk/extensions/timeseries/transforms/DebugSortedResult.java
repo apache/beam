@@ -61,7 +61,7 @@ public class DebugSortedResult
                       accums.add(accum);
                     }
 
-                    TSAccums.sortAccumList(accums);
+                    TSAccums.sortByUpperBoundary(accums);
 
                     StringBuilder sb = new StringBuilder();
 

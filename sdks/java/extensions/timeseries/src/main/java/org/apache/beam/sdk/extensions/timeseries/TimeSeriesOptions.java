@@ -19,8 +19,11 @@
 package org.apache.beam.sdk.extensions.timeseries;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.*;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 
+/** Pipeline options to configure timeseries-related functionality. */
 @Experimental
 public interface TimeSeriesOptions extends PipelineOptions {
 

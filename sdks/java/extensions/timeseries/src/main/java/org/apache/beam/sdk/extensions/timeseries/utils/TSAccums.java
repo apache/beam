@@ -18,12 +18,14 @@
 
 package org.apache.beam.sdk.extensions.timeseries.utils;
 
+import static com.google.protobuf.util.Timestamps.toMillis;
+import static java.util.Comparator.comparing;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
-import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -42,7 +44,11 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tensorflow.example.*;
+import org.tensorflow.example.BytesList;
+import org.tensorflow.example.Example;
+import org.tensorflow.example.Feature;
+import org.tensorflow.example.Features;
+import org.tensorflow.example.Int64List;
 
 /** Utility functions for TSAccum. */
 @Experimental
@@ -72,11 +78,11 @@ public class TSAccums {
 
   public static Timestamp getMinTimeStamp(Timestamp a, Timestamp b) {
 
-    if (Timestamps.toMillis(a) == 0 && Timestamps.toMillis(b) > 0) {
+    if (toMillis(a) == 0 && toMillis(b) > 0) {
       return b;
     }
 
-    if (Timestamps.toMillis(b) == 0) {
+    if (toMillis(b) == 0) {
       return a;
     }
 
@@ -151,17 +157,13 @@ public class TSAccums {
     features.putFeature(
         "LOWER_WINDOW_BOUNDARY",
         Feature.newBuilder()
-            .setInt64List(
-                Int64List.newBuilder()
-                    .addValue(Timestamps.toMillis(accum.getLowerWindowBoundary())))
+            .setInt64List(Int64List.newBuilder().addValue(toMillis(accum.getLowerWindowBoundary())))
             .build());
 
     features.putFeature(
         "UPPER_WINDOW_BOUNDARY",
         Feature.newBuilder()
-            .setInt64List(
-                Int64List.newBuilder()
-                    .addValue(Timestamps.toMillis(accum.getUpperWindowBoundary())))
+            .setInt64List(Int64List.newBuilder().addValue(toMillis(accum.getUpperWindowBoundary())))
             .build());
 
     features.putFeature(
@@ -209,29 +211,13 @@ public class TSAccums {
     return features.build();
   }
 
-  public static List<TimeSeriesData.TSAccum> sortAccumList(List<TimeSeriesData.TSAccum> accums) {
-
-    accums.sort(
-        new Comparator<TimeSeriesData.TSAccum>() {
-
-          @Override
-          public int compare(TimeSeriesData.TSAccum o1, TimeSeriesData.TSAccum o2) {
-            if (Timestamps.toMillis(o1.getUpperWindowBoundary())
-                > Timestamps.toMillis(o2.getUpperWindowBoundary())) {
-              return 1;
-            }
-            if (Timestamps.toMillis(o1.getUpperWindowBoundary())
-                < Timestamps.toMillis(o2.getUpperWindowBoundary())) {
-              return -1;
-            }
-            return 0;
-          }
-        });
-
+  public static List<TimeSeriesData.TSAccum> sortByUpperBoundary(
+      List<TimeSeriesData.TSAccum> accums) {
+    accums.sort(comparing(tsAccum -> toMillis(tsAccum.getUpperWindowBoundary())));
     return accums;
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable */
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<Mutation>> {
 
@@ -243,6 +229,7 @@ public class TSAccums {
       return input.apply(ParDo.of(new WriteTFAccumToBigTable()));
     }
 
+    /** Write to BigTable. */
     public static class WriteTFAccumToBigTable extends DoFn<TimeSeriesData.TSAccum, Mutation> {
 
       @ProcessElement
@@ -263,12 +250,12 @@ public class TSAccums {
               "-",
               accum.getKey().getMajorKey(),
               Long.toString(Durations.toMillis(accum.getDuration())),
-              Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-              Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))));
+              Long.toString(toMillis(accum.getLowerWindowBoundary())),
+              Long.toString(toMillis(accum.getUpperWindowBoundary()))));
     }
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable */
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutputAccumWithTimestamp
       extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<TimeSeriesData.TSAccum>> {
 
@@ -277,6 +264,7 @@ public class TSAccums {
       return input.apply(ParDo.of(new ExtractTimestamp()));
     }
 
+    /** Extract timestamps. */
     public static class ExtractTimestamp
         extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
 
@@ -284,7 +272,7 @@ public class TSAccums {
       public void processElement(
           DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c) throws Exception {
         c.outputWithTimestamp(
-            c.element(), new Instant(Timestamps.toMillis(c.element().getLowerWindowBoundary())));
+            c.element(), new Instant(toMillis(c.element().getLowerWindowBoundary())));
       }
     }
   }
@@ -316,6 +304,7 @@ public class TSAccums {
     }
   }
 
+  /** Assign keys. */
   public static class OutPutTSAccumAsKV
       extends DoFn<TimeSeriesData.TSAccum, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
 
@@ -325,6 +314,7 @@ public class TSAccums {
     }
   }
 
+  /** Assign timestamped keys. */
   public static class OutPutTSAccumAsKVWithTimeBoundary
       extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
 
@@ -340,19 +330,19 @@ public class TSAccums {
                   "-",
                   key.getMajorKey(),
                   key.getMinorKeyString(),
-                  Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-                  Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary()))),
+                  Long.toString(toMillis(accum.getLowerWindowBoundary())),
+                  Long.toString(toMillis(accum.getUpperWindowBoundary()))),
               accum));
     }
   }
 
+  /** Assign keys with pretty printed timestamps. */
   public static class OutPutTSAccumAsKVWithPrettyTimeBoundary
       extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
 
-      TimeSeriesData.TSKey key = c.element().getKey();
       TimeSeriesData.TSAccum accum = c.element();
 
       c.output(KV.of(getTSAccumKeyWithPrettyTimeBoundary(accum), accum));
@@ -374,8 +364,8 @@ public class TSAccums {
         "-",
         key.getMajorKey(),
         key.getMinorKeyString(),
-        Long.toString(Timestamps.toMillis(accum.getLowerWindowBoundary())),
-        Long.toString(Timestamps.toMillis(accum.getUpperWindowBoundary())));
+        Long.toString(toMillis(accum.getLowerWindowBoundary())),
+        Long.toString(toMillis(accum.getUpperWindowBoundary())));
   }
 
   public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum) {
@@ -460,6 +450,7 @@ public class TSAccums {
     return sb.toString();
   }
 
+  /** Create CSV. */
   public static class CreateCsv
       extends PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PDone> {
 

@@ -22,7 +22,9 @@ import com.google.protobuf.util.Timestamps;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
-import org.tensorflow.example.*;
+import org.tensorflow.example.Feature;
+import org.tensorflow.example.FloatList;
+import org.tensorflow.example.Int64List;
 
 /** Utility functions for TSData. */
 @Experimental
