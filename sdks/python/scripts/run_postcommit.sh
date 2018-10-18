@@ -42,6 +42,12 @@ fi
 set -e
 set -v
 
+echo $0
+echo $1
+echo $2
+echo $3
+echo $4
+echo $5
 
 ###########################################################################
 # Build tarball and set pipeline options.
@@ -87,10 +93,13 @@ PIPELINE_OPTIONS=(
   "--sleep_secs=20"
 )
 
+#"--wait_until_finish_duration=300"
+
 # Add streaming flag if specified.
 if [[ "$2" = "streaming" ]]; then
   echo ">>> Set test pipeline to streaming"
   PIPELINE_OPTIONS+=("--streaming")
+  #PIPELINE_OPTIONS+=("  --dataflow_worker_jar ../../runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-2.9.0-SNAPSHOT.jar")
 else
   echo ">>> Set test pipeline to batch"
 fi
@@ -99,18 +108,20 @@ TESTS=""
 if [[ "$3" = "TestDirectRunner" ]]; then
   if [[ "$2" = "streaming" ]]; then
     TESTS="--tests=\
-apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it,\
-apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest"
+apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it"
+#apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest"
   else
     TESTS="--tests=\
 apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it,\
-apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest,\
-apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT"
+#apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest,\
+#apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT"
   fi
 fi
 
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
+
+echo ${PIPELINE_OPTIONS[*]}
 
 JOINED_OPTS=$(IFS=" " ; echo "${PIPELINE_OPTIONS[*]}")
 

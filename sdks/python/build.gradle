@@ -25,6 +25,8 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+
 def envdir = "${project.buildDir}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
@@ -322,10 +324,15 @@ task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
 }
 
 task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
   doLast {
+    def cmd_args = []
+
+    cmd_args += ""
     exec {
       executable 'sh'
       // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
+      // args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming TestDataflowRunner gs://test-ruoyun/direct/runner/ google.com:clouddfe"
       args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
     }
   }

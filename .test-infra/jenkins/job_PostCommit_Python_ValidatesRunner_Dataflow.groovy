@@ -28,11 +28,16 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Stream Integration Check',
+          'Run Stream Integration Check')`
+
   // Execute gradle task to test Python SDK.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-python:validatesRunnerBatchTests')
+      // tasks(':beam-sdks-python:validatesRunnerBatchTests')
       tasks(':beam-sdks-python:validatesRunnerStreamingTests')
       commonJobProperties.setGradleSwitches(delegate)
     }
