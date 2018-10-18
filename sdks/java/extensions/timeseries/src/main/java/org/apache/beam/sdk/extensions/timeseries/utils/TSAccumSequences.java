@@ -33,7 +33,13 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tensorflow.example.*;
+import org.tensorflow.example.BytesList;
+import org.tensorflow.example.Feature;
+import org.tensorflow.example.FeatureList;
+import org.tensorflow.example.FeatureLists;
+import org.tensorflow.example.Features;
+import org.tensorflow.example.FloatList;
+import org.tensorflow.example.SequenceExample;
 
 /** Utility functions for TSAccum. */
 @Experimental
@@ -149,7 +155,7 @@ public class TSAccumSequences {
     return downSampleType.name() + "_PREV";
   }
 
-  /** Push to tf Examples generated from TSAccum's to BigTable * */
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutPutToBigTable
       extends PTransform<PCollection<TimeSeriesData.TSAccumSequence>, PCollection<Mutation>> {
 
@@ -160,6 +166,7 @@ public class TSAccumSequences {
       return input.apply(ParDo.of(new WriteTFAccumToBigTable()));
     }
 
+    /** Write to BigTable. */
     public static class WriteTFAccumToBigTable
         extends DoFn<TimeSeriesData.TSAccumSequence, Mutation> {
 

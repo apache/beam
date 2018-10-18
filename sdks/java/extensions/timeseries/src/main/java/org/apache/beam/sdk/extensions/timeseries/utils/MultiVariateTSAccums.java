@@ -62,7 +62,7 @@ public class MultiVariateTSAccums {
   private static final String MIN = "min";
   private static final String MAX = "max";
 
-  // BigQuery IO.
+  /** BigQuery IO. */
   // TODO: Convert Accum object to repeated fields rather than columns.
   public static class CreateTableRowDoFn
       extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.MultiVariateTSAccum>, TableRow> {

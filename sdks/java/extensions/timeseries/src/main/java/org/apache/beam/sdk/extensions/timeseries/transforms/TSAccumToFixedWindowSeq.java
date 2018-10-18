@@ -96,7 +96,7 @@ public class TSAccumToFixedWindowSeq
 
                     List<TimeSeriesData.TSAccum> list =
                         Lists.newArrayList(c.element().getValue().iterator());
-                    TSAccums.sortAccumList(list);
+                    TSAccums.sortByUpperBoundary(list);
 
                     TimeSeriesData.TSAccumSequence.Builder seq =
                         TimeSeriesData.TSAccumSequence.newBuilder();

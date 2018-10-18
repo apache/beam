@@ -22,7 +22,11 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
@@ -34,12 +38,21 @@ import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -49,6 +62,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** TimeSeries test. */
 @RunWith(JUnit4.class)
 public class TimeseriesTest implements Serializable {
 
@@ -61,6 +75,11 @@ public class TimeseriesTest implements Serializable {
   private static final int ACCUM_COUNT = 6;
   private static final long WINDOW_DURATION_MILLS = 10000;
   private static final int WINDOW_DURATION_SEC = 10;
+  private static final Timestamp[] HEART_BEAT_VALUES =
+      new Timestamp[] {
+        Timestamps.add(
+            Timestamps.fromMillis(NOW.getMillis()), Durations.fromMillis(WINDOW_DURATION_MILLS))
+      };
 
   // Create tuple tags for the value types in each collection.
   private static final TupleTag<TimeSeriesData.TSAccum> tag1 =
@@ -81,7 +100,7 @@ public class TimeseriesTest implements Serializable {
     TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
 
     options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
-    options.setTimeToLiveMillis(0l);
+    options.setTimeToLiveMillis(0L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
 
     TSConfiguration configuration = TSConfiguration.createConfigurationFromOptions(options);
@@ -125,7 +144,7 @@ public class TimeseriesTest implements Serializable {
     TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
 
     options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
-    options.setTimeToLiveMillis(0l);
+    options.setTimeToLiveMillis(0L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
 
     PCollection<KV<String, TimeSeriesData.TSAccum>> output =
@@ -149,15 +168,13 @@ public class TimeseriesTest implements Serializable {
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-            .apply(
-                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+            .apply("Global-2", Window.into(new GlobalWindows()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results =
-        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
 
     PAssert.that(results).containsInAnyOrder(loadPreviousValues(manualAccumListCreation()));
 
@@ -170,18 +187,12 @@ public class TimeseriesTest implements Serializable {
    * The result should still be a perfect rectangle of data for all of the key space.
    * TSAccum[1] Should be heartbeat values
    * TSAccum[1] Should have the values from TSAccum[0,3] inserted.
-   */ public void checkEndToEndWithHeartBeat() {
-
-    final Timestamp[] HEART_BEAT_VALUES =
-        new Timestamp[] {
-          Timestamps.add(
-              Timestamps.fromMillis(NOW.getMillis()), Durations.fromMillis(WINDOW_DURATION_MILLS))
-        };
-
+   */
+  public void checkEndToEndWithHeartBeat() {
     TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
 
     options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
-    options.setTimeToLiveMillis(10000l);
+    options.setTimeToLiveMillis(10000L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
 
     PCollection<KV<String, TimeSeriesData.TSAccum>> output =
@@ -219,8 +230,7 @@ public class TimeseriesTest implements Serializable {
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results =
-        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
 
     PAssert.that(results)
         .containsInAnyOrder(
@@ -238,7 +248,8 @@ public class TimeseriesTest implements Serializable {
    * The result should still be a perfect rectangle of data for all of the key space.
    * TSAccum[1,2,4] Should be heartbeat values
    * TSAccum[1,2,4] Should have the values from TSAccum[0,3] inserted.
-   */ public void checkEndToEndWithMultipleHeartBeat() {
+   */
+  public void checkEndToEndWithMultipleHeartBeat() {
 
     Timestamp missing1 =
         Timestamps.add(
@@ -246,12 +257,12 @@ public class TimeseriesTest implements Serializable {
 
     Timestamp missing2 = Timestamps.add(missing1, Durations.fromMillis(WINDOW_DURATION_MILLS));
 
-    Timestamp[] HEART_BEAT_VALUES = new Timestamp[] {missing1, missing2};
+    Timestamp[] heartBeatValues = new Timestamp[] {missing1, missing2};
 
     TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
 
     options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
-    options.setTimeToLiveMillis(0l);
+    options.setTimeToLiveMillis(0L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
 
     PCollection<KV<String, TimeSeriesData.TSAccum>> output =
@@ -277,7 +288,7 @@ public class TimeseriesTest implements Serializable {
                     removeTickRangesForHBTests(
                         loadPreviousValues(manualAccumListCreation()),
                         TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
-                        HEART_BEAT_VALUES)))
+                        heartBeatValues)))
             .apply(new TSAccums.OutputAccumWithTimestamp())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
@@ -492,7 +503,7 @@ public class TimeseriesTest implements Serializable {
 
     for (List<TimeSeriesData.TSAccum> list : keyMap.values()) {
       // Sort List
-      TSAccums.sortAccumList(list);
+      TSAccums.sortByUpperBoundary(list);
       // Walk list adding previous value to current
 
       Iterator<TimeSeriesData.TSAccum> accumIterator = list.iterator();
@@ -569,7 +580,7 @@ public class TimeseriesTest implements Serializable {
     for (List<TimeSeriesData.TSAccum> keyLists : map.values()) {
 
       // Sort list and then detect gaps and fill with heartbeat values
-      TSAccums.sortAccumList(keyLists);
+      TSAccums.sortByUpperBoundary(keyLists);
 
       Iterator<TimeSeriesData.TSAccum> accumIterator = keyLists.iterator();
 

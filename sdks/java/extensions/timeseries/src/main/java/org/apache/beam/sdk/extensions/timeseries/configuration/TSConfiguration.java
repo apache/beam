@@ -48,7 +48,8 @@ public abstract class TSConfiguration implements Serializable {
   // The down sample period which must be set.
   public abstract Duration downSampleDuration();
 
-  // Once a key is observed we will generate a value during periods when the key has not been observed if the
+  // Once a key is observed we will generate a value during periods when the key has not been
+  // observed if the
   // fillOption is set to anything other than NONE.
   public abstract Duration timeToLive();
 
@@ -81,7 +82,7 @@ public abstract class TSConfiguration implements Serializable {
 
     TSConfiguration.Builder configuration = TSConfiguration.builder();
 
-    if (!(Optional.ofNullable(timeSeriesOptions.getDownSampleDurationMillis()).orElse(0l) > 0)) {
+    if (!(Optional.ofNullable(timeSeriesOptions.getDownSampleDurationMillis()).orElse(0L) > 0)) {
       throw new IllegalArgumentException("Down sample duration must be > 0 ");
     }
 
