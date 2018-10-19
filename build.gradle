@@ -181,19 +181,20 @@ check.dependsOn rat
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
 task javaPreCommit() {
-  dependsOn ":rat"
+//  dependsOn ":rat"
   // We need to list the model/* builds since sdks/java/core doesn't
   // depend on any of the model.
-  dependsOn ":beam-model-pipeline:build"
-  dependsOn ":beam-model-job-management:build"
-  dependsOn ":beam-model-fn-execution:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
-  dependsOn ":beam-sdks-java-core:buildNeeded"
-  dependsOn ":beam-sdks-java-core:buildDependents"
+//  dependsOn ":beam-model-pipeline:build"
+//  dependsOn ":beam-model-job-management:build"
+//  dependsOn ":beam-model-fn-execution:build"
+//  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
+//  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
+//  dependsOn ":beam-sdks-java-core:buildNeeded"
+//  dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
-  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
-  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
+  dependsOn ":beam-runners-google-cloud-dataflow-java:validatesRunnerTestFnApiWorker"
+//  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
+//  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 }
 
 task javaPostCommit() {
