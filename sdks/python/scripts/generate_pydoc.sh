@@ -191,7 +191,7 @@ EOF
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
 python $(type -p sphinx-build) -v -a -E -j 8 -q target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-build.warnings.log"
+  -W -w "target/docs/sphinx-build.warnings.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.warnings.log || exit 1
