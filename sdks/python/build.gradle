@@ -383,7 +383,7 @@ task flinkCompatibilityMatrixProcess() {
 }
 
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixProcess'
+  dependsOn 'flinkCompatibilityMatrixDocker'
 }
 
 task postCommit() {
