@@ -115,7 +115,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
               WireCoders.<KV<InputT, RestrictionT>>instantiateRunnerWireCoder(
                   stage.getInputPCollection(), stage.getComponents());
       KvCoder<InputT, RestrictionT> kvCoder =
-          ((KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder());
+          (KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder();
       this.feeder =
           new SDFFeederViaStateAndTimers<>(
               stateInternals,

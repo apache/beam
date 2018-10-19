@@ -255,7 +255,7 @@ public final class StreamingTransformTranslator {
       public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         UnboundedDataset<T> unboundedDataset =
-            ((UnboundedDataset<T>) context.borrowDataset(transform));
+            (UnboundedDataset<T>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<T>> dStream = unboundedDataset.getDStream();
         JavaDStream<WindowedValue<T>> outputStream;
         if (TranslationUtils.skipAssignWindows(transform, context)) {
@@ -341,7 +341,7 @@ public final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, Iterable<InputT>>> unboundedDataset =
-            ((UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform));
+            (UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream = unboundedDataset.getDStream();
 
         final SerializablePipelineOptions options = context.getSerializableOptions();
