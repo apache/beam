@@ -31,8 +31,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SqlQuery3}. */
+@RunWith(JUnit4.class)
 public class SqlQuery3Test {
 
   private static final List<Person> PEOPLE =

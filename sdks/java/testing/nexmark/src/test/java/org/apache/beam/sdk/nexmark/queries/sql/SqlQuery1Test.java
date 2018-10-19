@@ -29,8 +29,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SqlQuery1}. */
+@RunWith(JUnit4.class)
 public class SqlQuery1Test {
 
   private static final Bid BID1_USD = new Bid(5L, 3L, 100L, new Instant(43234234L), "extra1");
