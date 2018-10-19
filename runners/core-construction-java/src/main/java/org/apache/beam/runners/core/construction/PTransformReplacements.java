@@ -69,6 +69,6 @@ public class PTransformReplacements {
 
   public static <T> PCollection<T> getSingletonMainOutput(
       AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
-    return ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()));
+    return (PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values());
   }
 }

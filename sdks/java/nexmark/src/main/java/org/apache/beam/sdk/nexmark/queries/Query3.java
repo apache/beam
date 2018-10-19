@@ -86,7 +86,7 @@ public class Query3 extends NexmarkQuery {
     PCollection<Event> eventsWindowed =
         events.apply(
             Window.<Event>into(new GlobalWindows())
-                .triggering(Repeatedly.forever((AfterPane.elementCountAtLeast(numEventsInPane))))
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(numEventsInPane)))
                 .discardingFiredPanes()
                 .withAllowedLateness(Duration.ZERO));
     PCollection<KV<Long, Auction>> auctionsBySellerId =
