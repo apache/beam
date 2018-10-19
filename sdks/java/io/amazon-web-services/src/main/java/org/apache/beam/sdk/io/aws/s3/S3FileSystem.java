@@ -668,7 +668,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     } catch (ExecutionException e) {
       if (e.getCause() != null) {
         if (e.getCause() instanceof IOException) {
-          throw ((IOException) e.getCause());
+          throw (IOException) e.getCause();
         }
         throw new IOException(e.getCause());
       }

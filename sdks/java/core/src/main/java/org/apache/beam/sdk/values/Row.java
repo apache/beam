@@ -589,7 +589,7 @@ public abstract class Row implements Serializable {
     public Row build() {
       checkNotNull(schema);
       if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
-        throw new IllegalArgumentException(("Cannot specify both values and getters."));
+        throw new IllegalArgumentException("Cannot specify both values and getters.");
       }
       if (!this.values.isEmpty()) {
         List<Object> storageValues = attached ? this.values : verify(schema, this.values);
