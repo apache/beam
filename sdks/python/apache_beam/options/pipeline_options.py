@@ -554,7 +554,9 @@ class WorkerOptions(PipelineOptions):
         '--dataflow_worker_jar',
         dest='dataflow_worker_jar',
         type=str,
-        help='Dataflow worker jar.'
+        help='Dataflow worker jar file. If specified, the jar file is staged '
+             'in GCS, then gets loaded by workers. End users usually '
+             'should not use this feature.'
     )
 
   def validate(self, validator):

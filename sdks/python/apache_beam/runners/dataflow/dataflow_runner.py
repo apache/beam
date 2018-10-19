@@ -351,7 +351,7 @@ class DataflowRunner(PipelineRunner):
     setup_options.beam_plugins = plugins
 
     # Elevate "min_cpu_platform" to pipeline option, but using the existing
-    # experiment
+    # experiment.
     debug_options = pipeline._options.view_as(DebugOptions)
     worker_options = pipeline._options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
@@ -384,6 +384,11 @@ class DataflowRunner(PipelineRunner):
 
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
+      if not apiclient._use_fnapi(pipeline._options):
+        logging.fatal(
+            'Typical end users should not use this worker jar feature. '
+            'It can only be used when fnapi is enabled.')
+
       experiments = ["use_staged_dataflow_worker_jar"]
       if debug_options.experiments is not None:
         experiments = list(set(experiments + debug_options.experiments))
