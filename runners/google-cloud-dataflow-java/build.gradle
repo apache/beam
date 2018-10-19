@@ -306,9 +306,9 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
-  dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
-  dependsOn examplesJavaLegacyWorkerIntegrationTest
-  dependsOn coreSDKJavaLegacyWorkerIntegrationTest
+//  dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
+//  dependsOn examplesJavaLegacyWorkerIntegrationTest
+//  dependsOn coreSDKJavaLegacyWorkerIntegrationTest
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest
