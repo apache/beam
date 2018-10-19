@@ -195,7 +195,7 @@ task validatesRunnerTestFnApiWorker(type: Test) {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-  dependsOn validatesRunnerTest
+//  dependsOn validatesRunnerTest
   dependsOn validatesRunnerTestFnApiWorker
 }
 
