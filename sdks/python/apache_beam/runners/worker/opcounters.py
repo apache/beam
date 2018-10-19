@@ -185,12 +185,12 @@ class OperationCounters(object):
         '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
     self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None
+    self.current_size = None
     self._sample_counter = 0
     self._next_sample = 0
 
   def update_from(self, windowed_value):
     """Add one value to this counter."""
-    self.element_counter.update(1)
     if self._should_sample():
       self.do_sample(windowed_value)
 
@@ -212,7 +212,7 @@ class OperationCounters(object):
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:
-      self.mean_byte_counter.update(size)
+      self.current_size = size
     else:
       self.active_accumulator = SumAccumulator()
       self.active_accumulator.update(size)
@@ -227,7 +227,11 @@ class OperationCounters(object):
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
-    if self.active_accumulator is not None:
+    self.element_counter.update(1)
+    if self.current_size is not None:
+      self.mean_byte_counter.update(self.current_size)
+      self.current_size = None
+    elif self.active_accumulator is not None:
       self.mean_byte_counter.update(self.active_accumulator.value())
       self.active_accumulator = None
 
