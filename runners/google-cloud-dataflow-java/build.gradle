@@ -196,7 +196,7 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerTest
-  depednsOn validatesRunnerTestFnApiWorker
+  dependsOn validatesRunnerTestFnApiWorker
 }
 
 task googleCloudPlatformIntegrationTest(type: Test) {
