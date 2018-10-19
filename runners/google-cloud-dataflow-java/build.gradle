@@ -32,6 +32,7 @@ evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
 evaluationDependsOn(":beam-sdks-java-core")
 evaluationDependsOn(":beam-examples-java")
 evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -103,20 +104,40 @@ test {
   systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
 
-// For the following test tasks, set workerHarnessContainerImage to empty to make Dataflow pick up
-// the non-versioned container image, which handles a staged worker jar.
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
+def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
+def dockerImageRoot = "us.gcr.io/${dataflowProject}/java-examples-it"
+def dockerImageContainer = "${dockerImageRoot}/java"
+def dockerTag = new Date().format('yyyyMMddHHmmss')
+
+def commonExcludeCategories = [
+  'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
+  'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
+  'org.apache.beam.sdk.testing.UsesDistributionMetrics',
+  'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesSetState',
+  'org.apache.beam.sdk.testing.UsesMapState',
+  'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
+  'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+  'org.apache.beam.sdk.testing.UsesParDoLifecycle',
+  'org.apache.beam.sdk.testing.UsesMetricsPusher',
+]
+
+// For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
+// make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 task validatesRunnerTest(type: Test) {
   group = "Verification"
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
-          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
 
   ])
@@ -128,17 +149,46 @@ task validatesRunnerTest(type: Test) {
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    commonExcludeCategories.each {
+      excludeCategories it
+    }
+  }
+}
+
+project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
+project.rootProject.ext.set("docker-tag","${dockerTag}")
+evaluationDependsOn(":beam-sdks-java-container")
+
+task buildAndPushDockerContainer(type:Exec) {
+  dependsOn ":beam-sdks-java-container:docker"
+  commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+}
+
+
+task validatesRunnerTestFnApiWorker(type: Test) {
+  group = "Verification"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+          "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--experiments=beam_fn_api",
+  ])
+
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    commonExcludeCategories.each {
+      excludeCategories it
+    }
   }
 }
 
@@ -146,19 +196,17 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerTest
+  depednsOn validatesRunnerTestFnApiWorker
 }
 
 task googleCloudPlatformIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
-          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
 
@@ -174,15 +222,12 @@ task googleCloudPlatformIntegrationTest(type: Test) {
 task examplesJavaIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
-          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
 
@@ -200,15 +245,12 @@ task examplesJavaIntegrationTest(type: Test) {
 task coreSDKJavaIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
-  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
-          "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
 
