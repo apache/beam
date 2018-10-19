@@ -1972,26 +1972,35 @@ class Create(PTransform):
             self.infer_output_type(None))
 
   def expand(self, pbegin):
-    from apache_beam.io import iobase
     assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    debug_options = self.pipeline._options.view_as(DebugOptions)
     # Must guard against this as some legacy runners don't implement impulse.
+    debug_options = pbegin.pipeline._options.view_as(DebugOptions)
     fn_api = (debug_options.experiments
               and 'beam_fn_api' in debug_options.experiments)
-    # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
-    # These special cases are often used in building up more complex
-    # transforms (e.g. Write).
-    if fn_api and len(self.values) == 0:
-      return pbegin | Impulse() | FlatMap(
-          lambda _: ()).with_output_types(self.get_output_type())
-    elif fn_api and len(self.values) == 1:
-      serialized_value = coder.encode(self.values[0])
-      return pbegin | Impulse() | Map(
-          lambda _: coder.decode(serialized_value)).with_output_types(
-              self.get_output_type())
+    if fn_api:
+      coder = typecoders.registry.get_coder(self.get_output_type())
+      serialized_values = [coder.encode(v) for v in self.values]
+      # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
+      # These special cases are often used in building up more complex
+      # transforms (e.g. Write).
+
+      class MaybeReshuffle(PTransform):
+        def expand(self, pcoll):
+          if len(serialized_values) > 1:
+            from apache_beam.transforms.util import Reshuffle
+            return pcoll | Reshuffle()
+          else:
+            return pcoll
+      return (
+          pbegin
+          | Impulse()
+          | FlatMap(lambda _: serialized_values)
+          | MaybeReshuffle()
+          | Map(coder.decode).with_output_types(self.get_output_type()))
     else:
+      self.pipeline = pbegin.pipeline
+      from apache_beam.io import iobase
+      coder = typecoders.registry.get_coder(self.get_output_type())
       source = self._create_source_from_iterable(self.values, coder)
       return (pbegin.pipeline
               | iobase.Read(source).with_output_types(self.get_output_type()))
