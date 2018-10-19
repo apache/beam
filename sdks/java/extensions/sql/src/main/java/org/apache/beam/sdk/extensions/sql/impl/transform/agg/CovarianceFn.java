@@ -26,6 +26,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -51,10 +53,18 @@ public class CovarianceFn<T extends Number>
   private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
+  public static <V extends Number> CovarianceFn newPopulation(Schema.TypeName typeName) {
+    return newPopulation(BigDecimalConverter.forSqlType(typeName));
+  }
+
   public static <V extends Number> CovarianceFn newPopulation(
       SerializableFunction<BigDecimal, V> decimalConverter) {
 
     return new CovarianceFn<>(POP, decimalConverter);
+  }
+
+  public static <V extends Number> CovarianceFn newSample(Schema.TypeName typeName) {
+    return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 
   public static <V extends Number> CovarianceFn newSample(
