@@ -598,15 +598,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.outputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_output_coder(transform_proto)
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_output_coder(transform_proto),
+      output_coder,
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -617,15 +623,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.inputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_input_coder(transform_proto)
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_input_coder(transform_proto),
+      output_coder,
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
