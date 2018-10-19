@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +32,8 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -156,60 +161,37 @@ public class BeamAggregationTransforms implements Serializable {
           sourceFieldExps.add(refIndex);
         }
 
-        Schema.Field field = CalciteUtils.toField(aggName, call.type);
-        Schema.TypeName fieldTypeName = field.getType().getTypeName();
+        Schema.Field field = CalciteUtils.toField(aggName, call.getType());
         fields.add(field);
-
-        switch (call.getAggregation().getName()) {
-          case "COUNT":
-            aggregators.add(Count.combineFn());
-            break;
-          case "MAX":
-            aggregators.add(BeamBuiltinAggregations.createMax(call.type.getSqlTypeName()));
-            break;
-          case "MIN":
-            aggregators.add(BeamBuiltinAggregations.createMin(call.type.getSqlTypeName()));
-            break;
-          case "SUM":
-          case "$SUM0":
-            aggregators.add(BeamBuiltinAggregations.createSum(call.type.getSqlTypeName()));
-            break;
-          case "AVG":
-            aggregators.add(BeamBuiltinAggregations.createAvg(call.type.getSqlTypeName()));
-            break;
-          case "VAR_POP":
-            aggregators.add(
-                VarianceFn.newPopulation(BigDecimalConverter.forSqlType(fieldTypeName)));
-            break;
-          case "VAR_SAMP":
-            aggregators.add(VarianceFn.newSample(BigDecimalConverter.forSqlType(fieldTypeName)));
-            break;
-          case "COVAR_POP":
-            aggregators.add(
-                CovarianceFn.newPopulation(BigDecimalConverter.forSqlType(fieldTypeName)));
-            break;
-          case "COVAR_SAMP":
-            aggregators.add(CovarianceFn.newSample(BigDecimalConverter.forSqlType(fieldTypeName)));
-            break;
-          default:
-            if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-              // handle UDAF.
-              SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
-              UdafImpl fn = (UdafImpl) udaf.function;
-              try {
-                aggregators.add(fn.getCombineFn());
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            } else {
-              throw new UnsupportedOperationException(
-                  String.format(
-                      "Aggregator [%s] is not supported", call.getAggregation().getName()));
-            }
-            break;
-        }
+        aggregators.add(
+            createAggregator(call, call.getAggregation().getName(), field.getType().getTypeName()));
       }
       finalSchema = fields.build().stream().collect(toSchema());
+    }
+
+    private CombineFn<?, ?, ?> createAggregator(
+        AggregateCall call, String aggregatorName, Schema.TypeName fieldTypeName) {
+
+      Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
+          BUILTIN_AGGREGATOR_FACTORIES.get(aggregatorName);
+
+      if (aggregatorFactory != null) {
+        return aggregatorFactory.apply(fieldTypeName);
+      }
+
+      if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+        // handle UDAF.
+        SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
+        UdafImpl fn = (UdafImpl) udaf.function;
+        try {
+          return fn.getCombineFn();
+        } catch (Exception e) {
+          throw new IllegalStateException(e);
+        }
+      } else {
+        throw new UnsupportedOperationException(
+            String.format("Aggregator [%s] is not supported", call.getAggregation().getName()));
+      }
     }
 
     @Override
