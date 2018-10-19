@@ -106,73 +106,83 @@ public class FlinkStateInternals<K> implements StateInternals {
         .getSpec()
         .bind(
             address.getId(),
-            new StateBinder() {
+            new FlinkStateBinder(namespace, context, flinkStateBackend, watermarkHolds));
+  }
 
-              @Override
-              public <T2> ValueState<T2> bindValue(
-                  String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
-                return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
-              }
+  private static class FlinkStateBinder implements StateBinder {
 
-              @Override
-              public <T2> BagState<T2> bindBag(
-                  String id, StateSpec<BagState<T2>> spec, Coder<T2> elemCoder) {
-                return new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
-              }
+    private final StateNamespace namespace;
+    private final StateContext<?> stateContext;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final Map<String, Instant> watermarkHolds;
 
-              @Override
-              public <T2> SetState<T2> bindSet(
-                  String id, StateSpec<SetState<T2>> spec, Coder<T2> elemCoder) {
-                return new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder);
-              }
+    private FlinkStateBinder(
+        StateNamespace namespace,
+        StateContext<?> stateContext,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        Map<String, Instant> watermarkHolds) {
+      this.namespace = namespace;
+      this.stateContext = stateContext;
+      this.flinkStateBackend = flinkStateBackend;
+      this.watermarkHolds = watermarkHolds;
+    }
 
-              @Override
-              public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-                  String id,
-                  StateSpec<MapState<KeyT, ValueT>> spec,
-                  Coder<KeyT> mapKeyCoder,
-                  Coder<ValueT> mapValueCoder) {
-                return new FlinkMapState<>(
-                    flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
-              }
+    @Override
+    public <T2> ValueState<T2> bindValue(
+        String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
+      return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
+    }
 
-              @Override
-              public <InputT, AccumT, OutputT>
-                  CombiningState<InputT, AccumT, OutputT> bindCombining(
-                      String id,
-                      StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
-                      Coder<AccumT> accumCoder,
-                      Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-                return new FlinkCombiningState<>(
-                    flinkStateBackend, id, combineFn, namespace, accumCoder);
-              }
+    @Override
+    public <T2> BagState<T2> bindBag(String id, StateSpec<BagState<T2>> spec, Coder<T2> elemCoder) {
+      return new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
+    }
 
-              @Override
-              public <InputT, AccumT, OutputT>
-                  CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
-                      String id,
-                      StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
-                      Coder<AccumT> accumCoder,
-                      CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-                return new FlinkCombiningStateWithContext<>(
-                    flinkStateBackend,
-                    id,
-                    combineFn,
-                    namespace,
-                    accumCoder,
-                    FlinkStateInternals.this,
-                    CombineContextFactory.createFromStateContext(context));
-              }
+    @Override
+    public <T2> SetState<T2> bindSet(String id, StateSpec<SetState<T2>> spec, Coder<T2> elemCoder) {
+      return new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder);
+    }
 
-              @Override
-              public WatermarkHoldState bindWatermark(
-                  String id,
-                  StateSpec<WatermarkHoldState> spec,
-                  TimestampCombiner timestampCombiner) {
-                return new FlinkWatermarkHoldState<>(
-                    flinkStateBackend, FlinkStateInternals.this, id, namespace, timestampCombiner);
-              }
-            });
+    @Override
+    public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+        String id,
+        StateSpec<MapState<KeyT, ValueT>> spec,
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder) {
+      return new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+        String id,
+        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+      return new FlinkCombiningState<>(flinkStateBackend, id, combineFn, namespace, accumCoder);
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT>
+        CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+            String id,
+            StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+            Coder<AccumT> accumCoder,
+            CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      return new FlinkCombiningStateWithContext<>(
+          flinkStateBackend,
+          id,
+          combineFn,
+          namespace,
+          accumCoder,
+          CombineContextFactory.createFromStateContext(stateContext));
+    }
+
+    @Override
+    public WatermarkHoldState bindWatermark(
+        String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
+      return new FlinkWatermarkHoldState<>(
+          flinkStateBackend, watermarkHolds, id, namespace, timestampCombiner);
+    }
   }
 
   private static class FlinkValueState<T> implements ValueState<T> {
@@ -535,7 +545,6 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
-    private final FlinkStateInternals<K> flinkStateInternals;
     private final CombineWithContext.Context context;
 
     FlinkCombiningStateWithContext(
@@ -544,14 +553,12 @@ public class FlinkStateInternals<K> implements StateInternals {
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkStateInternals<K> flinkStateInternals,
         CombineWithContext.Context context) {
 
       this.namespace = namespace;
       this.stateId = stateId;
       this.combineFn = combineFn;
       this.flinkStateBackend = flinkStateBackend;
-      this.flinkStateInternals = flinkStateInternals;
       this.context = context;
 
       flinkStateDescriptor =
@@ -699,12 +706,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final TimestampCombiner timestampCombiner;
     private final StateNamespace namespace;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
-    private final FlinkStateInternals<K> flinkStateInternals;
+    private final Map<String, Instant> watermarkHolds;
     private final ValueStateDescriptor<Instant> flinkStateDescriptor;
 
     public FlinkWatermarkHoldState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        FlinkStateInternals<K> flinkStateInternals,
+        Map<String, Instant> watermarkHolds,
         String stateId,
         StateNamespace namespace,
         TimestampCombiner timestampCombiner) {
@@ -712,7 +719,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.timestampCombiner = timestampCombiner;
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
-      this.flinkStateInternals = flinkStateInternals;
+      this.watermarkHolds = watermarkHolds;
 
       flinkStateDescriptor =
           new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(InstantCoder.of()));
@@ -761,11 +768,11 @@ public class FlinkStateInternals<K> implements StateInternals {
         Instant current = state.value();
         if (current == null) {
           state.update(value);
-          flinkStateInternals.watermarkHolds.put(namespace.stringKey(), value);
+          watermarkHolds.put(namespace.stringKey(), value);
         } else {
           Instant combined = timestampCombiner.combine(current, value);
           state.update(combined);
-          flinkStateInternals.watermarkHolds.put(namespace.stringKey(), combined);
+          watermarkHolds.put(namespace.stringKey(), combined);
         }
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
@@ -786,7 +793,7 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public void clear() {
-      flinkStateInternals.watermarkHolds.remove(namespace.stringKey());
+      watermarkHolds.remove(namespace.stringKey());
       try {
         org.apache.flink.api.common.state.ValueState<Instant> state =
             flinkStateBackend.getPartitionedState(
