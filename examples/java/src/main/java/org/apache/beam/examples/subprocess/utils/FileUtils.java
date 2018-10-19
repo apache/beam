@@ -47,7 +47,7 @@ public class FileUtils {
   }
 
   public static String toStringParams(ProcessBuilder builder) {
-    return (String.join(",", builder.command()));
+    return String.join(",", builder.command());
   }
 
   public static String copyFileFromWorkerToGCS(

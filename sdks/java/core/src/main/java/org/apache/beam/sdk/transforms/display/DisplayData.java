@@ -610,7 +610,7 @@ public class DisplayData implements Serializable {
       @Override
       FormattedItemValue format(Object value) {
         Instant instant = checkType(value, Instant.class, TIMESTAMP);
-        return new FormattedItemValue((TIMESTAMP_FORMATTER.print(instant)));
+        return new FormattedItemValue(TIMESTAMP_FORMATTER.print(instant));
       }
     },
     DURATION {
