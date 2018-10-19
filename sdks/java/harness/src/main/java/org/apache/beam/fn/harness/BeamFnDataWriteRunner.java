@@ -47,6 +47,8 @@ import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
@@ -56,6 +58,8 @@ import org.apache.beam.sdk.util.WindowedValue;
  * {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataWriteRunner.class);
 
   /** A registrar which provides a factory to handle writing to the Fn Api Data Plane. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -91,9 +95,17 @@ public class BeamFnDataWriteRunner<InputT> {
               .setPrimitiveTransformReference(pTransformId)
               .setName(getOnlyElement(pTransform.getInputsMap().keySet()))
               .build();
-      RunnerApi.Coder coderSpec =
-          coders.get(
-              pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
+      RunnerApi.Coder coderSpec;
+      if (RemoteGrpcPortWrite.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
+        LOG.error(
+            "Missing required coder_id on grpc_port for %s; using deprecated fallback.",
+            pTransformId);
+        coderSpec =
+            coders.get(
+                pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
+      } else {
+        coderSpec = null;
+      }
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
               pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
