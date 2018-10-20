@@ -85,7 +85,10 @@ public class BeamAggregationTransforms implements Serializable {
     }
   }
 
-  /** Wrapper for aggregation function call information. */
+  /**
+   * Wrapper for aggregation function call. This is needed to avoid dealing with non-serializable
+   * Calcite classes.
+   */
   @AutoValue
   public abstract static class AggregationCall implements Serializable {
     public abstract String functionName();
@@ -94,30 +97,73 @@ public class BeamAggregationTransforms implements Serializable {
 
     public abstract List<Integer> args();
 
-    public abstract @Nullable CombineFn<?, ?, ?> udafCombineFn();
+    public abstract @Nullable CombineFn<?, ?, ?> combineFn();
+
+    public abstract Builder toBuilder();
+
+    public static Builder builder() {
+      return new AutoValue_BeamAggregationTransforms_AggregationCall.Builder();
+    }
 
     public static AggregationCall of(Pair<AggregateCall, String> callWithAlias) {
       AggregateCall call = callWithAlias.getKey();
-      String alias = callWithAlias.getValue();
+      Schema.Field field = CalciteUtils.toField(callWithAlias.getValue(), call.getType());
+      String functionName = call.getAggregation().getName();
 
-      return new AutoValue_BeamAggregationTransforms_AggregationCall(
-          call.getAggregation().getName(),
-          CalciteUtils.toField(alias, call.getType()),
-          call.getArgList(),
-          getUdafCombineFn(call));
+      Builder builder =
+          builder()
+              .setFunctionName(functionName)
+              .setArgs(call.getArgList())
+              .setField(field)
+              .setCombineFn(createCombineFn(call, field, functionName));
+
+      return builder.build();
+    }
+
+    private static CombineFn<?, ?, ?> createCombineFn(
+        AggregateCall call, Schema.Field field, String functionName) {
+      if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+        return getUdafCombineFn(call);
+      }
+
+      return createAggregator(functionName, field.getType().getTypeName());
     }
 
     private static @Nullable CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
-      if (!(call.getAggregation() instanceof SqlUserDefinedAggFunction)) {
-        return null;
-      }
-
       try {
         return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
             .getCombineFn();
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
+    }
+
+    private static CombineFn<?, ?, ?> createAggregator(
+        String functionName, Schema.TypeName fieldTypeName) {
+
+      Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
+          BUILTIN_AGGREGATOR_FACTORIES.get(functionName);
+
+      if (aggregatorFactory != null) {
+        return aggregatorFactory.apply(fieldTypeName);
+      }
+
+      throw new UnsupportedOperationException(
+          String.format("Aggregator [%s] is not supported", functionName));
+    }
+
+    /** Builder for AggregationCall. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setFunctionName(String functionName);
+
+      public abstract Builder setField(Schema.Field field);
+
+      public abstract Builder setArgs(List<Integer> args);
+
+      public abstract Builder setCombineFn(@Nullable CombineFn<?, ?, ?> combineFn);
+
+      public abstract AggregationCall build();
     }
   }
 
@@ -132,6 +178,7 @@ public class BeamAggregationTransforms implements Serializable {
       this.aggregators = new ArrayList<>();
       this.sourceFieldExps = new ArrayList<>();
       this.sourceSchema = sourceSchema;
+
       ImmutableList.Builder<Schema.Field> fields = ImmutableList.builder();
 
       for (AggregationCall aggCall : aggregationCalls) {
@@ -151,27 +198,9 @@ public class BeamAggregationTransforms implements Serializable {
         }
 
         fields.add(aggCall.field());
-        aggregators.add(createAggregator(aggCall, aggCall.field().getType().getTypeName()));
+        aggregators.add(aggCall.combineFn());
       }
       finalSchema = fields.build().stream().collect(toSchema());
-    }
-
-    private CombineFn<?, ?, ?> createAggregator(
-        AggregationCall aggCall, Schema.TypeName fieldTypeName) {
-
-      if (aggCall.udafCombineFn() != null) {
-        return aggCall.udafCombineFn();
-      }
-
-      Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
-          BUILTIN_AGGREGATOR_FACTORIES.get(aggCall.functionName());
-
-      if (aggregatorFactory != null) {
-        return aggregatorFactory.apply(fieldTypeName);
-      }
-
-      throw new UnsupportedOperationException(
-          String.format("Aggregator [%s] is not supported", aggCall.functionName()));
     }
 
     @Override
