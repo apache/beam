@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -183,8 +184,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             upstream
                 .apply(
                     "assignEventTimestamp",
-                    WithTimestamps.of(
-                            new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
+                    WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
                         .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
                 .setCoder(upstream.getCoder());
         windowedStream = upstream.apply(Window.into(windowFn));
@@ -197,8 +197,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               .apply(
                   "exCombineBy",
                   WithKeys.of(
-                      new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                          keySchema, keyFieldsIds)))
+                      row -> keyFieldsIds.stream().map(row::getValue).collect(toRow(keySchema))))
               .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
       PCollection<KV<Row, Row>> aggregatedStream =
