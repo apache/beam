@@ -123,7 +123,7 @@ compileJavacc {
   dependsOn generateFmppSources
   inputDirectory = file(generateFmppJavaccRoot)
   outputDirectory = file(generatedJavaccPackageDir)
-  arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
+  arguments = [static: "false", lookahead: "2"]
 }
 
 // Help IntelliJ find the fmpp bits
