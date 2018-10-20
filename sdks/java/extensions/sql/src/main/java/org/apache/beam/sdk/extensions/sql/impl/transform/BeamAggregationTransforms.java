@@ -21,9 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggre
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +30,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
@@ -45,13 +42,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
-import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
-import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -60,7 +53,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.joda.time.Instant;
 
@@ -98,14 +90,9 @@ public class BeamAggregationTransforms implements Serializable {
     private Schema keySchema;
     private List<Integer> groupByKeys;
 
-    public AggregationGroupByKeyFn(Schema keySchema, int windowFieldIdx, ImmutableBitSet groupSet) {
+    public AggregationGroupByKeyFn(Schema keySchema, List<Integer> groupByKeys) {
       this.keySchema = keySchema;
-      this.groupByKeys = new ArrayList<>();
-      for (int i : groupSet.asList()) {
-        if (i != windowFieldIdx) {
-          groupByKeys.add(i);
-        }
-      }
+      this.groupByKeys = groupByKeys;
     }
 
     @Override
@@ -119,7 +106,6 @@ public class BeamAggregationTransforms implements Serializable {
     private int windowFieldIdx = -1;
 
     public WindowTimestampFn(int windowFieldIdx) {
-      super();
       this.windowFieldIdx = windowFieldIdx;
     }
 

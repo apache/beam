@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
@@ -113,10 +114,56 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
+    return new Transform(
+        windowFn, windowFieldIndex, input, groupSet, getNamedAggCalls(), getRowType());
   }
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+  private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    private final List<Integer> keyFieldsIds;
+    private Schema outputSchema;
+    private Schema keySchema;
+    private SchemaCoder<Row> keyCoder;
+    private WindowFn<Row, IntervalWindow> windowFn;
+    private int windowFieldIndex;
+    private List<Pair<AggregateCall, String>> namedAggCalls;
+    private Schema inputSchema;
+    private SchemaCoder<Row> aggCoder;
+
+    private Transform(
+        WindowFn<Row, IntervalWindow> windowFn,
+        int windowFieldIndex,
+        RelNode input,
+        ImmutableBitSet groupSet,
+        List<Pair<AggregateCall, String>> namedAggCalls,
+        RelDataType rowType) {
+
+      this.windowFn = windowFn;
+      this.windowFieldIndex = windowFieldIndex;
+      this.namedAggCalls = namedAggCalls;
+
+      this.inputSchema = CalciteUtils.toSchema(input.getRowType());
+      this.outputSchema = CalciteUtils.toSchema(rowType);
+
+      this.keySchema =
+          groupSet
+              .asList()
+              .stream()
+              .filter(i -> i != windowFieldIndex)
+              .map(inputSchema::getField)
+              .collect(toSchema());
+
+      this.keyFieldsIds =
+          groupSet.asList().stream().filter(i -> i != windowFieldIndex).collect(toList());
+
+      this.keyCoder = SchemaCoder.of(keySchema);
+      this.aggCoder =
+          SchemaCoder.of(
+              namedAggCalls
+                  .stream()
+                  .map(agg -> CalciteUtils.toField(agg.right, agg.left.getType()))
+                  .collect(toSchema()));
+    }
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
@@ -141,26 +188,21 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       validateWindowIsSupported(windowedStream);
 
-      Schema keySchema = exKeyFieldsSchema(input.getRowType());
-      SchemaCoder<Row> keyCoder = SchemaCoder.of(keySchema);
       PCollection<KV<Row, Row>> exCombineByStream =
           windowedStream
               .apply(
                   "exCombineBy",
                   WithKeys.of(
                       new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                          keySchema, windowFieldIndex, groupSet)))
+                          keySchema, keyFieldsIds)))
               .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
-
-      SchemaCoder<Row> aggCoder = SchemaCoder.of(exAggFieldsSchema());
 
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
               .apply(
                   "combineBy",
                   Combine.perKey(
-                      new BeamAggregationTransforms.AggregationAdaptor(
-                          getNamedAggCalls(), CalciteUtils.toSchema(input.getRowType()))))
+                      new BeamAggregationTransforms.AggregationAdaptor(namedAggCalls, inputSchema)))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
@@ -168,8 +210,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
-                      CalciteUtils.toSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setRowSchema(CalciteUtils.toSchema(getRowType()));
+                      outputSchema, windowFieldIndex)));
+      mergedStream.setRowSchema(outputSchema);
 
       return mergedStream;
     }
@@ -195,30 +237,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                 + "in Beam SQL aggregations. "
                 + "See GroupByKey section in Beam Programming Guide");
       }
-    }
-
-    /** Type of sub-rowrecord used as Group-By keys. */
-    private Schema exKeyFieldsSchema(RelDataType relDataType) {
-      Schema inputSchema = CalciteUtils.toSchema(relDataType);
-      return groupSet
-          .asList()
-          .stream()
-          .filter(i -> i != windowFieldIndex)
-          .map(i -> newRowField(inputSchema, i))
-          .collect(toSchema());
-    }
-
-    private Schema.Field newRowField(Schema schema, int i) {
-      return schema.getField(i);
-    }
-
-    /** Type of sub-rowrecord, that represents the list of aggregation fields. */
-    private Schema exAggFieldsSchema() {
-      return getNamedAggCalls().stream().map(this::newRowField).collect(toSchema());
-    }
-
-    private Schema.Field newRowField(Pair<AggregateCall, String> namedAggCall) {
-      return CalciteUtils.toField(namedAggCall.right, namedAggCall.left.getType());
     }
   }
 
