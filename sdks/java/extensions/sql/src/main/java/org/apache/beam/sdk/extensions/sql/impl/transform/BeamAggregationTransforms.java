@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggre
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -115,6 +117,42 @@ public class BeamAggregationTransforms implements Serializable {
     }
   }
 
+  /** Wrapper for aggregation function call information. */
+  @AutoValue
+  public abstract static class AggregationCall implements Serializable {
+    public abstract String functionName();
+
+    public abstract Schema.Field field();
+
+    public abstract List<Integer> args();
+
+    public abstract @Nullable CombineFn<?, ?, ?> udafCombineFn();
+
+    public static AggregationCall of(Pair<AggregateCall, String> callWithAlias) {
+      AggregateCall call = callWithAlias.getKey();
+      String alias = callWithAlias.getValue();
+
+      return new AutoValue_BeamAggregationTransforms_AggregationCall(
+          call.getAggregation().getName(),
+          CalciteUtils.toField(alias, call.getType()),
+          call.getArgList(),
+          getUdafCombineFn(call));
+    }
+
+    private static @Nullable CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
+      if (!(call.getAggregation() instanceof SqlUserDefinedAggFunction)) {
+        return null;
+      }
+
+      try {
+        return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
+            .getCombineFn();
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    }
+  }
+
   /** An adaptor class to invoke Calcite UDAF instances in Beam {@code CombineFn}. */
   public static class AggregationAdaptor extends CombineFn<Row, AggregationAccumulator, Row> {
     private List<CombineFn> aggregators;
@@ -122,62 +160,50 @@ public class BeamAggregationTransforms implements Serializable {
     private Schema sourceSchema;
     private Schema finalSchema;
 
-    public AggregationAdaptor(
-        List<Pair<AggregateCall, String>> aggregationCalls, Schema sourceSchema) {
+    public AggregationAdaptor(List<AggregationCall> aggregationCalls, Schema sourceSchema) {
       this.aggregators = new ArrayList<>();
       this.sourceFieldExps = new ArrayList<>();
       this.sourceSchema = sourceSchema;
       ImmutableList.Builder<Schema.Field> fields = ImmutableList.builder();
 
-      for (Pair<AggregateCall, String> aggCall : aggregationCalls) {
-        AggregateCall call = aggCall.left;
-        String aggName = aggCall.right;
+      for (AggregationCall aggCall : aggregationCalls) {
 
-        if (call.getArgList().size() == 2) {
+        if (aggCall.args().size() == 2) {
           /*
            * handle the case of aggregation function has two parameters and use KV pair to bundle
            * two corresponding expressions.
            */
-          int refIndexKey = call.getArgList().get(0);
-          int refIndexValue = call.getArgList().get(1);
+          int refIndexKey = aggCall.args().get(0);
+          int refIndexValue = aggCall.args().get(1);
 
           sourceFieldExps.add(KV.of(refIndexKey, refIndexValue));
         } else {
-          Integer refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
+          Integer refIndex = aggCall.args().size() > 0 ? aggCall.args().get(0) : 0;
           sourceFieldExps.add(refIndex);
         }
 
-        Schema.Field field = CalciteUtils.toField(aggName, call.getType());
-        fields.add(field);
-        aggregators.add(
-            createAggregator(call, call.getAggregation().getName(), field.getType().getTypeName()));
+        fields.add(aggCall.field());
+        aggregators.add(createAggregator(aggCall, aggCall.field().getType().getTypeName()));
       }
       finalSchema = fields.build().stream().collect(toSchema());
     }
 
     private CombineFn<?, ?, ?> createAggregator(
-        AggregateCall call, String aggregatorName, Schema.TypeName fieldTypeName) {
+        AggregationCall aggCall, Schema.TypeName fieldTypeName) {
+
+      if (aggCall.udafCombineFn() != null) {
+        return aggCall.udafCombineFn();
+      }
 
       Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
-          BUILTIN_AGGREGATOR_FACTORIES.get(aggregatorName);
+          BUILTIN_AGGREGATOR_FACTORIES.get(aggCall.functionName());
 
       if (aggregatorFactory != null) {
         return aggregatorFactory.apply(fieldTypeName);
       }
 
-      if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-        // handle UDAF.
-        SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
-        UdafImpl fn = (UdafImpl) udaf.function;
-        try {
-          return fn.getCombineFn();
-        } catch (Exception e) {
-          throw new IllegalStateException(e);
-        }
-      } else {
-        throw new UnsupportedOperationException(
-            String.format("Aggregator [%s] is not supported", call.getAggregation().getName()));
-      }
+      throw new UnsupportedOperationException(
+          String.format("Aggregator [%s] is not supported", aggCall.functionName()));
     }
 
     @Override
