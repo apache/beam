@@ -26,6 +26,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import FlinkOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
@@ -71,7 +72,6 @@ if __name__ == '__main__':
             'java',
             '-jar', flink_job_server_jar,
             '--artifacts-dir', tmp_dir,
-            '--job-host', 'localhost',
             '--job-port', str(port),
             '--artifact-port', '0',
         ]
@@ -85,6 +85,7 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
+      options.view_as(FlinkOptions).parallelism = 1
       # Default environment is Docker.
       if environment_type == 'process':
         options.view_as(PortableOptions).environment_type = 'PROCESS'
