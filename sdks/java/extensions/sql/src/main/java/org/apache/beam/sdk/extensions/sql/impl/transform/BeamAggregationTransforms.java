@@ -48,7 +48,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
@@ -56,7 +55,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.util.Pair;
-import org.joda.time.Instant;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform GROUP-BY operation. */
 public class BeamAggregationTransforms implements Serializable {
@@ -84,36 +82,6 @@ public class BeamAggregationTransforms implements Serializable {
       }
 
       c.output(Row.withSchema(outSchema).addValues(fieldValues).build());
-    }
-  }
-
-  /** extract group-by fields. */
-  public static class AggregationGroupByKeyFn implements SerializableFunction<Row, Row> {
-    private Schema keySchema;
-    private List<Integer> groupByKeys;
-
-    public AggregationGroupByKeyFn(Schema keySchema, List<Integer> groupByKeys) {
-      this.keySchema = keySchema;
-      this.groupByKeys = groupByKeys;
-    }
-
-    @Override
-    public Row apply(Row input) {
-      return groupByKeys.stream().map(input::getValue).collect(toRow(keySchema));
-    }
-  }
-
-  /** Assign event timestamp. */
-  public static class WindowTimestampFn implements SerializableFunction<Row, Instant> {
-    private int windowFieldIdx = -1;
-
-    public WindowTimestampFn(int windowFieldIdx) {
-      this.windowFieldIdx = windowFieldIdx;
-    }
-
-    @Override
-    public Instant apply(Row input) {
-      return new Instant(input.getDateTime(windowFieldIdx));
     }
   }
 
