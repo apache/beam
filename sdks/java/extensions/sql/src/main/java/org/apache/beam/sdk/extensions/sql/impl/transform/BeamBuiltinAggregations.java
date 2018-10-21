@@ -45,9 +45,9 @@ import org.apache.beam.sdk.values.KV;
  *
  * <p>TODO: Consider making the interface in terms of (1-column) rows. reuvenlax
  */
-class BeamBuiltinAggregations {
+public class BeamBuiltinAggregations {
 
-  static final Map<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>
+  public static final Map<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>builder()
               .put("COUNT", typeName -> Count.combineFn())
