@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -30,7 +32,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.runtime.SqlFunctions;
 
 /**
@@ -43,7 +45,7 @@ import org.apache.calcite.runtime.SqlFunctions;
  */
 @Internal
 public class CovarianceFn<T extends Number>
-    extends Combine.CombineFn<KV<T, T>, CovarianceAccumulator, T> {
+    extends Combine.CombineFn<Row, CovarianceAccumulator, T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
 
@@ -84,15 +86,17 @@ public class CovarianceFn<T extends Number>
   }
 
   @Override
-  public CovarianceAccumulator addInput(CovarianceAccumulator currentVariance, KV<T, T> rawInput) {
+  public CovarianceAccumulator addInput(CovarianceAccumulator currentVariance, Row rawInput) {
     if (rawInput == null) {
       return currentVariance;
     }
 
+    checkArgument(rawInput.getFieldCount() > 1);
+
     return currentVariance.combineWith(
         CovarianceAccumulator.ofSingleElement(
-            SqlFunctions.toBigDecimal(rawInput.getKey()),
-            SqlFunctions.toBigDecimal(rawInput.getValue())));
+            SqlFunctions.toBigDecimal((Object) rawInput.getValue(0)),
+            SqlFunctions.toBigDecimal((Object) rawInput.getValue(1))));
   }
 
   @Override
@@ -103,7 +107,7 @@ public class CovarianceFn<T extends Number>
 
   @Override
   public Coder<CovarianceAccumulator> getAccumulatorCoder(
-      CoderRegistry registry, Coder<KV<T, T>> inputCoder) {
+      CoderRegistry registry, Coder<Row> inputCoder) {
     return SerializableCoder.of(CovarianceAccumulator.class);
   }
 
