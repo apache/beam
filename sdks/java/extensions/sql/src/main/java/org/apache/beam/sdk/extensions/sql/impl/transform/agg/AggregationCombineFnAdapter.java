@@ -78,7 +78,7 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
       return getUdafCombineFn(call);
     }
 
-    return createAggregator(functionName, field.getType().getTypeName());
+    return createBuiltinCombineFn(functionName, field.getType().getTypeName());
   }
 
   private static Combine.CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
@@ -90,7 +90,7 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
     }
   }
 
-  private static Combine.CombineFn<?, ?, ?> createAggregator(
+  private static Combine.CombineFn<?, ?, ?> createBuiltinCombineFn(
       String functionName, Schema.TypeName fieldTypeName) {
 
     Function<Schema.TypeName, Combine.CombineFn<?, ?, ?>> aggregatorFactory =
@@ -111,20 +111,24 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
 
   @Override
   public Object addInput(Object accumulator, Row input) {
-    if (args.size() == 2) {
-      // Aggregation function takes KV
-      Object key = input.getValue(args.get(0));
-      Object value = input.getValue(args.get(1));
 
-      return (key == null || value == null)
-          ? accumulator
-          : combineFn.addInput(accumulator, KV.of(key, value));
-    } else {
-      // Aggregation function takes single value
-      int fieldIndex = args.size() == 0 ? 0 : args.get(0);
-      Object value = input.getValue(fieldIndex);
+    if (args.size() == 0) {
+      Object value = input.getValue(0);
       return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
     }
+
+    if (args.size() == 1) {
+      Object value = input.getValue(args.get(0));
+      return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
+    }
+
+    // Aggregation function takes KV
+    Object key = input.getValue(args.get(0));
+    Object value = input.getValue(args.get(1));
+
+    return (key == null || value == null)
+        ? accumulator
+        : combineFn.addInput(accumulator, KV.of(key, value));
   }
 
   @Override
@@ -141,21 +145,25 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
   public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Row> inputCoder)
       throws CannotProvideCoderException {
 
-    if (args.size() == 2) {
-      int keyIndex = args.get(0);
-      int valueIndex = args.get(1);
+    if (args.size() == 0) {
+      Coder srcFieldCoder = RowCoder.coderForFieldType(sourceSchema.getField(0).getType());
+      return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
+    }
 
-      Coder srcFieldCoderKey =
-          RowCoder.coderForFieldType(sourceSchema.getField(keyIndex).getType());
-      Coder srcFieldCoderValue =
-          RowCoder.coderForFieldType(sourceSchema.getField(valueIndex).getType());
-
-      return combineFn.getAccumulatorCoder(
-          registry, KvCoder.of(srcFieldCoderKey, srcFieldCoderValue));
-    } else {
+    if (args.size() == 1) {
       int fieldIndex = args.size() == 0 ? 0 : args.get(0);
       Coder srcFieldCoder = RowCoder.coderForFieldType(sourceSchema.getField(fieldIndex).getType());
       return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
     }
+
+    int keyIndex = args.get(0);
+    int valueIndex = args.get(1);
+
+    Coder srcFieldCoderKey = RowCoder.coderForFieldType(sourceSchema.getField(keyIndex).getType());
+    Coder srcFieldCoderValue =
+        RowCoder.coderForFieldType(sourceSchema.getField(valueIndex).getType());
+
+    return combineFn.getAccumulatorCoder(
+        registry, KvCoder.of(srcFieldCoderKey, srcFieldCoderValue));
   }
 }
