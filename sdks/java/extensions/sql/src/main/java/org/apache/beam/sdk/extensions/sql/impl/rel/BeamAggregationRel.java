@@ -181,37 +181,58 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<Row> upstream = pinput.get(0);
       PCollection<Row> windowedStream = upstream;
       if (windowFn != null) {
-        upstream =
-            upstream
-                .apply(
-                    "assignEventTimestamp",
-                    WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
-                        .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
-                .setCoder(upstream.getCoder());
-        windowedStream = upstream.apply(Window.into(windowFn));
+        windowedStream = assignTimestampsAndWindow(upstream);
       }
 
       validateWindowIsSupported(windowedStream);
 
-      PCollection<KV<Row, Row>> exCombineByStream =
-          windowedStream
-              .apply(
-                  "exCombineBy",
-                  WithKeys.of(
-                      row -> keyFieldsIds.stream().map(row::getValue).collect(toRow(keySchema))))
-              .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+      PCollection<KV<Row, Row>> exCombineByStream = extractGroupingKeys(upstream, windowedStream);
 
-      PCollection<KV<Row, Row>> aggregatedStream =
-          exCombineByStream
-              .apply(
-                  "combineBy", Combine.perKey(MultipleAggregationsFn.combineFns(aggregationCalls)))
-              .setCoder(KvCoder.of(keyCoder, aggCoder));
+      PCollection<KV<Row, Row>> aggregatedStream = performAggregation(exCombineByStream);
 
+      PCollection<Row> mergedStream = mergeRows(aggregatedStream);
+
+      return mergedStream;
+    }
+
+    /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
+    private PCollection<Row> assignTimestampsAndWindow(PCollection<Row> upstream) {
+      PCollection<Row> windowedStream;
+      windowedStream =
+          upstream
+              .apply(
+                  "assignEventTimestamp",
+                  WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
+                      .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
+              .setCoder(upstream.getCoder())
+              .apply(Window.into(windowFn));
+      return windowedStream;
+    }
+
+    /** Extract non-windowing group-by fields, assign them as a key. */
+    private PCollection<KV<Row, Row>> extractGroupingKeys(
+        PCollection<Row> upstream, PCollection<Row> windowedStream) {
+      return windowedStream
+          .apply(
+              "exCombineBy",
+              WithKeys.of(
+                  row -> keyFieldsIds.stream().map(row::getValue).collect(toRow(keySchema))))
+          .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+    }
+
+    private PCollection<KV<Row, Row>> performAggregation(
+        PCollection<KV<Row, Row>> exCombineByStream) {
+      return exCombineByStream
+          .apply("combineBy", Combine.perKey(MultipleAggregationsFn.combineFns(aggregationCalls)))
+          .setCoder(KvCoder.of(keyCoder, aggCoder));
+    }
+
+    /** Merge the KVs back into whole rows. */
+    private PCollection<Row> mergeRows(PCollection<KV<Row, Row>> aggregatedStream) {
       PCollection<Row> mergedStream =
           aggregatedStream.apply(
               "mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)));
       mergedStream.setRowSchema(outputSchema);
-
       return mergedStream;
     }
 
@@ -238,8 +259,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       }
     }
 
-    public static DoFn<KV<Row, Row>, Row> mergeRecord(
-        Schema outputSchema, int windowStartFieldIndex) {
+    static DoFn<KV<Row, Row>, Row> mergeRecord(Schema outputSchema, int windowStartFieldIndex) {
 
       return new DoFn<KV<Row, Row>, Row>() {
         @ProcessElement
