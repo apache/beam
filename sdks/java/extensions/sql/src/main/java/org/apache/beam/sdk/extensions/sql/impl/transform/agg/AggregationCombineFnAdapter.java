@@ -45,15 +45,15 @@ import org.apache.calcite.util.Pair;
  */
 public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, Object> {
 
-  protected Schema.Field field;
+  private Schema.Field field;
 
-  protected List<Integer> args;
+  private List<Integer> args;
 
-  protected Combine.CombineFn combineFn;
+  private Combine.CombineFn combineFn;
 
-  protected Schema sourceSchema;
+  private Schema sourceSchema;
 
-  protected ArgsAdapter argsAdapter;
+  private ArgsAdapter argsAdapter;
 
   public Schema.Field field() {
     return field;
