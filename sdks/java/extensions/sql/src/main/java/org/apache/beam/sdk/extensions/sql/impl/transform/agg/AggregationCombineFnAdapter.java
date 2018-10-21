@@ -19,10 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES;
 
-import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -42,19 +40,26 @@ import org.apache.calcite.util.Pair;
  * Wrapper for aggregation function call. This is needed to avoid dealing with non-serializable
  * Calcite classes.
  */
-@AutoValue
-public abstract class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, Object> {
+public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, Object> {
 
-  public abstract Schema.Field field();
+  protected Schema.Field field;
 
-  public abstract List<Integer> args();
+  protected List<Integer> args;
 
-  public abstract @Nullable Combine.CombineFn combineFn();
+  protected Combine.CombineFn combineFn;
 
-  public abstract Schema sourceSchema();
+  protected Schema sourceSchema;
 
-  public static Builder builder() {
-    return new AutoValue_AggregationCombineFnAdapter.Builder();
+  public Schema.Field field() {
+    return field;
+  }
+
+  public AggregationCombineFnAdapter(
+      Schema.Field field, List<Integer> args, Combine.CombineFn combineFn, Schema sourceSchema) {
+    this.field = field;
+    this.args = args;
+    this.combineFn = combineFn;
+    this.sourceSchema = sourceSchema;
   }
 
   public static AggregationCombineFnAdapter of(
@@ -63,14 +68,8 @@ public abstract class AggregationCombineFnAdapter extends Combine.CombineFn<Row,
     Schema.Field field = CalciteUtils.toField(callWithAlias.getValue(), call.getType());
     String functionName = call.getAggregation().getName();
 
-    Builder builder =
-        builder()
-            .setArgs(call.getArgList())
-            .setField(field)
-            .setSourceSchema(inputSchema)
-            .setCombineFn(createCombineFn(call, field, functionName));
-
-    return builder.build();
+    return new AggregationCombineFnAdapter(
+        field, call.getArgList(), createCombineFn(call, field, functionName), inputSchema);
   }
 
   private static Combine.CombineFn<?, ?, ?> createCombineFn(
@@ -82,7 +81,7 @@ public abstract class AggregationCombineFnAdapter extends Combine.CombineFn<Row,
     return createAggregator(functionName, field.getType().getTypeName());
   }
 
-  private static @Nullable Combine.CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
+  private static Combine.CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
     try {
       return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
           .getCombineFn();
@@ -105,73 +104,58 @@ public abstract class AggregationCombineFnAdapter extends Combine.CombineFn<Row,
         String.format("Aggregator [%s] is not supported", functionName));
   }
 
-  /** Builder for AggregationCombineFnAdapter. */
-  @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setSourceSchema(Schema sourceSchema);
-
-    public abstract Builder setField(Schema.Field field);
-
-    public abstract Builder setArgs(List<Integer> args);
-
-    public abstract Builder setCombineFn(@Nullable Combine.CombineFn combineFn);
-
-    public abstract AggregationCombineFnAdapter build();
-  }
-
   @Override
   public Object createAccumulator() {
-    return combineFn().createAccumulator();
+    return combineFn.createAccumulator();
   }
 
   @Override
   public Object addInput(Object accumulator, Row input) {
-    if (args().size() == 2) {
+    if (args.size() == 2) {
       // Aggregation function takes KV
-      Object key = input.getValue(args().get(0));
-      Object value = input.getValue(args().get(1));
+      Object key = input.getValue(args.get(0));
+      Object value = input.getValue(args.get(1));
 
       return (key == null || value == null)
           ? accumulator
-          : combineFn().addInput(accumulator, KV.of(key, value));
+          : combineFn.addInput(accumulator, KV.of(key, value));
     } else {
       // Aggregation function takes single value
-      int fieldIndex = args().size() == 0 ? 0 : args().get(0);
+      int fieldIndex = args.size() == 0 ? 0 : args.get(0);
       Object value = input.getValue(fieldIndex);
-      return (value == null) ? accumulator : combineFn().addInput(accumulator, value);
+      return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
     }
   }
 
   @Override
   public Object mergeAccumulators(Iterable<Object> accumulators) {
-    return combineFn().mergeAccumulators(accumulators);
+    return combineFn.mergeAccumulators(accumulators);
   }
 
   @Override
   public Object extractOutput(Object accumulator) {
-    return combineFn().extractOutput(accumulator);
+    return combineFn.extractOutput(accumulator);
   }
 
   @Override
   public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Row> inputCoder)
       throws CannotProvideCoderException {
 
-    if (args().size() == 2) {
-      int keyIndex = args().get(0);
-      int valueIndex = args().get(1);
+    if (args.size() == 2) {
+      int keyIndex = args.get(0);
+      int valueIndex = args.get(1);
 
       Coder srcFieldCoderKey =
-          RowCoder.coderForFieldType(sourceSchema().getField(keyIndex).getType());
+          RowCoder.coderForFieldType(sourceSchema.getField(keyIndex).getType());
       Coder srcFieldCoderValue =
-          RowCoder.coderForFieldType(sourceSchema().getField(valueIndex).getType());
+          RowCoder.coderForFieldType(sourceSchema.getField(valueIndex).getType());
 
-      return combineFn()
-          .getAccumulatorCoder(registry, KvCoder.of(srcFieldCoderKey, srcFieldCoderValue));
+      return combineFn.getAccumulatorCoder(
+          registry, KvCoder.of(srcFieldCoderKey, srcFieldCoderValue));
     } else {
-      int fieldIndex = args().size() == 0 ? 0 : args().get(0);
-      Coder srcFieldCoder =
-          RowCoder.coderForFieldType(sourceSchema().getField(fieldIndex).getType());
-      return combineFn().getAccumulatorCoder(registry, srcFieldCoder);
+      int fieldIndex = args.size() == 0 ? 0 : args.get(0);
+      Coder srcFieldCoder = RowCoder.coderForFieldType(sourceSchema.getField(fieldIndex).getType());
+      return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
     }
   }
 }
