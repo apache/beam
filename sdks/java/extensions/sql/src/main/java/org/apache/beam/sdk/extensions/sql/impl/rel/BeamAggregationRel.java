@@ -23,19 +23,22 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.extensions.sql.impl.transform.MultipleAggregationsFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -201,17 +204,12 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
               .apply(
-                  "combineBy",
-                  Combine.perKey(
-                      new BeamAggregationTransforms.MultiAggregationCombineFn(aggregationCalls)))
+                  "combineBy", Combine.perKey(MultipleAggregationsFn.combineFns(aggregationCalls)))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
           aggregatedStream.apply(
-              "mergeRecord",
-              ParDo.of(
-                  new BeamAggregationTransforms.MergeAggregationRecord(
-                      outputSchema, windowFieldIndex)));
+              "mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)));
       mergedStream.setRowSchema(outputSchema);
 
       return mergedStream;
@@ -238,6 +236,28 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                 + "in Beam SQL aggregations. "
                 + "See GroupByKey section in Beam Programming Guide");
       }
+    }
+
+    public static DoFn<KV<Row, Row>, Row> mergeRecord(
+        Schema outputSchema, int windowStartFieldIndex) {
+
+      return new DoFn<KV<Row, Row>, Row>() {
+        @ProcessElement
+        public void processElement(ProcessContext c, BoundedWindow window) {
+          KV<Row, Row> kvRow = c.element();
+          List<Object> fieldValues =
+              Lists.newArrayListWithCapacity(
+                  kvRow.getKey().getValues().size() + kvRow.getValue().getValues().size());
+          fieldValues.addAll(kvRow.getKey().getValues());
+          fieldValues.addAll(kvRow.getValue().getValues());
+
+          if (windowStartFieldIndex != -1) {
+            fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
+          }
+
+          c.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
+        }
+      };
     }
   }
 
