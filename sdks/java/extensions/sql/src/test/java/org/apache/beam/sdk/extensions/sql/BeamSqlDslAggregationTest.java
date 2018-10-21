@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -638,68 +637,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PAssert.that(result)
         .containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9, 6)));
-
-    pipeline.run();
-  }
-
-  @Ignore
-  @Test
-  public void testSupportsBasicSum() throws Exception {
-    Schema inputSchema =
-        Schema.builder()
-            .addStringField("f_string")
-            .addInt32Field("f_int")
-            //            .addInt32Field("f_anotherint")
-            .build();
-
-    PCollection<Row> input =
-        pipeline.apply(
-            Create.of(
-                    Row.withSchema(inputSchema)
-                        .addValues("project1")
-                        .addValue(1)
-                        //                        .addValue(1)
-                        .build(),
-                    Row.withSchema(inputSchema)
-                        .addValues("project1")
-                        .addValue(2)
-                        //                        .addValue(1)
-                        .build(),
-                    Row.withSchema(inputSchema)
-                        .addValues("project2")
-                        .addValue(4)
-                        //                        .addValue(1)
-                        .build(),
-                    Row.withSchema(inputSchema)
-                        .addValues("project1")
-                        .addValue(13)
-                        //                        .addValue(1)
-                        .build(),
-                    Row.withSchema(inputSchema)
-                        .addValues("project3")
-                        .addValue(1)
-                        //                        .addValue(1)
-                        .build())
-                .withSchema(
-                    inputSchema,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
-
-    Schema resultSchema =
-        Schema.builder()
-            //            .addInt32Field("f_string")
-            .addInt32Field("f_int")
-            //            .addInt32Field("f_anotherint")
-            .build();
-
-    PCollection<Row> result =
-        input.apply(SqlTransform.query("SELECT sum(f_int) FROM PCOLLECTION GROUP BY f_string"));
-
-    PAssert.that(result)
-        .containsInAnyOrder(
-            Row.withSchema(resultSchema).addValues(16).build(),
-            Row.withSchema(resultSchema).addValues(4).build(),
-            Row.withSchema(resultSchema).addValues(1).build());
 
     pipeline.run();
   }

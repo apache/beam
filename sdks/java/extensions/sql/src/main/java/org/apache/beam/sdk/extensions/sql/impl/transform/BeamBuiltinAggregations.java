@@ -64,6 +64,19 @@ public class BeamBuiltinAggregations {
 
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
 
+  public static CombineFn<?, ?, ?> create(String functionName, Schema.TypeName fieldTypeName) {
+
+    Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
+        BUILTIN_AGGREGATOR_FACTORIES.get(functionName);
+
+    if (aggregatorFactory != null) {
+      return aggregatorFactory.apply(fieldTypeName);
+    }
+
+    throw new UnsupportedOperationException(
+        String.format("Aggregator [%s] is not supported", functionName));
+  }
+
   /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
   static CombineFn createMax(Schema.TypeName fieldType) {
     switch (fieldType) {
