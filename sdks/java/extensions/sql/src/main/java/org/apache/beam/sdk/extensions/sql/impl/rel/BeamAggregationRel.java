@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -54,7 +55,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Duration;
 
@@ -114,16 +114,16 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform(
-        windowFn,
-        windowFieldIndex,
-        input,
-        groupSet,
+    Schema inputSchema = CalciteUtils.toSchema(getInput().getRowType());
+    Schema outputSchema = CalciteUtils.toSchema(getRowType());
+    List<AggregationCombineFnAdapter> aggregationAdapters =
         getNamedAggCalls()
             .stream()
-            .map(BeamAggregationTransforms.AggregationCall::of)
-            .collect(toList()),
-        getRowType());
+            .map(aggCall -> AggregationCombineFnAdapter.of(aggCall, inputSchema))
+            .collect(toList());
+
+    return new Transform(
+        windowFn, windowFieldIndex, inputSchema, getGroupSet(), aggregationAdapters, outputSchema);
   }
 
   private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
@@ -134,24 +134,22 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     private SchemaCoder<Row> keyCoder;
     private WindowFn<Row, IntervalWindow> windowFn;
     private int windowFieldIndex;
-    private List<BeamAggregationTransforms.AggregationCall> aggregationCalls;
-    private Schema inputSchema;
+    private List<AggregationCombineFnAdapter> aggregationCalls;
     private SchemaCoder<Row> aggCoder;
 
     private Transform(
         WindowFn<Row, IntervalWindow> windowFn,
         int windowFieldIndex,
-        RelNode input,
+        Schema inputSchema,
         ImmutableBitSet groupSet,
-        List<BeamAggregationTransforms.AggregationCall> aggregationCalls,
-        RelDataType rowType) {
+        List<AggregationCombineFnAdapter> aggregationCalls,
+        Schema outputSchema) {
 
       this.windowFn = windowFn;
       this.windowFieldIndex = windowFieldIndex;
       this.aggregationCalls = aggregationCalls;
 
-      this.inputSchema = CalciteUtils.toSchema(input.getRowType());
-      this.outputSchema = CalciteUtils.toSchema(rowType);
+      this.outputSchema = outputSchema;
 
       this.keySchema =
           groupSet
@@ -205,8 +203,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               .apply(
                   "combineBy",
                   Combine.perKey(
-                      new BeamAggregationTransforms.AggregationAdaptor(
-                          aggregationCalls, inputSchema)))
+                      new BeamAggregationTransforms.MultiAggregationCombineFn(aggregationCalls)))
               .setCoder(KvCoder.of(keyCoder, aggCoder));
 
       PCollection<Row> mergedStream =
