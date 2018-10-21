@@ -21,8 +21,10 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -30,6 +32,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -50,16 +53,23 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
 
   protected Schema sourceSchema;
 
+  protected ArgsAdapter argsAdapter;
+
   public Schema.Field field() {
     return field;
   }
 
   public AggregationCombineFnAdapter(
-      Schema.Field field, List<Integer> args, Combine.CombineFn combineFn, Schema sourceSchema) {
+      Schema.Field field,
+      List<Integer> args,
+      Combine.CombineFn combineFn,
+      Schema sourceSchema,
+      ArgsAdapter argsAdapter) {
     this.field = field;
     this.args = args;
     this.combineFn = combineFn;
     this.sourceSchema = sourceSchema;
+    this.argsAdapter = argsAdapter;
   }
 
   public static AggregationCombineFnAdapter of(
@@ -69,7 +79,21 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
     String functionName = call.getAggregation().getName();
 
     return new AggregationCombineFnAdapter(
-        field, call.getArgList(), createCombineFn(call, field, functionName), inputSchema);
+        field,
+        call.getArgList(),
+        createCombineFn(call, field, functionName),
+        inputSchema,
+        createArgsAdapter(call.getArgList(), inputSchema));
+  }
+
+  private static ArgsAdapter createArgsAdapter(List<Integer> argList, Schema inputSchema) {
+    if (argList.size() == 0) {
+      return new ZeroArgsAdapter(inputSchema);
+    } else if (argList.size() == 1) {
+      return new SingleArgAdapter(inputSchema, argList);
+    } else {
+      return new MultiArgsAdapter(inputSchema, argList);
+    }
   }
 
   private static Combine.CombineFn<?, ?, ?> createCombineFn(
@@ -111,28 +135,8 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
 
   @Override
   public Object addInput(Object accumulator, Row input) {
-
-    if (args.size() == 0) {
-      Object value = input.getValue(0);
-      return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
-    }
-
-    if (args.size() == 1) {
-      Object value = input.getValue(args.get(0));
-      return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
-    }
-
-    List<Object> argsValues = args.stream().map(input::getValue).collect(toList());
-
-    if (argsValues.contains(null)) {
-      return accumulator;
-    }
-
-    Schema argsSchema =
-        args.stream().map(fieldIndex -> input.getSchema().getField(fieldIndex)).collect(toSchema());
-
-    return combineFn.addInput(
-        accumulator, Row.withSchema(argsSchema).addValues(argsValues).build());
+    Object argsValues = argsAdapter.getArgsValues(input);
+    return (argsValues == null) ? accumulator : combineFn.addInput(accumulator, argsValues);
   }
 
   @Override
@@ -149,20 +153,94 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
   public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Row> inputCoder)
       throws CannotProvideCoderException {
 
-    if (args.size() == 0) {
-      Coder srcFieldCoder = RowCoder.coderForFieldType(sourceSchema.getField(0).getType());
-      return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
+    return combineFn.getAccumulatorCoder(registry, argsAdapter.getArgsValuesCoder());
+  }
+
+  static class ZeroArgsAdapter implements ArgsAdapter {
+    Schema sourceSchema;
+
+    public ZeroArgsAdapter(Schema sourceSchema) {
+      this.sourceSchema = sourceSchema;
     }
 
-    if (args.size() == 1) {
-      int fieldIndex = args.size() == 0 ? 0 : args.get(0);
-      Coder srcFieldCoder = RowCoder.coderForFieldType(sourceSchema.getField(fieldIndex).getType());
-      return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
+    @Nullable
+    @Override
+    public Object getArgsValues(Row input) {
+      return input.getValue(0);
     }
 
-    Schema argsSchema =
-        args.stream().map(fieldIndex -> sourceSchema.getField(fieldIndex)).collect(toSchema());
+    @Override
+    public Coder getArgsValuesCoder() {
+      return RowCoder.coderForFieldType(sourceSchema.getField(0).getType());
+    }
+  }
 
-    return combineFn.getAccumulatorCoder(registry, RowCoder.of(argsSchema));
+  static class SingleArgAdapter implements ArgsAdapter {
+    Schema sourceSchema;
+    List<Integer> argsIndicies;
+
+    public SingleArgAdapter(Schema sourceSchema, List<Integer> argsIndicies) {
+      this.sourceSchema = sourceSchema;
+      this.argsIndicies = argsIndicies;
+    }
+
+    @Nullable
+    @Override
+    public Object getArgsValues(Row input) {
+      return input.getValue(argsIndicies.get(0));
+    }
+
+    @Override
+    public Coder getArgsValuesCoder() {
+      int fieldIndex = argsIndicies.get(0);
+      return RowCoder.coderForFieldType(sourceSchema.getField(fieldIndex).getType());
+    }
+  }
+
+  static class MultiArgsAdapter implements ArgsAdapter {
+    Schema sourceSchema;
+    List<Integer> argsIndicies;
+
+    public MultiArgsAdapter(Schema sourceSchema, List<Integer> argsIndicies) {
+      this.sourceSchema = sourceSchema;
+      this.argsIndicies = argsIndicies;
+    }
+
+    @Nullable
+    @Override
+    public Object getArgsValues(Row input) {
+
+      List<Object> argsValues = argsIndicies.stream().map(input::getValue).collect(toList());
+
+      if (argsValues.contains(null)) {
+        return null;
+      }
+
+      Schema argsSchema =
+          argsIndicies
+              .stream()
+              .map(fieldIndex -> input.getSchema().getField(fieldIndex))
+              .collect(toSchema());
+
+      return Row.withSchema(argsSchema).addValues(argsValues).build();
+    }
+
+    @Override
+    public Coder getArgsValuesCoder() {
+      Schema argsSchema =
+          argsIndicies
+              .stream()
+              .map(fieldIndex -> sourceSchema.getField(fieldIndex))
+              .collect(toSchema());
+
+      return SchemaCoder.of(argsSchema);
+    }
+  }
+
+  interface ArgsAdapter extends Serializable {
+    @Nullable
+    Object getArgsValues(Row input);
+
+    Coder getArgsValuesCoder();
   }
 }
