@@ -17,20 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
@@ -122,13 +122,17 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
       return (value == null) ? accumulator : combineFn.addInput(accumulator, value);
     }
 
-    // Aggregation function takes KV
-    Object key = input.getValue(args.get(0));
-    Object value = input.getValue(args.get(1));
+    List<Object> argsValues = args.stream().map(input::getValue).collect(toList());
 
-    return (key == null || value == null)
-        ? accumulator
-        : combineFn.addInput(accumulator, KV.of(key, value));
+    if (argsValues.contains(null)) {
+      return accumulator;
+    }
+
+    Schema argsSchema =
+        args.stream().map(fieldIndex -> input.getSchema().getField(fieldIndex)).collect(toSchema());
+
+    return combineFn.addInput(
+        accumulator, Row.withSchema(argsSchema).addValues(argsValues).build());
   }
 
   @Override
@@ -156,14 +160,9 @@ public class AggregationCombineFnAdapter extends Combine.CombineFn<Row, Object, 
       return combineFn.getAccumulatorCoder(registry, srcFieldCoder);
     }
 
-    int keyIndex = args.get(0);
-    int valueIndex = args.get(1);
+    Schema argsSchema =
+        args.stream().map(fieldIndex -> sourceSchema.getField(fieldIndex)).collect(toSchema());
 
-    Coder srcFieldCoderKey = RowCoder.coderForFieldType(sourceSchema.getField(keyIndex).getType());
-    Coder srcFieldCoderValue =
-        RowCoder.coderForFieldType(sourceSchema.getField(valueIndex).getType());
-
-    return combineFn.getAccumulatorCoder(
-        registry, KvCoder.of(srcFieldCoderKey, srcFieldCoderValue));
+    return combineFn.getAccumulatorCoder(registry, RowCoder.of(argsSchema));
   }
 }
