@@ -65,7 +65,7 @@ class FlinkStreamingImpulseSource(PTransform):
     return self
 
   @PTransform.register_urn("flink:transform:streaming_impulse:v1", None)
-  def from_runner_api_parameter(spec_parameter, _unused_context):
+  def from_runner_api_parameter(self, spec_parameter, _unused_context):
     config = json.loads(spec_parameter)
     instance = FlinkStreamingImpulseSource()
     if "interval_ms" in config:
