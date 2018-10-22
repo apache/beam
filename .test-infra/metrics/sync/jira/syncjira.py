@@ -73,8 +73,14 @@ def fetchIssues(startTime, startAt = 0):
 
 
 def initDBConnection():
-  conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
-                          f" port='{port}' password='{dbpassword}'")
+  conn = None
+  while not conn:
+    try:
+      conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
+                              f" port='{port}' password='{dbpassword}'")
+    except:
+      print('Failed to connect to DB; retrying in 1 minute')
+      time.sleep(60)
   return conn
 
 
@@ -157,7 +163,6 @@ def buildRowValuesArray(issue):
 
 
 def insertRow(cursor, rowValues):
-  print(len(rowValues))
   insertClause = (f'''insert into {jiraIssuesTableName}
                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                    ON CONFLICT (id) DO UPDATE
