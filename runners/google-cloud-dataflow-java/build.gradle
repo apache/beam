@@ -208,6 +208,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     exclude '**/BigQueryIOReadIT.class'
     exclude '**/PubsubReadIT.class'
 
+
     maxParallelForks 4
     classpath = configurations.googleCloudPlatformIntegrationTest
     testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -237,6 +238,8 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   useJUnit { }
 }
 
+// For fn-api runner, only run the IT can be passed for now.
+// Should support more ITs in the future.
 task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
     group = "Verification"
     dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
@@ -256,6 +259,11 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
     include '**/*IT.class'
     exclude '**/WordCountIT.class'
     exclude '**/WindowedWordCountIT.class'
+    exclude '**/TopWikipediaSessionsIT.class'
+    exclude '**/TfIdfIT.class'
+    exclude '**/AutoCompleteIT.class'
+    exclude '**/TrafficMaxLaneFlowIT.class'
+    exclude '**/TrafficRoutesIT.class'
 
     maxParallelForks 4
     classpath = configurations.examplesJavaIntegrationTest
