@@ -162,13 +162,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void dispose() throws Exception {
-    // DoFnOperator generates another "bundle" for the final watermark
-    super.dispose();
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     try (@SuppressWarnings("unused")
             AutoCloseable bundleFactoryCloser = stageBundleFactory;
         @SuppressWarnings("unused")
-            AutoCloseable closable = stageContext) {}
+            AutoCloseable closable = stageContext) {
+      // DoFnOperator generates another "bundle" for the final watermark -- see BEAM-5816 for more context
+      super.dispose();
+    }
     stageContext = null;
   }
 
