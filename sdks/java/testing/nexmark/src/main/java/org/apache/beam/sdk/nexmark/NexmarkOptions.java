@@ -73,9 +73,9 @@ public interface NexmarkOptions
 
   @Description("Which query to run.")
   @Nullable
-  Integer getQuery();
+  String getQuery();
 
-  void setQuery(Integer query);
+  void setQuery(String query);
 
   @Description("Prefix for output files if using text output for results or running Query 10.")
   @Nullable
