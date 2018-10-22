@@ -1,4 +1,4 @@
----
+﻿---
 layout: section
 title: "Beam Release Guide"
 section_menu: section-menu/contribute.html
@@ -209,6 +209,8 @@ The list of release-blocking issues is available at the [version status page](ht
 * If the issue has been resolved and JIRA was not updated, resolve it accordingly.
 * If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
 * If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.
+
+If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
 ### Review Release Notes in JIRA
 
