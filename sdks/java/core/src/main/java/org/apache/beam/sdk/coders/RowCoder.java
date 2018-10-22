@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -123,28 +124,31 @@ public class RowCoder extends CustomCoder<Row> {
 
   private void verifyDeterministic(Schema schema)
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    List<String> reasons = new ArrayList<>();
+    NonDeterministicException firstCause = null;
+
     for (Field field : schema.getFields()) {
-      verifyDeterministic(field.getType());
+      try {
+        verifyDeterministic(field.getType());
+      } catch (NonDeterministicException e) {
+        if (firstCause == null) {
+          firstCause = e;
+        }
+
+        for (String reason : e.getReasons()) {
+          reasons.add(field.getName() + " -> " + reason);
+        }
+      }
+    }
+
+    if (firstCause != null) {
+      throw new NonDeterministicException(this, reasons, firstCause);
     }
   }
 
   private void verifyDeterministic(FieldType fieldType)
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    switch (fieldType.getTypeName()) {
-      case MAP:
-        throw new NonDeterministicException(
-            this,
-            "Map-valued fields cannot be used in keys as Beam requires deterministic encoding for"
-                + " keys.");
-      case ROW:
-        verifyDeterministic(fieldType.getRowSchema());
-        break;
-      case ARRAY:
-        verifyDeterministic(fieldType.getCollectionElementType());
-        break;
-      default:
-        break;
-    }
+    coderForFieldType(fieldType).verifyDeterministic();
   }
 
   @Override
