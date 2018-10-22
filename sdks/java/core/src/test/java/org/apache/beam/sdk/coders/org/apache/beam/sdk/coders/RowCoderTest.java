@@ -18,18 +18,13 @@
 
 package org.apache.beam.sdk.coders.org.apache.beam.sdk.coders;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -122,8 +117,8 @@ public class RowCoderTest {
     checkEncodeDecode(row);
   }
 
-  @Test
-  public void testVerifyDeterministic() {
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministic() throws NonDeterministicException {
     Schema schema =
         Schema.builder()
             .addField("f1", FieldType.DOUBLE)
@@ -132,19 +127,15 @@ public class RowCoderTest {
             .build();
     RowCoder coder = RowCoder.of(schema);
 
-    String reason1 = "f1 -> Floating point encodings are not guaranteed to be deterministic.";
-    String reason2 = "f2 -> Floating point encodings are not guaranteed to be deterministic.";
-
-    assertNonDeterministic(coder, Arrays.asList(reason1, reason2));
+    coder.verifyDeterministic();
   }
 
-  @Test
-  public void testVerifyDeterministicNestedRow() {
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministicNestedRow() throws NonDeterministicException {
     Schema schema =
         Schema.builder()
-            .addField("f1", FieldType.DOUBLE)
             .addField(
-                "f2",
+                "f1",
                 FieldType.row(
                     Schema.builder()
                         .addField("a1", FieldType.DOUBLE)
@@ -153,18 +144,6 @@ public class RowCoderTest {
             .build();
     RowCoder coder = RowCoder.of(schema);
 
-    String reason1 = "f1 -> Floating point encodings are not guaranteed to be deterministic.";
-    String reason2 = "f2 -> a1 -> Floating point encodings are not guaranteed to be deterministic.";
-
-    assertNonDeterministic(coder, Arrays.asList(reason1, reason2));
-  }
-
-  private void assertNonDeterministic(RowCoder coder, List<String> reasons) {
-    try {
-      coder.verifyDeterministic();
-      fail("Expected " + coder + " to be non-deterministic");
-    } catch (NonDeterministicException e) {
-      assertThat(e.getReasons(), containsInAnyOrder(reasons.toArray()));
-    }
+    coder.verifyDeterministic();
   }
 }

@@ -23,10 +23,10 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
@@ -124,31 +124,16 @@ public class RowCoder extends CustomCoder<Row> {
 
   private void verifyDeterministic(Schema schema)
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    List<String> reasons = new ArrayList<>();
-    NonDeterministicException firstCause = null;
 
-    for (Field field : schema.getFields()) {
-      try {
-        verifyDeterministic(field.getType());
-      } catch (NonDeterministicException e) {
-        if (firstCause == null) {
-          firstCause = e;
-        }
+    List<Coder<?>> coders =
+        schema
+            .getFields()
+            .stream()
+            .map(Field::getType)
+            .map(RowCoder::coderForFieldType)
+            .collect(Collectors.toList());
 
-        for (String reason : e.getReasons()) {
-          reasons.add(field.getName() + " -> " + reason);
-        }
-      }
-    }
-
-    if (firstCause != null) {
-      throw new NonDeterministicException(this, reasons, firstCause);
-    }
-  }
-
-  private void verifyDeterministic(FieldType fieldType)
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    coderForFieldType(fieldType).verifyDeterministic();
+    Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
   }
 
   @Override
