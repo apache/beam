@@ -64,7 +64,6 @@ class FlinkStreamingImpulseSource(PTransform):
     self.config["message_count"] = message_count
     return self
 
-  @staticmethod
   @PTransform.register_urn("flink:transform:streaming_impulse:v1", None)
   def from_runner_api_parameter(spec_parameter, _unused_context):
     config = json.loads(spec_parameter)
