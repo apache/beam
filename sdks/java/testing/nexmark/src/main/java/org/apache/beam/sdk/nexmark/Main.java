@@ -223,7 +223,7 @@ public class Main {
         tableFunction =
             input ->
                 new TableDestination(
-                    tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
+                    tableSpec.replace("{query}", input.getValue().getKey().query.getNumberOrName()),
                     "perfkit queries");
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
