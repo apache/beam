@@ -25,6 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -114,5 +115,35 @@ public class RowCoderTest {
                 Lists.newArrayList(9, 10, 11, 12))
             .build();
     checkEncodeDecode(row);
+  }
+
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministic() throws NonDeterministicException {
+    Schema schema =
+        Schema.builder()
+            .addField("f1", FieldType.DOUBLE)
+            .addField("f2", FieldType.FLOAT)
+            .addField("f3", FieldType.INT32)
+            .build();
+    RowCoder coder = RowCoder.of(schema);
+
+    coder.verifyDeterministic();
+  }
+
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministicNestedRow() throws NonDeterministicException {
+    Schema schema =
+        Schema.builder()
+            .addField(
+                "f1",
+                FieldType.row(
+                    Schema.builder()
+                        .addField("a1", FieldType.DOUBLE)
+                        .addField("a2", FieldType.INT64)
+                        .build()))
+            .build();
+    RowCoder coder = RowCoder.of(schema);
+
+    coder.verifyDeterministic();
   }
 }
