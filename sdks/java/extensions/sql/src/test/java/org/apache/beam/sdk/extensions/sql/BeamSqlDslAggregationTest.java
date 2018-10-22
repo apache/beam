@@ -325,7 +325,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private void runTumbleWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
+            + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`, "
+            + " TUMBLE_END(f_timestamp, INTERVAL '1' HOUR) AS `window_end` "
             + " FROM TABLE_A"
             + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<Row> result =
@@ -337,6 +338,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -345,9 +347,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 0,
                 3L,
                 FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                FORMAT.parseDateTime("2017-01-01 02:00:00"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 02:00:00"))
+                FORMAT.parseDateTime("2017-01-01 02:00:00"),
+                FORMAT.parseDateTime("2017-01-01 03:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -429,7 +433,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private void runHopWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " HOP_START(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_start`"
+            + " HOP_START(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_start`, "
+            + " HOP_END(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_end` "
             + " FROM PCOLLECTION"
             + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)";
     PCollection<Row> result = input.apply("testHopWindow", SqlTransform.query(sql));
@@ -439,6 +444,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -447,15 +453,19 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 0,
                 3L,
                 FORMAT.parseDateTime("2017-01-01 00:30:00"),
+                FORMAT.parseDateTime("2017-01-01 01:30:00"),
                 0,
                 3L,
                 FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                FORMAT.parseDateTime("2017-01-01 02:00:00"),
                 0,
                 1L,
                 FORMAT.parseDateTime("2017-01-01 01:30:00"),
+                FORMAT.parseDateTime("2017-01-01 02:30:00"),
                 0,
                 1L,
-                FORMAT.parseDateTime("2017-01-01 02:00:00"))
+                FORMAT.parseDateTime("2017-01-01 02:00:00"),
+                FORMAT.parseDateTime("2017-01-01 03:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -478,7 +488,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private void runSessionWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-            + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`"
+            + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`, "
+            + " SESSION_END(f_timestamp, INTERVAL '5' MINUTE) AS `window_end` "
             + " FROM TABLE_A"
             + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<Row> result =
@@ -490,6 +501,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addInt32Field("f_int2")
             .addInt64Field("size")
             .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
             .build();
 
     List<Row> expectedRows =
@@ -498,8 +510,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 0,
                 3L,
                 FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                FORMAT.parseDateTime("2017-01-01 01:01:03"),
                 0,
                 1L,
+                FORMAT.parseDateTime("2017-01-01 02:04:03"),
                 FORMAT.parseDateTime("2017-01-01 02:04:03"))
             .getRows();
 
