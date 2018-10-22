@@ -46,7 +46,9 @@ task copyDockerfileDependencies(type: Copy, dependsOn: build) {
   from configurations.sdkSourceTarball
   from file("./base_image_requirements.txt")
   into "build/target"
-  configurations.sdkSourceTarball.stopExecutionIfEmpty()
+  if(configurations.sdkSourceTarball.isEmpty()) {
+    throw new StopExecutionException('sdk source tarball is empty');
+  }
 }
 
 golang {
