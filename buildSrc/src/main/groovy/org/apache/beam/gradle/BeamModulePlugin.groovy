@@ -493,6 +493,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * net.ltgt.apt (plugin to configure annotation processing tool)
     //  * propdeps (provide optional and provided dependency configurations)
     //  * propdeps-maven
+    //  * propdeps-idea
     //  * checkstyle
     //  * findbugs
     //  * shadow
@@ -644,6 +645,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // with the correct dependency scopes configured.
       project.apply plugin: 'propdeps'
       project.apply plugin: 'propdeps-maven'
+      project.apply plugin: 'propdeps-idea'
 
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
