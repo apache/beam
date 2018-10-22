@@ -1035,6 +1035,41 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testSinkDynamicTopics() throws Exception {
+    // Simply read from kafka source and write to two kafka sinks using custom topic function.
+    // Then verify the records are correctly published to mock kafka producer and into proper topic.
+
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(
+              KafkaIO.<Integer, Long>write()
+                  .withBootstrapServers("none")
+                  .withTopicFn(
+                      (SerializableFunction<KV<Integer, Long>, String>)
+                          input -> "topic-" + (input.getValue() < numElements / 2 ? "1" : "2"))
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(
+          producerWrapper.mockProducer, "topic-1", 0, numElements / 2, false, true);
+      verifyProducerRecords(
+          producerWrapper.mockProducer, "topic-2", numElements / 2, numElements, false, true);
+    }
+  }
+
+  @Test
   public void testValuesSink() throws Exception {
     // similar to testSink(), but use values()' interface.
 
@@ -1376,6 +1411,16 @@ public class KafkaIOTest {
       int numElements,
       boolean keyIsAbsent,
       boolean verifyTimestamp) {
+    verifyProducerRecords(mockProducer, topic, 0, numElements, keyIsAbsent, verifyTimestamp);
+  }
+
+  private static void verifyProducerRecords(
+      MockProducer<Integer, Long> mockProducer,
+      String topic,
+      int startElement,
+      int numElements,
+      boolean keyIsAbsent,
+      boolean verifyTimestamp) {
 
     // verify that appropriate messages are written to kafka
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
@@ -1383,7 +1428,7 @@ public class KafkaIOTest {
     // sort by values
     sent.sort(Comparator.comparingLong(ProducerRecord::value));
 
-    for (int i = 0; i < numElements; i++) {
+    for (int i = startElement; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);
       assertEquals(topic, record.topic());
       if (keyIsAbsent) {

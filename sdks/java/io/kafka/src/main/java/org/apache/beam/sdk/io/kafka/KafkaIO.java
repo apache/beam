@@ -167,7 +167,7 @@ import org.slf4j.LoggerFactory;
  * PCollection<KV<Long, String>> kvColl = ...;
  * kvColl.apply(KafkaIO.<Long, String>write()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
- *      .withTopic("results")
+ *      .withTopic("results") // use withTopicFn(SerializableFunction fn) to set topics dynamically
  *
  *      .withKeySerializer(LongSerializer.class)
  *      .withValueSerializer(StringSerializer.class)
@@ -862,6 +862,9 @@ public class KafkaIO {
     @Nullable
     abstract String getTopic();
 
+    @Nullable
+    abstract SerializableFunction<KV<K, V>, String> getTopicFn();
+
     abstract Map<String, Object> getProducerConfig();
 
     @Nullable
@@ -893,6 +896,8 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setTopic(String topic);
+
+      abstract Builder<K, V> setTopicFn(SerializableFunction<KV<K, V>, String> fn);
 
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
@@ -930,6 +935,11 @@ public class KafkaIO {
     /** Sets the Kafka topic to write to. */
     public Write<K, V> withTopic(String topic) {
       return toBuilder().setTopic(topic).build();
+    }
+
+    /** Sets a custom function to define sink topic dynamically. */
+    public Write<K, V> withTopicFn(SerializableFunction<KV<K, V>, String> topicFn) {
+      return toBuilder().setTopicFn(topicFn).build();
     }
 
     /**
@@ -1057,11 +1067,16 @@ public class KafkaIO {
       checkArgument(
           getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopic() != null, "withTopic() is required");
+      checkArgument(
+          getTopic() != null || getTopicFn() != null, "withTopic() or withTopicFn() is required");
+
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
+        checkArgument(getTopic() != null, "withTopic() is required with EOS sink");
+        checkArgument(getTopicFn() == null, "withTopicFn() can't be used together with EOS sink");
+
         KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
