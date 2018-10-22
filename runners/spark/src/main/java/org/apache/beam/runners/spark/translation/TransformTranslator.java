@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -130,31 +131,37 @@ public final class TransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(
-                inRDD,
-                keyCoder,
-                wvCoder,
-                context
-                        .getSerializableOptions()
-                        .get()
-                        .as(SparkPipelineOptions.class)
-                        .getBundleSize()
-                    > 0);
+        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
+        if(windowingStrategy.getWindowFn().isNonMerging() &&
+            windowingStrategy.getTimestampCombiner() != TimestampCombiner.LATEST){
+          groupedByKey = GroupCombineFunctions.groupByKeyNonMerging(inRDD, keyCoder, coder.getValueCoder(), windowFn.windowCoder());
+        }else {
 
-        // --- now group also by window.
-        // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
-        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedAlsoByWindow =
-            groupedByKey.flatMap(
-                new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                    windowingStrategy,
-                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                    SystemReduceFn.buffering(coder.getValueCoder()),
-                    context.getSerializableOptions(),
-                    accum));
+          // --- group by key only.
+          JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+              GroupCombineFunctions.groupByKeyOnly(
+                  inRDD,
+                  keyCoder,
+                  wvCoder,
+                  context
+                      .getSerializableOptions()
+                      .get()
+                      .as(SparkPipelineOptions.class)
+                      .getBundleSize()
+                      > 0);
 
-        context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
+          // --- now group also by window.
+          // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
+          groupedByKey =
+              groupedByKeyOnly.flatMap(
+                  new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                      windowingStrategy,
+                      new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                      SystemReduceFn.buffering(coder.getValueCoder()),
+                      context.getSerializableOptions(),
+                      accum));
+        }
+        context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
 
       @Override
@@ -163,6 +170,7 @@ public final class TransformTranslator {
       }
     };
   }
+
 
   private static <K, InputT, OutputT>
       TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>> combineGrouped() {

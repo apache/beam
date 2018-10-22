@@ -142,11 +142,11 @@ public class EvaluationContext {
   }
 
   private boolean shouldCache(PValue pvalue) {
-    if ((pvalue instanceof PCollection)
-        && cacheCandidates.containsKey(pvalue)
-        && cacheCandidates.get(pvalue) > 1) {
-      return true;
-    }
+//    if ((pvalue instanceof PCollection)
+//        && cacheCandidates.containsKey(pvalue)
+//        && cacheCandidates.get(pvalue) > 1) {
+//      return true;
+//    }
     return false;
   }
 

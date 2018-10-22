@@ -369,7 +369,7 @@ public abstract class WindowedValue<T> {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("timestamp", getTimestamp())
-          .add("window", window)
+          .add("window", window.maxTimestamp())
           .add("pane", getPane())
           .toString();
     }
