@@ -131,6 +131,14 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
 ]
 
+def fnApiWorkerExcludeCategories = [
+  'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+  'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
+  'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
+  'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
+  'org.apache.beam.sdk.testing.UsesSchema'
+]
+
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 task validatesRunnerLegacyWorkerTest(type: Test) {
@@ -172,10 +180,56 @@ task buildAndPushDockerContainer() {
   }
 }
 
+task validatesRunnerFnApiWorkerTest(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+    dependsOn buildAndPushDockerContainer
+
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
+            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+            "--experiments=beam_fn_api",
+
+    ])
+
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      commonExcludeCategories.each {
+        excludeCategories it
+      }
+      fnApiWorkerExcludeCategories.each {
+        excludeCategories it
+      }
+    }
+}
+
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
+}
+
+task validatesRunnerPortabilityApi {
+  group = "Verification"
+  description "Validates Dataflow PortabilityApi runner"
+  dependsOn validatesRunnerFnApiWorkerTest
+  // Clean up docker image
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
+    }
+  }
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {

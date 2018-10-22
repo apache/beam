@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -242,7 +243,8 @@ public class MetricsTest implements Serializable {
       assertAllMetrics(metrics, true);
     }
 
-    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
+    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
+        DataflowPortabilityApiUnsupported.class})
     @Test
     public void testCommittedCounterMetrics() {
       PipelineResult result = runPipelineWithMetrics();
