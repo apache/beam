@@ -207,12 +207,19 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
     exclude '**/PubsubReadIT.class'
-
+    exclude '**/SpannerReadIT.class'
+    exclude '**/BigtableReadIT.class'
+    exclude '**/V1ReadIT.class'
+    exclude '**/SpannerWriteIT.class'
+    exclude '**/BigQueryNestedRecordsIT.class'
+    exclude '**/SplitQueryFnIT.class'
 
     maxParallelForks 4
     classpath = configurations.googleCloudPlatformIntegrationTest
     testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
-    useJUnit {}
+    useJUnit {
+        excludeCategories 'org.apache.beam.sdk.testing.DataflowFnApiUnsupported'
+    }
 }
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
