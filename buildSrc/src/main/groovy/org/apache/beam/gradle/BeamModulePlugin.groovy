@@ -261,8 +261,8 @@ class BeamModulePlugin implements Plugin<Project> {
         return
       }
 
-      mavenLocal()
       mavenCentral()
+      mavenLocal()
       jcenter()
 
       // Spring for resolving pentaho dependency.
@@ -349,6 +349,7 @@ class BeamModulePlugin implements Plugin<Project> {
         apex_engine                                 : "org.apache.apex:apex-engine:$apex_core_version",
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
+        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
