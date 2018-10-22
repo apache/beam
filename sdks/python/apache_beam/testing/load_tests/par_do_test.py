@@ -65,6 +65,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
+from google.cloud import bigquery
 
 
 class ParDoTest(unittest.TestCase):
@@ -90,6 +91,8 @@ class ParDoTest(unittest.TestCase):
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
     self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
+    self.bq_client = bigquery.Client('apache-beam-io-testing')\
+    self.bq_dataset = self.bq_client.dataset('pardo_load_test')
 
   class _MeasureTime(beam.DoFn):
     def __init__(self):
@@ -146,9 +149,12 @@ class ParDoTest(unittest.TestCase):
       metrics = result.metrics().query()
       for counter in metrics['counters']:
         logging.info("Counter: %s", counter)
+        self.bq_dataset.insert()
 
       for dist in metrics['distributions']:
         logging.info("Distribution: %s", dist)
+
+
 
 
 if __name__ == '__main__':
