@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 import logging
 import random
 import re
@@ -64,6 +63,7 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
@@ -275,14 +275,14 @@ class RestrictionProvider(object):
 def get_function_arguments(obj, func):
   """Return the function arguments based on the name provided. If they have
   a _inspect_function attached to the class then use that otherwise default
-  to the python inspect library.
+  to the modified version of python inspect library.
   """
   func_name = '_inspect_%s' % func
   if hasattr(obj, func_name):
     f = getattr(obj, func_name)
     return f()
   f = getattr(obj, func)
-  return inspect.getargspec(f)
+  return getfullargspec(f)
 
 
 class _DoFnParam(object):
@@ -442,12 +442,21 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
 def _fn_takes_side_inputs(fn):
   try:
-    argspec = inspect.getargspec(fn)
+    argspec = getfullargspec(fn)
   except TypeError:
     # We can't tell; maybe it does.
     return True
   is_bound = isinstance(fn, types.MethodType) and fn.__self__ is not None
-  return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
+
+  try:
+    varkw = argspec.varkw
+    kwonlyargs = argspec.kwonlyargs
+  except AttributeError:  # Python 2
+    varkw = argspec.keywords
+    kwonlyargs = []
+
+  return (len(argspec.args) + len(kwonlyargs) > 1 + is_bound or
+          argspec.varargs or varkw)
 
 
 class CallableWrapperDoFn(DoFn):
@@ -515,7 +524,7 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
   def _inspect_process(self):
-    return inspect.getargspec(self._process_argspec_fn())
+    return getfullargspec(self._process_argspec_fn())
 
 
 class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):

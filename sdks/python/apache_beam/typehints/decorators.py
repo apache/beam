@@ -112,36 +112,40 @@ __all__ = [
 _MethodDescriptorType = type(str.upper)
 # pylint: enable=invalid-name
 
+try:
+  _original_getfullargspec = inspect.getfullargspec
+  _use_legacy_getargspec = False
+except AttributeError:  # Python 2
+  _original_getfullargspec = inspect.getargspec
+  _use_legacy_getargspec = True
 
-# Monkeypatch inspect.getargspec to allow passing non-function objects.
-# This is needed to use higher-level functions such as getcallargs.
-_original_getargspec = inspect.getargspec
 
-
-def getargspec(func):
+def getfullargspec(func):
   try:
-    return _original_getargspec(func)
+    return _original_getfullargspec(func)
   except TypeError:
     if isinstance(func, type):
-      argspec = getargspec(func.__init__)
+      argspec = getfullargspec(func.__init__)
       del argspec.args[0]
       return argspec
     elif callable(func):
       try:
-        return _original_getargspec(func.__call__)
+        return _original_getfullargspec(func.__call__)
       except TypeError:
         # Return an ArgSpec with at least one positional argument,
         # and any number of other (positional or keyword) arguments
-        # whose name won't match any real agument.
+        # whose name won't match any real argument.
         # Arguments with the %unknown% prefix will be ignored in the type
         # checking code.
-        return inspect.ArgSpec(
-            ['_'], '__unknown__varargs', '__unknown__keywords', ())
+        try:
+          return inspect.FullArgSpec(
+              ['_'], '__unknown__varargs', '__unknown__keywords', (),
+              [], {}, {})
+        except AttributeError:  # Python 2
+          return inspect.ArgSpec(
+              ['_'], '__unknown__varargs', '__unknown__keywords', ())
     else:
       raise
-
-
-inspect.getargspec = getargspec
 
 
 class IOTypeHints(object):
@@ -259,15 +263,30 @@ def _unpack_positional_arg_hints(arg, hint):
 def getcallargs_forhints(func, *typeargs, **typekwargs):
   """Like inspect.getcallargs, but understands that Tuple[] and an Any unpack.
   """
-  argspec = inspect.getargspec(func)
+  argspec = getfullargspec(func)
   # Turn Tuple[x, y] into (x, y) so getcallargs can do the proper unpacking.
   packed_typeargs = [_unpack_positional_arg_hints(arg, hint)
                      for (arg, hint) in zip(argspec.args, typeargs)]
   packed_typeargs += list(typeargs[len(packed_typeargs):])
+
+  # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
+  # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
+  if _use_legacy_getargspec:  # Python 2
+    inspect.getargspec = getfullargspec
+  else:
+    inspect.getfullargspec = getfullargspec
+
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
   except TypeError as e:
     raise TypeCheckError(e)
+  finally:
+    # Revert monkey-patch.
+    if _use_legacy_getargspec:
+      inspect.getargspec = _original_getfullargspec
+    else:
+      inspect.getfullargspec = _original_getfullargspec
+
   if argspec.defaults:
     # Declare any default arguments to be Any.
     for k, var in enumerate(reversed(argspec.args)):
@@ -279,10 +298,18 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   if argspec.varargs:
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, typehints.Tuple[typehints.Any, ...])
-  if argspec.keywords:
+  try:
+    varkw = argspec.varkw
+  except AttributeError:  # Python 2
+    varkw = argspec.keywords
+
+  if varkw:
     # TODO(robertwb): Consider taking the union of key and value types.
-    callargs[argspec.keywords] = typekwargs.get(
-        argspec.keywords, typehints.Dict[typehints.Any, typehints.Any])
+    callargs[varkw] = typekwargs.get(
+        varkw, typehints.Dict[typehints.Any, typehints.Any])
+
+  # TODO(BEAM-5878) Support kwonlyargs.
+
   return callargs
 
 
