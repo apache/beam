@@ -79,6 +79,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.DataflowFnApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -1521,7 +1522,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testCoderInferenceOfList() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -1561,7 +1562,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testValueStateFixedWindows() {
       final String stateId = "foo";
 
@@ -1660,7 +1661,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -1711,7 +1712,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testBagState() {
       final String stateId = "foo";
 
@@ -2479,7 +2480,7 @@ public class ParDoTest implements Serializable {
      * hooks and is only supported by the direct runner.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
 
@@ -2514,7 +2515,7 @@ public class ParDoTest implements Serializable {
      * case where both GBK and the user code share a timer delivery bundle.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testGbkFollowedByUserTimers() throws Exception {
 
       DoFn<KV<String, Iterable<Integer>>, Integer> fn =
@@ -2549,7 +2550,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
@@ -2585,7 +2586,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
 
@@ -2635,7 +2636,7 @@ public class ParDoTest implements Serializable {
      * #testEventTimeTimerBounded()}.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
 
@@ -2716,7 +2717,7 @@ public class ParDoTest implements Serializable {
      * implementations that may GC in ways not simply governed by the watermark.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
       final String stateId = "sizzle";
@@ -2778,7 +2779,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
       final String timerId = "foo";
 
@@ -2807,7 +2808,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
 
@@ -3073,7 +3074,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, DataflowFnApiUnsupported.class})
     public void testPipelineOptionsParameterOnTimer() {
       final String timerId = "thisTimer";
 
