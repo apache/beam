@@ -45,4 +45,9 @@ run {
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
   if (project.hasProperty("logLevel"))
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
+  if (project.hasProperty("vendorLogLevel")) {
+    jvmArgs += ["-Dorg.slf4j.simpleLogger.log.org.apache.beam.vendor=${project.property('vendorLogLevel')}"]
+  } else {
+    jvmArgs += ["-Dorg.slf4j.simpleLogger.log.org.apache.beam.vendor=info"]
+  }
 }
