@@ -319,28 +319,28 @@ public class ProcessBundleHandlerTest {
         .thenReturn(mockBeamFnStateClient);
 
     doAnswer(
-        invocation -> {
-          StateRequest.Builder stateRequestBuilder =
-              (StateRequest.Builder) invocation.getArguments()[0];
-          CompletableFuture<StateResponse> completableFuture =
-              (CompletableFuture<StateResponse>) invocation.getArguments()[1];
-          new Thread(
-              () -> {
-                // Simulate sleeping which introduces a race which most of the time requires
-                // the ProcessBundleHandler to block.
-                Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-                switch (stateRequestBuilder.getInstructionReference()) {
-                  case "SUCCESS":
-                    completableFuture.complete(StateResponse.getDefaultInstance());
-                    break;
-                  case "FAIL":
-                    completableFuture.completeExceptionally(
-                        new RuntimeException("TEST ERROR"));
-                }
-              })
-              .start();
-          return null;
-        })
+            invocation -> {
+              StateRequest.Builder stateRequestBuilder =
+                  (StateRequest.Builder) invocation.getArguments()[0];
+              CompletableFuture<StateResponse> completableFuture =
+                  (CompletableFuture<StateResponse>) invocation.getArguments()[1];
+              new Thread(
+                      () -> {
+                        // Simulate sleeping which introduces a race which most of the time requires
+                        // the ProcessBundleHandler to block.
+                        Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+                        switch (stateRequestBuilder.getInstructionReference()) {
+                          case "SUCCESS":
+                            completableFuture.complete(StateResponse.getDefaultInstance());
+                            break;
+                          case "FAIL":
+                            completableFuture.completeExceptionally(
+                                new RuntimeException("TEST ERROR"));
+                        }
+                      })
+                  .start();
+              return null;
+            })
         .when(mockBeamFnStateClient)
         .handle(any(), any());
 
