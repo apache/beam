@@ -79,9 +79,7 @@ func RegisterFunction(fn interface{}) {
 	}
 
 	key := reflectx.FunctionName(fn)
-	if _, exists := cache[key]; exists {
-		panic(fmt.Sprintf("Function %v already registred", key))
-	}
+	// If the function was registered already, the key and value will be the same anyway.
 	cache[key] = fn
 }
 
