@@ -86,8 +86,10 @@ public class SamzaDoFnRunners {
             windowingStrategy);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
-        DoFnRunnerWithMetrics.wrap(
-            underlyingRunner, executionContext.getMetricsContainer(), stepName);
+        pipelineOptions.getEnableMetrics()
+            ? DoFnRunnerWithMetrics.wrap(
+                underlyingRunner, executionContext.getMetricsContainer(), stepName)
+            : underlyingRunner;
 
     if (keyedInternals != null) {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =

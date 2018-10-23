@@ -182,10 +182,12 @@ public class BoundedSourceSystem {
             "Attempted to call start without assigned system stream partitions");
       }
 
-      int capacity = pipelineOptions.getSystemBufferSize();
-      readerTask =
-          new ReaderTask<>(
-              readerToSsp, capacity, new FnWithMetricsWrapper(metricsContainer, stepName));
+      final int capacity = pipelineOptions.getSystemBufferSize();
+      final FnWithMetricsWrapper metricsWrapper =
+          pipelineOptions.getEnableMetrics()
+              ? new FnWithMetricsWrapper(metricsContainer, stepName)
+              : null;
+      readerTask = new ReaderTask<>(readerToSsp, capacity, metricsWrapper);
       final Thread thread =
           new Thread(readerTask, "bounded-source-system-consumer-" + NEXT_ID.getAndIncrement());
       thread.start();
@@ -257,7 +259,7 @@ public class BoundedSourceSystem {
         final Set<BoundedReader<T>> availableReaders = new HashSet<>(readerToSsp.keySet());
         try {
           for (BoundedReader<T> reader : readerToSsp.keySet()) {
-            boolean hasData = metricsWrapper.wrap(reader::start);
+            boolean hasData = invoke(reader::start);
             if (hasData) {
               enqueueMessage(reader);
             } else {
@@ -271,7 +273,7 @@ public class BoundedSourceSystem {
             final Iterator<BoundedReader<T>> iter = availableReaders.iterator();
             while (iter.hasNext()) {
               final BoundedReader<T> reader = iter.next();
-              final boolean hasData = metricsWrapper.wrap(reader::advance);
+              final boolean hasData = invoke(reader::advance);
               if (hasData) {
                 enqueueMessage(reader);
               } else {
@@ -296,6 +298,14 @@ public class BoundedSourceSystem {
                       "Reader task failed to close reader for ssp {}", readerToSsp.get(reader), e);
                 }
               });
+        }
+      }
+
+      private <X> X invoke(FnWithMetricsWrapper.SupplierWithException<X> fn) throws Exception {
+        if (metricsWrapper != null) {
+          return metricsWrapper.wrap(fn);
+        } else {
+          return fn.get();
         }
       }
 

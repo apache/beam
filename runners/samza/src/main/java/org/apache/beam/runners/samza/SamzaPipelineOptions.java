@@ -63,4 +63,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   int getStoreBatchGetSize();
 
   void setStoreBatchGetSize(int storeBatchGetSize);
+
+  @Description("Enable/disable Beam metrics in Samza Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
+
+  void setEnableMetrics(Boolean enableMetrics);
 }

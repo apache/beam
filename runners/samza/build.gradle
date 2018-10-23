@@ -55,6 +55,8 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.commons_io_2x
   shadow library.java.args4j
+  shadow "javax.servlet:javax.servlet-api:3.1.0"
+  shadow "org.rocksdb:rocksdbjni:5.7.3"
 
   shadow "com.linkedin.samza-li:samza-api:$samza_version"
   shadow "com.linkedin.samza-li:samza-core_2.10:$samza_version"
@@ -72,6 +74,7 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
+
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
