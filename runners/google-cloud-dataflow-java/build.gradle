@@ -28,11 +28,17 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
-evaluationDependsOn(":beam-sdks-java-core")
-evaluationDependsOn(":beam-examples-java")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+def evaluationDependsOnList = [
+  ":beam-sdks-java-io-google-cloud-platform",
+  ":beam-sdks-java-core",
+  ":beam-examples-java",
+  ":beam-runners-google-cloud-dataflow-java-legacy-worker",
+  ":beam-runners-google-cloud-dataflow-java-fn-api-worker",
+  ":beam-sdks-java-container",
+]
+evaluationDependsOnList.each {
+  evaluationDependsOn it
+}
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -112,6 +118,8 @@ def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: projec
 def dockerImageRoot = "us.gcr.io/${dataflowProject}/java-examples-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
+def dockerImageName = "${dockerImageContainer}:${dockerTag}"
+def defaultDockerImageName = containerImageName(name: "java")
 
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
@@ -163,13 +171,16 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   }
 }
 
-project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
-project.rootProject.ext.set("docker-tag","${dockerTag}")
-evaluationDependsOn(":beam-sdks-java-container")
-
-task buildAndPushDockerContainer(type:Exec) {
+task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
-  commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
+    }
+    exec {
+        commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+    }
+  }
 }
 
 task validatesRunnerFnApiWorkerTest(type: Test) {
