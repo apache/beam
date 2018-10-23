@@ -245,7 +245,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
-      // TODO ajamato this bundle contains the response proto?
       return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
     }
 

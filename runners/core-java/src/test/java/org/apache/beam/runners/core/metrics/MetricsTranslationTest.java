@@ -30,7 +30,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-// TODO ajamato possibly update this?
 /** Tests for {@link MetricsTranslation}. */
 @RunWith(Parameterized.class)
 public class MetricsTranslationTest {

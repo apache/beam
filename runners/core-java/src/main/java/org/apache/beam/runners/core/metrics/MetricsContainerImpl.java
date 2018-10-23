@@ -30,8 +30,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
@@ -49,8 +47,6 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
-
   private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
@@ -62,7 +58,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(String stepName) {
-    LOG.info("ajamato Construct MetricsContainerImpl " + stepName);
     this.stepName = stepName;
   }
 
