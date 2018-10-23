@@ -272,6 +272,8 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
+    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
             idGenerator,

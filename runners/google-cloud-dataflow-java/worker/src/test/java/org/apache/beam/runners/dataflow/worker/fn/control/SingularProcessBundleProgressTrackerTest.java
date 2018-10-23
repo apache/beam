@@ -69,6 +69,8 @@ public class SingularProcessBundleProgressTrackerTest {
     RegisterAndProcessBundleOperation process =
         Mockito.mock(RegisterAndProcessBundleOperation.class);
 
+    when(grpcWrite.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+
     SingularProcessBundleProgressTracker tracker =
         new SingularProcessBundleProgressTracker(read, grpcWrite, process);
 
