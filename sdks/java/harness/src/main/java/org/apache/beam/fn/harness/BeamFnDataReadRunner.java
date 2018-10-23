@@ -185,36 +185,31 @@ public class BeamFnDataReadRunner<OutputT> {
             LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
             coder,
             enqueueElementReceiver);
-
-    // forConsumers.
   }
 
   public void blockTillReadFinishes() throws Exception {
-    /*
-    LOG.debug(
-        "Waiting for process bundle instruction {} and target {} to close.",
-        processBundleInstructionIdSupplier.get(),
-        inputTarget);
-    readFuture.awaitCompletion();*/
     LOG.debug(
         "Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(),
         inputTarget);
 
+    boolean draining = false;
     while (true) {
-      WindowedValue<OutputT> val = this.queue.poll(100, TimeUnit.MILLISECONDS);
-      if (val == null) {
-        if (readFuture.isDone()) {
-          break; // TODO drain properly. Not sure how since no
-          // peek, take, size, remainingCapacity, isEmpty.
-        }
-      } else {
+      WindowedValue<OutputT> val = this.queue.poll(50, TimeUnit.MILLISECONDS);
+      if (val != null) {
         // Call receiver.
         elementReceiver.accept(val);
+      } else if (draining) {
+        break;
+      }
+      if (readFuture.isDone()) {
+        // Note SynchronousQueue does not have a valid implementation for:
+        // peek, take, size, remainingCapacity, isEmpty. So these cannot be used
+        // for draining.
+        // Instead, poll once more, until we fail, which addresses a potential race
+        // where the readFuture is completed, and we just timed out reading the last element.
+        draining = true;
       }
     }
-
-    // Call future. Is this necessary still?
-    readFuture.awaitCompletion();
   }
 }

@@ -36,7 +36,6 @@ public class EnqueuingFnDataReceiver<T> implements FnDataReceiver<T> {
 
   @Override
   public void accept(T input) throws Exception {
-    // Is it safe to use .add()? Then we can use AbstractQueue.
     this.queue.put(input);
   }
 }
