@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,20 +42,41 @@ public class BeamIntersectRelTest extends BaseRelTest {
         TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 4L, 4, 4.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                4L,
+                4,
+                new BigDecimal(4.0)));
 
     registerTable(
         "ORDER_DETAILS2",
         TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 2L, 2, 2.0, 3L, 3, 3.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                3L,
+                3,
+                new BigDecimal(3.0)));
   }
 
   @Test
-  public void testIntersect() throws Exception {
+  public void testIntersect() {
     String sql = "";
     sql +=
         "SELECT order_id, site_id, price "
@@ -69,15 +91,15 @@ public class BeamIntersectRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
                 .getRows());
 
     pipeline.run().waitUntilFinish();
   }
 
   @Test
-  public void testIntersectAll() throws Exception {
+  public void testIntersectAll() {
     String sql = "";
     sql +=
         "SELECT order_id, site_id, price "
@@ -94,8 +116,17 @@ public class BeamIntersectRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    2L,
+                    2,
+                    new BigDecimal(2.0))
                 .getRows());
 
     pipeline.run();
