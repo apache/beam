@@ -109,13 +109,13 @@ class InteractiveRunner(runners.PipelineRunner):
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable.
     pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(),
+        pipeline.to_runner_api(use_fake_coders=True),
         pipeline.runner,
         pipeline._options)
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
-        return_context=True)
+        return_context=True, use_fake_coders=True)
     pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
 
     analyzer = pipeline_analyzer.PipelineAnalyzer(self._cache_manager,

@@ -549,7 +549,8 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+    p = Pipeline.from_runner_api(
+        Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
     self.assertEquals(p.transforms_stack[0].parts[0].parent,
                       p.transforms_stack[0])

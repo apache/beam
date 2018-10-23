@@ -27,6 +27,7 @@ from builtins import object
 from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
+from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -109,7 +110,8 @@ class PipelineContext(object):
       'environments': Environment,
   }
 
-  def __init__(self, proto=None, default_environment=None):
+  def __init__(
+      self, proto=None, default_environment=None, use_fake_coders=False):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -124,6 +126,17 @@ class PipelineContext(object):
           Environment(default_environment))
     else:
       self._default_environment_id = None
+    self.use_fake_coders = use_fake_coders
+
+  # If fake coders are requested, return a pickled version of the element type
+  # rather than an actual coder. The element type is required for some runners,
+  # as well as performing a round-trip through protos.
+  # TODO(BEAM-2717): Remove once this is no longer needed.
+  def coder_id_from_element_type(self, element_type):
+    if self.use_fake_coders:
+      return pickler.dumps(element_type)
+    else:
+      return self.coders.get_id(coders.registry.get_coder(element_type))
 
   @staticmethod
   def from_runner_api(proto):
