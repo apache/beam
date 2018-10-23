@@ -443,32 +443,6 @@ public class RemoteExecutionTest implements Serializable {
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
-    /*
-    PCollectionView<Iterable<String>> view = input.apply("createSideInput", View.asIterable());
-
-    input
-        .apply(
-            "readSideInput",
-            ParDo.of(
-                new DoFn<String, KV<String, String>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    for (String value : context.sideInput(view)) {
-                      context.output(KV.of(context.element(), value));
-                    }
-                  }
-                })
-                .withSideInputs(view))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-        // Force the output to be materialized
-        .apply("gbk", GroupByKey.create());*/
-
-    /*
-    Pipeline p = Pipeline.create();
-    PCollection<KV<String, String>> valuePCollection =
-        p.apply(Create.of(KV.of("unused", "unused")));
-    PCollection<String> outputPCollection =
-        valuePCollection.apply("transform ID", ParDo.of(new SimpleMetricDoFn()));*/
 
     LOG.error("ajamato testMetrics1");
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
