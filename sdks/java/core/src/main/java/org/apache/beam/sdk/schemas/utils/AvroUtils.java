@@ -1,12 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.schemas.utils;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
@@ -181,16 +200,28 @@ public class AvroUtils {
     }
   }
 
-  private static org.apache.avro.Schema unwrapNullableSchema(org.apache.avro.Schema avroSchema) {
+  @VisibleForTesting
+  static org.apache.avro.Schema unwrapNullableSchema(org.apache.avro.Schema avroSchema) {
     if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
-      org.apache.avro.Schema nullSchema =
-          org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL);
       List<org.apache.avro.Schema> types = avroSchema.getTypes();
 
       // optional fields in AVRO have form of:
       // {"name": "foo", "type": ["null", "something"]}
-      if (types.size() == 2 && types.get(0).equals(nullSchema)) {
-        return unwrapNullableSchema(types.get(1));
+
+      // don't need recursion because nested unions aren't supported in AVRO
+      List<org.apache.avro.Schema> nonNullTypes = types.stream()
+          .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
+          .collect(Collectors.toList());
+
+      if (nonNullTypes.size() == types.size()) {
+        // union without `null`, keep as is
+        return avroSchema;
+      } else if (nonNullTypes.size() > 1) {
+        return org.apache.avro.Schema.createUnion(nonNullTypes);
+      } else if (nonNullTypes.size() == 1) {
+        return nonNullTypes.get(0);
+      } else { // nonNullTypes.size() == 0
+        return avroSchema;
       }
     }
 

@@ -1,13 +1,19 @@
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.schemas.utils;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.common.collect.ObjectArrays;
 import com.pholser.junit.quickcheck.generator.GenerationStatus;
 import com.pholser.junit.quickcheck.generator.Generator;
 import com.pholser.junit.quickcheck.random.SourceOfRandomness;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.avro.Schema;
@@ -39,7 +45,6 @@ class AvroGenerators {
             .add(Schema.Type.ARRAY)
             .add(Schema.Type.MAP)
             .add(Schema.Type.UNION)
-            .add(Schema.Type.NULL)
             .add(Schema.Type.ARRAY)
             .build();
 
@@ -63,12 +68,6 @@ class AvroGenerators {
         if (type == Schema.Type.FIXED) {
           int size = random.choose(Arrays.asList(1, 5, 12));
           return Schema.createFixed("fixed_" + branch(status), "", "", size);
-        } else if (type == Schema.Type.NULL) {
-          // only nullable fields, everything else isn't supported in row conversion code
-          return Schema.createUnion(
-              Schema.create(Schema.Type.NULL),
-              // nested unions aren't supported in AVRO
-              filter(x -> x.getType() != Schema.Type.UNION).generate(random, status));
         } else if (type == Schema.Type.UNION) {
           // only nullable fields, everything else isn't supported in row conversion code
           return UnionSchemaGenerator.INSTANCE.generate(random, status);
@@ -120,7 +119,7 @@ class AvroGenerators {
 
     @Override
     public Schema generate(SourceOfRandomness random, GenerationStatus status) {
-      List<Schema> schemas =
+      Map<String, Schema> schemaMap =
           IntStream.range(0, random.nextInt(0, status.size()) + 1)
               .mapToObj(
                   i -> {
@@ -134,7 +133,17 @@ class AvroGenerators {
                     branchPop(status);
                     return schema;
                   })
-              .collect(Collectors.toList());
+              // AVRO requires uniqueness by full name
+              .collect(Collectors.toMap(Schema::getFullName, Function.identity(), (x, y) -> x));
+
+
+      List<Schema> schemas = new ArrayList<>(schemaMap.values());
+
+      if (random.nextBoolean()) {
+        org.apache.avro.Schema nullSchema = org.apache.avro.Schema.create(Schema.Type.NULL);
+        schemas.add(nullSchema);
+        Collections.shuffle(schemas, random.toJDKRandom());
+      }
 
       return Schema.createUnion(schemas);
     }
