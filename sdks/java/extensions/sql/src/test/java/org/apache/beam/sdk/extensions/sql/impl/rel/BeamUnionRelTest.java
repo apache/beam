@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -40,8 +41,8 @@ public class BeamUnionRelTest extends BaseRelTest {
         TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 2L, 2, 2.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0)));
   }
 
   @Test
@@ -60,8 +61,8 @@ public class BeamUnionRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
                 .getRows());
     pipeline.run();
   }
@@ -82,8 +83,20 @@ public class BeamUnionRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 2L, 2, 2.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    2L,
+                    2,
+                    new BigDecimal(2.0),
+                    2L,
+                    2,
+                    new BigDecimal(2.0))
                 .getRows());
     pipeline.run();
   }
