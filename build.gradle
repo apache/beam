@@ -247,6 +247,10 @@ task websitePreCommit() {
   dependsOn ":beam-website:preCommit"
 }
 
+task communityMetricsPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-test-infra-metrics:preCommit"
+}
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
