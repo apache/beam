@@ -239,6 +239,11 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
+task javaExamplesDataflowPrecommit() {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
+}
+
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
   dependsOn ":beam-sdks-python:dependencyUpdates"
