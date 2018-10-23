@@ -1998,7 +1998,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testBagStateCoderInference() {
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -3125,7 +3125,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testValueStateCoderInference() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -3191,7 +3191,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowFnApiUnsupported.class})
     public void testValueStateCoderInferenceFromInputCoder() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
