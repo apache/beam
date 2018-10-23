@@ -1,4 +1,4 @@
-﻿---
+---
 layout: section
 title: "Beam Release Guide"
 section_menu: section-menu/contribute.html
