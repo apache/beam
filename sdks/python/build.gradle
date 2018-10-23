@@ -359,10 +359,11 @@ def flinkCompatibilityMatrix = {
   def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${workerType}"
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn 'createProcessWorker'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
     if (workerType.toLowerCase() == 'docker')
       dependsOn ':beam-sdks-python-container:docker'
+    else
+      dependsOn 'createProcessWorker'
     doLast {
       exec {
         executable 'sh'
