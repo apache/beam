@@ -191,7 +191,8 @@ public class AvroUtils {
             (Map<CharSequence, Object>) value, unwrapped.getValueType(), fieldType);
 
       case UNION:
-        throw new IllegalArgumentException("Can't convert 'union', only nullable fields are supported");
+        throw new IllegalArgumentException(
+            "Can't convert 'union', only nullable fields are supported");
 
       case NULL:
         throw new IllegalArgumentException("Can't convert 'null' to non-nullable field");
@@ -210,9 +211,11 @@ public class AvroUtils {
       // {"name": "foo", "type": ["null", "something"]}
 
       // don't need recursion because nested unions aren't supported in AVRO
-      List<org.apache.avro.Schema> nonNullTypes = types.stream()
-          .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
-          .collect(Collectors.toList());
+      List<org.apache.avro.Schema> nonNullTypes =
+          types
+              .stream()
+              .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
+              .collect(Collectors.toList());
 
       if (nonNullTypes.size() == types.size()) {
         // union without `null`, keep as is
@@ -314,8 +317,7 @@ public class AvroUtils {
     for (Map.Entry<CharSequence, Object> value : values.entrySet()) {
       ret.put(
           convertStringStrict(value.getKey(), fieldType.getMapKeyType()),
-          convertAvroFieldStrict(
-              value.getValue(), valueAvroSchema, fieldType.getMapValueType()));
+          convertAvroFieldStrict(value.getValue(), valueAvroSchema, fieldType.getMapValueType()));
     }
 
     return ret;

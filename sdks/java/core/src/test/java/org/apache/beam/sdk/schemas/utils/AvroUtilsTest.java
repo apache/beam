@@ -63,37 +63,35 @@ public class AvroUtilsTest {
 
   @Test
   public void testUnwrapNullableSchema() {
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createUnion(
-        org.apache.avro.Schema.create(Type.NULL),
-        org.apache.avro.Schema.create(Type.STRING));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createUnion(
+            org.apache.avro.Schema.create(Type.NULL), org.apache.avro.Schema.create(Type.STRING));
 
     assertEquals(
-        org.apache.avro.Schema.create(Type.STRING),
-        AvroUtils.unwrapNullableSchema(avroSchema));
+        org.apache.avro.Schema.create(Type.STRING), AvroUtils.unwrapNullableSchema(avroSchema));
   }
 
   @Test
   public void testUnwrapNullableSchemaReordered() {
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createUnion(
-        org.apache.avro.Schema.create(Type.STRING),
-        org.apache.avro.Schema.create(Type.NULL));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createUnion(
+            org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.NULL));
 
     assertEquals(
-        org.apache.avro.Schema.create(Type.STRING),
-        AvroUtils.unwrapNullableSchema(avroSchema));
+        org.apache.avro.Schema.create(Type.STRING), AvroUtils.unwrapNullableSchema(avroSchema));
   }
 
   @Test
   public void testUnwrapNullableSchemaToUnion() {
-    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createUnion(
-        org.apache.avro.Schema.create(Type.STRING),
-        org.apache.avro.Schema.create(Type.LONG),
-        org.apache.avro.Schema.create(Type.NULL));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createUnion(
+            org.apache.avro.Schema.create(Type.STRING),
+            org.apache.avro.Schema.create(Type.LONG),
+            org.apache.avro.Schema.create(Type.NULL));
 
     assertEquals(
         org.apache.avro.Schema.createUnion(
-            org.apache.avro.Schema.create(Type.STRING),
-            org.apache.avro.Schema.create(Type.LONG)),
+            org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.LONG)),
         AvroUtils.unwrapNullableSchema(avroSchema));
   }
 

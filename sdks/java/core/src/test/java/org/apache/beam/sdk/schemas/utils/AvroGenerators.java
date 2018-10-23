@@ -151,7 +151,6 @@ class AvroGenerators {
               // AVRO requires uniqueness by full name
               .collect(Collectors.toMap(Schema::getFullName, Function.identity(), (x, y) -> x));
 
-
       List<Schema> schemas = new ArrayList<>(schemaMap.values());
 
       if (random.nextBoolean()) {
