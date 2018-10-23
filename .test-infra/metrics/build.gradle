@@ -18,12 +18,16 @@
 
 apply plugin: "base"
 
+// https://github.com/avast/gradle-docker-compose-plugin
+apply plugin: "com.avast.gradle.docker-compose"
+
 task testMetricsStack {
   doLast {
     // TODO(BEAM-5837): Add some actual validation of the metrics stack
     println "Hello world!"
   }
 }
+dockerCompose.isRequiredBy(testMetricsStack)
 
 task preCommit {
   dependsOn testMetricsStack
