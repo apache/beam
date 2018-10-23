@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -190,10 +191,10 @@ public class AvroUtils {
             (Map<CharSequence, Object>) value, unwrapped.getValueType(), fieldType);
 
       case UNION:
-        throw new RuntimeException("Can't convert 'union', only nullable fields are supported");
+        throw new IllegalArgumentException("Can't convert 'union', only nullable fields are supported");
 
       case NULL:
-        throw new RuntimeException("Can't convert 'null' to non-nullable field");
+        throw new IllegalArgumentException("Can't convert 'null' to non-nullable field");
 
       default:
         throw new AssertionError("Unexpected AVRO Schema.Type: " + unwrapped.getType());
@@ -229,152 +230,100 @@ public class AvroUtils {
   }
 
   private static Object convertRecordStrict(GenericRecord record, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case ROW:
-        return toRowStrict(record, fieldType.getRowSchema());
-      default:
-        throw new RuntimeException("Can't convert 'record' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.ROW, "record");
+    return toRowStrict(record, fieldType.getRowSchema());
   }
 
   private static Object convertBytesStrict(ByteBuffer bb, Schema.FieldType fieldType) {
-    // array of byte shouldn't be there because it's encoded as List
-    switch (fieldType.getTypeName()) {
-      case BYTES:
-        byte[] bytes = new byte[bb.remaining()];
-        bb.get(bytes);
-        return bytes;
-      default:
-        throw new RuntimeException("Can't convert 'fixed' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.BYTES, "bytes");
+
+    byte[] bytes = new byte[bb.remaining()];
+    bb.get(bytes);
+    return bytes;
   }
 
   private static Object convertFixedStrict(GenericFixed fixed, Schema.FieldType fieldType) {
-    // array of byte shouldn't be there because it's encoded as List
-    switch (fieldType.getTypeName()) {
-      case BYTES:
-        return fixed.bytes().clone(); // clone because GenericFixed is mutable
-      default:
-        throw new RuntimeException("Can't convert 'fixed' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.BYTES, "fixed");
+    return fixed.bytes().clone(); // clone because GenericFixed is mutable
   }
 
   private static Object convertStringStrict(CharSequence value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case STRING:
-        return value.toString();
-      default:
-        throw new RuntimeException("Can't convert 'string' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "string");
+    return value.toString();
   }
 
   private static Object convertIntStrict(Integer value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case INT32:
-        return value;
-
-      default:
-        throw new RuntimeException("Can't convert 'int' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.INT32, "int");
+    return value;
   }
 
   private static Object convertLongStrict(Long value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case INT64:
-        return value;
-
-      default:
-        throw new RuntimeException("Can't convert 'long' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.INT64, "long");
+    return value;
   }
 
   private static Object convertFloatStrict(Float value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case FLOAT:
-        return value;
-
-      default:
-        throw new RuntimeException("Can't convert 'float' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.FLOAT, "float");
+    return value;
   }
 
   private static Object convertDoubleStrict(Double value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case DOUBLE:
-        return value;
-
-      default:
-        throw new RuntimeException("Can't convert 'double' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.DOUBLE, "double");
+    return value;
   }
 
   private static Object convertBooleanStrict(Boolean value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case BOOLEAN:
-        return value;
-
-      default:
-        throw new RuntimeException("Can't convert 'boolean' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.BOOLEAN, "boolean");
+    return value;
   }
 
   private static Object convertEnumStrict(GenericEnumSymbol value, Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case STRING:
-        return value.toString();
-
-      default:
-        throw new RuntimeException("Can't convert 'enum' to " + fieldType.getTypeName());
-    }
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.STRING, "enum");
+    return value.toString();
   }
 
   private static Object convertArrayStrict(
       List<Object> values, org.apache.avro.Schema elemAvroSchema, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.ARRAY, "array");
 
-    switch (fieldType.getTypeName()) {
-      case ARRAY:
-        List<Object> ret = new ArrayList<>(values.size());
-        Schema.FieldType elemFieldType = fieldType.getCollectionElementType();
+    List<Object> ret = new ArrayList<>(values.size());
+    Schema.FieldType elemFieldType = fieldType.getCollectionElementType();
 
-        for (Object value : values) {
-          ret.add(convertAvroFieldStrict(value, elemAvroSchema, elemFieldType));
-        }
-
-        return ret;
-
-      default:
-        throw new RuntimeException("Can't convert 'array' to " + fieldType.getTypeName());
+    for (Object value : values) {
+      ret.add(convertAvroFieldStrict(value, elemAvroSchema, elemFieldType));
     }
+
+    return ret;
   }
 
   private static Object convertMapStrict(
       Map<CharSequence, Object> values,
       org.apache.avro.Schema valueAvroSchema,
       Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), Schema.TypeName.MAP, "map");
+    checkNotNull(fieldType.getMapKeyType());
+    checkNotNull(fieldType.getMapValueType());
 
-    switch (fieldType.getTypeName()) {
-      case MAP:
-        checkNotNull(fieldType.getMapKeyType());
-        checkNotNull(fieldType.getMapValueType());
-
-        if (!fieldType.getMapKeyType().equals(Schema.FieldType.STRING)) {
-          throw new RuntimeException(
-              "Can't convert 'string' map keys to " + fieldType.getMapKeyType());
-        }
-
-        Map<Object, Object> ret = new HashMap<>();
-
-        for (Map.Entry<CharSequence, Object> value : values.entrySet()) {
-          ret.put(
-              convertStringStrict(value.getKey(), fieldType.getMapKeyType()),
-              convertAvroFieldStrict(
-                  value.getValue(), valueAvroSchema, fieldType.getMapValueType()));
-        }
-
-        return ret;
-
-      default:
-        throw new RuntimeException("Can't convert 'array' to " + fieldType.getTypeName());
+    if (!fieldType.getMapKeyType().equals(Schema.FieldType.STRING)) {
+      throw new IllegalArgumentException(
+          "Can't convert 'string' map keys to " + fieldType.getMapKeyType());
     }
+
+    Map<Object, Object> ret = new HashMap<>();
+
+    for (Map.Entry<CharSequence, Object> value : values.entrySet()) {
+      ret.put(
+          convertStringStrict(value.getKey(), fieldType.getMapKeyType()),
+          convertAvroFieldStrict(
+              value.getValue(), valueAvroSchema, fieldType.getMapValueType()));
+    }
+
+    return ret;
+  }
+
+  private static void checkTypeName(Schema.TypeName got, Schema.TypeName expected, String label) {
+    checkArgument(
+        got.equals(expected),
+        "Can't convert '" + label + "' to " + got + ", expected: " + expected);
   }
 }
