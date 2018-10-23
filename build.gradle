@@ -64,6 +64,7 @@ buildscript {
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
     classpath "org.ajoberstar.grgit:grgit-gradle:3.0.0-beta.1"                                          // Enable website git publish to asf-site branch
+    classpath "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                     // Enable docker compose tasks
 
     // Plugins which require online access should not be enabled when running in offline mode.
     if (!gradle.startParameter.isOffline()) {
