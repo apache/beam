@@ -551,10 +551,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   @Test
   public void testUsingMetrics() throws Exception {
+    // TODO ajamato rm
+    boolean addMetricsContainerInTest = true;
+
     MetricsContainerImpl metricsContainer =
         new MetricsContainerImpl("testUsingMetrics");
-    Closeable closeable = MetricsEnvironment.
-        scopedMetricsContainer(metricsContainer);
+    Closeable closeable = null;
+    if (addMetricsContainerInTest) {
+      closeable = MetricsEnvironment.
+          scopedMetricsContainer(metricsContainer);
+    }
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
     IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
     IntervalWindow windowB = windowFn.assignWindow(new Instant(2L));
@@ -645,27 +651,27 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Assert that state data did not change
     assertEquals(stateData, fakeClient.getData());
 
+    if (addMetricsContainerInTest) {
+      MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
+      MetricName metricName = MetricName.named(
+          TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
+      List<ExpectedMetric> expectedMetrics = new ArrayList<ExpectedMetric>();
+      expectedMetrics.add(
+          ExpectedMetric.create("testUsingMetrics", metricName, 2));
 
-    MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
-    MetricName metricName = MetricName.named(
-        TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
-    List<ExpectedMetric> expectedMetrics = new ArrayList<ExpectedMetric>();
-    expectedMetrics.add(
-        ExpectedMetric.create("testUsingMetrics", metricName, 2));
+      closeable.close();
+      MetricUpdates updates = metricsContainer.getUpdates();
 
-    closeable.close();
-    MetricUpdates updates = metricsContainer.getUpdates();
-
-
-    // validate MetricUpdates
-    int i = 0;
-    for (MetricUpdate mu : updates.counterUpdates()) {
-      assertEquals(expectedMetrics.get(i).metricName(), mu.getKey().metricName());
-      assertEquals(expectedMetrics.get(i).stepName(), mu.getKey().stepName());
-      assertEquals(expectedMetrics.get(i).value(), mu.getUpdate());
-      i++;
+      // validate MetricUpdates
+      int i = 0;
+      for (MetricUpdate mu : updates.counterUpdates()) {
+        assertEquals(expectedMetrics.get(i).metricName(), mu.getKey().metricName());
+        assertEquals(expectedMetrics.get(i).stepName(), mu.getKey().stepName());
+        assertEquals(expectedMetrics.get(i).value(), mu.getUpdate());
+        i++;
+      }
+      assertEquals(1, i); // Validate the length.
     }
-    assertEquals(1, i); // Validate the length.
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {

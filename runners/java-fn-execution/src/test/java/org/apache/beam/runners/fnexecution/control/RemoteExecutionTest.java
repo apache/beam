@@ -20,9 +20,11 @@ package org.apache.beam.runners.fnexecution.control;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Optional;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
@@ -49,6 +51,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -82,6 +86,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -92,6 +98,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -118,6 +125,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -126,6 +135,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RemoteExecutionTest implements Serializable {
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
+
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
@@ -280,6 +291,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testExecutionWithSideInput() throws Exception {
+    // TODO ajamato, base a test off of something like this.
     Pipeline p = Pipeline.create();
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
@@ -398,6 +410,168 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
     }
+  }
+
+  private static class SimpleMetricDoFn extends DoFn<KV<String, String>, String> {
+
+    private final Counter countedElements = Metrics.counter(
+        SimpleMetricDoFn.class, "countedElems");
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      countedElements.inc();
+      context.output(context.element().getValue());
+    }
+
+  }
+
+  @Test
+  public void testMetrics() throws Exception {
+    LOG.error("ajamato testMetrics0");
+    // TODO ajamato, base a test off of something like this.
+    Pipeline p = Pipeline.create();
+    PCollection<String> input =
+        p.apply("impulse", Impulse.create())
+            .apply(
+                "create",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {
+                        LOG.error("ajamato testMetrics process");
+                        Metrics.counter(RemoteExecutionTest.class, "countedElems").inc();
+                      }
+                    }))
+            .setCoder(StringUtf8Coder.of());
+    /*
+    PCollectionView<Iterable<String>> view = input.apply("createSideInput", View.asIterable());
+
+    input
+        .apply(
+            "readSideInput",
+            ParDo.of(
+                new DoFn<String, KV<String, String>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    for (String value : context.sideInput(view)) {
+                      context.output(KV.of(context.element(), value));
+                    }
+                  }
+                })
+                .withSideInputs(view))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());*/
+
+    /*
+    Pipeline p = Pipeline.create();
+    PCollection<KV<String, String>> valuePCollection =
+        p.apply(Create.of(KV.of("unused", "unused")));
+    PCollection<String> outputPCollection =
+        valuePCollection.apply("transform ID", ParDo.of(new SimpleMetricDoFn()));*/
+
+    LOG.error("ajamato testMetrics1");
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(
+            fused.getFusedStages(), (ExecutableStage stage) -> true);
+    checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
+    ExecutableStage stage = optionalStage.get();
+
+    LOG.error("ajamato testMetrics2");
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "test_stage",
+            stage,
+            dataServer.getApiServiceDescriptor(),
+            stateServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(),
+            descriptor.getRemoteInputDestinations(),
+            stateDelegator);
+
+    LOG.error("ajamato testMetrics3");
+    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+    }
+
+    LOG.error("ajamato testMetrics4");
+    Iterable<byte[]> sideInputData =
+        Arrays.asList(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+
+    LOG.error("ajamato testMetrics5");
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forSideInputHandlerFactory(
+            descriptor.getSideInputSpecs(),
+            new SideInputHandlerFactory() {
+              @Override
+              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
+                  String pTransformId,
+                  String sideInputId,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
+                  Coder<W> windowCoder) {
+                return new SideInputHandler<V, W>() {
+                  @Override
+                  public Iterable<V> get(byte[] key, W window) {
+                    return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
+                  }
+                };
+              }
+            });
+
+    LOG.error("ajamato testMetrics6");
+    BundleProgressHandler progressHandler = new BundleProgressHandler() {
+      @Override
+      public void onProgress(ProcessBundleProgressResponse progress) {
+        LOG.error("ajamato onProgress");
+      }
+
+      @Override
+      public void onCompleted(ProcessBundleResponse response) {
+        // TODO debug why we don't have MonitoringInfos in this call's reponse.
+        LOG.error("ajamato onCompleted");
+        int size = response.getMonitoringInfosList().size();
+        assertEquals(1, size);
+      }
+    };
+
+
+
+    LOG.error("ajamato testMetrics7");
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    }
+
+    LOG.error("ajamato testMetrics DONE");
+    //progressHandler.onCompleted();
+    //processor.
   }
 
   @Test

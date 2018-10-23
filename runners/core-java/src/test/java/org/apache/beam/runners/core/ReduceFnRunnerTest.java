@@ -202,6 +202,7 @@ public class ReduceFnRunnerTest {
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
     MetricsContainerImpl container = new MetricsContainerImpl("any");
+    // TODO ajamato examine how these tests work.
     MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(

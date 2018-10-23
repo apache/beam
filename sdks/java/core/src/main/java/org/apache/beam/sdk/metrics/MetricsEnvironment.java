@@ -64,7 +64,11 @@ public class MetricsEnvironment {
     if (container == null) {
       CONTAINER_FOR_THREAD.remove();
     } else {
+      LOG.info("ajamato setCurrentContainer: " + container.hashCode() + " CONTAINER_FOR_THREAD: " +
+               CONTAINER_FOR_THREAD.hashCode());
       CONTAINER_FOR_THREAD.set(container);
+      MetricsContainer storedContainer = CONTAINER_FOR_THREAD.get();
+      LOG.info("ajamato storedContainer " + storedContainer);
     }
     return previous;
   }
@@ -114,7 +118,9 @@ public class MetricsEnvironment {
   @Nullable
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
-    LOG.error("ajamato REPORTED_MISSING_CONTAINER " + REPORTED_MISSING_CONTAINER.get());
+    LOG.error("ajamato getCurrentContainer " +
+        ". CONTAINER_FOR_THREAD: " + CONTAINER_FOR_THREAD.hashCode());
+    //LOG.error("ajamato REPORTED_MISSING_CONTAINER " + REPORTED_MISSING_CONTAINER.get());
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       LOG.error("ajamato container " + container);
       LOG.error("ajamato Unable to update metrics on the current thread. "
@@ -126,9 +132,10 @@ public class MetricsEnvironment {
       } else {
         LOG.warn("Reporting metrics are not supported in the current execution environment.");
       }
-    } else {
-      LOG.error("ajamato got Container " + container.toString());
-
+    }
+    if (container != null) {
+      LOG.error("ajamato got Container " + container.hashCode() +
+          ". CONTAINER_FOR_THREAD: " + CONTAINER_FOR_THREAD.hashCode());
     }
     return container;
   }
