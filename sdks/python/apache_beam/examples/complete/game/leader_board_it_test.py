@@ -85,11 +85,8 @@ class LeaderBoardIT(unittest.TestCase):
         self.input_topic.name)
 
     # Set up BigQuery environment
-    from google.cloud import bigquery
-    client = bigquery.Client()
-    unique_dataset_name = self.OUTPUT_DATASET + str(int(time.time()))
-    self.dataset = client.dataset(unique_dataset_name, project=self.project)
-    self.dataset.create()
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.OUTPUT_DATASET)
 
     self._test_timestamp = int(time.time() * 1000)
 
@@ -107,26 +104,23 @@ class LeaderBoardIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
-  def _cleanup_dataset(self):
-    self.dataset.delete()
-
   @attr('IT')
   def test_leader_board_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
     success_condition = 'total_score=5000 LIMIT 1'
-    users_query = ('SELECT total_score FROM [%s:%s.%s] '
+    users_query = ('SELECT total_score FROM `%s.%s.%s` '
                    'WHERE %s' % (self.project,
-                                 self.dataset.name,
+                                 self.dataset_ref.dataset_id,
                                  self.OUTPUT_TABLE_USERS,
                                  success_condition))
     bq_users_verifier = BigqueryMatcher(self.project,
                                         users_query,
                                         self.DEFAULT_EXPECTED_CHECKSUM)
 
-    teams_query = ('SELECT total_score FROM [%s:%s.%s] '
+    teams_query = ('SELECT total_score FROM `%s.%s.%s` '
                    'WHERE %s' % (self.project,
-                                 self.dataset.name,
+                                 self.dataset_ref.dataset_id,
                                  self.OUTPUT_TABLE_TEAMS,
                                  success_condition))
     bq_teams_verifier = BigqueryMatcher(self.project,
@@ -134,7 +128,7 @@ class LeaderBoardIT(unittest.TestCase):
                                         self.DEFAULT_EXPECTED_CHECKSUM)
 
     extra_opts = {'subscription': self.input_sub.name,
-                  'dataset': self.dataset.name,
+                  'dataset': self.dataset_ref.dataset_id,
                   'topic': self.input_topic.name,
                   'team_window_duration': 1,
                   'wait_until_finish_duration':
@@ -146,11 +140,7 @@ class LeaderBoardIT(unittest.TestCase):
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.
     self.addCleanup(self._cleanup_pubsub)
-    self.addCleanup(self._cleanup_dataset)
-    self.addCleanup(utils.delete_bq_table, self.project,
-                    self.dataset.name, self.OUTPUT_TABLE_USERS)
-    self.addCleanup(utils.delete_bq_table, self.project,
-                    self.dataset.name, self.OUTPUT_TABLE_TEAMS)
+    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
 
     # Generate input data and inject to PubSub.
     self._inject_pubsub_game_events(self.input_topic, self.DEFAULT_INPUT_COUNT)

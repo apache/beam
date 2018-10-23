@@ -94,19 +94,8 @@ class BigqueryMatcher(BaseMatcher):
       retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
-    query = bigquery_client.run_sync_query(self.query)
-    query.run()
-
-    # Fetch query data one page at a time.
-    page_token = None
-    results = []
-    while True:
-      for row in query.fetch_data(page_token=page_token):
-        results.append(row)
-      if results:
-        break
-
-    return results
+    query_job = bigquery_client.query(self.query)
+    return [row.values() for row in query_job]
 
   def describe_to(self, description):
     description \
