@@ -123,7 +123,5 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
 }
 
