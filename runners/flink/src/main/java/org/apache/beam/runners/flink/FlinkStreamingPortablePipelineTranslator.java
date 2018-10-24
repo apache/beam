@@ -426,10 +426,13 @@ public class FlinkStreamingPortablePipelineTranslator
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
     RunnerApi.PTransform pTransform = pipeline.getComponents().getTransformsOrThrow(id);
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    TypeInformation<WindowedValue<byte[]>> typeInfo =
+        new CoderTypeInformation<>(
+            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
 
-    int intervalMillis;
-    int messageCount;
+    ObjectMapper objectMapper = new ObjectMapper();
+    final int intervalMillis;
+    final int messageCount;
     try {
       JsonNode config = objectMapper.readTree(pTransform.getSpec().getPayload().toByteArray());
       intervalMillis = config.path("interval_ms").asInt(100);
@@ -438,10 +441,11 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException("Failed to parse configuration for streaming impulse", e);
     }
 
-    DataStreamSource<WindowedValue<byte[]>> source =
+    SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(new StreamingImpulseSource(intervalMillis, messageCount));
+            .addSource(new StreamingImpulseSource(intervalMillis, messageCount))
+            .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
   }
