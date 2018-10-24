@@ -54,6 +54,11 @@ Most importantly, if you have an idea of how to contribute, then do it!
 For a list of open starter tasks, check
 [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 
+## Finding Help
+
+If you find any issues with this guide or have questions that aren't answered, please
+[reach out to the Beam community]({{ site.baseurl }}/community/contact-us).
+
 ## Permissions
 
 For the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues), 
@@ -407,3 +412,8 @@ healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days.  Author of a closed pull request is welcome to
 reopen the same pull request again in the future. The associated JIRAs will be
 unassigned from the author but will stay open.
+
+----
+
+If you didn't find the information you were looking for in this guide, please
+[reach out to the Beam community]({{ site.baseurl }}/community/contact-us).
