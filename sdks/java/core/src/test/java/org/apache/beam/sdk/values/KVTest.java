@@ -31,7 +31,7 @@ import org.junit.runners.JUnit4;
 /** Tests for KV. */
 @RunWith(JUnit4.class)
 public class KVTest {
-  private static final Integer TEST_VALUES[] = {
+  private static final Integer[] TEST_VALUES = {
     null, Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE
   };
 
