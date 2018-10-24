@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -305,13 +306,13 @@ public class MqttIO {
   @VisibleForTesting
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-    private String clientId;
-    private Instant oldestMessageTimestamp = Instant.now();
-    private transient List<Message> messages = new ArrayList<>();
+    @VisibleForTesting String clientId;
+    @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
+    @VisibleForTesting transient List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {}
 
-    public MqttCheckpointMark(String id){
+    public MqttCheckpointMark(String id) {
       clientId = id;
     }
 
@@ -345,20 +346,20 @@ public class MqttIO {
 
     @Override
     public boolean equals(Object other) {
-      if (other instanceof MqttCheckpointMark){
-        MqttCheckpointMark that = (MqttCheckpointMark)other;
-        return this.clientId.equals(that.clientId) && this.oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
-      }else{
+      if (other instanceof MqttCheckpointMark) {
+        MqttCheckpointMark that = (MqttCheckpointMark) other;
+        return Objects.equals(this.clientId, that.clientId)
+            && Objects.equals(this.oldestMessageTimestamp, that.oldestMessageTimestamp)
+            && Objects.deepEquals(this.messages, that.messages);
+      } else {
         return false;
       }
     }
 
     @Override
     public int hashCode() {
-      // Effective Java Item 11
-      return clientId.hashCode()*31 + oldestMessageTimestamp.hashCode();
+      return Objects.hash(clientId, oldestMessageTimestamp, messages);
     }
-
   }
 
   @VisibleForTesting
