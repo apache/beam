@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+package org.apache.beam.testinfra.metrics
+
 import org.junit.Test
 import groovy.json.JsonSlurper
 import static groovy.test.GroovyAssert.shouldFail
