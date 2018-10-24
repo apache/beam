@@ -17,17 +17,23 @@
     under the License.
 -->
 # BeamMonitoring
-This folder contains files required to spin-up metrics dashboard for Beam.
+This folder contains files required to deploy the Beam Community metrics stack
+on your local machine.
 
-## Utilized technologies
-* [Grafana](https://grafana.com) as dashboarding engine.
-* PostgreSQL as underlying DB.
+This includes
+* Python scripts for ingesting data from sources (Jenkins, JIRA,
+  GitHub)
+* Postgres analytics database
+* [Grafana](https://grafana.com) dashboarding UI
 
-Approach utilized is to fetch data from corresponding system: Jenkins/Jira/GithubArchives/etc, put it into PostreSQL and fetch it to show in Grafana.
+All components run within Docker containers. These are composed together via
+docker-compose for local hosting, and Kubernetes for the production instance on
+GCP.
 
 ## Local setup
 
-Install docker
+Docker Compose is used to host the full metrics stack on your local machine.
+
 * install docker
     * https://docs.docker.com/install/#supported-platforms
 * install docker-compose
@@ -76,7 +82,23 @@ docker-compose build
 docker-compose up
 ```
 
+After running these commands, you can access the services running on your local
+machine:
+
+* Grafana: http://localhost:3000
+* Postgres DB: localhost:5432
+
+If you're deploying for the first time on your machine, follow instructions on
+how to manually [configure Grafana](#configuring-grafana).
+
+Grafana and Postgres containers persist data to Docker volumes, which will be
+restored on subsequent runs. To start from a clean state, you must also wipe out
+these volumes. (List volumes via `docker volume ls`)
+
 ## Kubernetes setup
+
+The cloud-hosted topology is composed via Kubernetes instead of docker-compose.
+Follow the steps below to re-deploy the production setup.
 
 1. Configure gcloud & kubectl
   * https://cloud.google.com/kubernetes-engine/docs/quickstart
@@ -119,8 +141,33 @@ kubectl set image deployment/beamgrafana container=<new_image_name>
 kubectl replace -f beamgrafana-deploy.yaml
 ```
 
+## Configuring Grafana
 
-## Useful Kubernetes commands and hints
+When you deploy a new Grafana instance, there is some one-time setup:
+
+1. Log-in at http://localhost:3000 with username `admin` and the value specified
+  for `GF_SECURITY_ADMIN_PASSWORD` in
+  [`docker-compose.yml`](docker-compose.yml).
+1. Add Postgres as a data source:
+    1. Click the 'Add data source' button.
+    1. Fill out the following config:
+        * **Name**: BeamPSQL
+        * **Type**: PostgreSQL
+        * **Host** beampostgresql:5432
+        * **Database**: beam\_metrics
+        * **User**: admin
+        * **Password**: `POSTGRES_PASSWORD` in
+          [`docker-compose.yml`](docker-compose.yml).
+        * **SSL Mode**: Disable
+1. Restore dashboards from config
+    1. In the Grafana sidebar, hover over the plus (+) and select 'Import'
+    1. Select 'Upload .json File', and select the first exported JSON dashboard
+       file in [dashboards/](dashboards)
+    1. Repeat for each of the remaining exported dashboards.
+
+## Appendix
+
+### Useful Kubernetes commands and hints
 ```sh
 # Get pods
 kubectl get pods
@@ -135,7 +182,7 @@ kubectl log <PodName> <ContainerName>
 https://github.com/kubernetes/kubernetes/issues/35054
 ```
 
-## Useful docker commands and hints
+### Useful docker commands and hints
 * Connect from one container to another
     * `curl <containername>:<port>`
 * Remove all containers/images/volumes

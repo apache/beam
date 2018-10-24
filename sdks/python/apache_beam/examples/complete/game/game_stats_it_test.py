@@ -83,11 +83,8 @@ class GameStatsIT(unittest.TestCase):
         self.input_topic.name)
 
     # Set up BigQuery environment
-    from google.cloud import bigquery
-    client = bigquery.Client()
-    unique_dataset_name = self.OUTPUT_DATASET + str(int(time.time()))
-    self.dataset = client.dataset(unique_dataset_name, project=self.project)
-    self.dataset.create()
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.OUTPUT_DATASET)
 
     self._test_timestamp = int(time.time() * 1000)
 
@@ -105,17 +102,14 @@ class GameStatsIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
-  def _cleanup_dataset(self):
-    self.dataset.delete()
-
   @attr('IT')
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
     success_condition = 'mean_duration=300 LIMIT 1'
-    sessions_query = ('SELECT mean_duration FROM [%s:%s.%s] '
+    sessions_query = ('SELECT mean_duration FROM `%s.%s.%s` '
                       'WHERE %s' % (self.project,
-                                    self.dataset.name,
+                                    self.dataset_ref.dataset_id,
                                     self.OUTPUT_TABLE_SESSIONS,
                                     success_condition))
     bq_sessions_verifier = BigqueryMatcher(self.project,
@@ -125,7 +119,7 @@ class GameStatsIT(unittest.TestCase):
     # TODO(mariagh): Add teams table verifier once game_stats.py is fixed.
 
     extra_opts = {'subscription': self.input_sub.name,
-                  'dataset': self.dataset.name,
+                  'dataset': self.dataset_ref.dataset_id,
                   'topic': self.input_topic.name,
                   'fixed_window_duration': 1,
                   'user_activity_window_duration': 1,
@@ -137,11 +131,7 @@ class GameStatsIT(unittest.TestCase):
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.
     self.addCleanup(self._cleanup_pubsub)
-    self.addCleanup(self._cleanup_dataset)
-    self.addCleanup(utils.delete_bq_table, self.project,
-                    self.dataset.name, self.OUTPUT_TABLE_SESSIONS)
-    self.addCleanup(utils.delete_bq_table, self.project,
-                    self.dataset.name, self.OUTPUT_TABLE_TEAMS)
+    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
 
     # Generate input data and inject to PubSub.
     self._inject_pubsub_game_events(self.input_topic, self.DEFAULT_INPUT_COUNT)

@@ -59,7 +59,9 @@ public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedV
       }
 
       try {
-        Thread.sleep(intervalMillis);
+        if (intervalMillis > 0) {
+          Thread.sleep(intervalMillis);
+        }
       } catch (InterruptedException e) {
         LOG.warn("Interrupted while sleeping", e);
       }

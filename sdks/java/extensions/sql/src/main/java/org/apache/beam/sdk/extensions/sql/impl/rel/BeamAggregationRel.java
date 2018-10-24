@@ -18,21 +18,27 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.extensions.sql.impl.transform.MultipleAggregationsFn;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -52,9 +58,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
@@ -113,10 +117,59 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
+    Schema inputSchema = CalciteUtils.toSchema(getInput().getRowType());
+    Schema outputSchema = CalciteUtils.toSchema(getRowType());
+    List<AggregationCombineFnAdapter> aggregationAdapters =
+        getNamedAggCalls()
+            .stream()
+            .map(aggCall -> AggregationCombineFnAdapter.of(aggCall, inputSchema))
+            .collect(toList());
+
+    return new Transform(
+        windowFn, windowFieldIndex, inputSchema, getGroupSet(), aggregationAdapters, outputSchema);
   }
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+  private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    private final List<Integer> keyFieldsIds;
+    private Schema outputSchema;
+    private Schema keySchema;
+    private SchemaCoder<Row> keyCoder;
+    private WindowFn<Row, IntervalWindow> windowFn;
+    private int windowFieldIndex;
+    private List<AggregationCombineFnAdapter> aggregationCalls;
+    private SchemaCoder<Row> aggCoder;
+
+    private Transform(
+        WindowFn<Row, IntervalWindow> windowFn,
+        int windowFieldIndex,
+        Schema inputSchema,
+        ImmutableBitSet groupSet,
+        List<AggregationCombineFnAdapter> aggregationCalls,
+        Schema outputSchema) {
+
+      this.windowFn = windowFn;
+      this.windowFieldIndex = windowFieldIndex;
+      this.aggregationCalls = aggregationCalls;
+
+      this.outputSchema = outputSchema;
+
+      this.keySchema =
+          groupSet
+              .asList()
+              .stream()
+              .filter(i -> i != windowFieldIndex)
+              .map(inputSchema::getField)
+              .collect(toSchema());
+
+      this.keyFieldsIds =
+          groupSet.asList().stream().filter(i -> i != windowFieldIndex).collect(toList());
+
+      this.keyCoder = SchemaCoder.of(keySchema);
+      this.aggCoder =
+          SchemaCoder.of(
+              aggregationCalls.stream().map(aggCall -> aggCall.field()).collect(toSchema()));
+    }
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
@@ -128,49 +181,58 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<Row> upstream = pinput.get(0);
       PCollection<Row> windowedStream = upstream;
       if (windowFn != null) {
-        upstream =
-            upstream
-                .apply(
-                    "assignEventTimestamp",
-                    WithTimestamps.of(
-                            new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
-                        .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
-                .setCoder(upstream.getCoder());
-        windowedStream = upstream.apply(Window.into(windowFn));
+        windowedStream = assignTimestampsAndWindow(upstream);
       }
 
       validateWindowIsSupported(windowedStream);
 
-      Schema keySchema = exKeyFieldsSchema(input.getRowType());
-      SchemaCoder<Row> keyCoder = SchemaCoder.of(keySchema);
-      PCollection<KV<Row, Row>> exCombineByStream =
-          windowedStream
+      PCollection<KV<Row, Row>> exCombineByStream = extractGroupingKeys(upstream, windowedStream);
+
+      PCollection<KV<Row, Row>> aggregatedStream = performAggregation(exCombineByStream);
+
+      PCollection<Row> mergedStream = mergeRows(aggregatedStream);
+
+      return mergedStream;
+    }
+
+    /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
+    private PCollection<Row> assignTimestampsAndWindow(PCollection<Row> upstream) {
+      PCollection<Row> windowedStream;
+      windowedStream =
+          upstream
               .apply(
-                  "exCombineBy",
-                  WithKeys.of(
-                      new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                          keySchema, windowFieldIndex, groupSet)))
-              .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+                  "assignEventTimestamp",
+                  WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
+                      .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
+              .setCoder(upstream.getCoder())
+              .apply(Window.into(windowFn));
+      return windowedStream;
+    }
 
-      SchemaCoder<Row> aggCoder = SchemaCoder.of(exAggFieldsSchema());
+    /** Extract non-windowing group-by fields, assign them as a key. */
+    private PCollection<KV<Row, Row>> extractGroupingKeys(
+        PCollection<Row> upstream, PCollection<Row> windowedStream) {
+      return windowedStream
+          .apply(
+              "exCombineBy",
+              WithKeys.of(
+                  row -> keyFieldsIds.stream().map(row::getValue).collect(toRow(keySchema))))
+          .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+    }
 
-      PCollection<KV<Row, Row>> aggregatedStream =
-          exCombineByStream
-              .apply(
-                  "combineBy",
-                  Combine.perKey(
-                      new BeamAggregationTransforms.AggregationAdaptor(
-                          getNamedAggCalls(), CalciteUtils.toSchema(input.getRowType()))))
-              .setCoder(KvCoder.of(keyCoder, aggCoder));
+    private PCollection<KV<Row, Row>> performAggregation(
+        PCollection<KV<Row, Row>> exCombineByStream) {
+      return exCombineByStream
+          .apply("combineBy", Combine.perKey(MultipleAggregationsFn.combineFns(aggregationCalls)))
+          .setCoder(KvCoder.of(keyCoder, aggCoder));
+    }
 
+    /** Merge the KVs back into whole rows. */
+    private PCollection<Row> mergeRows(PCollection<KV<Row, Row>> aggregatedStream) {
       PCollection<Row> mergedStream =
           aggregatedStream.apply(
-              "mergeRecord",
-              ParDo.of(
-                  new BeamAggregationTransforms.MergeAggregationRecord(
-                      CalciteUtils.toSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setRowSchema(CalciteUtils.toSchema(getRowType()));
-
+              "mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)));
+      mergedStream.setRowSchema(outputSchema);
       return mergedStream;
     }
 
@@ -197,28 +259,25 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       }
     }
 
-    /** Type of sub-rowrecord used as Group-By keys. */
-    private Schema exKeyFieldsSchema(RelDataType relDataType) {
-      Schema inputSchema = CalciteUtils.toSchema(relDataType);
-      return groupSet
-          .asList()
-          .stream()
-          .filter(i -> i != windowFieldIndex)
-          .map(i -> newRowField(inputSchema, i))
-          .collect(toSchema());
-    }
+    static DoFn<KV<Row, Row>, Row> mergeRecord(Schema outputSchema, int windowStartFieldIndex) {
 
-    private Schema.Field newRowField(Schema schema, int i) {
-      return schema.getField(i);
-    }
+      return new DoFn<KV<Row, Row>, Row>() {
+        @ProcessElement
+        public void processElement(ProcessContext c, BoundedWindow window) {
+          KV<Row, Row> kvRow = c.element();
+          List<Object> fieldValues =
+              Lists.newArrayListWithCapacity(
+                  kvRow.getKey().getValues().size() + kvRow.getValue().getValues().size());
+          fieldValues.addAll(kvRow.getKey().getValues());
+          fieldValues.addAll(kvRow.getValue().getValues());
 
-    /** Type of sub-rowrecord, that represents the list of aggregation fields. */
-    private Schema exAggFieldsSchema() {
-      return getNamedAggCalls().stream().map(this::newRowField).collect(toSchema());
-    }
+          if (windowStartFieldIndex != -1) {
+            fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
+          }
 
-    private Schema.Field newRowField(Pair<AggregateCall, String> namedAggCall) {
-      return CalciteUtils.toField(namedAggCall.right, namedAggCall.left.getType());
+          c.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
+        }
+      };
     }
   }
 

@@ -43,6 +43,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -241,6 +242,12 @@ public class ExecutableStageDoFnOperatorTest {
           }
 
           @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return null;
+          }
+
+          @Override
           public void close() {}
         };
     // Wire the stage bundle factory into our context.
@@ -342,7 +349,9 @@ public class ExecutableStageDoFnOperatorTest {
             stagePayload,
             jobInfo,
             FlinkExecutableStageContext.factory(options),
-            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)));
+            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
+            null,
+            null);
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);
     assertNotNull(clone);
@@ -379,7 +388,9 @@ public class ExecutableStageDoFnOperatorTest {
             stagePayload,
             jobInfo,
             contextFactory,
-            createOutputMap(mainOutput, additionalOutputs));
+            createOutputMap(mainOutput, additionalOutputs),
+            null,
+            null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;

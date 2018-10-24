@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.hamcrest.Matchers.contains;
@@ -271,6 +270,8 @@ public class BeamFnMapTaskExecutorTest {
           @Override
           public void close() {}
         };
+
+    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(

@@ -47,7 +47,7 @@ NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
-NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM [%s];')
+NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM `%s`;')
 # There are problems with query time and bytes with current version of bigquery.
 NEW_TYPES_OUTPUT_EXPECTED = [
     (datetime.date(2000, 1, 1),),
@@ -61,7 +61,7 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = (
     'SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
-DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from [%s];')
+DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
 DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
 
 

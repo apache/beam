@@ -190,3 +190,5 @@ include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
 project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
 include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
+include "beam-test-infra-metrics"
+project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")

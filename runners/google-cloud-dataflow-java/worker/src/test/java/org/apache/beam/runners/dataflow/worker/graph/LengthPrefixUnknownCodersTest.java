@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.LENGTH_PREFIXED_BYTE_ARRAY_CODER;
