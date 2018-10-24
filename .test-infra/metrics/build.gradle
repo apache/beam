@@ -17,9 +17,19 @@
  */
 
 apply plugin: "base"
+apply plugin: "groovy"
+
+repositories {
+  mavenCentral()
+}
 
 // https://github.com/avast/gradle-docker-compose-plugin
 apply plugin: "com.avast.gradle.docker-compose"
+
+dependencies {
+  testCompile library.groovy.groovy_all
+  testCompile library.java.junit
+}
 
 task testMetricsStack {
   doLast {
@@ -33,3 +43,6 @@ task preCommit {
   dependsOn testMetricsStack
 }
 
+task checkProber {
+  dependsOn test
+}
