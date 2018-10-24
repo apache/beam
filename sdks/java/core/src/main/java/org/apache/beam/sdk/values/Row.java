@@ -381,7 +381,7 @@ public abstract class Row implements Serializable {
       this.schema = schema;
     }
 
-    public Builder addValue(Object values) {
+    public Builder addValue(@Nullable Object values) {
       this.values.add(values);
       return this;
     }
