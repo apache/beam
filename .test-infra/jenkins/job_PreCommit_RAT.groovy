@@ -21,5 +21,6 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'RAT',
-    gradleTask: ':rat')
-}
+    gradleTask: ':rat'
+)
+builder.build()
