@@ -612,6 +612,37 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run();
   }
 
+  /** Query has all the input fields, so no projection is added. */
+  @Test
+  public void testSupportsAggregationWithoutProjection() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema =
+        Schema.builder().addInt32Field("f_intGroupingKey").addInt32Field("f_intValue").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+
+    String sql = "SELECT SUM(f_intValue) FROM PCOLLECTION GROUP BY f_intGroupingKey";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9)));
+
+    pipeline.run();
+  }
+
   @Test
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);

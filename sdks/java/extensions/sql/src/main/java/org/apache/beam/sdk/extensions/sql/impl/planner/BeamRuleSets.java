@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
@@ -135,6 +136,7 @@ public class BeamRuleSets {
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
           BeamAggregationRule.INSTANCE,
+          BeamBasicAggregationRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamValuesRule.INSTANCE,
           BeamIntersectRule.INSTANCE,
