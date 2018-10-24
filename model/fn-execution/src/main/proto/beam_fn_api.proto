@@ -41,6 +41,7 @@ option java_outer_classname = "BeamFnApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -119,6 +120,7 @@ message InstructionRequest {
     ProcessBundleRequest process_bundle = 1001;
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
+    FinalizeBundleRequest finalize_bundle = 1004;
   }
 }
 
@@ -142,6 +144,7 @@ message InstructionResponse {
     ProcessBundleResponse process_bundle = 1001;
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
+    FinalizeBundleResponse finalize_bundle = 1004;
   }
 }
 
@@ -184,55 +187,72 @@ message ProcessBundleDescriptor {
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
-// Represents a partition of the bundle into two bundles: a "primary" and
-// a "residual", with the following properties:
-// - The work in primary and residual doesn't overlap, and combined, adds up
-//   to the work in the current bundle if the split hadn't happened.
-// - The current bundle, if it keeps executing, will have done none of the
-//   work under residual roots.
-// - The current bundle, if no further splits happen, will have done exactly
-//   the work under primary_roots.
-// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
-message BundleSplit {
-  // One of the root applications specifying the scope of work for a bundle.
-  message Application {
-    // (Required) The primitive transform to which to pass the element
-    string ptransform_id = 1;
+// One of the applications specifying the scope of work for a bundle.
+message BundleApplication {
+  // (Required) The primitive transform to which to pass the element
+  string ptransform_id = 1;
 
-    // (Required) Name of the transform's input to which to pass the element.
-    string input_id = 2;
+  // (Required) Name of the transform's input to which to pass the element.
+  string input_id = 2;
 
-    // (Required) The encoded element to pass to the transform.
-    bytes element = 3;
+  // (Required) The encoded element to pass to the transform.
+  bytes element = 3;
 
-    // Approximate lower bounds on timestamps of elements that this PTransform
-    // will produce into each of its output PCollections, when invoked on this
-    // element. Keyed by the transform's local output name.
-    map<string, int64> output_watermarks = 4;
+  // Lower bound on timestamps of elements that this PTransform
+  // will produce into each of its output PCollections when invoked on this
+  // element and input. The map is keyed by the local output name of the
+  // PTransform.
+  map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
-    // Approximate fraction of all work of the current bundle (before split)
-    // represented by invoking this Application and its downstream applications.
-    // The sum of fraction_of_work between all primary_roots and residual_roots
-    // must add up to approximately 1.0.
-    google.protobuf.DoubleValue fraction_of_work = 5;
+  // Represents an estimate for the amount of currently outstanding work.
+  message Backlog {
+    // This informs Runners on how to aggregate the backlog
+    // being reported across multiple active bundles. Backlogs
+    // are aggregated using the set of partitions.
+    //
+    // For example SplittableDoFn's which consume elements from:
+    //  * a globally shared resource such as a Pubsub queue should set this
+    //    to “”.
+    //  * a shared partitioned resource should use the partition identifier.
+    //  * a uniquely partitioned resource such as a file range should set this to
+    //    file name + start offset.
+    bytes partition = 1;
+
+    // The estimate for the backlog.
+    oneof value {
+      // Represents an estimate for the amount of outstanding work. Values
+      // compare lexicographically.
+      bytes bytes = 1000;
+
+      // Whether the backlog is unknown.
+      bool is_unknown = 1001;
+    }
   }
 
-  // An an Application should be scheduled after a delay.
-  message DelayedApplication {
-    // The delay in seconds (lower bound).
-    double delay_sec = 1;
+  // (Required) An estimate for the amount outstanding work related to
+  // this application.
+  Backlog backlog = 5;
 
-    // (Required) The application that should be scheduled.
-    Application application = 2;
-  }
+  // (Required) Whether this application potentially produces an unbounded
+  // amount of data. Note that this should only be set to BOUNDED if and
+  // only if the application is known to produce a finite amount of output.
+  //
+  // Note that this is different from the backlog as the backlog represents
+  // how much work there is currently outstanding.
+  org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 6;
 
-  // Root applications that should replace the current bundle.
-  repeated Application primary_roots = 1;
+  // Contains additional monitoring information related to this application.
+  repeated MonitoringInfo monitoring_infos = 7;
+}
 
-  // Root applications that have been removed from the current bundle and
-  // have to be executed in a separate bundle (e.g. in parallel on a different
-  // worker, or after the current bundle completes, etc.)
-  repeated DelayedApplication residual_roots = 2;
+// An Application should be scheduled for execution after a delay.
+message DelayedBundleApplication {
+  // Recommended amount of delay before the application should be executed
+  // by the runner.
+  google.protobuf.Duration delay = 1;
+
+  // (Required) The application that should be scheduled.
+  BundleApplication application = 2;
 }
 
 // A request to process a given bundle.
@@ -247,20 +267,25 @@ message ProcessBundleRequest {
   repeated bytes cache_tokens = 2;
 }
 
-// Stable
 message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
   // DEPRECATED
   Metrics metrics = 1;
 
-  // (Optional) Specifies that the bundle has been split since the last
-  // ProcessBundleProgressResponse was sent.
-  BundleSplit split = 2;
+  // (Optional) Specifies that the bundle has not been completed and the
+  // following applications need to be scheduled and executed in the future.
+  repeated DelayedBundleApplication residual_roots = 2;
 
   // (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated MonitoringInfo monitoring_infos = 3;
+
+  // (Optional) Specifies that the runner must callback to this worker
+  // once the output of the bundle is committed. The Runner must send a
+  // FinalizeBundleRequest with the instruction id of the ProcessBundleRequest
+  // that is related to this ProcessBundleResponse.
+  bool requires_finalization = 4;
 }
 
 // A request to report progress information for a given bundle.
@@ -310,7 +335,7 @@ message MonitoringInfo {
   map<string, string> labels = 5;
 
   // The walltime of the most recent update.
-  // Useful for aggregation for Latest types such as LatestInt64.
+  // Useful for aggregation for latest types such as LatestInt64.
   google.protobuf.Timestamp timestamp = 6;
 }
 
@@ -573,36 +598,62 @@ message ProcessBundleProgressResponse {
   // DEPRECATED (Required)
   Metrics metrics = 1;
 
-  // (Optional) Specifies that the bundle has been split since the last
-  // ProcessBundleProgressResponse was sent.
-  BundleSplit split = 2;
-
   // (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated MonitoringInfo monitoring_infos = 3;
+
+  // The list of currently active primary roots that are being
+  // executed. Required to be populated for PTransforms which can be split.
+  repeated BundleApplication primary_roots = 4;
 }
 
+// Represents a request to the SDK to split a currently active bundle.
 message ProcessBundleSplitRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_reference = 1;
 
-  // Specifies that the runner would like the bundle to split itself using
-  // BundleSplit, and give up some of the work that the bundle hasn't started
-  // doing yet, so that it can be done in a separate bundle (perhaps in
-  // parallel with the current bundle).
+  // (Required) Specifies that the Runner would like the bundle to split itself
+  // such that it performs no more work then the backlog specified for each
+  // PTransform. The interpretation of how much work should be processed is up
+  // to the PTransform.
   //
-  // The value is the fraction of unstarted work to keep. E.g. 0 means give up
-  // as much as possible of unstarted work (e.g. checkpoint), 0.5 means give
-  // up about half of the unstarted work, etc.
-  // This is a hint and the value is approximate.
+  // For example, A backlog of "" tells the SDK to perform as little work as
+  // possible, effectively checkpointing when able. The remaining backlog
+  // will be relative to the backlog reported during processing.
   //
-  // The value is relative to the current scope of work of the bundle.
-  google.protobuf.DoubleValue fraction_of_remainder = 2;
+  // If the backlog is unspecified for a PTransform, it would like that
+  // PTransform to process all data received.
+  map<string, bytes> backlog_remaining = 2;
 }
 
+// Represents a partition of the bundle: a "primary" and
+// a "residual", with the following properties:
+// - The work in primary and residual doesn't overlap, and combined, adds up
+//   to the work in the current bundle if the split hadn't happened.
+// - The current bundle, if it keeps executing, will have done none of the
+//   work under residual_roots.
+// - The current bundle, if no further splits happen, will have done exactly
+//   the work under primary_roots.
+// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 message ProcessBundleSplitResponse {
-  // Empty.
+  // Root applications that should replace the current bundle.
+  repeated BundleApplication primary_roots = 1;
+
+  // Root applications that have been removed from the current bundle and
+  // have to be executed in a separate bundle (e.g. in parallel on a different
+  // worker, or after the current bundle completes, etc.)
+  repeated DelayedBundleApplication residual_roots = 2;
+}
+
+message FinalizeBundleRequest {
+  // (Required) A reference to a completed process bundle request with the given
+  // instruction id.
+  string instruction_reference = 1;
+}
+
+message FinalizeBundleResponse {
+  // Empty
 }
 
 /*

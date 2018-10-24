@@ -446,6 +446,9 @@ message ParDoPayload {
 
   // (Required if splittable == true) Id of the restriction coder.
   string restriction_coder_id = 7;
+
+  // (Optional) Only set when this ParDo can request bundle finalization.
+  bool requests_finalization = 8;
 }
 
 // Parameters that a UDF might require.

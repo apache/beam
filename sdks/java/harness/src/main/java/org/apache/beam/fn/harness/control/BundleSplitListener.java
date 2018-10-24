@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.control;
 
 import java.util.List;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 
 /**
  * Listens to splits happening to a single bundle. See <a
@@ -36,5 +36,5 @@ public interface BundleSplitListener {
    * are a decomposition of work that has been given away by the bundle, so the runner must delegate
    * it for someone else to execute.
    */
-  void split(List<Application> primaryRoots, List<DelayedApplication> residualRoots);
+  void split(List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots);
 }

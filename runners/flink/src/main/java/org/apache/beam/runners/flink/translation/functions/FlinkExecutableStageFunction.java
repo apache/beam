@@ -125,7 +125,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     stateRequestHandler =
         getStateRequestHandler(
             executableStage, stageBundleFactory.getProcessBundleDescriptor(), runtimeContext);
-    progressHandler = BundleProgressHandler.unsupported();
+    progressHandler = BundleProgressHandler.ignored();
   }
 
   private StateRequestHandler getStateRequestHandler(

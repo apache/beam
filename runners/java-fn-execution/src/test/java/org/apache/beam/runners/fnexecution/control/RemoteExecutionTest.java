@@ -263,7 +263,7 @@ public class RemoteExecutionTest implements Serializable {
     // The impulse example
 
     try (ActiveBundle bundle =
-        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
@@ -374,7 +374,7 @@ public class RemoteExecutionTest implements Serializable {
                 };
               }
             });
-    BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
+    BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
@@ -528,7 +528,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers, stateRequestHandler, BundleProgressHandler.unsupported())) {
+            outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
     }
@@ -671,9 +671,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers,
-            StateRequestHandler.unsupported(),
-            BundleProgressHandler.unsupported())) {
+            outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
           .getInputReceivers()
           .get(stage.getInputPCollection().getId())
@@ -794,7 +792,7 @@ public class RemoteExecutionTest implements Serializable {
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),
-              BundleProgressHandler.unsupported())) {
+              BundleProgressHandler.ignored())) {
         bundle
             .getInputReceivers()
             .get(stage.getInputPCollection().getId())
