@@ -75,4 +75,6 @@ dependencies {
   shadowTest library.java.hamcrest_core
   shadowTest library.java.hamcrest_library
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+  shadowTest library.java.quickcheck_core
+  shadowTest library.java.avro_tests
 }
