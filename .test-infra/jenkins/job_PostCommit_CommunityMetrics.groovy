@@ -16,13 +16,29 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
+import CommonJobProperties as commonJobProperties
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Community Metrics',
-    gradleTask: ':communityMetricsPreCommit',
-    triggerPathPatterns: ['^.test-infra/metrics/.*$']
-)
-builder.build()
+job('beam_Prober_CommunityMetrics') {
+  description('Health check probes for the Community Metrics infrastructure')
+ commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+ commonJobProperties.enablePhraseTriggeringFromPullRequest(delegate,
+     'Community Metrics Prober',
+     'Run Community Metrics Prober')
+
+ commonJobProperties.setAutoJob(delegate)
+
+ commonJobProperties.enablePhraseTriggeringFromPullRequest(
+         delegate,
+         'Community Metrics Prober',
+         'Run Community Metrics Prober')
+
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':communityMetricsProber')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
+}
