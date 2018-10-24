@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -184,6 +185,12 @@ public class FlinkExecutableStageFunctionTest {
                 receiverFactory.create("three").accept(five);
               }
             };
+          }
+
+          @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return null;
           }
 
           @Override

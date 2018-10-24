@@ -17,53 +17,82 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.joda.time.ReadableInstant;
 
 /**
  * Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP.
  *
  * <p>TODO: Consider making the interface in terms of (1-column) rows. reuvenlax
  */
-class BeamBuiltinAggregations {
+public class BeamBuiltinAggregations {
+
+  public static final Map<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>
+      BUILTIN_AGGREGATOR_FACTORIES =
+          ImmutableMap.<String, Function<Schema.TypeName, CombineFn<?, ?, ?>>>builder()
+              .put("COUNT", typeName -> Count.combineFn())
+              .put("MAX", BeamBuiltinAggregations::createMax)
+              .put("MIN", BeamBuiltinAggregations::createMin)
+              .put("SUM", BeamBuiltinAggregations::createSum)
+              .put("$SUM0", BeamBuiltinAggregations::createSum)
+              .put("AVG", BeamBuiltinAggregations::createAvg)
+              .put("VAR_POP", VarianceFn::newPopulation)
+              .put("VAR_SAMP", VarianceFn::newSample)
+              .put("COVAR_POP", CovarianceFn::newPopulation)
+              .put("COVAR_SAMP", CovarianceFn::newSample)
+              .build();
+
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
 
+  public static CombineFn<?, ?, ?> create(String functionName, Schema.TypeName fieldTypeName) {
+
+    Function<Schema.TypeName, CombineFn<?, ?, ?>> aggregatorFactory =
+        BUILTIN_AGGREGATOR_FACTORIES.get(functionName);
+
+    if (aggregatorFactory != null) {
+      return aggregatorFactory.apply(fieldTypeName);
+    }
+
+    throw new UnsupportedOperationException(
+        String.format("Aggregator [%s] is not supported", functionName));
+  }
+
   /** {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}. */
-  public static CombineFn createMax(SqlTypeName fieldType) {
+  static CombineFn createMax(Schema.TypeName fieldType) {
     switch (fieldType) {
       case BOOLEAN:
-        return new CustMax<Boolean>();
-      case INTEGER:
-        return Max.ofIntegers();
-      case SMALLINT:
-        return new CustMax<Short>();
-      case TINYINT:
-        return new CustMax<Byte>();
-      case BIGINT:
-        return Max.ofLongs();
+      case INT16:
+      case BYTE:
       case FLOAT:
-        return new CustMax<Float>();
+      case DATETIME:
+      case DECIMAL:
+        return new CustMax<>();
+      case INT32:
+        return Max.ofIntegers();
+      case INT64:
+        return Max.ofLongs();
       case DOUBLE:
         return Max.ofDoubles();
-      case TIMESTAMP:
-        return new CustMax<ReadableInstant>();
-      case DECIMAL:
-        return new CustMax<BigDecimal>();
       default:
         throw new UnsupportedOperationException(
             String.format("[%s] is not support in MAX", fieldType));
@@ -71,26 +100,21 @@ class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for MIN based on {@link Min} and {@link Combine.BinaryCombineFn}. */
-  public static CombineFn createMin(SqlTypeName fieldType) {
+  static CombineFn createMin(Schema.TypeName fieldType) {
     switch (fieldType) {
       case BOOLEAN:
-        return new CustMin<Boolean>();
-      case INTEGER:
-        return Min.ofIntegers();
-      case SMALLINT:
-        return new CustMin<Short>();
-      case TINYINT:
-        return new CustMin<Byte>();
-      case BIGINT:
-        return Min.ofLongs();
+      case BYTE:
+      case INT16:
       case FLOAT:
-        return new CustMin<Float>();
+      case DATETIME:
+      case DECIMAL:
+        return new CustMin();
+      case INT32:
+        return Min.ofIntegers();
+      case INT64:
+        return Min.ofLongs();
       case DOUBLE:
         return Min.ofDoubles();
-      case TIMESTAMP:
-        return new CustMin<ReadableInstant>();
-      case DECIMAL:
-        return new CustMin<BigDecimal>();
       default:
         throw new UnsupportedOperationException(
             String.format("[%s] is not support in MIN", fieldType));
@@ -98,15 +122,15 @@ class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for Sum based on {@link Sum} and {@link Combine.BinaryCombineFn}. */
-  public static CombineFn createSum(SqlTypeName fieldType) {
+  static CombineFn createSum(Schema.TypeName fieldType) {
     switch (fieldType) {
-      case INTEGER:
+      case INT32:
         return Sum.ofIntegers();
-      case SMALLINT:
+      case INT16:
         return new ShortSum();
-      case TINYINT:
+      case BYTE:
         return new ByteSum();
-      case BIGINT:
+      case INT64:
         return Sum.ofLongs();
       case FLOAT:
         return new FloatSum();
@@ -121,15 +145,15 @@ class BeamBuiltinAggregations {
   }
 
   /** {@link CombineFn} for AVG. */
-  public static CombineFn createAvg(SqlTypeName fieldType) {
+  static CombineFn createAvg(Schema.TypeName fieldType) {
     switch (fieldType) {
-      case INTEGER:
+      case INT32:
         return new IntegerAvg();
-      case SMALLINT:
+      case INT16:
         return new ShortAvg();
-      case TINYINT:
+      case BYTE:
         return new ByteAvg();
-      case BIGINT:
+      case INT64:
         return new LongAvg();
       case FLOAT:
         return new FloatAvg();

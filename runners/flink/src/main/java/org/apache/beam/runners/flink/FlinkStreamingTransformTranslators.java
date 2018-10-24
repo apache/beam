@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.flink;
 
 import static java.lang.String.format;
@@ -465,7 +464,7 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
 
       Coder keyCoder = null;
-      KeySelector keySelector = null;
+      KeySelector<WindowedValue<InputT>, ?> keySelector = null;
       boolean stateful = false;
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0) {

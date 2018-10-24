@@ -68,7 +68,9 @@ class PrecommitJobBuilder {
       '^gradle.bat$',
       '^settings.gradle$'
     ]
-    triggerPathPatterns.addAll defaultPathTriggers
+    if (triggerPathPatterns) {
+      triggerPathPatterns.addAll defaultPathTriggers
+    }
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()

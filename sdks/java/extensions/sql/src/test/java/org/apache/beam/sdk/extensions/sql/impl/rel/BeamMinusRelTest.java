@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -40,16 +40,40 @@ public class BeamMinusRelTest extends BaseRelTest {
         TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0, 4L, 4, 4.0, 4L, 4, 4.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                4L,
+                4,
+                new BigDecimal(4.0),
+                4L,
+                4,
+                new BigDecimal(4.0)));
 
     registerTable(
         "ORDER_DETAILS2",
         TestBoundedTable.of(
                 Schema.FieldType.INT64, "order_id",
                 Schema.FieldType.INT32, "site_id",
-                Schema.FieldType.DOUBLE, "price")
-            .addRows(1L, 1, 1.0, 2L, 2, 2.0, 3L, 3, 3.0));
+                Schema.FieldType.DECIMAL, "price")
+            .addRows(
+                1L,
+                1,
+                new BigDecimal(1.0),
+                2L,
+                2,
+                new BigDecimal(2.0),
+                3L,
+                3,
+                new BigDecimal(3.0)));
   }
 
   @Test
@@ -68,8 +92,8 @@ public class BeamMinusRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(4L, 4, 4.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(4L, 4, new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();
@@ -93,8 +117,8 @@ public class BeamMinusRelTest extends BaseRelTest {
             TestUtils.RowsBuilder.of(
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.DOUBLE, "price")
-                .addRows(4L, 4, 4.0, 4L, 4, 4.0)
+                    Schema.FieldType.DECIMAL, "price")
+                .addRows(4L, 4, new BigDecimal(4.0), 4L, 4, new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();

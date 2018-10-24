@@ -261,8 +261,8 @@ class BeamModulePlugin implements Plugin<Project> {
         return
       }
 
-      mavenLocal()
       mavenCentral()
+      mavenLocal()
       jcenter()
 
       // Spring for resolving pentaho dependency.
@@ -349,6 +349,7 @@ class BeamModulePlugin implements Plugin<Project> {
         apex_engine                                 : "org.apache.apex:apex-engine:$apex_core_version",
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
+        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
@@ -439,6 +440,9 @@ class BeamModulePlugin implements Plugin<Project> {
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+      ],
+      groovy: [
+        groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
       ],
       // For generating pom.xml from archetypes.
       maven: [
@@ -672,7 +676,29 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
-      project.spotless { java { googleJavaFormat() } }
+      project.spotless {
+        java {
+          licenseHeader """/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+"""
+          googleJavaFormat()
+        }
+      }
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.

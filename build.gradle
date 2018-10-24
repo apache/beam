@@ -64,6 +64,7 @@ buildscript {
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
     classpath "org.ajoberstar.grgit:grgit-gradle:3.0.0-beta.1"                                          // Enable website git publish to asf-site branch
+    classpath "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                     // Enable docker compose tasks
 
     // Plugins which require online access should not be enabled when running in offline mode.
     if (!gradle.startParameter.isOffline()) {
@@ -181,7 +182,6 @@ check.dependsOn rat
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
 task javaPreCommit() {
-  dependsOn ":rat"
   // We need to list the model/* builds since sdks/java/core doesn't
   // depend on any of the model.
   dependsOn ":beam-model-pipeline:build"
@@ -205,7 +205,6 @@ task javaPostCommit() {
 }
 
 task goPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
 
   dependsOn ":beam-sdks-go-examples:build"
@@ -234,7 +233,6 @@ task goIntegrationTests() {
 }
 
 task pythonPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-sdks-python:preCommit"
 }
 
@@ -243,10 +241,21 @@ task pythonPostCommit() {
 }
 
 task websitePreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-website:preCommit"
 }
 
+task communityMetricsPreCommit() {
+  dependsOn ":beam-test-infra-metrics:preCommit"
+}
+
+task communityMetricsProber() {
+  dependsOn ":beam-test-infra-metrics:checkProber"
+}
+
+task javaExamplesDataflowPrecommit() {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
+}
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"

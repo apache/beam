@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 /** Indicates that we are missing a schema for a type. */
