@@ -203,7 +203,7 @@ func createEnvironment(ctx context.Context) pb.Environment {
 	case "beam:env:docker:v1":
 		fallthrough
 	default:
-		config := jobopts.GetEnvironmentConfig(ctx)
+		config := *image
 		payload := &pb.DockerPayload{ContainerImage: config}
 		serializedPayload, err := proto.Marshal(payload)
 		if err != nil {
