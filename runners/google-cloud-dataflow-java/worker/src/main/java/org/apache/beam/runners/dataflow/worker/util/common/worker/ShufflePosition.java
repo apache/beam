@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 /** Represents a position in a stream of ShuffleEntries. */
