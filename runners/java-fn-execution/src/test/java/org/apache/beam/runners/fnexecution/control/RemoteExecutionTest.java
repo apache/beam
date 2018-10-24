@@ -51,6 +51,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -59,6 +60,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -115,11 +117,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -427,8 +431,6 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testMetrics() throws Exception {
-    LOG.error("ajamato testMetrics0");
-    // TODO ajamato, base a test off of something like this.
     Pipeline p = Pipeline.create();
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
@@ -438,13 +440,11 @@ public class RemoteExecutionTest implements Serializable {
                     new DoFn<byte[], String>() {
                       @ProcessElement
                       public void process(ProcessContext ctxt) {
-                        LOG.error("ajamato testMetrics process");
-                        Metrics.counter(RemoteExecutionTest.class, "countedElems").inc();
+                        Metrics.counter(RemoteExecutionTest.class, "counterMetric").inc();
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
 
-    LOG.error("ajamato testMetrics1");
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
     Optional<ExecutableStage> optionalStage =
@@ -453,7 +453,6 @@ public class RemoteExecutionTest implements Serializable {
     checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
     ExecutableStage stage = optionalStage.get();
 
-    LOG.error("ajamato testMetrics2");
     ExecutableProcessBundleDescriptor descriptor =
         ProcessBundleDescriptors.fromExecutableStage(
             "test_stage",
@@ -467,7 +466,6 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getRemoteInputDestinations(),
             stateDelegator);
 
-    LOG.error("ajamato testMetrics3");
     Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
     Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
@@ -479,14 +477,12 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    LOG.error("ajamato testMetrics4");
     Iterable<byte[]> sideInputData =
         Arrays.asList(
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
 
-    LOG.error("ajamato testMetrics5");
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
             descriptor.getSideInputSpecs(),
@@ -512,25 +508,32 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    LOG.error("ajamato testMetrics6");
     BundleProgressHandler progressHandler = new BundleProgressHandler() {
       @Override
-      public void onProgress(ProcessBundleProgressResponse progress) {
-        LOG.error("ajamato onProgress");
-      }
+      public void onProgress(ProcessBundleProgressResponse progress) { }
 
       @Override
       public void onCompleted(ProcessBundleResponse response) {
-        // TODO debug why we don't have MonitoringInfos in this call's reponse.
-        LOG.error("ajamato onCompleted");
-        int size = response.getMonitoringInfosList().size();
-        assertEquals(1, size);
+        // Assert the timestamps are non empty then 0 them out before comparing.
+        List<MonitoringInfo> actualMIs = new ArrayList<>();
+        for (MonitoringInfo mi : response.getMonitoringInfosList()) {
+          MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+          Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
+          builder.mergeFrom(mi);
+          builder.clearTimestamp();
+          actualMIs.add(builder.build());
+        }
+
+        SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+        builder.setUrnForUserMetric(
+            RemoteExecutionTest.class.getName(), "counterMetric");
+        builder.setInt64Value(2);
+        MonitoringInfo expectedCounter = builder.build();
+
+        assertThat(actualMIs, CoreMatchers.hasItems(expectedCounter));
       }
     };
 
-
-
-    LOG.error("ajamato testMetrics7");
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
@@ -542,10 +545,6 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(
                   CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
-
-    LOG.error("ajamato testMetrics DONE");
-    //progressHandler.onCompleted();
-    //processor.
   }
 
   @Test
