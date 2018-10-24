@@ -73,7 +73,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())), random.randint(0, 10000))
+    self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())),
+                                  random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 
