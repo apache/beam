@@ -44,7 +44,7 @@ class AggregationArgsAdapter {
    */
   static ArgsAdapter of(List<Integer> argList, Schema inputSchema) {
     if (argList.size() == 0) {
-      return new ZeroArgsAdapter(inputSchema);
+      return ZeroArgsAdapter.INSTANCE;
     } else if (argList.size() == 1) {
       return new SingleArgAdapter(inputSchema, argList);
     } else {
@@ -53,29 +53,32 @@ class AggregationArgsAdapter {
   }
 
   /**
-   * If SQL aggregation call doesn't have actual arguments, we still pass the value first field to
-   * the delegate {@link CombineFn}.
+   * If SQL aggregation call doesn't have actual arguments, we pass an empty row to it.
    *
-   * <p>Note: this is not necessarily the correct thing to do.
+   * <p>This is for cases like COUNT(1) which doesn't take any arguments, or COUNT(*) that is a
+   * special case that returns the same result. In both of these cases we should count all Rows no
+   * matter whether they have NULLs or not.
+   *
+   * <p>This is a special case of the MultiArgsAdapter below.
    */
   static class ZeroArgsAdapter implements ArgsAdapter {
-    Schema sourceSchema;
+    private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+    private static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
+    private static final Coder<Row> EMPTY_ROW_CODER = SchemaCoder.of(EMPTY_SCHEMA);
 
-    ZeroArgsAdapter(Schema sourceSchema) {
-      this.sourceSchema = sourceSchema;
-    }
+    static final ZeroArgsAdapter INSTANCE = new ZeroArgsAdapter();
 
     /** Extracts the value from the first field of a row. */
     @Nullable
     @Override
     public Object getArgsValues(Row input) {
-      return input.getValue(0);
+      return EMPTY_ROW;
     }
 
     /** Coder for the first field of a row. */
     @Override
     public Coder getArgsValuesCoder() {
-      return RowCoder.coderForFieldType(sourceSchema.getField(0).getType());
+      return EMPTY_ROW_CODER;
     }
   }
 
