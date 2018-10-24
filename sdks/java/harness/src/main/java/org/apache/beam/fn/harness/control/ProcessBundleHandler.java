@@ -65,7 +65,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MonitoringInfos;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -216,7 +216,6 @@ public class ProcessBundleHandler {
 
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
-    LOG.error("ajamato processBundle start");
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -289,48 +288,40 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // ajamato setup the MetricsContainer here.
-      MetricsContainerImpl metricsContainer =
-          new MetricsContainerImpl("TODO ajamato step name");
-      LOG.error("ajamato setup the MetricsContainer " + metricsContainer.hashCode());
-      Closeable closeable = MetricsEnvironment.
-          scopedMetricsContainer(metricsContainer);
-      LOG.error("ajamato setup the MetricsContainer DONE");
+      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
 
-      // Already in reverse topological order so we don't need to do anything.
-      for (ThrowingRunnable startFunction : startFunctions) {
-        LOG.debug("Starting function {}", startFunction);
-        startFunction.run();
-      }
+        // Already in reverse topological order so we don't need to do anything.
+        for (ThrowingRunnable startFunction : startFunctions) {
+          LOG.debug("Starting function {}", startFunction);
+          startFunction.run();
+        }
 
-      // Need to reverse this since we want to call finish in topological order.
-      for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-        LOG.debug("Finishing function {}", finishFunction);
-        finishFunction.run();
-      }
-      if (!allPrimaries.isEmpty()) {
-        response.setSplit(
-            BundleSplit.newBuilder()
-                .addAllPrimaryRoots(allPrimaries.values())
-                .addAllResidualRoots(allResiduals.values())
-                .build());
-      }
+        // Need to reverse this since we want to call finish in topological order.
+        for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
+          LOG.debug("Finishing function {}", finishFunction);
+          finishFunction.run();
+        }
+        if (!allPrimaries.isEmpty()) {
+          response.setSplit(
+              BundleSplit.newBuilder()
+                  .addAllPrimaryRoots(allPrimaries.values())
+                  .addAllResidualRoots(allResiduals.values())
+                  .build());
+        }
 
-
-      // TODO move to another file
-      LOG.error("ajamato pull out metric updates " + metricsContainer.hashCode() + ".");
-      MetricUpdates mus = metricsContainer.getUpdates();
-      for (MetricUpdate<Long> mu : mus.counterUpdates()) {
-        MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-        builder.setUrn(MonitoringInfos.USER_COUNTER_URN_PREFIX + mu.getKey());
-        builder.setType("int64counter TODO");
-        response.addMonitoringInfos(builder.build());
-        LOG.error("ajamato pulled out 1 monitoring Info");
+        // Extract user metrics and store as MonitoringInfos.
+        MetricUpdates mus = metricsContainer.getUpdates();
+        for (MetricUpdate<Long> mu : mus.counterUpdates()) {
+          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+          builder.setUrnForUserMetric(
+              mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+          builder.setInt64Value(mu.getUpdate());
+          builder.setTimestampToNow();
+          response.addMonitoringInfos(builder.build());
+        }
+        return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
       }
-      LOG.error("ajamato pull out metric updates DONE");
-      closeable.close();
-      LOG.error("ajamato processBundle done");
-      return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     }
 
 

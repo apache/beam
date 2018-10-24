@@ -1,12 +1,16 @@
 package org.apache.beam.runners.core.metrics;
 
 
+import java.time.Instant;
+
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.BeamUrns;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 
-public class MonitoringInfos {
+
+public class SimpleMonitoringInfoBuilder {
 
   public static final String ELEMENT_COUNT_URN = BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
   public static final String START_BUNDLE_MSECS_URN = BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
@@ -36,37 +40,38 @@ public class MonitoringInfos {
     return sb.toString();
   }
 
-  private void setUrn(String urn) {
-    // Set the type
-    // TODO assert another type hasn't been set.
+  private MonitoringInfo.Builder builder;
+
+  public SimpleMonitoringInfoBuilder() {
+    this.builder = MonitoringInfo.newBuilder();
   }
 
-  private void setTimestampToNow() {
-    // Set the type
-    // TODO assert another type hasn't been set.
-    seconds = int(timestamp_secs)
-        nanos = int((timestamp_secs - seconds) * 10**9)
-    return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+  public void setUrn(String urn) {
+    this.builder.setUrn(urn);
   }
 
-  private void setInt64Value() {
-    // Set the type
-    // TODO assert another type hasn't been set.
+  public void setUrnForUserMetric(String namespace, String name) {
+    this.builder.setUrn(userMetricUrn(namespace, name));
   }
 
-  private void setPTransformLabel() {
-    // Set the type
-    // TODO assert another type hasn't been set.
+  public void setTimestampToNow() {
+    Instant time = Instant.now();
+    this.builder.getTimestampBuilder()
+        .setSeconds(time.getEpochSecond())
+        .setNanos(time.getNano());
   }
 
-  private void setInt64Value() {
-    // Set the type
-    // TODO assert another type hasn't been set.
+  public void setInt64Value(long value) {
+    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.builder.setType(SUM_INT64_TYPE);
   }
 
-  // Consider making a builder?
-  // Set Int64 (Type is automatically set then).
-  // Set URN.
-  // Set Label Value.
+  public void setPTransformLabel(String ptransform) {
+    this.builder.putLabels("PTRANSFORM", ptransform);
+  }
+
+  public MonitoringInfo build() {
+    return this.builder.build();
+  } // TODO add validation
 
 }
