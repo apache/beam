@@ -168,6 +168,11 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     }
 
     @Override
+    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
+      return descriptor;
+    }
+
+    @Override
     public void close() {}
   }
 }

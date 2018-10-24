@@ -35,4 +35,6 @@ public interface StageBundleFactory extends AutoCloseable {
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler)
       throws Exception;
+
+  ProcessBundleDescriptors.ExecutableProcessBundleDescriptor getProcessBundleDescriptor();
 }
