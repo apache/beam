@@ -65,6 +65,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfos;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -316,16 +317,12 @@ public class ProcessBundleHandler {
       }
 
 
-      // pull out values (ajamato) and put them on the response.
-      // Hook in here, but no intermediate metrics.
-      // TODO do we add metrics to this progress response?
-      // TODO pull into a method for the bundle id.
-      // TODO use a data structure with locking to pull metrics out of the container.
+      // TODO move to another file
       LOG.error("ajamato pull out metric updates " + metricsContainer.hashCode() + ".");
       MetricUpdates mus = metricsContainer.getUpdates();
       for (MetricUpdate<Long> mu : mus.counterUpdates()) {
         MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-        builder.setUrn("TODO" + mu.getKey());
+        builder.setUrn(MonitoringInfos.USER_COUNTER_URN_PREFIX + mu.getKey());
         builder.setType("int64counter TODO");
         response.addMonitoringInfos(builder.build());
         LOG.error("ajamato pulled out 1 monitoring Info");
