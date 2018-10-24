@@ -441,6 +441,9 @@ class BeamModulePlugin implements Plugin<Project> {
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
+      groovy: [
+        groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
+      ],
       // For generating pom.xml from archetypes.
       maven: [
         maven_compiler_plugin: "maven-plugins:maven-compiler-plugin:3.7.0",

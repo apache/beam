@@ -245,8 +245,11 @@ task websitePreCommit() {
 }
 
 task communityMetricsPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-test-infra-metrics:preCommit"
+}
+
+task communityMetricsProber() {
+  dependsOn ":beam-test-infra-metrics:checkProber"
 }
 
 task javaExamplesDataflowPrecommit() {
