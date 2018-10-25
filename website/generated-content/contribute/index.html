@@ -97,6 +97,9 @@
           <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
         </li>
         <li>
+          <a href="/roadmap/">Roadmap</a>
+        </li>
+        <li>
           <a href="/contribute/">Contribute</a>
         </li>
         <li>
@@ -162,7 +165,6 @@
     </ul>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
     <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
-    <li><a href="/contribute/portability/">Portability Framework</a></li>
     <li><a href="/contribute/docker-images/">Docker images</a></li>
     <li><a href="/contribute/design-documents/">Design documents</a></li>
     <li><a href="/contribute/dependencies/">Dependencies guide</a></li>
@@ -221,24 +223,7 @@
     </ul>
   </li>
   <li><a href="#contributing-to-the-website">Contributing to the website</a></li>
-  <li><a href="#works-in-progress">Works in progress</a>
-    <ul>
-      <li><a href="#portability-framework">Portability Framework</a></li>
-      <li><a href="#apache-spark-20-runner">Apache Spark 2.0 Runner</a></li>
-      <li><a href="#jstorm-runner">JStorm Runner</a></li>
-      <li><a href="#mapreduce-runner">MapReduce Runner</a></li>
-      <li><a href="#tez-runner">Tez Runner</a></li>
-      <li><a href="#go-sdk">Go SDK</a></li>
-      <li><a href="#python-3-support">Python 3 Support</a></li>
-      <li><a href="#next-java-lts-version-support-java-11--189">Next Java LTS version support (Java 11 / 18.9)</a></li>
-      <li><a href="#io-performance-testing">IO Performance Testing</a></li>
-      <li><a href="#euphoria-java-8-dsl">Euphoria Java 8 DSL</a></li>
-      <li><a href="#improving-the-contributor-experience">Improving the contributor experience</a></li>
-      <li><a href="#beam-sql">Beam SQL</a></li>
-      <li><a href="#add-benchmarks-to-continuous-integration">Add benchmarks to continuous integration</a></li>
-      <li><a href="#extract-metrics-in-a-runner-agnostic-way">Extract metrics in a runner agnostic way</a></li>
-    </ul>
-  </li>
+  <li><a href="#works-in-progress">Works in progress</a></li>
   <li><a href="#stale-pull-requests">Stale pull requests</a></li>
 </ul>
 
@@ -562,146 +547,9 @@ component in JIRA.</p>
 
 <h2 id="works-in-progress">Works in progress</h2>
 
-<p>A great way to contribute is to join an existing effort. There are many
-works in progress, some on branches because they are very incomplete.</p>
-
-<h3 id="portability-framework">Portability Framework</h3>
-
-<p>The primary Beam vision: Any SDK on any runner. This is a cross-cutting effort
-across Java, Python, and Go, and every Beam runner.</p>
-
-<ul>
-  <li><a href="/contribute/portability/">Read more</a></li>
-</ul>
-
-<h3 id="apache-spark-20-runner">Apache Spark 2.0 Runner</h3>
-
-<ul>
-  <li>Feature branch: <a href="https://github.com/apache/beam/tree/runners-spark2">runners-spark2</a></li>
-  <li>Contact: <a href="mailto:jbonofre@apache.org">Jean-Baptiste Onofré</a></li>
-</ul>
-
-<h3 id="jstorm-runner">JStorm Runner</h3>
-
-<ul>
-  <li><a href="/documentation/runners/jstorm">Docs</a></li>
-  <li>Feature branch: <a href="https://github.com/apache/beam/tree/jstorm-runner">jstorm-runner</a></li>
-  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-jstorm">runner-jstorm</a> / <a href="https://issues.apache.org/jira/browse/BEAM-1899">BEAM-1899</a></li>
-  <li>Contact: <a href="mailto:pei@apache.org">Pei He</a></li>
-</ul>
-
-<h3 id="mapreduce-runner">MapReduce Runner</h3>
-
-<ul>
-  <li>Feature branch: <a href="https://github.com/apache/beam/tree/mr-runner">mr-runner</a></li>
-  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-mapreduce">runner-mapreduce</a> / <a href="https://issues.apache.org/jira/browse/BEAM-165">BEAM-165</a></li>
-  <li>Contact: <a href="mailto:pei@apache.org">Pei He</a></li>
-</ul>
-
-<h3 id="tez-runner">Tez Runner</h3>
-
-<ul>
-  <li>Feature branch: <a href="https://github.com/apache/beam/tree/tez-runner">tez-runner</a></li>
-  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-tez">runner-tez</a> / <a href="https://issues.apache.org/jira/browse/BEAM-2709">BEAM-2709</a></li>
-</ul>
-
-<h3 id="go-sdk">Go SDK</h3>
-
-<ul>
-  <li>
-    <table>
-      <tbody>
-        <tr>
-          <td>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">sdk-go</a> / <a href="https://issues.apache.org/jira/browse/BEAM-2083">BEAM-2083</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </li>
-  <li>Contact: <a href="mailto:herohde@google.com">Henning Rohde</a></li>
-</ul>
-
-<h3 id="python-3-support">Python 3 Support</h3>
-
-<p>Work is in progress to add Python 3 support to Beam.  Current goal is to make Beam codebase compatible both with Python 2.7 and Python 3.4.</p>
-
-<ul>
-  <li><a href="https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE">Proposal</a></li>
-  <li><a href="https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&amp;view=detail">Kanban Board</a></li>
-  <li><a href="https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA">Python 3 Conversion Quick Start Guide</a></li>
-</ul>
-
-<p>Contributions are welcome! If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself.
-When submitting a new PR, please tag <a href="https://github.com/robbesneyders">@RobbeSneyders</a>, <a href="https://github.com/aaltay">@aaltay</a>, and <a href="https://github.com/tvalentyn">@tvalentyn</a>.</p>
-
-<h3 id="next-java-lts-version-support-java-11--189">Next Java LTS version support (Java 11 / 18.9)</h3>
-
-<p>Work to support the next LTS release of Java is in progress. For more details about the scope and info on the various tasks please see the JIRA ticket.</p>
-
-<ul>
-  <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-2530">BEAM-2530</a></li>
-  <li>Contact: <a href="mailto:iemejia@gmail.com">Ismaël Mejía</a></li>
-</ul>
-
-<h3 id="io-performance-testing">IO Performance Testing</h3>
-
-<p>We are also working on writing Performance Tests for IOs and developing a Performance Testing Framework for them. Contributions are welcome in the following areas:</p>
-
-<ul>
-  <li>developing more IO Performance Tests (IOITs)</li>
-  <li>providing necessary kubernetes infrastructure (eg. for databases or filesystems to be used in tests)</li>
-  <li>running Performance Tests on runners other than Dataflow and Direct</li>
-  <li>improving existing Performance Testing Framework and it’s documentation</li>
-</ul>
-
-<p>See the <a href="/documentation/io/testing/#i-o-transform-integration-tests">documentation</a> and the <a href="https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing">initial proposal</a>(for file based tests).</p>
-
-<p>If you’re willing to help in this area, tag the following people in PRs: <a href="https://github.com/chamikaramj">@chamikaramj</a>, <a href="https://github.com/dariuszaniszewski">@DariuszAniszewski</a>, <a href="https://github.com/lgajowy">@lgajowy</a>, <a href="https://github.com/szewi">@szewi</a>, <a href="https://github.com/kkucharc">@kkucharc</a></p>
-
-<h3 id="euphoria-java-8-dsl">Euphoria Java 8 DSL</h3>
-
-<p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at <a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example</a>.</p>
-
-<ul>
-  <li>Feature branch: <a href="https://github.com/apache/beam/tree/dsl-euphoria">dsl-euphoria</a></li>
-  <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria">dsl-euphoria</a> / <a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900</a></li>
-  <li>Contact: <a href="mailto:david.moravek@gmail.com">David Moravek</a></li>
-</ul>
-
-<h3 id="improving-the-contributor-experience">Improving the contributor experience</h3>
-
-<p>Making it easier to write code, run tests, and release. Investigating using docker for jenkins builds, automating the release process, and improving the reliability of tests.</p>
-
-<p>Ideas and help welcome! Contact: <a href="mailto:amyrvold@google.com">Alan Myrvold</a>, <a href="mailto:markliu@google.com">Mark Liu</a>, <a href="mailto:yifanzou@google.com">Yifan Zou</a></p>
-
-<h3 id="beam-sql">Beam SQL</h3>
-
-<p>Beam SQL has lots of areas to contribute: support for new operators, new
-connectors, performance measurement and improvement, more full specification
-and testing, etc.</p>
-
-<ul>
-  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?filter=12343977">dsl-sql</a></li>
-  <li>Contact: <a href="mailto:kenn@apache.org">Kenneth Knowles</a></li>
-</ul>
-
-<h3 id="add-benchmarks-to-continuous-integration">Add benchmarks to continuous integration</h3>
-
-<p>Run Nexmark benchmark queries after each commit for Spark, Flink and Direct Runner and export response times to performance dashboards</p>
-
-<ul>
-  <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-4225">nexmark-perfkit</a></li>
-  <li>Contact: <a href="mailto:echauchot@apache.org">Etienne Chauchot</a></li>
-</ul>
-
-<h3 id="extract-metrics-in-a-runner-agnostic-way">Extract metrics in a runner agnostic way</h3>
-
-<p>Metrics are pushed by the runners to configurable sinks (HTTP REST sink available).
-It is already enabled in Filnk and Spark runner. Work is in progress for Dataflow</p>
-
-<ul>
-  <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-3310">runner-agnostic-metrics</a></li>
-  <li>Contact: <a href="mailto:echauchot@apache.org">Etienne Chauchot</a></li>
-</ul>
+<p>A great way to contribute is to join an existing effort. For the most
+intensive efforts, check out the <a href="/roadmap/">roadmap</a>.
+You can also find a more exhaustive list on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ wiki</a></p>
 
 <h2 id="stale-pull-requests">Stale pull requests</h2>
 
