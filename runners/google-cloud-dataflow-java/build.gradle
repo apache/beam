@@ -115,7 +115,7 @@ def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-st
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
 
-def dockerImageRoot = "us.gcr.io/${dataflowProject}/java-examples-it"
+def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-examples-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 def dockerImageName = "${dockerImageContainer}:${dockerTag}"
@@ -217,7 +217,12 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-//  dependsOn validatesRunnerLegacyWorkerTest
+  dependsOn validatesRunnerLegacyWorkerTest
+}
+
+task validatesRunnerFnApi {
+  group = "Verification"
+  description "Validates Dataflow runner"
   dependsOn validatesRunnerFnApiWorkerTest
 }
 
