@@ -219,7 +219,8 @@ class BeamModulePlugin implements Plugin<Project> {
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       //SplitableDoFnTests
