@@ -54,7 +54,7 @@
           {
             "evaluator": {
               "params": [
-                8
+                480
               ],
               "type": "gt"
             },
@@ -90,8 +90,8 @@
       "description": "Data freshness for each metrics input source. Used for health monitoring for other dashboards.",
       "fill": 1,
       "gridPos": {
-        "h": 11,
-        "w": 13,
+        "h": 12,
+        "w": 6,
         "x": 0,
         "y": 0
       },
@@ -170,7 +170,7 @@
           "fill": true,
           "line": true,
           "op": "gt",
-          "value": 8
+          "value": 480
         }
       ],
       "timeFrom": null,
@@ -197,7 +197,7 @@
           "format": "m",
           "label": "Staleness",
           "logBase": 1,
-          "max": null,
+          "max": "60",
           "min": "0",
           "show": true
         },
@@ -254,5 +254,5 @@
   "timezone": "",
   "title": "Source Data Freshness",
   "uid": "data-freshness",
-  "version": 3
+  "version": 7
 }
