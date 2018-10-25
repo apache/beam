@@ -87,12 +87,6 @@ import warnings
 from functools import partial
 from functools import wraps
 
-# Produce only the first occurrence of matching warnings regardless of
-# location per line of execution. Since the number of lines of execution
-# depends on the concrete runner, the number of warnings produced will
-# vary depending on the runner.
-warnings.simplefilter("once")
-
 
 def annotate(label, since, current, extra_message, custom_message=None):
   """Decorates an API with a deprecated or experimental annotation.
