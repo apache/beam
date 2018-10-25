@@ -347,12 +347,12 @@ public abstract class Row implements Serializable {
     }
     Row other = (Row) o;
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.equals(getValues(), other.getValues());
+        && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getValues());
+    return Arrays.deepHashCode(new Object[] {getSchema(), getValues().toArray()});
   }
 
   @Override
