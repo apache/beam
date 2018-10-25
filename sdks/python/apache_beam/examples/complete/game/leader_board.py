@@ -217,7 +217,7 @@ class CalculateTeamScores(beam.PTransform):
         # processing of late data.
         | 'LeaderboardTeamFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(self.team_window_duration),
-            trigger=trigger.AfterWatermark(trigger.AfterCount(10),
+            trigger=trigger.AfterWatermark(trigger.AfterCount(20),
                                            trigger.AfterCount(20)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum teamname/score pairs from the event data.
