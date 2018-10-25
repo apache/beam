@@ -219,7 +219,8 @@ class BeamModulePlugin implements Plugin<Project> {
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
       //SplitableDoFnTests
@@ -558,6 +559,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
+        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
+        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
+        options.compilerArgs -= ["-Xlint:deprecation"]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',

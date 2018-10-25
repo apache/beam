@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.Lists;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.MultipleAggregationsFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
@@ -63,7 +64,7 @@ import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
-  private WindowFn<Row, IntervalWindow> windowFn;
+  private @Nullable WindowFn<Row, IntervalWindow> windowFn;
   private final int windowFieldIndex;
 
   public BeamAggregationRel(
@@ -74,7 +75,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls,
-      WindowFn<Row, IntervalWindow> windowFn,
+      @Nullable WindowFn<Row, IntervalWindow> windowFn,
       int windowFieldIndex) {
 
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);

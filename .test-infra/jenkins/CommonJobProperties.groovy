@@ -186,7 +186,7 @@ class CommonJobProperties {
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org',
+                         notifyAddress = 'builds@beam.apache.org',
                          triggerOnCommit = false,
                          emailIndividuals = false) {
 
@@ -203,7 +203,7 @@ class CommonJobProperties {
 
 
     context.publishers {
-      // Notify an email address for each failed build (defaults to commits@).
+      // Notify an email address for each failed build (defaults to builds@).
       mailer(
           notifyAddress,
           /* _do_ notify every unstable build */ false,

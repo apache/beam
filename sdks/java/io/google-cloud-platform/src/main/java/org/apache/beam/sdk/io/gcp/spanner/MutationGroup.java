@@ -81,4 +81,12 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
   public int hashCode() {
     return Objects.hashCode(mutations);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder("MutationGroup(");
+    sb.append(mutations);
+    sb.append(")");
+    return sb.toString();
+  }
 }

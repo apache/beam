@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
@@ -60,7 +62,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOp
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.StreamingImpulseSource;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -785,17 +786,6 @@ public class FlinkStreamingPortablePipelineTranslator
     @Override
     public WindowedValue<KV<Void, T>> map(WindowedValue<T> value) {
       return value.withValue(KV.of(null, value.getValue()));
-    }
-  }
-
-  static <T> Coder<WindowedValue<T>> instantiateCoder(
-      String collectionId, RunnerApi.Components components) {
-    PipelineNode.PCollectionNode collectionNode =
-        PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
-    try {
-      return WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
     }
   }
 }
