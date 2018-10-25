@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Create.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
@@ -70,15 +71,16 @@ public class CacheTest {
     options.setRunner(TestSparkRunner.class);
     options.setCacheDisabled(true);
     Pipeline pipeline = Pipeline.create(options);
-    PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
+    Values<String> createInput = Create.of("foo", "bar");
+    PCollection<String> pCollection = pipeline.apply(createInput);
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
     ctxt.getCacheCandidates().put(pCollection, 2L);
 
-    assertFalse(ctxt.shouldCache(pCollection));
+    assertFalse(ctxt.shouldCache(pCollection, createInput));
 
     options.setCacheDisabled(false);
-    assertTrue(ctxt.shouldCache(pCollection));
+    assertTrue(ctxt.shouldCache(pCollection, createInput));
   }
 }
