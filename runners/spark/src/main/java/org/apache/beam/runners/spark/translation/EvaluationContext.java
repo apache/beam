@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -137,30 +139,39 @@ public class EvaluationContext {
   }
 
   /**
-   * Cache PCollection if {@link #isCacheDisabled()} flag is false and PCollection is used more then
-   * once in Pipeline.
+   * Cache PCollection if {@link #isCacheDisabled()} flag is false or transform isn't GroupByKey
+   * transformation and PCollection is used more then once in Pipeline.
    *
-   * @param pvalue
+   * <p>PCollection is not cached in GroupByKey transformation, because Spark automatically persists
+   * some intermediate data in shuffle operations, even without users calling persist.
+   *
+   * @param pvalue output of transform
+   * @param transform
    * @return if PCollection will be cached
    */
-  public boolean shouldCache(PValue pvalue) {
-    if (isCacheDisabled()) {
+  public boolean shouldCache(PValue pvalue, PTransform<?, ? extends PValue> transform) {
+    if (isCacheDisabled() || transform instanceof GroupByKey) {
       return false;
     }
     return pvalue instanceof PCollection && cacheCandidates.getOrDefault(pvalue, 0L) > 1;
   }
 
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(getOutput(transform), dataset);
+    putDataset(transform, getOutput(transform), dataset);
   }
 
   public void putDataset(PValue pvalue, Dataset dataset) {
+    putDataset(null, pvalue, dataset);
+  }
+
+  private void putDataset(
+      @Nullable PTransform<?, ? extends PValue> transform, PValue pvalue, Dataset dataset) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (shouldCache(pvalue)) {
+    if (shouldCache(pvalue, transform)) {
       // we cache only PCollection
       Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
       Coder<? extends BoundedWindow> wCoder =

@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet.StateAndTimers;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
+import org.apache.beam.runners.spark.translation.GroupNonMergingWindowsFunctions.WindowedKey;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
@@ -61,6 +62,7 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
     kryo.register(HashBasedTable.class);
     kryo.register(KV.class);
     kryo.register(PaneInfo.class);
+    kryo.register(WindowedKey.class);
 
     try {
       kryo.register(
