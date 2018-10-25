@@ -834,7 +834,10 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       final Instant currentValue = readInternal();
       final Instant combinedValue =
           currentValue == null ? value : timestampCombiner.combine(currentValue, value);
-      writeInternal(combinedValue);
+
+      if (!combinedValue.equals(currentValue)) {
+        writeInternal(combinedValue);
+      }
     }
 
     @Override
