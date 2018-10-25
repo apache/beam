@@ -984,7 +984,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowFnApiUnsupported.class})
     public void testFixedWindowsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -1267,7 +1267,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowFnApiUnsupported.class})
     public void testWindowedCombineEmpty() {
       PCollection<Double> mean =
           pipeline
@@ -1397,7 +1397,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowFnApiUnsupported.class})
     public void testAccumulatingCombineEmpty() {
       runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }
