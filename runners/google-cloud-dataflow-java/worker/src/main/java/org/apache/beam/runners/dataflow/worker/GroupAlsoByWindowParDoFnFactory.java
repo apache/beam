@@ -299,7 +299,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
     @Override
     public AccumT extractOutput(List<AccumT> accumulator) {
-      if (accumulator.size() == 0) {
+      if (accumulator.isEmpty()) {
         return combineFn.createAccumulator();
       } else {
         return combineFn.mergeAccumulators(accumulator);
@@ -360,7 +360,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
     @Override
     public AccumT extractOutput(List<AccumT> accumulator, Context c) {
-      if (accumulator.size() == 0) {
+      if (accumulator.isEmpty()) {
         return combineFnWithContext.createAccumulator(c);
       } else {
         return combineFnWithContext.mergeAccumulators(accumulator, c);
