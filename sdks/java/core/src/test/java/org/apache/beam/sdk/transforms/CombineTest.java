@@ -984,9 +984,7 @@ public class CombineTest implements Serializable {
           pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
 
       Combine.Globally<Integer, String> combine =
-          Combine.globally(new TestCombineFnWithContext(view))
-              .withSideInputs(view)
-              .withFanout(1);
+          Combine.globally(new·TestCombineFnWithContext(view)).withSideInputs(view).withFanout(1);
 
       assertEquals(Collections.singletonList(view), combine.getSideInputs());
     }
