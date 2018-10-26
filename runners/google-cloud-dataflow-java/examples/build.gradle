@@ -112,4 +112,13 @@ task preCommit () {
 
 task preCommitFnApi () {
   dependsOn preCommitFnApiWorker
+  // Clean up built images
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
+    }
+  }
 }
