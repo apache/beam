@@ -1095,7 +1095,7 @@ class FnApiRunner(runner.PipelineRunner):
       value_coder = context.coders[safe_coders[
           pipeline_components.pcollections[actual_pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
-      for element_data in pcoll_buffers[pcoll_id]:
+      for element_data in pcoll_buffers[pcoll_id.encode('utf-8')]:
         elements_by_window.append(element_data)
       for key, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
