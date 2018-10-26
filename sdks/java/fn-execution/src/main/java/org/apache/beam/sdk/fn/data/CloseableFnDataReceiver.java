@@ -27,8 +27,8 @@ public interface CloseableFnDataReceiver<T> extends FnDataReceiver<T>, AutoClose
   /**
    * Eagerly flushes any data that is buffered in this channel.
    *
-   * @deprecated to be removed once splitting/checkpointing are available in SDKs and rewinding in
-   *     readers.
+   * TODO: Remove once splitting/checkpointing are available in SDKs and rewinding in readers.
+   *
    * @throws Exception
    */
   @Deprecated
