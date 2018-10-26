@@ -156,11 +156,6 @@ public class BeamFnDataWriteRunnerTest {
           public void accept(WindowedValue<String> t) throws Exception {
             outputValues.add(t);
           }
-
-          @Override
-          public void flush() throws Exception {
-            throw new UnsupportedOperationException("Flush is not supported");
-          }
         };
 
     when(mockBeamFnDataClient.send(any(), any(), Matchers.<Coder<WindowedValue<String>>>any()))
@@ -261,11 +256,6 @@ public class BeamFnDataWriteRunnerTest {
         throw new IllegalStateException("Consumer is closed but attempting to consume " + t);
       }
       add(t);
-    }
-
-    @Override
-    public void flush() throws Exception {
-      throw new UnsupportedOperationException("Flush is not supported");
     }
   }
 
