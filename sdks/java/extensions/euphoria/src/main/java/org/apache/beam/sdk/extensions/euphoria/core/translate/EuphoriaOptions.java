@@ -19,10 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.GenericTranslatorProvider;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -36,12 +33,7 @@ public interface EuphoriaOptions extends PipelineOptions {
 
     @Override
     public TranslatorProvider create(PipelineOptions options) {
-      return SimpleTranslatorProvider.newBuilder()
-          .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
-          .registerTranslator(Union.class, new UnionTranslator<>())
-          .registerTranslator(ReduceByKey.class, new ReduceByKeyTranslator<>())
-          .registerTranslator(Join.class, new JoinTranslator<>())
-          .build();
+      return GenericTranslatorProvider.createWithDefaultTranslators();
     }
   }
 
