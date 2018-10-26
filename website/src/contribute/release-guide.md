@@ -618,7 +618,7 @@ If you are interested in how it works, please refer to the [structure section](h
 Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
 
 Once all python wheels have been staged [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/), 
-please run ./sign_hash_python_wheels.sh to sign and hash python wheels.
+please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh) to sign and hash python wheels.
 
 #### Checklist to proceed to the next step
 
