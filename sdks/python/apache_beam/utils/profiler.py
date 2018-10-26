@@ -27,11 +27,14 @@ import io
 import logging
 import os
 import pstats
+import random
 import tempfile
 import time
 import warnings
 from builtins import object
 from threading import Timer
+
+from apache_beam.io import filesystems
 
 
 class Profile(object):
@@ -40,12 +43,14 @@ class Profile(object):
   SORTBY = 'cumulative'
 
   def __init__(self, profile_id, profile_location=None, log_results=False,
-               file_copy_fn=None):
+               file_copy_fn=None, time_prefix='%Y-%m-%d_%H_%M_%S-'):
     self.stats = None
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
     self.log_results = log_results
-    self.file_copy_fn = file_copy_fn
+    self.file_copy_fn = file_copy_fn or self.default_file_copy_fn
+    self.time_prefix = time_prefix
+    self.profile_output = None
 
   def __enter__(self):
     logging.info('Start profiling: %s', self.profile_id)
@@ -57,16 +62,19 @@ class Profile(object):
     self.profile.disable()
     logging.info('Stop profiling: %s', self.profile_id)
 
-    if self.profile_location and self.file_copy_fn:
+    if self.profile_location:
       dump_location = os.path.join(
-          self.profile_location, 'profile',
-          ('%s-%s' % (time.strftime('%Y-%m-%d_%H_%M_%S'), self.profile_id)))
+          self.profile_location,
+          time.strftime(self.time_prefix + self.profile_id))
       fd, filename = tempfile.mkstemp()
-      self.profile.dump_stats(filename)
-      logging.info('Copying profiler data to: [%s]', dump_location)
-      self.file_copy_fn(filename, dump_location)  # pylint: disable=protected-access
-      os.close(fd)
-      os.remove(filename)
+      try:
+        os.close(fd)
+        self.profile.dump_stats(filename)
+        logging.info('Copying profiler data to: [%s]', dump_location)
+        self.file_copy_fn(filename, dump_location)
+      finally:
+        os.remove(filename)
+      self.profile_output = dump_location
 
     if self.log_results:
       s = io.StringIO()
@@ -74,6 +82,24 @@ class Profile(object):
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()
       logging.info('Profiler data: [%s]', s.getvalue())
+
+  @staticmethod
+  def default_file_copy_fn(src, dest):
+    dest_handle = filesystems.FileSystems.create(dest + '.tmp')
+    try:
+      with open(src, 'rb') as src_handle:
+        dest_handle.write(src_handle.read())
+    finally:
+      dest_handle.close()
+    filesystems.FileSystems.rename([dest + '.tmp'], [dest])
+
+  @staticmethod
+  def factory_from_options(options):
+    if options.profile_cpu:
+      def create_profiler(profile_id, **kwargs):
+        if random.random() < options.profile_sample_rate:
+          return Profile(profile_id, options.profile_location, **kwargs)
+      return create_profiler
 
 
 class MemoryReporter(object):
