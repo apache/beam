@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: "base"
-apply plugin: "groovy"
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyGroovyNature()
 
-repositories {
-  mavenCentral()
-}
+repositories { mavenCentral() }
 
 // https://github.com/avast/gradle-docker-compose-plugin
 apply plugin: "com.avast.gradle.docker-compose"
@@ -32,17 +30,11 @@ dependencies {
 }
 
 task testMetricsStack {
-  doLast {
-    // TODO(BEAM-5837): Add some actual validation of the metrics stack
-    println "Hello world!"
-  }
+  doLast { // TODO(BEAM-5837): Add some actual validation of the metrics stack
+    println "Hello world!" }
 }
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task preCommit {
-  dependsOn testMetricsStack
-}
+task preCommit { dependsOn testMetricsStack }
 
-task checkProber {
-  dependsOn test
-}
+task checkProber { dependsOn test }
