@@ -23,15 +23,9 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.BroadcastHashJoinTranslator;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.FlatMapTranslator;
-import org.apache.beam.sdk.extensions.euphoria.core.translate.SimpleTranslatorProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -45,14 +39,6 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
     @Override
     public Dataset<OutputT> getOutput(Pipeline pipeline) {
-      pipeline
-          .getOptions()
-          .as(EuphoriaOptions.class)
-          .setTranslatorProvider(
-              SimpleTranslatorProvider.newBuilder()
-                  .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
-                  .registerTranslator(Join.class, new BroadcastHashJoinTranslator<>())
-                  .build());
       return super.getOutput(pipeline);
     }
   }
@@ -65,7 +51,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-            return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
+            return LeftJoin.named("broadcast-leftJoin")
+                .of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Integer l, Optional<Long> r, Collector<String> c) ->
@@ -118,7 +105,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<Integer, String>> getOutput(
               Dataset<Integer> left, Dataset<Long> right) {
-            return RightJoin.of(MapElements.of(left).using(i -> i).output(), right)
+            return RightJoin.named("BroadcastRightJoin")
+                .of(MapElements.of(left).using(i -> i).output(), right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
                     (Optional<Integer> l, Long r, Collector<String> c) ->
@@ -171,7 +159,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           @Override
           protected Dataset<KV<String, String>> getOutput(
               Dataset<String> left, Dataset<Integer> right) {
-            return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
+            return LeftJoin.named("Broadcast-leftJoin")
+                .of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
                 .using(
                     (String l, Optional<Integer> r, Collector<String> c) ->

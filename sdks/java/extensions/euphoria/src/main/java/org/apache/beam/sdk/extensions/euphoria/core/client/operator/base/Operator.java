@@ -44,12 +44,17 @@ public abstract class Operator<OutputT> implements Serializable, TypeAware.Outpu
    *
    * @return maybe name
    */
-  public final Optional<String> getName() {
+  public Optional<String> getName() {
     return Optional.ofNullable(name);
   }
 
   @Override
   public Optional<TypeDescriptor<OutputT>> getOutputType() {
     return Optional.ofNullable(outputType);
+  }
+
+  @Override
+  public String toString() {
+    return this.getClass().getSimpleName() + " operator{" + "name='" + name + '\'' + '}';
   }
 }

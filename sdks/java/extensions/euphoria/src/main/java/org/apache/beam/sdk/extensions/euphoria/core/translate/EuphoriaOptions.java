@@ -36,11 +36,13 @@ public interface EuphoriaOptions extends PipelineOptions {
 
     @Override
     public TranslatorProvider create(PipelineOptions options) {
-      return SimpleTranslatorProvider.newBuilder()
+      return NameBasedTranslatorProvider.newBuilder()
           .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
           .registerTranslator(Union.class, new UnionTranslator<>())
           .registerTranslator(ReduceByKey.class, new ReduceByKeyTranslator<>())
           .registerTranslator(Join.class, new JoinTranslator<>())
+          .registerTranslator(Join.class, new BroadcastHashJoinTranslator<>())
+          .addShortNameTranslation(BroadcastHashJoinTranslator.class, "broadcast")
           .build();
     }
   }
