@@ -30,12 +30,14 @@
 # Usage check.
 
 if (( $# < 2 )); then
-  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> <pipeline_type> <runner_type> [gcp_location] [gcp_project]"
+  printf "Usage: \n$> ./scripts/run_postcommit.sh <test_type> <pipeline_type> <runner_type> "
+  printf  " [gcp_location] [gcp_project] [dataflow_worker_jar]"
   printf "\n\ttest_type: [required] ValidatesRunner or IT"
   printf "\n\tpipeline_type: [required] streaming or batch"
   printf "\n\trunner_type: [optional] TestDataflowRunner or TestDirectRunner"
   printf "\n\tgcp_location: [optional] A gs:// path to stage artifacts and output results"
-  printf "\n\tgcp_project: [optional] A GCP project to run Dataflow pipelines\n"
+  printf "\n\tgcp_project: [optional] A GCP project to run Dataflow pipelines"
+  printf "\n\tdataflow_worker_jar: [optional] Customized worker jar for dataflow runner.\n"
   exit 1
 fi
 
@@ -64,6 +66,9 @@ GCS_LOCATION=${4:-gs://temp-storage-for-end-to-end-tests}
 
 PROJECT=${5:-apache-beam-testing}
 
+# Path to customized worker jar file.
+DATAFLOW_WORKER_JAR=${6:-}
+
 # Create a tarball
 python setup.py -q sdist
 
@@ -87,10 +92,20 @@ PIPELINE_OPTIONS=(
   "--sleep_secs=20"
 )
 
+# Validation: For testing purpose, we require to use the optional feature of dataflow worker
+# jar file, when streaming and TestDataFlow are both specified.
+if [ "$2" = "streaming" ] && [ "$3" = "TestDataflowRunner" ] && [ -z $DATAFLOW_WORKER_JAR]; then
+  echo "Failure: Testing pipelines for streaming expect a dataflow worker jar file."
+  exit 1
+fi
+
 # Add streaming flag if specified.
 if [[ "$2" = "streaming" ]]; then
   echo ">>> Set test pipeline to streaming"
   PIPELINE_OPTIONS+=("--streaming")
+  if [ "$3" = "TestDataflowRunner" ]; then
+    PIPELINE_OPTIONS+=("--dataflow_worker_jar $DATAFLOW_WORKER_JAR")
+  fi
 else
   echo ">>> Set test pipeline to batch"
 fi
