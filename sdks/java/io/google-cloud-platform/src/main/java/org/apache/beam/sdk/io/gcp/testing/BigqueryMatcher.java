@@ -35,6 +35,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
  * ]}</pre>
  */
 @NotThreadSafe
+@Experimental
 public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     implements SerializableMatcher<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryMatcher.class);
