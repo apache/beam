@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/nexmark/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/testing/nexmark/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -157,7 +157,7 @@
     </li>
     <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
     <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="/documentation/sdks/java/nexmark/">Nexmark benchmark suite</a></li>
+    <li><a href="/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
   </ul>
 </li>
 
@@ -367,7 +367,7 @@ queries.</li>
 <h2 id="benchmark-workload-configuration">Benchmark workload configuration</h2>
 
 <p>Here are some of the knobs of the benchmark workload (see
-<a href="https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
+<a href="https://github.com/apache/beam/blob/master/sdks/java/testing/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
 
 <p>These configuration items can be passed to the launch command line.</p>
 
@@ -996,7 +996,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
     --driver-memory 512m \
     --executor-memory 512m \
     --executor-cores 1 \
-    sdks/java/nexmark/build/libs/beam-sdks-java-nexmark-2.7.0-spark.jar \
+    sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-2.7.0-spark.jar \
         --runner=SparkRunner \
         --query=0 \
         --streamTimeout=60 \
