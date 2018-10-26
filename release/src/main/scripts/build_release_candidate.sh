@@ -89,6 +89,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
+  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
 
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
@@ -103,7 +104,7 @@ if [[ $confirmation = "y" ]]; then
 
   echo "-------------Staging Java Artifacts into Maven---------------"
   ./gradlew publish -PisRelease --no-parallel --no-daemon
-  echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-1049/"
+  echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-NNNN/"
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
@@ -225,7 +226,7 @@ if [[ $confirmation = "y" ]]; then
   ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
-  echo "------------------Updating Beam Website---------------------"
+  echo "------------------Updating Release Docs---------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
   git clone ${GIT_BEAM_WEBSITE}
   cd ${WEBSITE_ROOT_DIR}
@@ -239,7 +240,7 @@ if [[ $confirmation = "y" ]]; then
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
 
   git add -A
-  git commit -m "Update beam-site for release ${RELEASE}"
+  git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
   git push ${USER_REMOTE_URL}
 
   if [[ -z `which hub` ]]; then
