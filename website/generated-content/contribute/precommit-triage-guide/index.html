@@ -210,7 +210,7 @@
   <li><a href="#what-are-fast-pre-commits">What are fast pre-commits?</a></li>
   <li><a href="#determining-slowness">Determining Slowness</a>
     <ul>
-      <li><a href="#notebook">Notebook</a></li>
+      <li><a href="#pre-commit-dashboard">Pre-commit Dashboard</a></li>
     </ul>
   </li>
   <li><a href="#triage-process">Triage Process</a></li>
@@ -270,31 +270,17 @@ the Jenkins queue + the actual time it spends running.</p>
   <li>Pre-commit jobs are timing out after 30 minutes. This can be determined from
 the console log of a job.</li>
   <li>Pre-commits aren’t timing out, but the total wait time for pre-commit results
-is &gt;30m. This can be determined using a Jupyter notebook.</li>
+is &gt;30m.</li>
 </ol>
 
-<h3 id="notebook">Notebook</h3>
+<h3 id="pre-commit-dashboard">Pre-commit Dashboard</h3>
 
-<p>The Beam repo contains a <a href="https://github.com/apache/beam/tree/master/.test-infra/jupyter">Jupyter
-notebook</a> named
-<code class="highlighter-rouge">precommit_job_times.ipynb</code> that can be used to gather and visualize statistics
-about pre-commit running times.</p>
+<p>The Beam Community Metrics site contains a <a href="http://104.154.241.245/d/_TNndF2iz/pre-commit-tests">Pre-Commit
+Tests</a> dashboard showing
+job timing trends. You can modify the time window (defaults to 7 days) or filter
+down to a specific test suite by clicking on it.</p>
 
-<p>Run the notebook. It should output a table with running times. The numbers in
-the column <code class="highlighter-rouge">totalDurationMinutes_all</code> and the rows with a <code class="highlighter-rouge">job_name</code> like <code class="highlighter-rouge">4
-weeks 95th</code> contain the target numbers for determining slowness.
-If any of these numbers are above 30, triaging is required.</p>
-
-<h4 id="example">Example</h4>
-<p>Here’s an example table of running times:</p>
-
-<p><img src="/images/precommit_durations.png" alt="example pre-commit duration table" /></p>
-
-<p>(Note that this example was created when pre-commits did not have 30m timeouts.)</p>
-
-<p>In this example, Go pre-commits are taking approximately 14 minutes, which is
-fast. Java and Python pre-commits are taking 78 and 32 minutes respectively,
-which is slow. Both Java and Python pre-commits require triage.</p>
+<p><img src="/images/precommit_dashboard.png" alt="example pre-commit duration dashboard" /></p>
 
 <h2 id="triage-process">Triage Process</h2>
 
