@@ -224,6 +224,15 @@ task validatesRunnerFnApi {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerFnApiWorkerTest
+
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
+    }
+  }
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
