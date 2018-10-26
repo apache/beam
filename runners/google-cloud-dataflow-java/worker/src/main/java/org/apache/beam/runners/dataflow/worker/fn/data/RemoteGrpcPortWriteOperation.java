@@ -120,10 +120,11 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
       }
       int numProcessed = elementsProcessed.get();
       // A negative value indicates that obtaining numProcessed is not supported.
-      // Otherwise, wait until the SDK has processed at least one element before continuing.
       if (numProcessed < 0) {
         targetElementsSent = Integer.MAX_VALUE;
-      } else if (numProcessed == 0) {
+      }
+      // Wait until the SDK has processed at least one element before continuing.
+      if (numProcessed == 0) {
         targetElementsSent = 1;
       } else {
         double rate;
