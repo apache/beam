@@ -34,11 +34,8 @@ import grpc
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
 from apache_beam import metrics
-from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
-from apache_beam.internal import pickler
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -963,19 +960,15 @@ class FnApiRunner(runner.PipelineRunner):
 
     pipeline_components = copy.deepcopy(pipeline_proto.components)
 
-    # Reify coders.
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    coders = pipeline_context.PipelineContext(pipeline_components).coders
+    # Some SDK workers require windowed coders for their PCollections.
+    # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
     for pcoll in pipeline_components.pcollections.values():
-      if pcoll.coder_id not in coders:
-        window_coder = coders[
+      if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
+          != common_urns.coders.WINDOWED_VALUE.urn):
+        pcoll.coder_id = windowed_coder_id(
+            pcoll.coder_id,
             pipeline_components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id]
-        coder = WindowedValueCoder(
-            registry.get_coder(pickler.loads(pcoll.coder_id)),
-            window_coder=window_coder)
-        pcoll.coder_id = coders.get_id(coder)
-    coders.populate_map(pipeline_components.coders)
+                pcoll.windowing_strategy_id].window_coder_id)
 
     known_composites = set(
         [common_urns.primitives.GROUP_BY_KEY.urn,

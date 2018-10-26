@@ -571,6 +571,9 @@ class PTransform(WithTypeHints, HasDisplayData):
     return (python_urns.PICKLED_TRANSFORM,
             pickler.dumps(self))
 
+  def runner_api_requires_keyed_input(self):
+    return False
+
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
 def _create_transform(payload, unused_context):

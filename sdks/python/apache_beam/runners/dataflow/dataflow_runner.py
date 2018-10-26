@@ -335,14 +335,6 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in self.proto_pipeline.components.pcollections.values():
-      if pcoll.coder_id not in self.proto_context.coders:
-        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-        pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(
-        self.proto_pipeline.components.coders)
-
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
