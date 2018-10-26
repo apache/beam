@@ -29,6 +29,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
@@ -43,8 +44,16 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BroadcastHashJoinTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.CompositeOperatorTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.FlatMapTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.CompositeProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.GenericTranslatorProvider;
 import org.apache.beam.sdk.extensions.kryo.KryoCoderProvider;
 import org.apache.beam.sdk.extensions.kryo.KryoOptions;
 import org.apache.beam.sdk.io.TextIO;
@@ -62,6 +71,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -806,5 +816,52 @@ public class DocumentationExamplesTest {
             Triple.of('c', "caterpillar", 11));
 
     pipeline.run();
+  }
+
+  @Test
+  public void testGenericTranslatorProvider() {
+
+    GenericTranslatorProvider provider =
+        GenericTranslatorProvider.newBuilder()
+            .register(FlatMap.class, new FlatMapTranslator<>()) // register by operator class
+            .register(
+                Join.class,
+                (Join op) -> {
+                  String name = ((Optional<String>) op.getName()).orElse("");
+                  return name.toLowerCase().startsWith("broadcast");
+                },
+                new BroadcastHashJoinTranslator<>()) // register by class and predicate
+            .register(
+                op -> op instanceof CompositeOperator,
+                new CompositeOperatorTranslator<>()) // register by predicate only
+            .build();
+
+    Assert.assertNotNull(provider);
+  }
+
+  private static class CustomTranslatorProvider implements TranslatorProvider {
+
+    static CustomTranslatorProvider of() {
+      return new CustomTranslatorProvider();
+    }
+
+    @Override
+    public <InputT, OutputT, OperatorT extends Operator<OutputT>>
+        Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(
+            OperatorT operator) {
+      return Optional.empty();
+    }
+  }
+
+  @Test
+  public void testCompositeTranslationProviderExample() {
+
+    CompositeProvider compositeProvider =
+        CompositeProvider.of(
+            CustomTranslatorProvider.of(), // first ask CustomTranslatorProvider for translator
+            GenericTranslatorProvider
+                .createWithDefaultTranslators()); // then ask default provider if needed
+
+    Assert.assertNotNull(compositeProvider);
   }
 }
