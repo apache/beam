@@ -400,7 +400,9 @@ class Pipeline(object):
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self._options).run(False)
+          self.to_runner_api(use_fake_coders=True),
+          self.runner,
+          self._options).run(False)
 
     if self._options.view_as(TypeOptions).runtime_type_check:
       from apache_beam.typehints import typecheck
@@ -603,12 +605,39 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self, return_context=False, context=None):
+  def to_runner_api(
+      self, return_context=False, context=None, use_fake_coders=False):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
-      context = pipeline_context.PipelineContext()
+      context = pipeline_context.PipelineContext(
+          use_fake_coders=use_fake_coders)
+
+    # The RunnerAPI spec requires certain transforms to have KV inputs
+    # (and corresponding outputs).
+    # Currently we only upgrade to KV pairs.  If there is a need for more
+    # general shapes, potential conflicts will have to be resolved.
+    # We also only handle single-input, and (for fixing the output) single
+    # output, which is sufficient.
+    class ForceKvInputTypes(PipelineVisitor):
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if (transform_node.transform
+            and transform_node.transform.runner_api_requires_keyed_input()):
+          pcoll = transform_node.inputs[0]
+          pcoll.element_type = typehints.coerce_to_kv_type(
+              pcoll.element_type, transform_node.full_label)
+          if len(transform_node.outputs) == 1:
+            # The runner often has expectations about the output types as well.
+            output, = transform_node.outputs.values()
+            output.element_type = transform_node.transform.infer_output_type(
+                pcoll.element_type)
+
+    self.visit(ForceKvInputTypes())
+
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())

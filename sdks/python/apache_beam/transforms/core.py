@@ -991,6 +991,9 @@ class ParDo(PTransformWithSideInputs):
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
+  def runner_api_requires_keyed_input(self):
+    return userstate.is_stateful_dofn(self.fn)
+
 
 class _MultiParDo(PTransform):
 
@@ -1375,6 +1378,9 @@ class CombinePerKey(PTransformWithSideInputs):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
+  def runner_api_requires_keyed_input(self):
+    return True
+
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
@@ -1606,12 +1612,19 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
+  def infer_output_type(self, input_type):
+    key_type, value_type = trivial_inference.key_value_types(input_type)
+    return KV[key_type, Iterable[value_type]]
+
   def to_runner_api_parameter(self, unused_context):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
+
+  def runner_api_requires_keyed_input(self):
+    return True
 
 
 @typehints.with_input_types(typehints.KV[K, V])
