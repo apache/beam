@@ -63,10 +63,10 @@
   "links": [],
   "panels": [
     {
-      "content": "Three graphs show: average greenness per week, per day and average job runtime. These graphs show health of our project.\n\nTable shows list of job failed during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding jira tickets.",
+      "content": "This dashboard tracks Post-commit test reliability over-time.\n\n* [Post-commit test policies](https://beam.apache.org/contribute/postcommits-policies/)\n* [Existing test failure issues](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n* [File a new test failure issue](https://s.apache.org/beam-test-failure)",
       "gridPos": {
-        "h": 3,
-        "w": 11,
+        "h": 4,
+        "w": 24,
         "x": 0,
         "y": 0
       },
@@ -78,38 +78,60 @@
       "type": "text"
     },
     {
-      "content": "[List existing jira tickets](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n\n[Create new Jira ticket](https://s.apache.org/beam-test-failure)",
-      "gridPos": {
-        "h": 3,
-        "w": 13,
-        "x": 11,
-        "y": 0
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                0.7
+              ],
+              "type": "lt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "min"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "30m",
+        "handler": 1,
+        "name": "Post-commit reliability per week alert",
+        "noDataState": "no_data",
+        "notifications": []
       },
-      "id": 12,
-      "links": [],
-      "mode": "markdown",
-      "title": "Useful links",
-      "transparent": false,
-      "type": "text"
-    },
-    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
+      "decimals": 0,
+      "description": "Percent reliability of all post-commit job runs for a given week.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
       "fill": 0,
       "gridPos": {
-        "h": 5,
-        "w": 11,
+        "h": 7,
+        "w": 24,
         "x": 0,
-        "y": 3
+        "y": 4
       },
       "id": 6,
       "legend": {
         "alignAsTable": true,
         "avg": false,
         "current": true,
+        "hideEmpty": false,
+        "hideZero": true,
         "max": false,
         "min": false,
         "rightSide": true,
@@ -160,18 +182,16 @@
       ],
       "thresholds": [
         {
-          "colorMode": "custom",
-          "fill": false,
+          "colorMode": "critical",
+          "fill": true,
           "line": true,
-          "lineColor": "#3f6833",
           "op": "lt",
-          "value": 0.85,
-          "yaxis": "left"
+          "value": 0.7
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Greenness per Week (in %)",
+      "title": "Post-commit reliability per week",
       "tooltip": {
         "shared": true,
         "sort": 1,
@@ -187,11 +207,12 @@
       },
       "yaxes": [
         {
+          "decimals": 1,
           "format": "percentunit",
-          "label": "",
+          "label": "% successful runs",
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": "1",
+          "min": "0",
           "show": true
         },
         {
@@ -209,142 +230,66 @@
       }
     },
     {
-      "columns": [],
-      "datasource": "${DS_BEAMPSQL}",
-      "fontSize": "100%",
-      "gridPos": {
-        "h": 18,
-        "w": 13,
-        "x": 11,
-        "y": 3
-      },
-      "hideTimeOverride": false,
-      "id": 8,
-      "links": [
-        {
-          "includeVars": false,
-          "title": "Beam Jenkins",
-          "type": "absolute",
-          "url": "https://builds.apache.org/view/A-D/view/Beam/"
-        }
-      ],
-      "pageSize": null,
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 0,
-        "desc": true
-      },
-      "styles": [
-        {
-          "alias": "Time",
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "link": false,
-          "pattern": "Time",
-          "type": "date"
-        },
-        {
-          "alias": "Build Url",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "Link to Jenkins job.",
-          "linkUrl": "${__cell:raw}",
-          "mappingType": 1,
-          "pattern": "build_url",
-          "thresholds": [],
-          "type": "hidden",
-          "unit": "short"
-        },
-        {
-          "alias": "",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "Go to ${__cell_1}",
-          "linkUrl": "${__cell_2:raw}",
-          "mappingType": 1,
-          "pattern": "/.*/",
-          "preserveFormat": false,
-          "sanitize": true,
-          "thresholds": [],
-          "type": "string",
-          "unit": "short"
-        }
-      ],
-      "targets": [
-        {
-          "alias": "",
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT \n  build_timestamp,\n  concat_ws(' ', job_name, build_id) as build,\n  build_url\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                0.7
+              ],
+              "type": "lt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
               "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "timeShift": null,
-      "title": "Failed builds",
-      "transform": "table",
-      "type": "table"
-    },
-    {
+              "type": "min"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "30m",
+        "handler": 1,
+        "name": "Post-commit reliability per day alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
+      "decimals": 0,
+      "description": "Percent reliability of all post-commit job runs per-day.\n\nUnreliability of a test suite impact developer productivity by forcing contributors to re-run tests. When tests are consistently unreliable, developers will simply ignore them.\n\nWe aim for >= 70% reliability per test suite.",
       "fill": 0,
       "gridPos": {
-        "h": 5,
-        "w": 11,
+        "h": 12,
+        "w": 15,
         "x": 0,
-        "y": 8
+        "y": 11
       },
       "id": 9,
       "legend": {
         "alignAsTable": true,
         "avg": false,
-        "current": false,
+        "current": true,
+        "hideZero": true,
         "max": false,
         "min": false,
         "rightSide": true,
-        "show": true,
+        "show": false,
         "sideWidth": null,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -389,18 +334,16 @@
       ],
       "thresholds": [
         {
-          "colorMode": "custom",
-          "fill": false,
+          "colorMode": "critical",
+          "fill": true,
           "line": true,
-          "lineColor": "#3f6833",
           "op": "lt",
-          "value": 0.85,
-          "yaxis": "left"
+          "value": 0.7
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Greenness per day (in %)",
+      "title": "Post-commit reliability per day",
       "tooltip": {
         "shared": true,
         "sort": 1,
@@ -416,11 +359,12 @@
       },
       "yaxes": [
         {
+          "decimals": 1,
           "format": "percentunit",
-          "label": "",
+          "label": "% successful runs",
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": "1",
+          "min": "0",
           "show": true
         },
         {
@@ -438,18 +382,171 @@
       }
     },
     {
+      "columns": [],
+      "datasource": "${DS_BEAMPSQL}",
+      "description": "List of jobs which have failed. Click on the job to view it in Jenkins.",
+      "fontSize": "100%",
+      "gridPos": {
+        "h": 12,
+        "w": 9,
+        "x": 15,
+        "y": 11
+      },
+      "hideTimeOverride": false,
+      "id": 8,
+      "links": [
+        {
+          "includeVars": false,
+          "targetBlank": true,
+          "title": "Beam Jenkins",
+          "type": "absolute",
+          "url": "https://builds.apache.org/view/A-D/view/Beam/"
+        }
+      ],
+      "pageSize": null,
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 0,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Time",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "link": false,
+          "pattern": "Time",
+          "type": "date"
+        },
+        {
+          "alias": "Build Url",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "link": true,
+          "linkTargetBlank": true,
+          "linkTooltip": "Link to Jenkins job.",
+          "linkUrl": "${__cell:raw}",
+          "mappingType": 1,
+          "pattern": "build_url",
+          "thresholds": [],
+          "type": "hidden",
+          "unit": "short"
+        },
+        {
+          "alias": "Job Name",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "link": true,
+          "linkTargetBlank": true,
+          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
+          "linkUrl": "${__cell_0:raw}",
+          "mappingType": 1,
+          "pattern": "job_name",
+          "thresholds": [],
+          "type": "string",
+          "unit": "short"
+        },
+        {
+          "alias": "Build ID",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 0,
+          "link": true,
+          "linkTargetBlank": true,
+          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
+          "linkUrl": "${__cell_0:raw}",
+          "mappingType": 1,
+          "pattern": "build_id",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        },
+        {
+          "alias": "Start Time",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "MM/DD/YY h:mm:ss a",
+          "decimals": 2,
+          "link": true,
+          "linkTargetBlank": true,
+          "linkTooltip": "View Jenkins job: ${__cell_1}_${__cell_2}",
+          "linkUrl": "${__cell_0:raw}",
+          "mappingType": 1,
+          "pattern": "build_timestamp",
+          "thresholds": [],
+          "type": "date",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "alias": "",
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n  build_url,\n  job_name,\n  build_id,\n  build_timestamp\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeShift": null,
+      "title": "Failed builds",
+      "transform": "table",
+      "type": "table"
+    },
+    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
       "decimals": 1,
-      "fill": 1,
+      "description": "Execution time for each post-commit job, averaged over a day.",
+      "fill": 0,
       "gridPos": {
-        "h": 4,
-        "w": 11,
+        "h": 8,
+        "w": 15,
         "x": 0,
-        "y": 13
+        "y": 23
       },
       "id": 5,
       "legend": {
@@ -459,7 +556,7 @@
         "max": false,
         "min": false,
         "rightSide": true,
-        "show": true,
+        "show": false,
         "total": false,
         "values": true
       },
@@ -482,7 +579,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  job_name as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  job_name, time\n  ",
+          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(build_duration) as value,\n  job_name as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nGROUP BY\n  time, job_name\nORDER BY\n  job_name, time",
           "refId": "A",
           "select": [
             [
@@ -507,7 +604,7 @@
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Job duration",
+      "title": "Post-commit job duration per-day",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -523,11 +620,12 @@
       },
       "yaxes": [
         {
+          "decimals": null,
           "format": "ms",
-          "label": "",
+          "label": "Average job duration",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -546,31 +644,32 @@
     },
     {
       "aliasColors": {},
-      "bars": false,
+      "bars": true,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
       "decimals": 0,
-      "fill": 0,
+      "description": "Tracks the count of test failure JIRA issues currently open.",
+      "fill": 3,
       "gridPos": {
-        "h": 4,
-        "w": 11,
-        "x": 0,
-        "y": 17
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 23
       },
       "id": 14,
       "legend": {
-        "alignAsTable": true,
+        "alignAsTable": false,
         "avg": false,
-        "current": true,
+        "current": false,
         "max": false,
         "min": false,
-        "rightSide": true,
+        "rightSide": false,
         "show": true,
         "total": false,
-        "values": true
+        "values": false
       },
-      "lines": true,
+      "lines": false,
       "linewidth": 1,
       "links": [
         {
@@ -585,7 +684,16 @@
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
-      "seriesOverrides": [],
+      "seriesOverrides": [
+        {
+          "alias": "total_open",
+          "color": "#eab839"
+        },
+        {
+          "alias": "currently_failing",
+          "color": "#bf1b00"
+        }
+      ],
       "spaceLength": 10,
       "stack": false,
       "steppedLine": false,
@@ -643,65 +751,12 @@
               "type": "macro"
             }
           ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with days as (select date_trunc('day', dd) as day from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day as day, count(*) as OpenedTickets\n                   FROM jira_issues, days\n                   WHERE date_trunc('day', jira_issues.created) = days.day\n                   GROUP BY day\n                   ORDER BY day\n                   )\nselect days.day as time, greatest(knowndays.OpenedTickets, 0) as opened_count\nfrom days left outer join knowndays\non days.day = knowndays.day\n",
-          "refId": "B",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with days as (select date_trunc('day', dd) as day, 0 as zcnt from generate_series( $__timeFrom()::timestamp, $__timeTo()::timestamp, '1 day'::interval) as dd),\n     knowndays as (SELECT days.day as day, count(*) as ClosedTickets\n                   FROM jira_issues, days\n                   WHERE date_trunc('day', jira_issues.resolutiondate) = days.day\n                   GROUP BY day\n                   ORDER BY day\n                   )\nselect days.day as time, greatest(knowndays.ClosedTickets, days.zcnt) as closed_count\nfrom days left outer join knowndays\non days.day = knowndays.day\n",
-          "refId": "C",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Jira tickets",
+      "title": "Test Failure JIRA issues",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -717,11 +772,12 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
-          "label": null,
+          "label": "# of JIRA issues",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -730,7 +786,7 @@
           "logBase": 1,
           "max": null,
           "min": null,
-          "show": true
+          "show": false
         }
       ],
       "yaxis": {
@@ -774,7 +830,7 @@
     ]
   },
   "timezone": "",
-  "title": "Post-commit Tests",
+  "title": "Post-commit Test Reliability",
   "uid": "D81lW0pmk",
-  "version": 33
+  "version": 44
 }
