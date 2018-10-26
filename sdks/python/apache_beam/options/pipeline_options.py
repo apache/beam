@@ -405,13 +405,20 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
-    parser.add_argument(
-        '--label', '--labels',
-        dest='labels',
-        action='append',
-        default=None,
-        help='Labels that will be applied to this Dataflow job. Labels are key '
-        'value pairs separated by = (e.g. --label key=value).')
+    parser.add_argument('--label', '--labels',
+                        dest='labels',
+                        action='append',
+                        default=None,
+                        help='Labels to be applied to this Dataflow job. '
+                        'Labels are key value pairs separated by = '
+                        '(e.g. --label key=value).')
+    parser.add_argument('--update',
+                        default=False,
+                        action='store_true',
+                        help='Update an existing streaming Cloud Dataflow job. '
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'updating-a-pipeline')
 
   def validate(self, validator):
     errors = []
