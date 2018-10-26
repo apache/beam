@@ -2,7 +2,7 @@
 layout: section
 title: "Nexmark benchmark suite"
 section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/java/nexmark/
+permalink: /documentation/sdks/java/testing/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,7 +79,7 @@ We have augmented the original queries with five more:
 ## Benchmark workload configuration
 
 Here are some of the knobs of the benchmark workload (see
-[NexmarkConfiguration.java](https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java)).
+[NexmarkConfiguration.java](https://github.com/apache/beam/blob/master/sdks/java/testing/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java)).
 
 These configuration items can be passed to the launch command line.
 
@@ -646,7 +646,7 @@ Submit to the cluster:
         --driver-memory 512m \
         --executor-memory 512m \
         --executor-cores 1 \
-        sdks/java/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
+        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
             --runner=SparkRunner \
             --query=0 \
             --streamTimeout=60 \
