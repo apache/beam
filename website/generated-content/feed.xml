@@ -211,7 +211,7 @@ limitations under the License.
    &lt;/td&gt;
    &lt;td&gt;Local&lt;br /&gt;(Using the &lt;code&gt;file://&lt;/code&gt; URI)
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/TextIO.html&quot;&gt;TextIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/TextIO.html&quot;&gt;TextIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-&quot;&gt;textFileStream&lt;/a&gt;&lt;br /&gt;(Spark treats most Unix systems as HDFS-compatible, but the location should be accessible from all nodes)
    &lt;/td&gt;
@@ -219,7 +219,7 @@ limitations under the License.
   &lt;tr&gt;
    &lt;td&gt;HDFS&lt;br /&gt;(Using the &lt;code&gt;hdfs://&lt;/code&gt; URI)
    &lt;/td&gt;
-    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html&quot;&gt;HadoopFileSystemOptions&lt;/a&gt;
+    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html&quot;&gt;HadoopFileSystemOptions&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html&quot;&gt;HdfsUtils&lt;/a&gt;
    &lt;/td&gt;
@@ -229,7 +229,7 @@ limitations under the License.
    &lt;/td&gt;
    &lt;td&gt;Cloud Storage&lt;br /&gt;(Using the &lt;code&gt;gs://&lt;/code&gt; URI)
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html&quot;&gt;GcsOptions&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html&quot;&gt;GcsOptions&lt;/a&gt;
    &lt;/td&gt;
    &lt;td rowspan=&quot;2&quot;&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--&quot;&gt;hadoopConfiguration&lt;/a&gt;
 and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-&quot;&gt;textFileStream&lt;/a&gt;
@@ -238,7 +238,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;S3&lt;br /&gt;(Using the &lt;code&gt;s3://&lt;/code&gt; URI)
    &lt;/td&gt;
-    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/aws/options/S3Options.html&quot;&gt;S3Options&lt;/a&gt;
+    &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/FileIO.html&quot;&gt;FileIO&lt;/a&gt; + &lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/aws/options/S3Options.html&quot;&gt;S3Options&lt;/a&gt;
    &lt;/td&gt;
   &lt;/tr&gt;
   &lt;tr&gt;
@@ -246,7 +246,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
    &lt;/td&gt;
    &lt;td&gt;Kafka
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/kafka/KafkaIO.html&quot;&gt;KafkaIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/kafka/KafkaIO.html&quot;&gt;KafkaIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html&quot;&gt;spark-streaming-kafka&lt;/a&gt;
    &lt;/td&gt;
@@ -254,7 +254,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;Kinesis
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html&quot;&gt;KinesisIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html&quot;&gt;KinesisIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-kinesis-integration.html&quot;&gt;spark-streaming-kinesis&lt;/a&gt;
    &lt;/td&gt;
@@ -262,7 +262,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;Cloud Pub/Sub
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html&quot;&gt;PubsubIO&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html&quot;&gt;PubsubIO&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://github.com/apache/bahir/tree/master/streaming-pubsub&quot;&gt;spark-streaming-pubsub&lt;/a&gt; from &lt;a href=&quot;http://bahir.apache.org&quot;&gt;Apache Bahir&lt;/a&gt;
    &lt;/td&gt;
@@ -303,7 +303,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
    &lt;/td&gt;
    &lt;td&gt;Local
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.textio.html&quot;&gt;io.textio&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.8.0/apache_beam.io.textio.html&quot;&gt;io.textio&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
    &lt;/td&gt;
@@ -311,7 +311,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
   &lt;tr&gt;
    &lt;td&gt;HDFS
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.hadoopfilesystem.html&quot;&gt;io.hadoopfilesystem&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.8.0/apache_beam.io.hadoopfilesystem.html&quot;&gt;io.hadoopfilesystem&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--&quot;&gt;hadoopConfiguration&lt;/a&gt; (Access through &lt;code&gt;sc._jsc&lt;/code&gt; with Py4J)
 and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
@@ -322,7 +322,7 @@ and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.stre
    &lt;/td&gt;
    &lt;td&gt;Google Cloud Storage
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.gcsio.html&quot;&gt;io.gcp.gcsio&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.8.0/apache_beam.io.gcp.gcsio.html&quot;&gt;io.gcp.gcsio&lt;/a&gt;
    &lt;/td&gt;
    &lt;td rowspan=&quot;2&quot;&gt;&lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream&quot;&gt;textFileStream&lt;/a&gt;
    &lt;/td&gt;
@@ -354,7 +354,7 @@ and &lt;a href=&quot;http://spark.apache.org/docs/latest/api/python/pyspark.stre
   &lt;tr&gt;
    &lt;td&gt;Cloud Pub/Sub
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.7.0/apache_beam.io.gcp.pubsub.html&quot;&gt;io.gcp.pubsub&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;https://beam.apache.org/releases/pydoc/2.8.0/apache_beam.io.gcp.pubsub.html&quot;&gt;io.gcp.pubsub&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;N/A
    &lt;/td&gt;
@@ -1494,22 +1494,22 @@ has other limitations that make it insufficient for this task&lt;/em&gt;).&lt;/p
 &lt;h2 id=&quot;beam-source-api&quot;&gt;Beam Source API&lt;/h2&gt;
 
 &lt;p&gt;Apache Beam historically provides a Source API
-(&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
+(&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
 and
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
 
 &lt;p&gt;The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
 API provides advanced features such as progress reporting and &lt;a href=&quot;/blog/2016/05/18/splitAtFraction-method.html&quot;&gt;dynamic
 rebalancing&lt;/a&gt;
 (which together enable autoscaling), and
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
+&lt;a href=&quot;https://beam.apache.org/releases/javadoc/2.8.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
 reporting the source’s watermark and backlog &lt;em&gt;(until SDF, we believed that
 “batch” and “streaming” data sources are fundamentally different and thus
 require fundamentally different APIs)&lt;/em&gt;.&lt;/p&gt;
