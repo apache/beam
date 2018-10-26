@@ -154,6 +154,27 @@ public class TextTableProviderTest {
     pipeline.run();
   }
 
+  @Test
+  public void testExplicitCsvNullableColumn() throws Exception {
+    Files.write(
+        tempFolder.newFile("test.csv").toPath(), ",13\n\ngoodbye,\n".getBytes(Charsets.UTF_8));
+
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            SQL_CSV_SCHEMA, tempFolder.getRoot()));
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM test"));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(CSV_SCHEMA).addValues(null, 13).build(),
+            Row.withSchema(CSV_SCHEMA).addValues("goodbye", null).build());
+    pipeline.run();
+  }
+
   /**
    * Tests {@code CREATE EXTERNAL TABLE TYPE text TBLPROPERTIES '{"format":"csv", "csvFormat":
    * "Excel"}'} works as expected.
