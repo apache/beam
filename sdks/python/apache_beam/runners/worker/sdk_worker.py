@@ -46,7 +46,8 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count, credentials=None):
+  def __init__(self, control_address, worker_count, credentials=None,
+               profiler_factory=None):
     self._worker_count = worker_count
     self._worker_index = 0
     if credentials is None:
@@ -63,6 +64,7 @@ class SdkHarness(object):
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
     self._state_handler_factory = GrpcStateHandlerFactory()
+    self._profiler_factory = profiler_factory
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:
@@ -97,7 +99,8 @@ class SdkHarness(object):
           SdkWorker(
               state_handler_factory=self._state_handler_factory,
               data_channel_factory=self._data_channel_factory,
-              fns=self._fns))
+              fns=self._fns,
+              profiler_factory=self._profiler_factory))
 
     def get_responses():
       while True:
@@ -201,12 +204,14 @@ class SdkHarness(object):
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler_factory, data_channel_factory, fns):
+  def __init__(self, state_handler_factory, data_channel_factory, fns,
+               profiler_factory=None):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
     self.active_bundle_processors = {}
     self.cached_bundle_processors = collections.defaultdict(list)
+    self.profiler_factory = profiler_factory
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -228,7 +233,8 @@ class SdkWorker(object):
     with self.get_bundle_processor(
         instruction_id,
         request.process_bundle_descriptor_reference) as bundle_processor:
-      bundle_processor.process_bundle(instruction_id)
+      with self.maybe_profile(instruction_id):
+        bundle_processor.process_bundle(instruction_id)
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -267,6 +273,18 @@ class SdkWorker(object):
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             metrics=processor.metrics() if processor else None,
             monitoring_infos=processor.monitoring_infos() if processor else []))
+
+  @contextlib.contextmanager
+  def maybe_profile(self, instruction_id):
+    if self.profiler_factory:
+      profiler = self.profiler_factory(instruction_id)
+      if profiler:
+        with profiler:
+          yield
+      else:
+        yield
+    else:
+      yield
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
