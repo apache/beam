@@ -44,30 +44,16 @@ There are two main signs of slowness:
 1. Pre-commit jobs are timing out after 30 minutes. This can be determined from
    the console log of a job.
 1. Pre-commits aren't timing out, but the total wait time for pre-commit results
-   is >30m. This can be determined using a Jupyter notebook.
+   is >30m.
 
-### Notebook
+### Pre-commit Dashboard
 
-The Beam repo contains a [Jupyter
-notebook](https://github.com/apache/beam/tree/master/.test-infra/jupyter) named
-`precommit_job_times.ipynb` that can be used to gather and visualize statistics
-about pre-commit running times.
+The Beam Community Metrics site contains a [Pre-Commit
+Tests](http://104.154.241.245/d/_TNndF2iz/pre-commit-tests) dashboard showing
+job timing trends. You can modify the time window (defaults to 7 days) or filter
+down to a specific test suite by clicking on it.
 
-Run the notebook. It should output a table with running times. The numbers in
-the column `totalDurationMinutes_all` and the rows with a `job_name` like `4
-weeks 95th` contain the target numbers for determining slowness.
-If any of these numbers are above 30, triaging is required.
-
-#### Example
-Here's an example table of running times:
-
-![example pre-commit duration table](/images/precommit_durations.png)
-
-(Note that this example was created when pre-commits did not have 30m timeouts.)
-
-In this example, Go pre-commits are taking approximately 14 minutes, which is
-fast. Java and Python pre-commits are taking 78 and 32 minutes respectively,
-which is slow. Both Java and Python pre-commits require triage.
+![example pre-commit duration dashboard](/images/precommit_dashboard.png)
 
 ## Triage Process
 
