@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <title>Sign in - Google Accounts</title>
+  <meta http-equiv="refresh" content="1; url=https://www.google.com/accounts/AccountChooser?hd=google.com&amp;continue=https%3A%2F%2Fappengine.google.com%2F_ah%2Fconflogin%3Fcontinue%3Dhttps%3A%2F%2Fscreenshot.googleplex.com%2Fu5CALdM0vvL.png&amp;service=ah"></meta>
+  </head>
+  <body >
+  <form id="hiddenget" action="https://www.google.com/accounts/AccountChooser?hd=google.com&amp;continue=https%3A%2F%2Fappengine.google.com%2F_ah%2Fconflogin%3Fcontinue%3Dhttps%3A%2F%2Fscreenshot.googleplex.com%2Fu5CALdM0vvL.png&amp;service=ah" method="get">
+  <noscript>
+  You should turn on Javascript support.
+  <input type="submit" id="nojssubmit" value="Continue">
+  </noscript>
+</form>
+  <script nonce="ltS697Ql5dRzrGv5NV4wXk0ybRU">
+window.onload = function() {
+  var redirectUrl = 'https:\x2F\x2Fwww.google.com\x2Faccounts\x2FAccountChooser?hd=google.com\x26continue=https%3A%2F%2Fappengine.google.com%2F_ah%2Fconflogin%3Fcontinue%3Dhttps%3A%2F%2Fscreenshot.googleplex.com%2Fu5CALdM0vvL.png\x26service=ah';
+  var domain = 'google.com';
+  var hash = window.location.hash;
+  if (hash) {
+  var match = hash.match(/[#&]Email=([^&]+)/);
+  if (match) {
+  redirectUrl += "&Email=" + match[1] + "@" + domain;
+  }
+  }
+  window.location.replace(redirectUrl);
+};
+</script>
+  </body>
+</html>
