@@ -28,7 +28,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_FnApi_D
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
 
   // Set common parameters. Sets a 3 hour timeout.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 400)
 
   // Publish all test results to Jenkins
   publishers {
