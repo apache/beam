@@ -113,13 +113,6 @@ public class BeamFnDataBufferingOutboundObserver<T>
   }
 
   @Override
-  public void flush() throws IOException {
-    if (bufferedElements.size() > 0) {
-      outboundObserver.onNext(convertBufferForTransmission().build());
-    }
-  }
-
-  @Override
   public void accept(WindowedValue<T> t) throws IOException {
     if (closed) {
       throw new IllegalStateException("Already closed.");
@@ -127,7 +120,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
     coder.encode(t, bufferedElements);
     counter += 1;
     if (bufferedElements.size() >= bufferLimit) {
-      flush();
+      outboundObserver.onNext(convertBufferForTransmission().build());
     }
   }
 
