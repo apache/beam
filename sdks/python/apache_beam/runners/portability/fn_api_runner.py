@@ -458,7 +458,6 @@ class FnApiRunner(runner.PipelineRunner):
         for transform in list(stage.transforms):
           if transform.spec.urn == common_urns.primitives.IMPULSE.urn:
             stage.transforms.remove(transform)
-            impulse_pc = only_element(transform.outputs.values())
             stage.transforms.append(
                 beam_runner_api_pb2.PTransform(
                     unique_name=transform.unique_name,
@@ -1107,7 +1106,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     def get_buffer(buffer_id):
       kind, name = split_buffer_id(buffer_id)
-      if kind in ('materialize, timers'):
+      if kind in ('materialize', 'timers'):
         if buffer_id not in pcoll_buffers:
           # Just store the data chunks for replay.
           pcoll_buffers[buffer_id] = list()
@@ -1643,4 +1642,4 @@ def create_buffer_id(name, kind='materialize'):
 
 
 def split_buffer_id(buffer_id):
-   return buffer_id.decode('utf-8').split(':', 1)
+  return buffer_id.decode('utf-8').split(':', 1)
