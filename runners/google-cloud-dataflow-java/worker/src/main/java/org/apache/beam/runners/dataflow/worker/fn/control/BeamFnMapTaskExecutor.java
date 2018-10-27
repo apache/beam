@@ -38,7 +38,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -270,7 +269,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final AtomicReference<Progress> latestProgress = new AtomicReference<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> nextProgressFuture;
-    private final Consumer<Integer> grpcWriteOperationElementsProcessed;
 
     private final Map<MetricKey, MetricUpdates.MetricUpdate<Long>> counterUpdates;
     private final Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>> distributionUpdates;
@@ -283,7 +281,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       this.readOperation = readOperation;
       this.grpcWriteOperation = grpcWriteOperation;
       this.bundleProcessOperation = bundleProcessOperation;
-      this.grpcWriteOperationElementsProcessed = grpcWriteOperation.processedElementsConsumer();
       this.progressInterpolator =
           new Interpolator<Progress>(MAX_DATA_POINTS) {
             @Override
@@ -309,29 +306,25 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
-        grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
         latestProgress.set(progressInterpolator.interpolateAndPurge(elementsConsumed));
         progressErrors = 0;
       } catch (Exception exn) {
-        if (!isTransientProgressError(exn.getMessage())) {
-          grpcWriteOperationElementsProcessed.accept(-1); // Not supported.
-          progressErrors++;
-          // Only log verbosely every power of two to avoid spamming the logs.
-          if (Integer.bitCount(progressErrors) == 1) {
-            LOG.warn(
-                String.format(
-                    "Progress updating failed %s times. Following exception safely handled.",
-                    progressErrors),
-                exn);
-          } else {
-            LOG.debug(
-                String.format(
-                    "Progress updating failed %s times. Following exception safely handled.",
-                    progressErrors),
-                exn);
-          }
+        progressErrors++;
+        // Only log verbosely every power of two to avoid spamming the logs.
+        if (Integer.bitCount(progressErrors) == 1) {
+          LOG.warn(
+              String.format(
+                  "Progress updating failed %s times. Following exception safely handled.",
+                  progressErrors),
+              exn);
+        } else {
+          LOG.debug(
+              String.format(
+                  "Progress updating failed %s times. Following exception safely handled.",
+                  progressErrors),
+              exn);
         }
 
         try {
@@ -595,13 +588,5 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     } else {
       return new NullProgressTracker();
     }
-  }
-
-  /** Whether the given error is likely to go away (e.g. the bundle has not started). */
-  private static boolean isTransientProgressError(String msg) {
-    return msg != null
-        && (msg.contains("Process bundle request not yet scheduled")
-            || msg.contains("Unknown process bundle instruction")
-            || msg.contains("unstarted operation"));
   }
 }
