@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -42,6 +43,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.SourceType;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -82,7 +88,6 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -169,6 +174,79 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   /**
+   * Return the current value for a long counter, or a default value if can't be retrieved. Note
+   * this uses only attempted metrics because some runners don't support committed metrics.
+   */
+  private long getCounterMetric(
+      PipelineResult result, String namespace, String name, long defaultValue) {
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(namespace, name))
+                    .build());
+    Iterable<MetricResult<Long>> counters = metrics.getCounters();
+    try {
+      MetricResult<Long> metricResult = counters.iterator().next();
+      return metricResult.getAttempted();
+    } catch (NoSuchElementException e) {
+      LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Return the current value for a long counter, or a default value if can't be retrieved. Note
+   * this uses only attempted metrics because some runners don't support committed metrics.
+   */
+  private long getDistributionMetric(
+      PipelineResult result,
+      String namespace,
+      String name,
+      DistributionType distType,
+      long defaultValue) {
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(namespace, name))
+                    .build());
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.getDistributions();
+    try {
+      MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
+      switch (distType) {
+        case MIN:
+          return distributionResult.getAttempted().getMin();
+        case MAX:
+          return distributionResult.getAttempted().getMax();
+        default:
+          return defaultValue;
+      }
+    } catch (NoSuchElementException e) {
+      LOG.error("Failed to get distribution metric {} for namespace {}", name, namespace);
+    }
+    return defaultValue;
+  }
+
+  private enum DistributionType {
+    MIN,
+    MAX
+  }
+
+  /** Return the current value for a time counter, or -1 if can't be retrieved. */
+  private long getTimestampMetric(long now, long value) {
+    // timestamp metrics are used to monitor time of execution of transforms.
+    // If result timestamp metric is too far from now, consider that metric is erroneous
+
+    if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
+      return -1;
+    }
+    return value;
+  }
+
+  /**
    * Find a 'steady state' events/sec from {@code snapshots} and store it in {@code perf} if found.
    */
   private void captureSteadyState(NexmarkPerf perf, List<NexmarkPerf.ProgressSnapshot> snapshots) {
@@ -245,22 +323,69 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       Monitor<?> resultMonitor) {
     NexmarkPerf perf = new NexmarkPerf();
 
-    MetricsReader eventMetrics = new MetricsReader(result, eventMonitor.name);
+    long numEvents =
+        getCounterMetric(result, eventMonitor.name, eventMonitor.prefix + ".elements", -1);
+    long numEventBytes =
+        getCounterMetric(result, eventMonitor.name, eventMonitor.prefix + ".bytes", -1);
+    long eventStart =
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                eventMonitor.name,
+                eventMonitor.prefix + ".startTime",
+                DistributionType.MIN,
+                -1));
+    long eventEnd =
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                eventMonitor.name,
+                eventMonitor.prefix + ".endTime",
+                DistributionType.MAX,
+                -1));
 
-    long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements", -1);
-    long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes", -1);
-    long eventStart = eventMetrics.getStartTimeMetric(now, eventMonitor.prefix + ".startTime");
-    long eventEnd = eventMetrics.getEndTimeMetric(now, eventMonitor.prefix + ".endTime");
-
-    MetricsReader resultMetrics = new MetricsReader(result, resultMonitor.name);
-
-    long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements", -1);
-    long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes", -1);
-    long resultStart = resultMetrics.getStartTimeMetric(now, resultMonitor.prefix + ".startTime");
-    long resultEnd = resultMetrics.getEndTimeMetric(now, resultMonitor.prefix + ".endTime");
+    long numResults =
+        getCounterMetric(result, resultMonitor.name, resultMonitor.prefix + ".elements", -1);
+    long numResultBytes =
+        getCounterMetric(result, resultMonitor.name, resultMonitor.prefix + ".bytes", -1);
+    long resultStart =
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                resultMonitor.name,
+                resultMonitor.prefix + ".startTime",
+                DistributionType.MIN,
+                -1));
+    long resultEnd =
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                resultMonitor.name,
+                resultMonitor.prefix + ".endTime",
+                DistributionType.MAX,
+                -1));
     long timestampStart =
-        resultMetrics.getStartTimeMetric(now, resultMonitor.prefix + ".startTimestamp");
-    long timestampEnd = resultMetrics.getEndTimeMetric(now, resultMonitor.prefix + ".endTimestamp");
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                resultMonitor.name,
+                resultMonitor.prefix + ".startTimestamp",
+                DistributionType.MIN,
+                -1));
+    long timestampEnd =
+        getTimestampMetric(
+            now,
+            getDistributionMetric(
+                result,
+                resultMonitor.name,
+                resultMonitor.prefix + ".endTimestamp",
+                DistributionType.MAX,
+                -1));
 
     long effectiveEnd = -1;
     if (eventEnd >= 0 && resultEnd >= 0) {
@@ -444,7 +569,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
       if (options.isStreaming() && !waitingForShutdown) {
         Duration quietFor = new Duration(lastActivityMsSinceEpoch, now);
-        long fatalCount = new MetricsReader(job, query.getName()).getCounterMetric("fatal", 0);
+        long fatalCount = getCounterMetric(job, query.getName(), "fatal", 0);
         if (fatalCount > 0) {
           NexmarkUtils.console("job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", fatalCount));

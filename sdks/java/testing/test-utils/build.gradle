@@ -20,13 +20,3 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
-
-dependencies {
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadowTest")
-}
