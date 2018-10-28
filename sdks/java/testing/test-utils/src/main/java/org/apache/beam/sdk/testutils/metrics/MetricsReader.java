@@ -127,9 +127,10 @@ public class MetricsReader {
     int resultCount = Iterables.size(metricResult);
     Preconditions.checkState(
         resultCount <= 1,
-        String.format(
-            "More than one metric result matches name: %s in namespace %s. Metric results count: %d",
-            name, namespace, resultCount));
+        "More than one metric result matches name: %s in namespace %s. Metric results count: %s",
+        name,
+        namespace,
+        resultCount);
   }
 
   /** Return the current value for a time counter, or -1 if can't be retrieved. */
