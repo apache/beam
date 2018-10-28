@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,7 +42,7 @@ import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
 /**
- * prepare input records to test {@link BeamSql}.
+ * prepare input records to test.
  *
  * <p>Note that, any change in these records would impact tests in this package.
  */
@@ -51,15 +53,21 @@ public class BeamSqlDslBase {
   @Rule public ExpectedException exceptions = ExpectedException.none();
 
   static Schema schemaInTableA;
+  static Schema schemaFloatDouble;
+  static Schema schemaArray;
   static List<Row> rowsInTableA;
+  static List<Row> rowsOfFloatDouble;
+  static List<Row> rowsOfArray;
 
   //bounded PCollections
-  PCollection<Row> boundedInput1;
-  PCollection<Row> boundedInput2;
+  protected PCollection<Row> boundedInput1;
+  protected PCollection<Row> boundedInput2;
+  protected PCollection<Row> boundedInputFloatDouble;
+  protected PCollection<Row> boundedInputArray;
 
   //unbounded PCollections
-  PCollection<Row> unboundedInput1;
-  PCollection<Row> unboundedInput2;
+  protected PCollection<Row> unboundedInput1;
+  protected PCollection<Row> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
@@ -124,6 +132,53 @@ public class BeamSqlDslBase {
                 0,
                 new BigDecimal(4))
             .getRows();
+
+    //    schemaFloatDouble =         Schema.builder()
+    ////            .addNullableField("f_int", Schema.FieldType.INT32)
+    ////            .addNullableField("f_long", Schema.FieldType.INT64)
+    ////            .addNullableField("f_short", Schema.FieldType.INT16)
+    ////            .addNullableField("f_byte", Schema.FieldType.BYTE)
+    ////            .addNullableField("f_float", Schema.FieldType.FLOAT)
+    ////            .addNullableField("f_double", Schema.FieldType.DOUBLE)
+    ////            .addNullableField("f_string", Schema.FieldType.STRING)
+    ////            .addNullableField("f_timestamp", Schema.FieldType.DATETIME)
+    ////            .build();
+
+    schemaFloatDouble =
+        Schema.builder()
+            .addFloatField("f_float_1")
+            .addDoubleField("f_double_1")
+            .addFloatField("f_float_2")
+            .addDoubleField("f_double_2")
+            .addFloatField("f_float_3")
+            .addDoubleField("f_double_3")
+            .build();
+
+    rowsOfFloatDouble =
+        TestUtils.RowsBuilder.of(schemaFloatDouble)
+            .addRows(
+                Float.POSITIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                Float.NEGATIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                Float.NaN,
+                Double.NaN)
+            .getRows();
+
+//    schemaArray =
+//        Schema.builder().addInt32Field("id").addNullableField("arr", Schema.FieldType.array(Schema.FieldType.DOUBLE)).build();
+//    rowsOfArray =
+//        TestUtils.RowsBuilder.of(schemaArray)
+//            .addRows(
+//                1,
+//                ImmutableList.of(1.0, 2.0, 3.0, 4.0, 5.0),
+//                2,
+//                    Arrays.asList(null, 1.0, 2.0),
+//                3,
+//                ImmutableList.of(1.0, 2.0, Double.NaN),
+//                4,
+//                ImmutableList.of(100.0, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
+//            .getRows();
   }
 
   @Before
@@ -145,6 +200,24 @@ public class BeamSqlDslBase {
                     schemaInTableA,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
+
+    boundedInputFloatDouble =
+        pipeline.apply(
+            "boundedInputFloatDouble",
+            Create.of(rowsOfFloatDouble)
+                .withSchema(
+                    schemaFloatDouble,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+
+//    boundedInputArray =
+//        pipeline.apply(
+//            "boundedInputArray",
+//            Create.of(rowsOfArray)
+//                .withSchema(
+//                    schemaArray,
+//                    SerializableFunctions.identity(),
+//                    SerializableFunctions.identity()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
