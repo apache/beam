@@ -30,7 +30,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -80,21 +79,42 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore
   @Test
   public void testGreatest() throws Exception {
-    Schema resultType =
-        Schema.builder()
-            .addDoubleField("field")
-            .build();
+    Schema resultType = Schema.builder().addDoubleField("field").build();
 
     Row resultRow1 = Row.withSchema(resultType).addValues(5.0).build();
 
-    String sql1 =
-        "SELECT GREATEST(arr) FROM PCOLLECTION WHERE id = 1";
+    String sql1 = "SELECT GREATEST(arr) FROM PCOLLECTION WHERE id = 1";
     PCollection<Row> result1 =
-        boundedInputFloatDouble.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
+        boundedInputArray.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
     PAssert.that(result1).containsInAnyOrder(resultRow1);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testCOSH() throws Exception {
+    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
+
+    Row resultRow1 = Row.withSchema(resultType).addValues(Math.cosh(1.0)).build();
+    String sql1 = "SELECT COSH(CAST(1.0 as DOUBLE))";
+    PCollection<Row> result1 =
+        boundedInputDouble.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
+    PAssert.that(result1).containsInAnyOrder(resultRow1);
+
+
+    Row resultRow2 = Row.withSchema(resultType).addValues(Math.cosh(710.0)).build();
+    String sql2 = "SELECT COSH(CAST(710.0 as DOUBLE))";
+    PCollection<Row> result2 =
+            boundedInputDouble.apply("testUdf2", SqlTransform.query(sql2).withAutoUdfUdafLoad(true));
+    PAssert.that(result2).containsInAnyOrder(resultRow2);
+
+    Row resultRow3 = Row.withSchema(resultType).addValues(Math.cosh(Double.parseDouble(null))).build();
+    String sql3 = "SELECT COSH(CAST(null as DOUBLE))";
+    PCollection<Row> result3 =
+            boundedInputDouble.apply("testUdf2", SqlTransform.query(sql3).withAutoUdfUdafLoad(true));
+    PAssert.that(result3).containsInAnyOrder(resultRow3);
+
     pipeline.run().waitUntilFinish();
   }
 
@@ -106,6 +126,7 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
       builder.put(IsInf.FUNCTION_NAME, IsInf.class);
       builder.put(IsNan.FUNCTION_NAME, IsNan.class);
       builder.put(Greatest.FUNCTION_NAME, Greatest.class);
+      builder.put(HyperbolicCosine.FUNCTION_NAME, HyperbolicCosine.class);
       return builder.build();
     }
 

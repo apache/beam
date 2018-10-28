@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql;
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.text.ParseException;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,15 +54,18 @@ public class BeamSqlDslBase {
   static Schema schemaInTableA;
   static Schema schemaFloatDouble;
   static Schema schemaArray;
+  static Schema schemaDouble;
   static List<Row> rowsInTableA;
   static List<Row> rowsOfFloatDouble;
   static List<Row> rowsOfArray;
+  static List<Row> rowsOfDouble;
 
   //bounded PCollections
   protected PCollection<Row> boundedInput1;
   protected PCollection<Row> boundedInput2;
   protected PCollection<Row> boundedInputFloatDouble;
   protected PCollection<Row> boundedInputArray;
+  protected PCollection<Row> boundedInputDouble;
 
   //unbounded PCollections
   protected PCollection<Row> unboundedInput1;
@@ -165,20 +167,30 @@ public class BeamSqlDslBase {
                 Double.NaN)
             .getRows();
 
-//    schemaArray =
-//        Schema.builder().addInt32Field("id").addNullableField("arr", Schema.FieldType.array(Schema.FieldType.DOUBLE)).build();
-//    rowsOfArray =
-//        TestUtils.RowsBuilder.of(schemaArray)
-//            .addRows(
-//                1,
-//                ImmutableList.of(1.0, 2.0, 3.0, 4.0, 5.0),
-//                2,
-//                    Arrays.asList(null, 1.0, 2.0),
-//                3,
-//                ImmutableList.of(1.0, 2.0, Double.NaN),
-//                4,
-//                ImmutableList.of(100.0, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
-//            .getRows();
+    schemaDouble =
+        Schema.builder()
+            .addStringField("func")
+            .addNullableField("f_double", Schema.FieldType.DOUBLE)
+            .build();
+    rowsOfDouble = TestUtils.RowsBuilder.of(schemaDouble).addRows("COSH", 710.0).getRows();
+
+    schemaArray =
+        Schema.builder()
+            .addInt32Field("id")
+            .addNullableField("arr", Schema.FieldType.array(Schema.FieldType.DOUBLE))
+            .build();
+    rowsOfArray =
+        TestUtils.RowsBuilder.of(schemaArray)
+            .addRows(
+                1,
+                ImmutableList.of(1.0, 2.0, 3.0, 4.0, 5.0),
+                //                2,
+                //                    Arrays.asList(null, 1.0, 2.0),
+                3,
+                ImmutableList.of(1.0, 2.0, Double.NaN),
+                4,
+                ImmutableList.of(100.0, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
+            .getRows();
   }
 
   @Before
@@ -201,6 +213,15 @@ public class BeamSqlDslBase {
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
+    boundedInputDouble =
+        pipeline.apply(
+            "boundedInputDouble",
+            Create.of(rowsOfDouble)
+                .withSchema(
+                    schemaDouble,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+
     boundedInputFloatDouble =
         pipeline.apply(
             "boundedInputFloatDouble",
@@ -210,14 +231,14 @@ public class BeamSqlDslBase {
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
-//    boundedInputArray =
-//        pipeline.apply(
-//            "boundedInputArray",
-//            Create.of(rowsOfArray)
-//                .withSchema(
-//                    schemaArray,
-//                    SerializableFunctions.identity(),
-//                    SerializableFunctions.identity()));
+    boundedInputArray =
+        pipeline.apply(
+            "boundedInputArray",
+            Create.of(rowsOfArray)
+                .withSchema(
+                    schemaArray,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
