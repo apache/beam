@@ -78,7 +78,7 @@ public class RetryHttpRequestInitializerTest {
 
   // Used to test retrying a request more than the default 10 times.
   static class MockNanoClock implements NanoClock {
-    private int timesMs[] = {
+    private int[] timesMs = {
       500, 750, 1125, 1688, 2531, 3797, 5695, 8543, 12814, 19222, 28833, 43249, 64873, 97310,
       145965, 218945, 328420
     };

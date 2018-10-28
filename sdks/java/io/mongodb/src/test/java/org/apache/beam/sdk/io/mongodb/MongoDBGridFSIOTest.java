@@ -331,7 +331,7 @@ public class MongoDBGridFSIOTest implements Serializable {
         int l = (int) file.getLength();
         try (InputStream ins = file.getInputStream()) {
           DataInputStream dis = new DataInputStream(ins);
-          byte b[] = new byte[l];
+          byte[] b = new byte[l];
           dis.readFully(b);
           results.append(new String(b, StandardCharsets.UTF_8));
         }
@@ -347,7 +347,7 @@ public class MongoDBGridFSIOTest implements Serializable {
         int l = (int) file.getLength();
         try (InputStream ins = file.getInputStream()) {
           DataInputStream dis = new DataInputStream(ins);
-          byte b[] = new byte[l];
+          byte[] b = new byte[l];
           dis.readFully(b);
           for (byte aB : b) {
             intResults[aB] = true;
