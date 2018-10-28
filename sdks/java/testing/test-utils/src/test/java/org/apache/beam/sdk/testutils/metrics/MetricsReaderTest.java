@@ -79,14 +79,11 @@ public class MetricsReaderTest {
     assertEquals(5, reader.getEndTimeMetric(0, "timeDist"));
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void throwsIllegalStateExceptionWhenThereAreMultipleCountersOfTheSameNameAndType() {
-    Metrics.counter(NAMESPACE, "counter");
-    Metrics.counter(NAMESPACE, "counter");
-
+  @Test
+  public void doesntThrowIllegalStateExceptionWhenThereIsNoMetricFound() {
     PipelineResult result = testPipeline.run();
     MetricsReader reader = new MetricsReader(result, NAMESPACE);
-    reader.getCounterMetric("counter", -1);
+    reader.getCounterMetric("nonexistent", -1);
   }
 
   @Test

@@ -124,9 +124,13 @@ public class MetricsReader {
   private <T> void checkIfMetricResultIsUnique(String name, Iterable<MetricResult<T>> metricResult)
       throws IllegalStateException {
 
+    int resultCount = Iterables.size(metricResult);
     Preconditions.checkState(
-        Iterables.size(metricResult) == 1,
-        String.format("More than one metric matches name: %s in namespace %s.", name, namespace));
+        resultCount <= 1,
+        "More than one metric result matches name: %s in namespace %s. Metric results count: %s",
+        name,
+        namespace,
+        resultCount);
   }
 
   /** Return the current value for a time counter, or -1 if can't be retrieved. */
