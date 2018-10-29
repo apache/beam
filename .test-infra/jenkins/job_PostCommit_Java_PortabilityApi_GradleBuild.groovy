@@ -25,7 +25,7 @@ import PostcommitJobBuilder
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi_GradleBuild', 'Run Java PortabilityApi PostCommit',
   'Java SDK PortabilityApi Post Commit Tests', this) {
 
-  description('Runs PostCommit tests on the Java SDK with FnApi worker.')
+  description('Runs PostCommit tests on the Java SDK using Portability APIs.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
