@@ -89,7 +89,7 @@ If the bug is not in your code, here is how to "create a fix":
     Remember that
     [a flaky test is a critical bug]({{ site.baseurl }}/contribute/postcommits-policies-details/index.html#flake_is_failing). Other
     bad tests are similar: they may fail for arbitrary reasons having nothing
-    to do with what it is testing, making our signal unreliable.
+    to do with what is being tested, making our signal unreliable.
 2.  Mark the problematic test to be skipped, with a link to the JIRA ticket.
 
 ## Useful links
