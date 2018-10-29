@@ -19,7 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import java.util.List;
 
-class udfUtils {
+/** Util functions for UDF. */
+class UDFUtils {
   public static boolean hasNull(List<Object> value) {
     for (Object o : value) {
       if (o == null) {

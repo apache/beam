@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 
 /**
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 public class IsInf implements BeamSqlUdf {
   public static final String FUNCTION_NAME = "IS_INF";
 
-  @VisibleForTesting
   static final String ERROR_MSG = FUNCTION_NAME + " only accepts FLOAT or DOUBLE type.";
 
   public static boolean eval(Object value) throws Exception {

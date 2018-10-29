@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 
@@ -25,23 +24,23 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
  * GREATEST(X1,...,XN)
  *
  * <p>Returns NULL if any of the inputs is NULL. Otherwise, returns NaN if any of the inputs is NaN.
- * Otherwise, returns the largest value among X1,...,XN according to the < comparison.
+ * Otherwise, returns the largest value among X1 to XN according to the less than comparison.
  */
 public class Greatest implements BeamSqlUdf {
   public static final String FUNCTION_NAME = "GREATEST";
 
-  @VisibleForTesting static final String ERROR_MSG = FUNCTION_NAME + " does not accept empty list.";
+  static final String ERROR_MSG = FUNCTION_NAME + " does not accept empty list.";
 
   public static Object eval(List<Object> value) throws Exception {
     if (value.isEmpty()) {
       throw new Exception(ERROR_MSG);
     }
 
-    if (udfUtils.hasNull(value)) {
+    if (UDFUtils.hasNull(value)) {
       return null;
     }
 
-    Object ret = udfUtils.hasNaN(value);
+    Object ret = UDFUtils.hasNaN(value);
     if (ret != null) {
       return ret;
     }
