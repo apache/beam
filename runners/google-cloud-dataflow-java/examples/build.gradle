@@ -22,16 +22,10 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(publish: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
-def evaluationDependsOnList = [
-  ":beam-examples-java",
-  ":beam-runners-google-cloud-dataflow-java-legacy-worker",
-  ":beam-runners-google-cloud-dataflow-java-fn-api-worker",
-  ":beam-sdks-java-container",
-]
-
-evaluationDependsOnList.each {
-  evaluationDependsOn it
-}
+evaluationDependsOn(":beam-examples-java")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+evaluationDependsOn(":beam-sdks-java-container")
 
 configurations { dataflowRunnerPreCommit }
 
@@ -110,7 +104,7 @@ task preCommit () {
   dependsOn preCommitLegacyWorker
 }
 
-task preCommitFnApi () {
+task preCommitPortabilityApi () {
   dependsOn preCommitFnApiWorker
   // Clean up built images
   doLast {

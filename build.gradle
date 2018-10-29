@@ -195,9 +195,9 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 }
 
-task javaPreCommitFnApi() {
+task javaPreCommitPortabilityApi() {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitFnApi"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitPortabilityApi"
 }
 
 task javaPostCommit() {

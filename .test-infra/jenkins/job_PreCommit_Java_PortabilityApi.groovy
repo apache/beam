@@ -20,8 +20,8 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java FnApi',
-    gradleTask: ':javaPreCommitFnApi',
+    nameBase: 'Java PortabilityApi',
+    gradleTask: ':javaPreCommitPortabilityApi',
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
