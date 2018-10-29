@@ -90,9 +90,7 @@ If the bug is not in your code, here is how to "create a fix":
     [a flaky test is a critical bug]({{ site.baseurl }}/contribute/postcommits-policies-details/index.html#flake_is_failing). Other
     bad tests are similar: they may fail for arbitrary reasons having nothing
     to do with what it is testing, making our signal unreliable.
-2.  Keep a sickbayed copy of the test that reproduces the failure.
-3.  (Preferred) Create a new test that provides as much coverage possible from
-    the sickbayed test.
+2.  Mark the problematic test to be skipped, with a link to the JIRA ticket.
 
 ## Useful links
 
