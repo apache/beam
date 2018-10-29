@@ -733,6 +733,7 @@ public class RegisterAndProcessBundleOperationTest {
             mockContext);
 
     operation.start();
+    Thread.sleep(2000);
     verify(mockBeamFnStateDelegator)
         .registerForProcessBundleInstructionId(eq("778"), stateHandlerCaptor.capture());
 
