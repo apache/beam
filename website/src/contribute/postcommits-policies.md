@@ -66,12 +66,12 @@ When a post-commit test fails, follow the provided steps for your situation.
 ### My change was rolled back due to a test failure {#pr-rolled-back}
 
 After rollback there is time for deeper investigation. Start by looking at the
-JIRA issue to see the background information for the rollback. There are three
-common scenarios:
+JIRA issue to see the background information for the rollback. These scenarios
+are all common:
 
-1.  Your change contained a bug.
-2.  Your change exposed an existing bug.
-3.  Your change exposed a bad test (flaky, overspecified, etc).
+*   Your change contained a bug.
+*   Your change exposed an existing bug.
+*   Your change exposed a bad test (flaky, overspecified, etc).
 
 _These are all valid reasons for rollback. Maintaining clear signal is the
 highest priority._
