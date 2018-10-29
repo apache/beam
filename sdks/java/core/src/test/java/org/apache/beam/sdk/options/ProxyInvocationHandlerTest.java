@@ -633,7 +633,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for conversion of inner types. */
-  private static class InnerType {
+  public static class InnerType {
     public double doubleField;
 
     static InnerType of(double value) {
@@ -656,7 +656,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for conversion of generics and inner types. */
-  private static class ComplexType {
+  public static class ComplexType {
     public String stringField;
     public Integer intField;
     public List<InnerType> genericType;
