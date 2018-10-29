@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -77,7 +78,12 @@ public class BeamSqlEnv {
 
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
+    Method[] methods = clazz.getMethods();
+    for (int i = 0; i < method.length(); i++) {
+      if (methods[i].getName().equals(method) && !methods[i].isBridge()) {
+        defaultSchema.add(functionName, ScalarFunctionImpl.create(methods[i]));
+      }
+    }
   }
 
   /** Register a UDF function which can be used in SQL expression. */
