@@ -2130,7 +2130,9 @@ The <code class="highlighter-rouge">PipelineOptions</code> for the current pipel
 
 <p class="language-java"><code class="highlighter-rouge">@OnTimer</code> methods can also access many of these parameters. Timestamp, window, <code class="highlighter-rouge">PipelineOptions</code>, <code class="highlighter-rouge">OutputReceiver</code>, and
 <code class="highlighter-rouge">MultiOutputReceiver</code> parameters can all be accessed in an <code class="highlighter-rouge">@OnTimer</code> method. In addition, an <code class="highlighter-rouge">@OnTimer</code> method can take
-a parameter of type <code class="highlighter-rouge">TimeDomain</code> which tells whether the timer is based on event time or processing time.</p>
+a parameter of type <code class="highlighter-rouge">TimeDomain</code> which tells whether the timer is based on event time or processing time.
+Timers are explained in more detail in the 
+<a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a> blog post.</p>
 
 <h3 id="composite-transforms">4.6. Composite transforms</h3>
 
