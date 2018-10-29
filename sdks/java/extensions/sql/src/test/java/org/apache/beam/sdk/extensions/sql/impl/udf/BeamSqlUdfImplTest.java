@@ -102,17 +102,41 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
         boundedInputDouble.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
     PAssert.that(result1).containsInAnyOrder(resultRow1);
 
-
     Row resultRow2 = Row.withSchema(resultType).addValues(Math.cosh(710.0)).build();
     String sql2 = "SELECT COSH(CAST(710.0 as DOUBLE))";
     PCollection<Row> result2 =
-            boundedInputDouble.apply("testUdf2", SqlTransform.query(sql2).withAutoUdfUdafLoad(true));
+        boundedInputDouble.apply("testUdf2", SqlTransform.query(sql2).withAutoUdfUdafLoad(true));
     PAssert.that(result2).containsInAnyOrder(resultRow2);
 
-    Row resultRow3 = Row.withSchema(resultType).addValues(Math.cosh(Double.parseDouble(null))).build();
-    String sql3 = "SELECT COSH(CAST(null as DOUBLE))";
+    Row resultRow3 = Row.withSchema(resultType).addValues(Math.cosh(-1.0)).build();
+    String sql3 = "SELECT COSH(CAST(-1.0 as DOUBLE))";
     PCollection<Row> result3 =
-            boundedInputDouble.apply("testUdf2", SqlTransform.query(sql3).withAutoUdfUdafLoad(true));
+        boundedInputDouble.apply("testUdf3", SqlTransform.query(sql3).withAutoUdfUdafLoad(true));
+    PAssert.that(result3).containsInAnyOrder(resultRow3);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSINH() throws Exception {
+    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
+
+    Row resultRow1 = Row.withSchema(resultType).addValues(Math.sinh(1.0)).build();
+    String sql1 = "SELECT SINH(CAST(1.0 as DOUBLE))";
+    PCollection<Row> result1 =
+        boundedInputDouble.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
+    PAssert.that(result1).containsInAnyOrder(resultRow1);
+
+    Row resultRow2 = Row.withSchema(resultType).addValues(Math.sinh(710.0)).build();
+    String sql2 = "SELECT SINH(CAST(710.0 as DOUBLE))";
+    PCollection<Row> result2 =
+        boundedInputDouble.apply("testUdf2", SqlTransform.query(sql2).withAutoUdfUdafLoad(true));
+    PAssert.that(result2).containsInAnyOrder(resultRow2);
+
+    Row resultRow3 = Row.withSchema(resultType).addValues(Math.sinh(-1.0)).build();
+    String sql3 = "SELECT SINH(CAST(-1.0 as DOUBLE))";
+    PCollection<Row> result3 =
+        boundedInputDouble.apply("testUdf3", SqlTransform.query(sql3).withAutoUdfUdafLoad(true));
     PAssert.that(result3).containsInAnyOrder(resultRow3);
 
     pipeline.run().waitUntilFinish();
@@ -127,6 +151,7 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
       builder.put(IsNan.FUNCTION_NAME, IsNan.class);
       builder.put(Greatest.FUNCTION_NAME, Greatest.class);
       builder.put(HyperbolicCosine.FUNCTION_NAME, HyperbolicCosine.class);
+      builder.put(HyperbolicSine.FUNCTION_NAME, HyperbolicSine.class);
       return builder.build();
     }
 
