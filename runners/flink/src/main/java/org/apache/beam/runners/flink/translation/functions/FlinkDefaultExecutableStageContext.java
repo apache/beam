@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
@@ -30,6 +36,7 @@ import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 
 /** Implementation of a {@link FlinkExecutableStageContext}. */
 class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
@@ -64,19 +71,68 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
     jobBundleFactory.close();
   }
 
-  enum ReferenceCountingFactory implements Factory {
-    REFERENCE_COUNTING;
+  private static class JobFactoryState {
+    private int index = 0;
+    private final List<ReferenceCountingFlinkExecutableStageContextFactory> factories =
+        new ArrayList<>();
+    private final int maxFactories;
 
-    private static final ReferenceCountingFlinkExecutableStageContextFactory actualFactory =
-        ReferenceCountingFlinkExecutableStageContextFactory.create(
-            FlinkDefaultExecutableStageContext::create);
+    private JobFactoryState(int maxFactories) {
+      Preconditions.checkArgument(maxFactories >= 0, "sdk_worker_parallelism must be >= 0");
 
-    @Override
-    public FlinkExecutableStageContext get(JobInfo jobInfo) {
-      return actualFactory.get(jobInfo);
+      if (maxFactories == 0) {
+        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources available for the java process
+        this.maxFactories = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
+      } else {
+        this.maxFactories = maxFactories;
+      }
+    }
+
+    private synchronized FlinkExecutableStageContext.Factory getFactory() {
+      ReferenceCountingFlinkExecutableStageContextFactory factory;
+      // If we haven't yet created maxFactories factories, create a new one. Otherwise use an
+      // existing one from factories.
+      if (factories.size() < maxFactories) {
+        factory =
+            ReferenceCountingFlinkExecutableStageContextFactory.create(
+                FlinkDefaultExecutableStageContext::create);
+        factories.add(factory);
+      } else {
+        factory = factories.get(index);
+      }
+
+      index = (index + 1) % maxFactories;
+
+      return factory;
     }
   }
 
-  static final Factory MULTI_INSTANCE_FACTORY =
-      (jobInfo) -> FlinkDefaultExecutableStageContext.create(jobInfo);
+  enum MultiInstanceFactory implements Factory {
+    MULTI_INSTANCE;
+
+    // This map should only ever have a single element, as each job will have its own
+    // classloader and therefore its own instance of MultiInstanceFactory.INSTANCE. This
+    // code supports multiple JobInfos in order to provide a sensible implementation of
+    // Factory.get(JobInfo), which in theory could be called with different JobInfos.
+    private static final ConcurrentMap<String, JobFactoryState> jobFactories =
+        new ConcurrentHashMap<>();
+
+    @Override
+    public FlinkExecutableStageContext get(JobInfo jobInfo) {
+      JobFactoryState state =
+          jobFactories.computeIfAbsent(
+              jobInfo.jobId(),
+              k -> {
+                PortablePipelineOptions portableOptions =
+                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
+                        .as(PortablePipelineOptions.class);
+
+                return new JobFactoryState(
+                    MoreObjects.firstNonNull(portableOptions.getSdkWorkerParallelism(), 1L)
+                        .intValue());
+              });
+
+      return state.getFactory().get(jobInfo);
+    }
+  }
 }

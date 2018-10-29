@@ -185,10 +185,11 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
   /**
    * {@link WrappedContext} does not expose equals of actual {@link FlinkExecutableStageContext}.
    */
-  private class WrappedContext implements FlinkExecutableStageContext {
+  @VisibleForTesting
+  class WrappedContext implements FlinkExecutableStageContext {
     private JobInfo jobInfo;
     private AtomicInteger referenceCount;
-    private FlinkExecutableStageContext context;
+    @VisibleForTesting FlinkExecutableStageContext context;
 
     /** {@link WrappedContext#equals(Object)} is only based on {@link JobInfo#jobId()}. */
     WrappedContext(JobInfo jobInfo, FlinkExecutableStageContext context) {

@@ -20,9 +20,9 @@ package org.apache.beam.runners.flink.translation.functions;
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
 public interface FlinkExecutableStageContext extends AutoCloseable {
@@ -38,13 +38,7 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
   }
 
   static Factory factory(FlinkPipelineOptions options) {
-    PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
-    if (PortablePipelineOptions.SDK_WORKER_PARALLELISM_STAGE.equals(
-        portableOptions.getSdkWorkerParallelism())) {
-      return FlinkDefaultExecutableStageContext.MULTI_INSTANCE_FACTORY;
-    } else {
-      return FlinkDefaultExecutableStageContext.ReferenceCountingFactory.REFERENCE_COUNTING;
-    }
+    return MultiInstanceFactory.MULTI_INSTANCE;
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
