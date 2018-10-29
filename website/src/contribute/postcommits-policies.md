@@ -22,11 +22,11 @@ limitations under the License.
 
 Post-commit tests validate that Beam works correctly in a live environment. The
 tests also catch errors that are hard to predict in the design and
-implementation stages
+implementation stages.
 
 Even though post-commit tests run after the code is merged into the repository,
 it is important that the tests pass reliably. Jenkins executes post-commit tests
-against the HEAD of the master branch. If post-commit tests fail, there is a
+against the HEAD of the `master` branch. If post-commit tests fail, there is a
 problem with the HEAD build. In addition, post-commit tests are time consuming
 to run, and it is often hard to triage test failures.
 
@@ -65,11 +65,34 @@ When a post-commit test fails, follow the provided steps for your situation.
 
 ### My change was rolled back due to a test failure {#pr-rolled-back}
 
-1.  Look at the JIRA issue to find the reason for the rollback.
-1.  Fix your code and re-run the post-commit tests.
-1.  Implement new pre-commit tests that will catch similar bugs before future
-    code is merged into the repository.
-1.  Open a new PR that contains your fix and the new pre-commit tests.
+After rollback there is time for deeper investigation. Start by looking at the
+JIRA issue to see the background information for the rollback. There are three
+common scenarios:
+
+1.  Your change contained a bug.
+2.  Your change exposed an existing bug.
+3.  Your change exposed a bad test (flaky, overspecified, etc).
+
+_These are all valid reasons for rollback. Maintaining clear signal is the
+highest priority._
+
+The high level steps are the same:
+
+1.  Create a fix and re-run the post-commit tests.
+2.  Implement new pre-commit tests that will catch similar failures
+    before future code is merged into the repository.
+3.  Open a new PR that contains your fix and the new pre-commit tests.
+
+If the bug is not in your code, here is how to "create a fix":
+
+1.  File a ticket for the existing bug, if it does not already exist.
+    Remember that
+    [a flaky test is a critical bug]({{ site.baseurl }}/contribute/postcommits-policies-details/index.html#flake_is_failing). Other
+    bad tests are similar: they may fail for arbitrary reasons having nothing
+    to do with what it is testing, making our signal unreliable.
+2.  Keep a sickbayed copy of the test that reproduces the failure.
+3.  (Preferred) Create a new test that provides as much coverage possible from
+    the sickbayed test.
 
 ## Useful links
 
