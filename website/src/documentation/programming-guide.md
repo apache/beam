@@ -1576,6 +1576,7 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 `@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
+Timers are explained in more detail in the [Timely (and Stateful) Processing with Apache Beam](https://beam.apache.org/blog/2017/08/28/timely-processing.html) blog post.
 
 ### 4.6. Composite transforms {#composite-transforms}
 
