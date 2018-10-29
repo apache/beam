@@ -608,7 +608,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Ensure that tests are packaged and part of the artifact set.
       project.task('packageTests', type: Jar) {
-        classifier = 'tests'
+        classifier = 'tests-unshaded'
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
