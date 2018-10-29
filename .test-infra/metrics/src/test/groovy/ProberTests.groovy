@@ -35,7 +35,7 @@ class ProberTests {
     def allDashboards = new JsonSlurper().parseText(allDashboardsJson)
     def dashboardNames = allDashboards.title
     // Validate at least one expected dashboard exists
-    assert dashboardNames.contains('Post-commit Tests') : 'Expected dashboard does not exist'
+    assert dashboardNames.contains('Post-commit Test Reliability') : 'Expected dashboard does not exist'
     assert dashboardNames.size > 0 : "No dashboards found. Check Grafana dashboard initialization script."
   }
 
