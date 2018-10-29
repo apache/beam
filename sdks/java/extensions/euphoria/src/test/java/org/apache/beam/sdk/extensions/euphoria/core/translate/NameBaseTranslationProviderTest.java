@@ -23,7 +23,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.junit.Test;
@@ -33,12 +32,14 @@ public class NameBaseTranslationProviderTest {
 
   private Join joinMock = mock(Join.class);
 
-  private TranslatorProvider translatorProvider =
+  private final TranslatorProvider translatorProvider =
       NameBasedTranslatorProvider.newBuilder()
-          .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
-          .registerTranslator(joinMock.getClass(), new JoinTranslator<>())
-          .registerTranslator(joinMock.getClass(), new BroadcastHashJoinTranslator<>())
-          .addShortNameTranslation(BroadcastHashJoinTranslator.class, "broadcast")
+          .setDefaultTranslationProvider(
+              SimpleTranslatorProvider.newBuilder()
+                  .registerTranslator(joinMock.getClass(), new JoinTranslator<>())
+                  .build())
+          .addShortNameTranslation(
+              joinMock.getClass(), new BroadcastHashJoinTranslator<>(), "broadcast")
           .build();
 
   @Test

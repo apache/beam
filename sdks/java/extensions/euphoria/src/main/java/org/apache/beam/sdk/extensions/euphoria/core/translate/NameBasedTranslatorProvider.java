@@ -20,32 +20,56 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Translation provider that selects name matching translation ( operator name starts same as added
- * {@link Builder#addShortNameTranslation(Class, String)} translation or first matching translation
- * for the registered operator.
+ * Translation provider that selects name matching translation (operator name starts same as added
+ * {@link Builder#addShortNameTranslation(Class, OperatorTranslator, String)} translation). If no
+ * match, then its used {@link Builder#setDefaultTranslationProvider(TranslatorProvider)}.
  */
 public class NameBasedTranslatorProvider implements TranslatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(NameBasedTranslatorProvider.class);
-  private final Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators;
-  private final Map<Class<? extends OperatorTranslator>, String> shortTranslatorNameMap;
+
+  private final Multimap<Class<? extends Operator>, TranslationCandidate> translators;
+  private final TranslatorProvider defaultTranslationProvider;
 
   private NameBasedTranslatorProvider(
-      Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators,
-      Map<Class<? extends OperatorTranslator>, String> shortTranslatorNameMap) {
+      Multimap<Class<? extends Operator>, TranslationCandidate> translators,
+      TranslatorProvider defaultTranslationProvider) {
     this.translators = translators;
-    this.shortTranslatorNameMap = shortTranslatorNameMap;
+    this.defaultTranslationProvider = defaultTranslationProvider;
+  }
+
+  /**
+   * Filters to all translator that can translate operator. Then choose first match if translator
+   * starts with shortName in shortTranslatorNameMap or if it operator contains whole name of
+   * translator. If no match in operator's name it choose first translator it can translate.
+   */
+  @Override
+  public <InputT, OutputT, OperatorT extends Operator<OutputT>>
+      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
+
+    Collection<TranslationCandidate> candidates = translators.get(operator.getClass());
+
+    Optional<OperatorTranslator<InputT, OutputT, OperatorT>> chosenTranslator =
+        candidates
+            .stream()
+            .filter(candidate -> candidate.getTranslator().canTranslate(operator))
+            .filter(candidate -> isOperatorNameInTranslator(candidate, operator))
+            .map(TranslationCandidate::<InputT, OutputT, OperatorT>getTranslator)
+            .findFirst();
+
+    if (chosenTranslator.isPresent()) {
+      LOG.info("For operator {} was chosen translator {}", operator, chosenTranslator.get());
+      return chosenTranslator;
+    }
+
+    return defaultTranslationProvider.findTranslator(operator);
   }
 
   /**
@@ -57,69 +81,28 @@ public class NameBasedTranslatorProvider implements TranslatorProvider {
     return new NameBasedTranslatorProvider.Builder();
   }
 
-  /**
-   * Filters to all translator that can translate operator. Then choose first match if translator
-   * starts with shortName in shortTranslatorNameMap or if it operator contains whole name of
-   * translator. If no match in operator's name it choose first translator it can translate.
-   */
-  @Override
-  public <InputT, OutputT, OperatorT extends Operator<OutputT>>
-      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
-    @SuppressWarnings("unchecked")
-    final Collection<OperatorTranslator<InputT, OutputT, OperatorT>> candidates =
-        (Collection) translators.get(operator.getClass());
-    if (!candidates.isEmpty()) {
-      List<OperatorTranslator<InputT, OutputT, OperatorT>> possibleTranslators =
-          candidates
-              .stream()
-              .filter(candidate -> candidate.canTranslate(operator))
-              .collect(Collectors.toList());
-
-      Stream<OperatorTranslator<InputT, OutputT, OperatorT>> translatorStream =
-          possibleTranslators.stream();
-      if (possibleTranslators.size() > 1) {
-        translatorStream =
-            translatorStream.filter(candidate -> isOperatorNameInTranslator(candidate, operator));
-      }
-
-      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> chosenTranslator =
-          translatorStream.findFirst();
-      if (!chosenTranslator.isPresent()) { //name wasnt filled fallback to first
-        chosenTranslator = candidates.stream().findFirst();
-      }
-      LOG.info("For operator {} was chosen translator {}", operator, chosenTranslator.orElse(null));
-      return chosenTranslator;
-    }
-    return Optional.empty();
-  }
-
-  public <InputT, OutputT, OperatorT extends Operator<OutputT>> boolean isOperatorNameInTranslator(
-      OperatorTranslator<InputT, OutputT, OperatorT> candidate, OperatorT operator) {
+  public <OutputT, OperatorT extends Operator<OutputT>> boolean isOperatorNameInTranslator(
+      TranslationCandidate translationCandidate, OperatorT operator) {
     if (!operator.getName().isPresent()) {
       return false;
     }
-    Class<? extends OperatorTranslator> candidateClass = candidate.getClass();
-    String operatorName = operator.getName().get().toLowerCase();
-    if (shortTranslatorNameMap.containsKey(candidateClass)) {
-      return shortTranslatorNameMap.get(candidateClass).startsWith(operatorName);
-    }
 
-    return operatorName.contains(candidateClass.getSimpleName().toLowerCase());
+    String translationName = translationCandidate.getTranslationName().toLowerCase();
+    return operator.getName().get().toLowerCase().startsWith(translationName);
   }
 
   /** {@link NameBasedTranslatorProvider} builder. */
   public static class Builder {
 
-    private final Multimap<Class<? extends Operator>, OperatorTranslator<?, ?, ?>> translators =
+    private final Multimap<Class<? extends Operator>, TranslationCandidate> translators =
         ArrayListMultimap.create();
-    private final Map<Class<? extends OperatorTranslator>, String> shortTranslatorNameMap =
-        new HashMap<>();
+    private TranslatorProvider defaultTranslationProvider;
 
     private Builder() {}
 
-    public NameBasedTranslatorProvider.Builder registerTranslator(
-        Class<? extends Operator> clazz, OperatorTranslator<?, ?, ?> operatorTranslator) {
-      translators.put(clazz, operatorTranslator);
+    public NameBasedTranslatorProvider.Builder setDefaultTranslationProvider(
+        TranslatorProvider defaultTranslationProvider) {
+      this.defaultTranslationProvider = defaultTranslationProvider;
       return this;
     }
 
@@ -127,18 +110,46 @@ public class NameBasedTranslatorProvider implements TranslatorProvider {
      * If more translators can translate operator choose the one which starts with
      * operator.getName() == shortName (case insensitive).
      *
+     * @param operator to translate
      * @param translatorClass class of translation
      * @param shortName on which should operator name start
      * @return builder
      */
     public NameBasedTranslatorProvider.Builder addShortNameTranslation(
-        Class<? extends OperatorTranslator> translatorClass, String shortName) {
-      shortTranslatorNameMap.put(translatorClass, shortName);
+        Class<? extends Operator> operator,
+        OperatorTranslator<?, ?, ?> translatorClass,
+        String shortName) {
+      translators.put(
+          Objects.requireNonNull(operator),
+          new TranslationCandidate(
+              Objects.requireNonNull(shortName), Objects.requireNonNull(translatorClass)));
       return this;
     }
 
     public NameBasedTranslatorProvider build() {
-      return new NameBasedTranslatorProvider(translators, shortTranslatorNameMap);
+      return new NameBasedTranslatorProvider(
+          translators, Objects.requireNonNull(defaultTranslationProvider));
+    }
+  }
+
+  static class TranslationCandidate {
+
+    final String translationName;
+    final OperatorTranslator<?, ?, ?> translator;
+
+    TranslationCandidate(String translationName, OperatorTranslator<?, ?, ?> operatorTranslator) {
+      this.translationName = translationName;
+      this.translator = operatorTranslator;
+    }
+
+    String getTranslationName() {
+      return translationName;
+    }
+
+    @SuppressWarnings("unchecked")
+    <InputT, OutputT, OperatorT extends Operator>
+        OperatorTranslator<InputT, OutputT, OperatorT> getTranslator() {
+      return (OperatorTranslator<InputT, OutputT, OperatorT>) translator;
     }
   }
 }

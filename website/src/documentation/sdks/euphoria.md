@@ -343,7 +343,7 @@ Represents left join of two (left and right) datasets on given key producing sin
 // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(1, "1+X")]
 ```
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `Dataset` of that operator fits in executors memory. And when the `Dataset` is used as right input, Euphoria will automatically translated `LeftJoin` as 'BroadcastHashJoin'. Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. User can indicate by operators name that right side of left join fits in executors memory (more [NameBasedTranslation](#namebasedtranslatorprovider)). Broadcast join can be very efficient when joining between skewed datasets.
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -362,7 +362,7 @@ Dataset<KV<Integer, String>> joined =
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 ```
-Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `Dataset` of that operator fits in executors memory. And when the `Dataset` is used as left input, Euphoria will automatically translated `RightJoin` as 'Broadcast Hash Join'. Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. User can indicate by operators name that left side of right join fits in executors memory (more [NameBasedTranslation](#namebasedtranslatorprovider)). Broadcast join can be very efficient when joining between skewed datasets.
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -566,6 +566,19 @@ Dataset<SomeEventObject> timeStampedEvents =
     .output();
 //Euphoria will now know event time for each event
 ```
+
+## TranslationProviders
+### `NameBasedTranslatorProvider`
+ TranslationProvider that selects name matching translation (operator name starts same as added short name translation). This is useful when we want use more optimized translation
+ for our operator. E.g. We want to use Broadcast Hash Join translation for [Join](#join), when one side of join fits in memory. 
+```java
+
+NameBasedTranslatorProvider.newBuilder()
+        .setDefaultTranslationProvider(SimpleTranslatorProvider.create())
+        .addShortNameTranslation(Join.class, new BroadcastHashJoinTranslator<>(), "broadcast")
+        .build();
+``` 
+Then `BroadcastHashJoinTranslator` will be used for every `LeftJoin` or `RightJoin` operator, which will have set name - `LeftJoin.named("broadcast.....")`.
 
 ## Euphoria To Beam Translation (advanced user section)
 Euphoria API is build on top of Beam Java SDK. The API is transparently translated into Beam's `PTransforms` in background. Most of the translation happens in `org.apache.beam.sdk.extensions.euphoria.core.translate` package. Where the most interesting classes are:

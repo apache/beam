@@ -21,12 +21,26 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Collection;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
 /**
  * Default translation provider that selects first matching translation for the registered operator.
  */
 public class SimpleTranslatorProvider implements TranslatorProvider {
+
+  public static SimpleTranslatorProvider create() {
+    return SimpleTranslatorProvider.newBuilder()
+        .registerTranslator(FlatMap.class, new FlatMapTranslator<>())
+        .registerTranslator(Union.class, new UnionTranslator<>())
+        .registerTranslator(ReduceByKey.class, new ReduceByKeyTranslator<>())
+        .registerTranslator(Join.class, new JoinTranslator<>())
+        .registerTranslator(Join.class, new BroadcastHashJoinTranslator<>())
+        .build();
+  }
 
   /**
    * Create a new builder for provider.

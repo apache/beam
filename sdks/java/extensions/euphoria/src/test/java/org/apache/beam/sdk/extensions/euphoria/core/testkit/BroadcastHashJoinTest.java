@@ -23,9 +23,14 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.LeftJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BroadcastHashJoinTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.NameBasedTranslatorProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.SimpleTranslatorProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -39,6 +44,15 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
 
     @Override
     public Dataset<OutputT> getOutput(Pipeline pipeline) {
+      pipeline
+          .getOptions()
+          .as(EuphoriaOptions.class)
+          .setTranslatorProvider(
+              NameBasedTranslatorProvider.newBuilder()
+                  .setDefaultTranslationProvider(SimpleTranslatorProvider.create())
+                  .addShortNameTranslation(
+                      Join.class, new BroadcastHashJoinTranslator<>(), "broadcast")
+                  .build());
       return super.getOutput(pipeline);
     }
   }
