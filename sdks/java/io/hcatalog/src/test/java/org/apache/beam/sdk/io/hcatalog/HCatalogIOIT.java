@@ -64,6 +64,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HCatalogIOIT {
 
+  /** PipelineOptions for testing {@link org.apache.beam.sdk.io.hcatalog.HCatalogIO}. */
   public interface HCatalogPipelineOptions extends IOTestPipelineOptions {
     @Description("HCatalog metastore host (hostname/ip address)")
     @Default.String("hcatalog-metastore")

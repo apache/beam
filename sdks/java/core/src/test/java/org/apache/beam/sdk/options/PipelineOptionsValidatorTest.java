@@ -218,6 +218,7 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(MultiGroupRequired.class, multiGroupRequired);
   }
 
+  /** Test interface. */
   public interface LeftOptions extends PipelineOptions {
     @Validation.Required(groups = {"left"})
     String getFoo();
@@ -235,6 +236,7 @@ public class PipelineOptionsValidatorTest {
     void setBoth(String both);
   }
 
+  /** Test interface. */
   public interface RightOptions extends PipelineOptions {
     @Validation.Required(groups = {"right"})
     String getFoo();
@@ -252,6 +254,7 @@ public class PipelineOptionsValidatorTest {
     void setBoth(String both);
   }
 
+  /** Test interface. */
   public interface JoinedOptions extends LeftOptions, RightOptions {}
 
   @Test
@@ -312,6 +315,7 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(JoinedOptions.class, options);
   }
 
+  /** Test interface. */
   public interface SuperOptions extends PipelineOptions {
     @Validation.Required(groups = {"super"})
     String getFoo();
@@ -329,6 +333,7 @@ public class PipelineOptionsValidatorTest {
     void setSuperclassObj(String sup);
   }
 
+  /** Test interface. */
   public interface SubOptions extends SuperOptions {
     @Override
     @Validation.Required(groups = {"sub"})

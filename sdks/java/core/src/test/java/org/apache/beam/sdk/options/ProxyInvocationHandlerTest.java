@@ -678,6 +678,7 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
+  /** Test interface. */
   public interface ComplexTypes extends PipelineOptions {
     ComplexType getComplexType();
 
@@ -842,6 +843,7 @@ public class ProxyInvocationHandlerTest {
     assertThat(displayData, hasDisplayItem("object", "foobar"));
   }
 
+  /** Test interface. */
   public interface TypedOptions extends PipelineOptions {
     int getInteger();
 
@@ -906,12 +908,14 @@ public class ProxyInvocationHandlerTest {
             allOf(hasKey("foo"), hasValue("bar"), hasNamespace(ExtendsBaseOptions.class))));
   }
 
+  /** Test interface. */
   public interface BaseOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
   }
 
+  /** Test interface. */
   public interface ExtendsBaseOptions extends BaseOptions {
     @Override
     String getFoo();
@@ -942,12 +946,14 @@ public class ProxyInvocationHandlerTest {
     assertThat(data, hasDisplayItem(allOf(hasKey("bar"), hasNamespace(BarOptions.class))));
   }
 
+  /** Test interface. */
   public interface FooOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
   }
 
+  /** Test interface. */
   public interface BarOptions extends PipelineOptions {
     String getBar();
 
@@ -962,6 +968,7 @@ public class ProxyInvocationHandlerTest {
     assertThat(data, not(hasDisplayItem("foo")));
   }
 
+  /** Test interface. */
   public interface HasDefaults extends PipelineOptions {
     @Default.String("bar")
     String getFoo();
@@ -1016,6 +1023,7 @@ public class ProxyInvocationHandlerTest {
     assertThat(deserializedData, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
   }
 
+  /** Test interface. */
   public interface ArrayOptions extends PipelineOptions {
     String[][] getDeepArray();
 
@@ -1084,6 +1092,7 @@ public class ProxyInvocationHandlerTest {
     assertThat(displayData, hasDisplayItem("classOption", expectedJsonValue));
   }
 
+  /** Test interface. */
   public interface HasClassOptions extends PipelineOptions {
     Class<?> getClassOption();
 

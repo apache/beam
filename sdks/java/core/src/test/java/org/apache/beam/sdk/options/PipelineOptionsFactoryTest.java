@@ -450,6 +450,7 @@ public class PipelineOptionsFactoryTest {
     options.as(CombinedObject.class);
   }
 
+  /** Test interface. */
   public interface MultiGetters extends PipelineOptions {
     Object getObject();
 
@@ -465,6 +466,7 @@ public class PipelineOptionsFactoryTest {
     void setConsistent(Void consistent);
   }
 
+  /** Test interface. */
   public interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
@@ -675,6 +677,7 @@ public class PipelineOptionsFactoryTest {
     options.as(GetterWithInconsistentJsonIgnoreValue.class);
   }
 
+  /** Test interface. */
   public interface GettersWithMultipleDefault extends PipelineOptions {
     @Default.String("abc")
     @Default.Integer(0)
@@ -697,6 +700,7 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
   }
 
+  /** Test interface. */
   public interface MultiGettersWithDefault extends PipelineOptions {
     Object getObject();
 
@@ -712,6 +716,7 @@ public class PipelineOptionsFactoryTest {
     void setConsistent(Void consistent);
   }
 
+  /** Test interface. */
   public interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
     @Default.Boolean(true)
     Object getObject();
@@ -1543,6 +1548,7 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
+  /** Test interface. */
   public interface SuggestedOptions extends PipelineOptions {
     String getAbc();
 
@@ -1795,6 +1801,7 @@ public class PipelineOptionsFactoryTest {
         output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
+  /** Test interface. */
   public interface PipelineOptionsInheritedInvalid
       extends Invalid1, InvalidPipelineOptions2, PipelineOptions {
     String getFoo();
@@ -1802,12 +1809,14 @@ public class PipelineOptionsFactoryTest {
     void setFoo(String value);
   }
 
+  /** Test interface. */
   public interface InvalidPipelineOptions1 {
     String getBar();
 
     void setBar(String value);
   }
 
+  /** Test interface. */
   public interface Invalid1 extends InvalidPipelineOptions1 {
     @Override
     String getBar();
@@ -1816,6 +1825,7 @@ public class PipelineOptionsFactoryTest {
     void setBar(String value);
   }
 
+  /** Test interface. */
   public interface InvalidPipelineOptions2 {
     String getBar();
 
@@ -1874,6 +1884,7 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
+  /** Test interface. */
   public interface RegisteredTestOptions extends PipelineOptions {
     Object getRegisteredExampleFooBar();
 
@@ -1998,6 +2009,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(optsWithDefault.getValue(), equalTo(12.25));
   }
 
+  /** Test interface. */
   public interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
 
   @Test
@@ -2010,6 +2022,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
   }
 
+  /** Test interface. */
   public interface OptionsWithDefaultMethod extends PipelineOptions {
     default Number getValue() {
       return 1024;
@@ -2026,6 +2039,7 @@ public class PipelineOptionsFactoryTest {
             PipelineOptionsFactory.fromArgs("--myMethod=value").as(OptionsWithStaticMethod.class)));
   }
 
+  /** Test interface. */
   public interface OptionsWithStaticMethod extends PipelineOptions {
     String getMyMethod();
 

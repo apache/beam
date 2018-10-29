@@ -55,6 +55,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
+  /** Test interface. */
   public interface ConflictedTestOptions extends BaseTestOptions {
     String getDerivedValue();
 
@@ -68,6 +69,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
+  /** Test interface. */
   public interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
 
@@ -85,6 +87,7 @@ public class PipelineOptionsTest {
     assertNotNull(options);
   }
 
+  /** Test interface. */
   public interface ValueProviderOptions extends PipelineOptions {
     ValueProvider<Boolean> getBool();
 
