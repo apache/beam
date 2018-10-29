@@ -90,8 +90,13 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row.BeamSqlFieldAccessExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.udf.BeamBoundedWindowUdf;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.udf.BeamBoundedWindowUdf.BoundedWindowFunc;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.udf.BeamPaneInfoUdf;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.udf.BeamPaneInfoUdf.PaneFunc;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -501,6 +506,28 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlIsNotNullExpression(subExps.get(0));
           break;
 
+          // PaneInfo and BoundedWindow
+        case "FIRST_PANE":
+          ret = new BeamPaneInfoUdf.BeamUdfIsFirstPane(PaneFunc.valueOf(opName));
+          break;
+        case "LAST_PANE":
+          ret = new BeamPaneInfoUdf.BeamUdfIsLastPane(PaneFunc.valueOf(opName));
+          break;
+        case "PANE_TIMING":
+          ret = new BeamPaneInfoUdf.BeamUdfPaneIndex(PaneFunc.valueOf(opName));
+          break;
+        case "PANE_INDEX":
+          ret = new BeamPaneInfoUdf.BeamUdfPaneTiming(PaneFunc.valueOf(opName));
+          break;
+        case "WINDOW_TYPE":
+          ret = new BeamBoundedWindowUdf.BeamUdfWindowType(BoundedWindowFunc.valueOf(opName));
+          break;
+        case "WINDOW_START":
+          ret = new BeamBoundedWindowUdf.BeamUdfWindowStart(BoundedWindowFunc.valueOf(opName));
+          break;
+        case "WINDOW_END":
+          ret = new BeamBoundedWindowUdf.BeamUdfWindowEnd(BoundedWindowFunc.valueOf(opName));
+          break;
         default:
           // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
@@ -531,7 +558,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
   @Override
   public @Nullable List<Object> execute(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+      Row inputRow, BoundedWindow window, PaneInfo paneInfo, BeamSqlExpressionEnvironment env) {
 
     final BeamSqlExpressionEnvironment localEnv = env.copyWithLocalRefExprs(exprs);
 
@@ -540,7 +567,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
     if (conditionResult) {
       return projections
           .stream()
-          .map(project -> project.evaluate(inputRow, window, localEnv).getValue())
+          .map(project -> project.evaluate(inputRow, window, paneInfo, localEnv).getValue())
           .collect(Collectors.toList());
     } else {
       return null;

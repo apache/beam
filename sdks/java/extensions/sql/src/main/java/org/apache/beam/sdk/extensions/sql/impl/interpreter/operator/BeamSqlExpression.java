@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -50,13 +51,23 @@ public abstract class BeamSqlExpression implements Serializable {
     return op(idx).getOutputType();
   }
 
-  public Object opValueEvaluated(
+  public <T> T opValueEvaluated(
+      int idx, Row row, BoundedWindow window, PaneInfo paneInfo, BeamSqlExpressionEnvironment env) {
+    return opValueEvaluated(idx, row, window, env);
+  }
+
+  public <T> T opValueEvaluated(
       int idx, Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    return op(idx).evaluate(row, window, env).getValue();
+    return (T) op(idx).evaluate(row, window, env).getValue();
   }
 
   /** assertion to make sure the input and output are supported in this expression. */
   public abstract boolean accept();
+
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, PaneInfo paneInfo, BeamSqlExpressionEnvironment env) {
+    return evaluate(inputRow, window, env);
+  }
 
   /**
    * Apply input record {@link Row} with {@link BoundedWindow} to this expression, the output value

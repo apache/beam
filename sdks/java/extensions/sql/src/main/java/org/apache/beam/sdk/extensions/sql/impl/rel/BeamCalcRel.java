@@ -32,6 +32,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -111,11 +113,12 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c, BoundedWindow window, PaneInfo paneInfo) {
       Row inputRow = c.element();
       @Nullable
       List<Object> rawResultValues =
-          executor.execute(inputRow, null, BeamSqlExpressionEnvironments.forRow(inputRow, null));
+          executor.execute(
+              inputRow, window, paneInfo, BeamSqlExpressionEnvironments.forRow(inputRow, null));
 
       if (rawResultValues != null) {
         List<Object> castResultValues =

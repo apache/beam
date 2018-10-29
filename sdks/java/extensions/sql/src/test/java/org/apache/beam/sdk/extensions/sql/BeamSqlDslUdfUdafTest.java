@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for UDF/UDAF. */
@@ -147,6 +148,37 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     String sql =
         "SELECT f_int2, autoload_squaresum(autoload_cubic(f_int)) AS `autoload_squarecubicsum`"
+            + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result =
+        boundedInput1.apply("testUdaf", SqlTransform.query(sql).withAutoUdfUdafLoad(true));
+
+    PAssert.that(result).containsInAnyOrder(row);
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** test window/pane UDFs. */
+  @Test
+  public void testWindowPaneUdf() throws Exception {
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addStringField("window_type")
+            .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
+            .addInt32Field("first_pane")
+            .addInt32Field("last_pane")
+            .addStringField("pane_timing")
+            .addInt64Field("pane_index")
+            .build();
+
+    Row row =
+        Row.withSchema(resultType)
+            .addValues(0, "GLOBAL", Instant.now(), Instant.now(), 1, 1, "ON_TIME", 0)
+            .build();
+
+    String sql =
+        "SELECT f_int2, FIRST_PANE(), LAST_PANE(), PANE_TIMING(), PANE_INDEX()"
+            + ", WINDOW_TYPE(), WINDOW_START(), WINDOW_END()"
             + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result =
         boundedInput1.apply("testUdaf", SqlTransform.query(sql).withAutoUdfUdafLoad(true));

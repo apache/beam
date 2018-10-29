@@ -15,29 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter;
-
-import java.io.Serializable;
-import java.util.List;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.Row;
-
 /**
- * {@code BeamSqlExpressionExecutor} fills the gap between relational expressions in Calcite SQL and
- * executable code.
+ * UDF to expose {@link org.apache.beam.sdk.transforms.windowing.PaneInfo} and {@link
+ * org.apache.beam.sdk.transforms.windowing.BoundedWindow} details.
  */
-public interface BeamSqlExpressionExecutor extends Serializable {
-
-  /** invoked before data processing. */
-  void prepare();
-
-  /**
-   * apply transformation to input record {@link Row} with {@link BoundedWindow} and {@link
-   * PaneInfo}.
-   */
-  List<Object> execute(
-      Row inputRow, BoundedWindow window, PaneInfo paneInfo, BeamSqlExpressionEnvironment env);
-
-  void close();
-}
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.udf;
