@@ -35,7 +35,7 @@ public class NexmarkConfiguration implements Serializable {
   @JsonProperty public boolean debug = true;
 
   /** Which query to run, in [0,9]. */
-  @JsonProperty public int query = 0;
+  @JsonProperty public NexmarkQueryName query = null;
 
   /** Where events come from. */
   @JsonProperty public NexmarkUtils.SourceType sourceType = NexmarkUtils.SourceType.DIRECT;
@@ -186,7 +186,14 @@ public class NexmarkConfiguration implements Serializable {
       debug = options.getDebug();
     }
     if (options.getQuery() != null) {
-      query = options.getQuery();
+      try {
+        query = NexmarkQueryName.valueOf(options.getQuery());
+      } catch (IllegalArgumentException exc) {
+        query = NexmarkQueryName.fromNumber(Integer.parseInt(options.getQuery()));
+      }
+      if (query == null) {
+        throw new IllegalArgumentException("Unknown query: " + query);
+      }
     }
     if (options.getSourceType() != null) {
       sourceType = options.getSourceType();
@@ -353,7 +360,7 @@ public class NexmarkConfiguration implements Serializable {
    */
   public String toShortString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(String.format("query:%d", query));
+    sb.append(String.format("query:%s", query));
     if (debug != DEFAULT.debug) {
       sb.append(String.format("; debug:%s", debug));
     }

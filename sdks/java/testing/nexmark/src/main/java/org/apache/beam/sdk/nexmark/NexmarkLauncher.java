@@ -26,12 +26,13 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -1045,7 +1046,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Collections.sort(counts);
     int n = counts.size();
     if (n < 5) {
-      NexmarkUtils.console("Query%d: only %d samples", model.configuration.query, n);
+      NexmarkUtils.console("Query%s: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(
           "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
@@ -1124,7 +1125,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
         // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
         // so, set parallelism. Also set the output path where to write log files.
-        if (configuration.query == 10) {
+        if (configuration.query == NexmarkQueryName.LOG_TO_SHARDED_FILES) {
           String path = null;
           if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
             path = logsDir(now.getMillis());
@@ -1169,76 +1170,79 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private NexmarkQueryModel getNexmarkQueryModel() {
-    List<NexmarkQueryModel> models = createQueryModels();
+    Map<NexmarkQueryName, NexmarkQueryModel> models = createQueryModels();
     return models.get(configuration.query);
   }
 
   private NexmarkQuery getNexmarkQuery() {
-    List<NexmarkQuery> queries = createQueries();
-
-    if (configuration.query >= queries.size()) {
-      return null;
-    }
-
+    Map<NexmarkQueryName, NexmarkQuery> queries = createQueries();
     return queries.get(configuration.query);
   }
 
-  private List<NexmarkQueryModel> createQueryModels() {
+  private Map<NexmarkQueryName, NexmarkQueryModel> createQueryModels() {
     return isSql() ? createSqlQueryModels() : createJavaQueryModels();
   }
 
-  private List<NexmarkQueryModel> createSqlQueryModels() {
-    return Arrays.asList(null, null, null, null, null, null, null, null, null, null, null, null);
+  private Map<NexmarkQueryName, NexmarkQueryModel> createSqlQueryModels() {
+    return ImmutableMap.of();
   }
 
-  private List<NexmarkQueryModel> createJavaQueryModels() {
-    return Arrays.asList(
-        new Query0Model(configuration),
-        new Query1Model(configuration),
-        new Query2Model(configuration),
-        new Query3Model(configuration),
-        new Query4Model(configuration),
-        new Query5Model(configuration),
-        new Query6Model(configuration),
-        new Query7Model(configuration),
-        new Query8Model(configuration),
-        new Query9Model(configuration),
-        null,
-        null,
-        null);
+  private Map<NexmarkQueryName, NexmarkQueryModel> createJavaQueryModels() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQueryModel>builder()
+        .put(NexmarkQueryName.PASSTHROUGH, new Query0Model(configuration))
+        .put(NexmarkQueryName.CURRENCY_CONVERSION, new Query1Model(configuration))
+        .put(NexmarkQueryName.SELECTION, new Query2Model(configuration))
+        .put(NexmarkQueryName.LOCAL_ITEM_SUGGESTION, new Query3Model(configuration))
+        .put(NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY, new Query4Model(configuration))
+        .put(NexmarkQueryName.HOT_ITEMS, new Query5Model(configuration))
+        .put(NexmarkQueryName.AVERAGE_SELLING_PRICE_BY_SELLER, new Query6Model(configuration))
+        .put(NexmarkQueryName.HIGHEST_BID, new Query7Model(configuration))
+        .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8Model(configuration))
+        .put(NexmarkQueryName.WINNING_BIDS, new Query9Model(configuration))
+        .build();
   }
 
-  private List<NexmarkQuery> createQueries() {
+  private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
     return isSql() ? createSqlQueries() : createJavaQueries();
   }
 
-  private List<NexmarkQuery> createSqlQueries() {
-    return Arrays.asList(
-        new NexmarkSqlQuery(configuration, new SqlQuery0()),
-        new NexmarkSqlQuery(configuration, new SqlQuery1()),
-        new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)),
-        new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)),
-        null,
-        new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)),
-        null,
-        new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)));
+  private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkSqlQuery(configuration, new SqlQuery0()))
+        .put(
+            NexmarkQueryName.CURRENCY_CONVERSION,
+            new NexmarkSqlQuery(configuration, new SqlQuery1()))
+        .put(
+            NexmarkQueryName.SELECTION,
+            new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
+        .put(
+            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
+            new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)))
+        .put(
+            NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY,
+            new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)))
+        .put(
+            NexmarkQueryName.HOT_ITEMS,
+            new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)))
+        .build();
   }
 
-  private List<NexmarkQuery> createJavaQueries() {
-    return Arrays.asList(
-        new Query0(configuration),
-        new Query1(configuration),
-        new Query2(configuration),
-        new Query3(configuration),
-        new Query4(configuration),
-        new Query5(configuration),
-        new Query6(configuration),
-        new Query7(configuration),
-        new Query8(configuration),
-        new Query9(configuration),
-        new Query10(configuration),
-        new Query11(configuration),
-        new Query12(configuration));
+  private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(NexmarkQueryName.PASSTHROUGH, new Query0(configuration))
+        .put(NexmarkQueryName.CURRENCY_CONVERSION, new Query1(configuration))
+        .put(NexmarkQueryName.SELECTION, new Query2(configuration))
+        .put(NexmarkQueryName.LOCAL_ITEM_SUGGESTION, new Query3(configuration))
+        .put(NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY, new Query4(configuration))
+        .put(NexmarkQueryName.HOT_ITEMS, new Query5(configuration))
+        .put(NexmarkQueryName.AVERAGE_SELLING_PRICE_BY_SELLER, new Query6(configuration))
+        .put(NexmarkQueryName.HIGHEST_BID, new Query7(configuration))
+        .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8(configuration))
+        .put(NexmarkQueryName.WINNING_BIDS, new Query9(configuration))
+        .put(NexmarkQueryName.LOG_TO_SHARDED_FILES, new Query10(configuration))
+        .put(NexmarkQueryName.USER_SESSIONS, new Query11(configuration))
+        .put(NexmarkQueryName.PROCESSING_TIME_WINDOWS, new Query12(configuration))
+        .build();
   }
 
   private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {
