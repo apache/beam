@@ -51,7 +51,7 @@ public class PipelineOptionsReflectorTest {
                 SimpleOptions.class, "foo", SimpleOptions.class.getDeclaredMethod("getFoo"))));
   }
 
-  interface SimpleOptions extends PipelineOptions {
+  public interface SimpleOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -65,7 +65,7 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, not(hasItem(hasName(isOneOf("misspelled", "hasParameter", "prefix")))));
   }
 
-  interface OnlyTwoValidGetters extends PipelineOptions {
+  public interface OnlyTwoValidGetters extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -97,7 +97,7 @@ public class PipelineOptionsReflectorTest {
     assertThat(props, hasItem(allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
   }
 
-  interface ExtendsSimpleOptions extends SimpleOptions {
+  public interface ExtendsSimpleOptions extends SimpleOptions {
     @Override
     String getFoo();
 
@@ -123,7 +123,7 @@ public class PipelineOptionsReflectorTest {
     void setFoo(String value);
   }
 
-  interface ExtendsNonPipelineOptions extends NoExtendsClause, PipelineOptions {}
+  public interface ExtendsNonPipelineOptions extends NoExtendsClause, PipelineOptions {}
 
   @Test
   public void testExcludesHiddenInterfaces() {
@@ -134,7 +134,7 @@ public class PipelineOptionsReflectorTest {
   }
 
   @Hidden
-  interface HiddenOptions extends PipelineOptions {
+  public interface HiddenOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -149,7 +149,7 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, hasItem(allOf(hasName("ignored"), not(shouldSerialize()))));
   }
 
-  interface JsonIgnoreOptions extends PipelineOptions {
+  public interface JsonIgnoreOptions extends PipelineOptions {
     String getNotIgnored();
 
     void setNotIgnored(String value);
@@ -172,19 +172,19 @@ public class PipelineOptionsReflectorTest {
     assertThat(props, hasItem(allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
   }
 
-  interface BaseOptions extends PipelineOptions {
+  public interface BaseOptions extends PipelineOptions {
     String getBaseOption();
 
     void setBaseOption(String value);
   }
 
-  interface ExtendOptions1 extends BaseOptions {
+  public interface ExtendOptions1 extends BaseOptions {
     String getExtendOption1();
 
     void setExtendOption1(String value);
   }
 
-  interface ExtendOptions2 extends BaseOptions {
+  public interface ExtendOptions2 extends BaseOptions {
     String getExtendOption2();
 
     void setExtendOption2(String value);

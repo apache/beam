@@ -64,7 +64,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HCatalogIOIT {
 
-  private interface HCatalogPipelineOptions extends IOTestPipelineOptions {
+  public interface HCatalogPipelineOptions extends IOTestPipelineOptions {
     @Description("HCatalog metastore host (hostname/ip address)")
     @Default.String("hcatalog-metastore")
     String getHCatalogMetastoreHostName();

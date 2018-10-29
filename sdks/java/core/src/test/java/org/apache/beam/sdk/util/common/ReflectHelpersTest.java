@@ -127,7 +127,7 @@ public class ReflectHelpersTest {
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Default.String("package.OuterClass$InnerClass#method()")
     String getString();
 
