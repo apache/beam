@@ -15,19 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/** UDF classes. */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
-
-import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
-
-/**
- * TANH(X)
- *
- * <p>Computes hyperbolic tangent of X. Does not fail.
- */
-public class HyperbolicTangent implements BeamSqlUdf {
-  public static final String FUNCTION_NAME = "TANH";
-
-  public static Double eval(Double o) {
-    return o == null ? null : Math.tanh(o);
-  }
-}
