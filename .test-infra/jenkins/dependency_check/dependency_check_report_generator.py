@@ -118,7 +118,7 @@ def prioritize_dependencies(deps, sdk_type):
       else:
         dep_details_url = ReportGeneratorConfig.PYPI_URL + dep_name
         curr_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, curr_ver)
-        latest_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, curr_ver)
+        latest_release_date = find_release_time_from_python_compatibility_checking_service(dep_name, latest_ver)
 
       if not curr_release_date or not latest_release_date:
         curr_release_date, latest_release_date = query_dependency_release_dates_from_bigquery(bigquery_client,
