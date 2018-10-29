@@ -362,7 +362,10 @@ public class QueryablePipeline {
                           Iterables.getOnlyElement(
                               Sets.difference(
                                   transform.getTransform().getInputsMap().keySet(),
-                                  getLocalSideInputNames(transformProto))));
+                                  ImmutableSet.builder()
+                                      .addAll(getLocalSideInputNames(transformProto))
+                                      .addAll(getLocalTimerNames(transformProto))
+                                      .build())));
               PCollection collection = components.getPcollectionsOrThrow(collectionId);
               return UserStateReference.of(
                   PipelineNode.pTransform(transformId, transformProto),
