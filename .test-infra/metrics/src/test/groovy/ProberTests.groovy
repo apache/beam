@@ -41,7 +41,7 @@ class ProberTests {
 
   @Test
   void CheckGrafanaStalenessAlerts() {
-    def alertsJson = "${grafanaEndpoint}/api/alerts?dashboardId=data-freshness".toURL().text
+    def alertsJson = "${grafanaEndpoint}/api/alerts?dashboardQuery=Source%20Data%20Freshness".toURL().text
     def alerts = new JsonSlurper().parseText(alertsJson)
     assert alerts.size > 0
     alerts.each { alert ->
