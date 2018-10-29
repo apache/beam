@@ -37,7 +37,7 @@ dependencies {
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
-def dockerImageRoot = project.findProperty('dockerImageRoot')?: "us.gcr.io/${gcpProject}/java-examples-it"
+def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject}/java-examples-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 def dockerImageName = "${dockerImageContainer}:${dockerTag}"
@@ -100,11 +100,11 @@ task preCommitFnApiWorker(type: Test) {
   }
 }
 
-task preCommit () {
+task preCommit() {
   dependsOn preCommitLegacyWorker
 }
 
-task preCommitPortabilityApi () {
+task preCommitPortabilityApi() {
   dependsOn preCommitFnApiWorker
   // Clean up built images
   doLast {
