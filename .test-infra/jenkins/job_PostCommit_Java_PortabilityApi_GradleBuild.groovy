@@ -22,8 +22,8 @@ import PostcommitJobBuilder
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_FnApi_GradleBuild', 'Run Java FnApi PostCommit',
-  'Java SDK FnApi Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi_GradleBuild', 'Run Java PortabilityApi PostCommit',
+  'Java SDK PortabilityApi Post Commit Tests', this) {
 
   description('Runs PostCommit tests on the Java SDK with FnApi worker.')
 
@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_FnApi_GradleBuild', 'Ru
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':javaPostCommitFnApi')
+      tasks(':javaPostCommitPortabilityApi')
       commonJobProperties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')

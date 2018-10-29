@@ -338,7 +338,7 @@ task postCommit {
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }
 
-task postCommitFnApi {
+task postCommitPortabilityApi {
   group = "Verification"
   description = "Various integration tests using the Dataflow FnApi runner."
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest

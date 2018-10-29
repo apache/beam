@@ -203,8 +203,8 @@ task javaPostCommit() {
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
 }
 
-task javaPostCommitFnApi () {
-  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommitFnApi"
+task javaPostCommitPortabilityApi () {
+  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommitPortabilityApi"
 }
 
 task goPreCommit() {
