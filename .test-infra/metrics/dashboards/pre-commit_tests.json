@@ -49,12 +49,46 @@
   "links": [],
   "panels": [
     {
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                7200000
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "max"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "30m",
+        "handler": 1,
+        "name": "Pre-commit job duration per-day alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
-      "fill": 1,
+      "description": "Execution time for each pre-commit job.\n\nLong test suite execution impacts developer productivity by delaying the quality signal of a pull request of current HEAD. If tests are consistently slow, developers won't wait for them to complete.\n\nWe aim for under 2 hour execution per test suite, but ideally under 30 mins.",
+      "fill": 0,
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -63,13 +97,17 @@
       },
       "id": 4,
       "legend": {
+        "alignAsTable": true,
         "avg": false,
-        "current": false,
+        "current": true,
         "max": false,
         "min": false,
+        "rightSide": true,
         "show": true,
+        "sort": "current",
+        "sortDesc": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -90,7 +128,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  job_name as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron'))\nORDER BY\n  time\n  ",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron'))\nORDER BY\n  metric, time",
           "refId": "A",
           "select": [
             [
@@ -115,16 +153,15 @@
       "thresholds": [
         {
           "colorMode": "critical",
-          "fill": false,
+          "fill": true,
           "line": true,
-          "op": "lt",
-          "value": 720000,
-          "yaxis": "left"
+          "op": "gt",
+          "value": 7200000
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Job duration",
+      "title": "Pre-commit job duration",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -141,10 +178,10 @@
       "yaxes": [
         {
           "format": "ms",
-          "label": "",
+          "label": "Average job duration",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -198,7 +235,7 @@
     ]
   },
   "timezone": "",
-  "title": "Pre-commit Tests",
+  "title": "Pre-commit Test Latency",
   "uid": "_TNndF2iz",
-  "version": 7
+  "version": 13
 }
