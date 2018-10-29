@@ -627,6 +627,7 @@ public class RegisterAndProcessBundleOperationTest {
     DataflowStepContext mockUserStepContext = mock(DataflowStepContext.class);
     when(mockStepContext.namespacedToUser()).thenReturn(mockUserStepContext);
 
+    CountDownLatch waitForStateHandler = new CountDownLatch(1);
     // Issues state calls to the Runner after a process bundle request is sent.
     InstructionRequestHandler fakeClient =
         new InstructionRequestHandler() {
@@ -663,6 +664,7 @@ public class RegisterAndProcessBundleOperationTest {
                               .setGet(StateGetRequest.getDefaultInstance())
                               .build();
 
+                      waitForStateHandler.await();
                       StateRequestHandler stateHandler = stateHandlerCaptor.getValue();
 
                       StateResponse.Builder getResponse =
@@ -735,6 +737,7 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
     verify(mockBeamFnStateDelegator)
         .registerForProcessBundleInstructionId(eq("778"), stateHandlerCaptor.capture());
+    waitForStateHandler.countDown();
 
     // This method blocks till the requests are completed
     operation.finish();
