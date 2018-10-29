@@ -1050,6 +1050,57 @@ public class GreedyPipelineFuserTest {
   }
 
   /*
+   * Tests that parDo with state and timers is fused correctly and can be queried
+   * impulse -> .out -> timer -> .out
+   * becomes
+   * (impulse.out) -> timer
+   */
+  @Test
+  public void parDoWithStateAndTimerRootsStage() {
+    PTransform timerTransform =
+        PTransform.newBuilder()
+            .setUniqueName("TimerParDo")
+            .putInputs("input", "impulse.out")
+            .putInputs("timer", "timer.out")
+            .putOutputs("timer", "timer.out")
+            .putOutputs("output", "output.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state", StateSpec.getDefaultInstance())
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms("timer", timerTransform)
+            .putPcollections("timer.out", pc("timer.out"))
+            .putPcollections("output.out", pc("output.out"))
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
+            .build();
+
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse"))));
+    assertThat(
+        fused.getFusedStages(),
+        contains(
+            ExecutableStageMatcher.withInput("impulse.out")
+                .withNoOutputs()
+                .withTransforms("timer")));
+  }
+
+  /*
    * impulse -> .out -> ( read -> .out --> goTransform -> .out )
    *                                    \
    *                                     -> pyTransform -> .out )
