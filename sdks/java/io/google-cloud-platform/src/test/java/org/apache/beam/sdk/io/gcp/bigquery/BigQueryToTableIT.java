@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -289,6 +291,7 @@ public class BigQueryToTableIT {
   }
 
   @Test
+  @Category(DataflowPortabilityApiUnsupported.class)
   public void testNewTypesQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupNewTypesQueryTest();
     this.options.setExperiments(
@@ -300,6 +303,7 @@ public class BigQueryToTableIT {
   }
 
   @Test
+  @Category(DataflowPortabilityApiUnsupported.class)
   public void testLegacyQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupLegacyQueryTest();
     this.options.setExperiments(
@@ -311,6 +315,7 @@ public class BigQueryToTableIT {
   }
 
   @Test
+  @Category(DataflowPortabilityApiUnsupported.class)
   public void testStandardQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupStandardQueryTest();
     this.options.setExperiments(
