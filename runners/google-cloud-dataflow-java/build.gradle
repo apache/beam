@@ -26,19 +26,14 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
+ * we are attempting to reference parameters such as "sourceSets.test.output" directly.
  */
-def evaluationDependsOnList = [
-  ":beam-sdks-java-io-google-cloud-platform",
-  ":beam-sdks-java-core",
-  ":beam-examples-java",
-  ":beam-runners-google-cloud-dataflow-java-legacy-worker",
-  ":beam-runners-google-cloud-dataflow-java-fn-api-worker",
-  ":beam-sdks-java-container",
-]
-evaluationDependsOnList.each {
-  evaluationDependsOn it
-}
+evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
+evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":beam-examples-java")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+evaluationDependsOn(":beam-sdks-java-container")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
