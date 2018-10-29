@@ -235,11 +235,11 @@ limitations under the License.
 
 <p>Post-commit tests validate that Beam works correctly in a live environment. The
 tests also catch errors that are hard to predict in the design and
-implementation stages</p>
+implementation stages.</p>
 
 <p>Even though post-commit tests run after the code is merged into the repository,
 it is important that the tests pass reliably. Jenkins executes post-commit tests
-against the HEAD of the master branch. If post-commit tests fail, there is a
+against the HEAD of the <code class="highlighter-rouge">master</code> branch. If post-commit tests fail, there is a
 problem with the HEAD build. In addition, post-commit tests are time consuming
 to run, and it is often hard to triage test failures.</p>
 
@@ -284,12 +284,37 @@ open a pull request with the proposed fix while doing rollback.</p>
 
 <h3 id="pr-rolled-back">My change was rolled back due to a test failure</h3>
 
+<p>After rollback there is time for deeper investigation. Start by looking at the
+JIRA issue to see the background information for the rollback. These scenarios
+are all common:</p>
+
+<ul>
+  <li>Your change contained a bug.</li>
+  <li>Your change exposed an existing bug.</li>
+  <li>Your change exposed a bad test (flaky, overspecified, etc).</li>
+</ul>
+
+<p><em>These are all valid reasons for rollback. Maintaining clear signal is the
+highest priority.</em></p>
+
+<p>The high level steps are the same:</p>
+
 <ol>
-  <li>Look at the JIRA issue to find the reason for the rollback.</li>
-  <li>Fix your code and re-run the post-commit tests.</li>
-  <li>Implement new pre-commit tests that will catch similar bugs before future
-code is merged into the repository.</li>
+  <li>Create a fix and re-run the post-commit tests.</li>
+  <li>Implement new pre-commit tests that will catch similar failures
+before future code is merged into the repository.</li>
   <li>Open a new PR that contains your fix and the new pre-commit tests.</li>
+</ol>
+
+<p>If the bug is not in your code, here is how to “create a fix”:</p>
+
+<ol>
+  <li>File a ticket for the existing bug, if it does not already exist.
+Remember that
+<a href="/contribute/postcommits-policies-details/index.html#flake_is_failing">a flaky test is a critical bug</a>. Other
+bad tests are similar: they may fail for arbitrary reasons having nothing
+to do with what is being tested, making our signal unreliable.</li>
+  <li>Mark the problematic test to be skipped, with a link to the JIRA ticket.</li>
 </ol>
 
 <h2 id="useful-links">Useful links</h2>
