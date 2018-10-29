@@ -158,7 +158,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
           "refId": "A",
           "select": [
             [
@@ -310,7 +310,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
           "refId": "A",
           "select": [
             [
@@ -540,7 +540,7 @@
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
       "decimals": 1,
-      "description": "Execution time for each post-commit job, averaged over a day.",
+      "description": "Execution time for each post-commit job",
       "fill": 0,
       "gridPos": {
         "h": 8,
@@ -579,7 +579,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(build_duration) as value,\n  job_name as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nGROUP BY\n  time, job_name\nORDER BY\n  job_name, time",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  job_name, time",
           "refId": "A",
           "select": [
             [
@@ -604,7 +604,7 @@
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Post-commit job duration per-day",
+      "title": "Post-commit job duration",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -832,5 +832,5 @@
   "timezone": "",
   "title": "Post-commit Test Reliability",
   "uid": "D81lW0pmk",
-  "version": 44
+  "version": 45
 }

@@ -54,7 +54,7 @@
           {
             "evaluator": {
               "params": [
-                720000
+                7200000
               ],
               "type": "gt"
             },
@@ -87,7 +87,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_BEAMPSQL}",
-      "description": "Execution time for each pre-commit job, averaged over a day.\n\nLong test suite execution impacts developer productivity by delaying the quality signal of a pull request of current HEAD. If tests are consistently slow, developers won't wait for them to complete.\n\nWe aim for under 30m execution per test suite.",
+      "description": "Execution time for each pre-commit job.\n\nLong test suite execution impacts developer productivity by delaying the quality signal of a pull request of current HEAD. If tests are consistently slow, developers won't wait for them to complete.\n\nWe aim for under 2 hour execution per test suite, but ideally under 30 mins.",
       "fill": 0,
       "gridPos": {
         "h": 8,
@@ -128,7 +128,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH parsed AS (\nSELECT\n  DATE_TRUNC('day', build_timestamp) as day,\n  build_duration,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit)' for '#') as job\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron'))\n)\nSELECT\n  day as time,\n  AVG(build_duration) as value,\n  job as metric\nFROM\n  parsed\nGROUP BY\n  time, metric\nORDER BY\n  metric, time",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron'))\nORDER BY\n  metric, time",
           "refId": "A",
           "select": [
             [
@@ -156,13 +156,12 @@
           "fill": true,
           "line": true,
           "op": "gt",
-          "value": 720000,
-          "yaxis": "left"
+          "value": 7200000
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Pre-commit job duration per-day",
+      "title": "Pre-commit job duration",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -207,7 +206,7 @@
     "list": []
   },
   "time": {
-    "from": "now-30d",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {
@@ -236,7 +235,7 @@
     ]
   },
   "timezone": "",
-  "title": "Pre-commit Tests",
+  "title": "Pre-commit Test Latency",
   "uid": "_TNndF2iz",
-  "version": 10
+  "version": 13
 }
