@@ -63,6 +63,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -107,7 +108,7 @@ test {
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests/'
-def dataflowPostcommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
 
@@ -115,7 +116,6 @@ def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${da
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 def dockerImageName = "${dockerImageContainer}:${dockerTag}"
-def defaultDockerImageName = containerImageName(name: "java")
 
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
@@ -161,12 +161,13 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
 
 task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
+  def defaultDockerImageName = containerImageName(name: "java")
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
     }
     exec {
-        commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+      commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
     }
   }
 }
@@ -183,7 +184,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostcommitTempRoot}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
@@ -205,7 +206,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostcommitTempRoot}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
             "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
             "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
             "--experiments=beam_fn_api",
@@ -225,7 +226,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     classpath = configurations.googleCloudPlatformIntegrationTest
     testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
     useJUnit {
-        excludeCategories 'org.apache.beam.sdk.testing.DataflowFnApiUnsupported'
+      excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported'
     }
 }
 
@@ -236,7 +237,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostcommitTempRoot}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
@@ -262,7 +263,7 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostcommitTempRoot}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
             "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
             "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
             "--experiments=beam_fn_api",
@@ -292,7 +293,7 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
-          "--tempRoot=${dataflowPostcommitTempRoot}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
   ])
@@ -312,7 +313,7 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostcommitTempRoot}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
             "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
             "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
             "--experiments=beam_fn_api",

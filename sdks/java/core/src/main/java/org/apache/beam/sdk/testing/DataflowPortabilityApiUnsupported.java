@@ -18,4 +18,4 @@
 package org.apache.beam.sdk.testing;
 
 /** Category tag for the dataflow fn-api worker unsupported tests. */
-public interface DataflowFnApiUnsupported {}
+public interface DataflowPortabilityApiUnsupported {}
