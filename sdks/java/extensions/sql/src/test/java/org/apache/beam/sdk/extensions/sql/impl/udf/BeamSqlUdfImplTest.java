@@ -142,6 +142,31 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testTANH() throws Exception {
+    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
+
+    Row resultRow1 = Row.withSchema(resultType).addValues(Math.tanh(1.0)).build();
+    String sql1 = "SELECT TANH(CAST(1.0 as DOUBLE))";
+    PCollection<Row> result1 =
+        boundedInputDouble.apply("testUdf1", SqlTransform.query(sql1).withAutoUdfUdafLoad(true));
+    PAssert.that(result1).containsInAnyOrder(resultRow1);
+
+    Row resultRow2 = Row.withSchema(resultType).addValues(Math.tanh(0.0)).build();
+    String sql2 = "SELECT TANH(CAST(0.0 as DOUBLE))";
+    PCollection<Row> result2 =
+        boundedInputDouble.apply("testUdf2", SqlTransform.query(sql2).withAutoUdfUdafLoad(true));
+    PAssert.that(result2).containsInAnyOrder(resultRow2);
+
+    Row resultRow3 = Row.withSchema(resultType).addValues(Math.tanh(-1.0)).build();
+    String sql3 = "SELECT TANH(CAST(-1.0 as DOUBLE))";
+    PCollection<Row> result3 =
+        boundedInputDouble.apply("testUdf3", SqlTransform.query(sql3).withAutoUdfUdafLoad(true));
+    PAssert.that(result3).containsInAnyOrder(resultRow3);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   @AutoService(UdfUdafProvider.class)
   public static class UdfProvider implements UdfUdafProvider {
     @Override
@@ -152,6 +177,7 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
       builder.put(Greatest.FUNCTION_NAME, Greatest.class);
       builder.put(HyperbolicCosine.FUNCTION_NAME, HyperbolicCosine.class);
       builder.put(HyperbolicSine.FUNCTION_NAME, HyperbolicSine.class);
+      builder.put(HyperbolicTangent.FUNCTION_NAME, HyperbolicTangent.class);
       return builder.build();
     }
 
