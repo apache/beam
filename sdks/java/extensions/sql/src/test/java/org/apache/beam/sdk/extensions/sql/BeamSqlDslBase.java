@@ -172,7 +172,7 @@ public class BeamSqlDslBase {
             .addStringField("func")
             .addNullableField("f_double", Schema.FieldType.DOUBLE)
             .build();
-    rowsOfDouble = TestUtils.RowsBuilder.of(schemaDouble).addRows("COSH", 710.0).getRows();
+    rowsOfDouble = TestUtils.RowsBuilder.of(schemaDouble).addRows("COSH", null).getRows();
 
     schemaArray =
         Schema.builder()
