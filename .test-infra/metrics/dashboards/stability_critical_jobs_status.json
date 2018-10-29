@@ -216,7 +216,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java_GradleBuild') \n       OR (job_name LIKE 'beam_PostCommit_Go_GradleBuild') \n       OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n       OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name LIKE 'beam_PostCommit_Java_GradleBuild') \n       OR (job_name LIKE 'beam_PostCommit_Go_GradleBuild') \n       OR (job_name LIKE 'beam_PostCommit_Python_Verify')\n       OR (job_name LIKE 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time\n",
           "refId": "A",
           "select": [
             [
@@ -327,5 +327,5 @@
   "timezone": "",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 8
+  "version": 9
 }
