@@ -118,6 +118,30 @@ spec:
               secretKeyRef:
                 name: beammetrics-psql-db-credentials
                 key: password
+      - name: beammetricssyncgithub
+        image: gcr.io/apache-beam-testing/beammetricssyncgithub:v20181029
+        env:
+          - name: DB_HOST
+            value: 127.0.0.1
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DBNAME
+            value: beammetrics
+          - name: DB_DBUSERNAME
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: username
+          - name: DB_DBPWD
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: password
+          - name: GH_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: beamcrawler-gh-access-token
+                key: token
       volumes:
       - name: beammetrics-psql-credentials
         secret:
