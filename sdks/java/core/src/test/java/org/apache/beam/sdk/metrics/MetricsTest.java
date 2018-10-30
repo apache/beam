@@ -243,8 +243,12 @@ public class MetricsTest implements Serializable {
       assertAllMetrics(metrics, true);
     }
 
-    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
-        DataflowPortabilityApiUnsupported.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesCommittedMetrics.class,
+      UsesCounterMetrics.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     @Test
     public void testCommittedCounterMetrics() {
       PipelineResult result = runPipelineWithMetrics();
