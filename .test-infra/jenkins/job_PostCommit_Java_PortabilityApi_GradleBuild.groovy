@@ -43,8 +43,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi_GradleBu
       commonJobProperties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
-      // BEAM-5035: Parallel builds are very flaky
-      switches('--no-parallel')
       // To catch as many as failures
       switches('--continue')
     }
