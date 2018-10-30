@@ -242,9 +242,9 @@ def extractBeamReviewers(pr):
   for r in pr['reviews']['edges']:
     reviewers.append(r['node']['author']['login'])
 
-  ## Hi, @r1, can you .. look?
-  beam_reviewer_regex = r'(@\w+\s.*)(?:PTAL|ptal|look)'
-  ## R= @r1 @r2 @R3
+  # @r1, @r2 ... look/PTAL/ptal?
+  beam_reviewer_regex = r'(@\w+).*?(?:PTAL|ptal|look)'
+  # R= @r1 @r2 @R3
   contrib_reviewer_regex = r'(?:^|\W)[Rr]\s*[=:.]((?:[\s,;.]*-?@\w+)+)'
   username_regex = r'(-?)(@\w+)'
   for m in [pr['body']] + [c['node']['body'] for c in pr['comments']['edges']]:
