@@ -932,14 +932,20 @@ public class KafkaIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    /** Sets the Kafka topic to write to. */
+    /**
+     * Sets the Kafka topic to write to. Note that this overrides any previously function set
+     * by {@link #withTopicFn}.
+     */
     public Write<K, V> withTopic(String topic) {
-      return toBuilder().setTopic(topic).build();
+      return toBuilder().setTopic(topic).setTopicFn(null).build();
     }
 
-    /** Sets a custom function to define sink topic dynamically. */
+    /**
+     * Sets a custom function to define sink topic dynamically. Note that this overrides
+     * any previously set topic by {@link #withTopic}.
+     */
     public Write<K, V> withTopicFn(SerializableFunction<KV<K, V>, String> topicFn) {
-      return toBuilder().setTopicFn(topicFn).build();
+      return toBuilder().setTopic(null).setTopicFn(topicFn).build();
     }
 
     /**
