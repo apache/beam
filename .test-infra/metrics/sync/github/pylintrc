@@ -1,5 +1,0 @@
-[master]
-indent-string='  '
-function-naming-style=camelCase
-variable-naming-style=camelCase
-

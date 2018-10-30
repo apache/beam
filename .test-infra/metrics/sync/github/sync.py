@@ -8,8 +8,10 @@
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
-
-'''This module queries GitHub to collect Beam-related metrics and put them in PostgreSQL.'''
+'''
+This module queries GitHub to collect Beam-related metrics and put them in
+PostgreSQL.
+'''
 import itertools
 import os
 import socket
@@ -25,25 +27,29 @@ import psycopg2
 import queries
 import ghutilities
 
+
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
 # Actual host should be used for production.
-# def findDockerNetworkIP():
-#   '''Utilizes ip tool to find docker network IP'''
-#   import subprocess
-#   cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
-#   return cmd_out.split(" ")[2]
-# DB_HOST = findDockerNetworkIP()
+def findDockerNetworkIP():
+  '''Utilizes ip tool to find docker network IP'''
+  import subprocess
+  cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
+  return cmd_out.split(" ")[2]
 
-DB_HOST = os.environ['DB_HOST']
+
+DB_HOST = findDockerNetworkIP()
+
+# DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
 DB_NAME = os.environ['DB_DBNAME']
 DB_USER_NAME = os.environ['DB_DBUSERNAME']
 DB_PASSWORD = os.environ['DB_DBPWD']
 
-GH_ACCESS_TOKEN = os.environ['GH_ACCESS_TOKEN']
+GH_ACCESS_TOKEN = os.environ['GH_ACCESSTOKEN']
 
 GH_PRS_TABLE_NAME = 'gh_pull_requests'
+
 GH_PRS_CREATE_TABLE_QUERY = f"""
   create table {GH_PRS_TABLE_NAME} (
   pr_id integer NOT NULL PRIMARY KEY,
@@ -75,10 +81,12 @@ def initDBConnection():
   conn = None
   while not conn:
     try:
-      conn = psycopg2.connect(f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
-                              f" port='{DB_PORT}' password='{DB_PASSWORD}'")
+      conn = psycopg2.connect(
+          f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
+          f" port='{DB_PORT}' password='{DB_PASSWORD}'")
     except:
       print('Failed to connect to DB; retrying in 1 minute')
+      sys.stdout.flush()
       time.sleep(60)
   return conn
 
@@ -135,7 +143,8 @@ def updateLastSyncTimestamp(timestamp):
   connection = initDBConnection()
   cursor = connection.cursor()
 
-  insertTimestampSqlQuery = f'''INSERT INTO {GH_SYNC_METADATA_TABLE_NAME} (name, timestamp)
+  insertTimestampSqlQuery = f'''INSERT INTO {GH_SYNC_METADATA_TABLE_NAME}
+                                  (name, timestamp)
                                 VALUES ('gh_sync', %s) 
                                 ON CONFLICT (name) DO UPDATE
                                   SET timestamp = excluded.timestamp
@@ -154,6 +163,7 @@ def executeGHGraphqlQuery(query):
   r = requests.post(url=url, json={'query': query}, headers=headers)
   return r.json()
 
+
 def fetchGHData(timestamp):
   '''Fetches GitHub data required for reporting Beam metrics'''
   tsString = ghutilities.datetimeToGHTimeStr(timestamp)
@@ -163,7 +173,8 @@ def fetchGHData(timestamp):
 
 def extractRequestedReviewers(pr):
   reviewEdges = pr["reviewRequests"]["edges"]
-  return list(map(lambda x: x["node"]["requestedReviewer"]["login"], reviewEdges))
+  return list(
+      map(lambda x: x["node"]["requestedReviewer"]["login"], reviewEdges))
 
 
 def extractMentions(pr):
@@ -172,11 +183,13 @@ def extractMentions(pr):
   reviewEdges = pr["reviews"]["edges"]
 
   bodyMentions = ghutilities.findMentions(body)
-  commentMentionsLists = map(lambda x: ghutilities.findMentions(x["node"]["body"]),
-                             commentEdges)
-  reviewMentionsLists = map(lambda x: ghutilities.findMentions(x["node"]["body"]),
-                            commentEdges)
-  commentMentions = [item for sublist in commentMentionsLists for item in sublist]
+  commentMentionsLists = map(
+      lambda x: ghutilities.findMentions(x["node"]["body"]), commentEdges)
+  reviewMentionsLists = map(
+      lambda x: ghutilities.findMentions(x["node"]["body"]), reviewEdges)
+  commentMentions = [
+      item for sublist in commentMentionsLists for item in sublist
+  ]
   reviewMentions = [item for sublist in reviewMentionsLists for item in sublist]
 
   mentionsSet = set(bodyMentions) | set(commentMentions) | set(reviewMentions)
@@ -184,22 +197,34 @@ def extractMentions(pr):
 
 
 def extractFirstNAActivity(pr):
-  '''Returns timestamp and login of author on first activity on pull request done by non-author.'''
+  '''
+  Returns timestamp and login of author on first activity on pull request done
+  by non-author.
+  '''
   author = pr["author"]["login"]
   commentEdges = None
-  commentEdges = [edge for edge in pr["comments"]["edges"] if edge["node"]["author"]["login"] != author]
-  reviewEdges = [edge for edge in pr["reviews"]["edges"] if edge["node"]["author"]["login"] != author]
+  commentEdges = [
+      edge for edge in pr["comments"]["edges"]
+      if edge["node"]["author"]["login"] != author
+  ]
+  reviewEdges = [
+      edge for edge in pr["reviews"]["edges"]
+      if edge["node"]["author"]["login"] != author
+  ]
   merged = pr["merged"]
   mergedAt = pr["mergedAt"]
   mergedBy = None if not merged else pr["mergedBy"]["login"]
-  commentTimestamps = list(map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
-                               commentEdges))
-  reviewTimestamps = list(map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
-                              reviewEdges))
+  commentTimestamps = list(
+      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+          commentEdges))
+  reviewTimestamps = list(
+      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+          reviewEdges))
   allTimestamps = commentTimestamps + reviewTimestamps
   if merged:
     allTimestamps.append((mergedAt, mergedBy))
-  return (None, None) if not allTimestamps else min(allTimestamps, key=lambda t: t[0])
+  return (None, None) if not allTimestamps else min(
+      allTimestamps, key=lambda t: t[0])
 
 
 def extractBeamReviewers(pr):
@@ -218,16 +243,16 @@ def extractBeamReviewers(pr):
     reviewers.append(r['node']['author']['login'])
 
   ## Hi, @r1, can you .. look?
-  beamReviewerRegex = r'(Hi.*look?)'
+  beam_reviewer_regex = r'(@\w+\s.*)(?:PTAL|ptal|look)'
   ## R= @r1 @r2 @R3
-  g3ReviewerRegex = r'(?:^|\W)[Rr]\s*[=:.]((?:[\s,;.]*-?@\w+)+)'
-  usernameRegex = r'(-?)(@\w+)'
+  contrib_reviewer_regex = r'(?:^|\W)[Rr]\s*[=:.]((?:[\s,;.]*-?@\w+)+)'
+  username_regex = r'(-?)(@\w+)'
   for m in [pr['body']] + [c['node']['body'] for c in pr['comments']['edges']]:
     if m is None:
       continue
-    for match in itertools.chain(re.finditer(g3ReviewerRegex, m),
-                                 re.finditer(beamReviewerRegex, m)):
-      for user in re.finditer(usernameRegex, match.groups()[0]):
+    for match in itertools.chain(
+        re.finditer(contrib_reviewer_regex, m), re.finditer(beam_reviewer_regex, m)):
+      for user in re.finditer(username_regex, match.groups()[0]):
         # First group decides if it is additive or subtractive
         remove = user.groups()[0] == '-'
         # [1:] to drop the @
@@ -245,7 +270,10 @@ def extractReviewers(pr):
 
 
 def extractRowValuesFromPr(pr):
-  '''Extracts row values required to fill Beam metrics table from PullRequest GraphQL response.'''
+  '''
+  Extracts row values required to fill Beam metrics table from PullRequest
+  GraphQL response.
+  '''
   requestedReviewers = extractRequestedReviewers(pr)
   mentions = extractMentions(pr)
   firstNAActivity, firstNAAAuthor = extractFirstNAActivity(pr)
@@ -253,19 +281,10 @@ def extractRowValuesFromPr(pr):
   reviewedBy = extractReviewers(pr)
 
   result = [
-      pr["number"],
-      pr["author"]["login"],
-      pr["createdAt"],
-      pr["updatedAt"],
-      pr["closedAt"],
-      pr["merged"],
-      firstNAActivity,
-      firstNAAAuthor,
-      requestedReviewers,
-      mentions,
-      beamReviewers,
-      reviewedBy
-      ]
+      pr["number"], pr["author"]["login"], pr["createdAt"], pr["updatedAt"],
+      pr["closedAt"], pr["merged"], firstNAActivity, firstNAAAuthor,
+      requestedReviewers, mentions, beamReviewers, reviewedBy
+  ]
 
   return result
 
@@ -284,7 +303,8 @@ def upsertIntoPRsTable(cursor, values):
                             mentioned,
                             beam_reviewers,
                             reviewed_by)
-                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                          VALUES
+                            (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                           ON CONFLICT (pr_id) DO UPDATE
                             SET
                             pr_id=excluded.pr_id,
@@ -303,7 +323,9 @@ def upsertIntoPRsTable(cursor, values):
 
 
 def fetchNewData():
-  '''Main workhorse method. Fetches data from GitHub and puts it in metrics table.'''
+  '''
+  Main workhorse method. Fetches data from GitHub and puts it in metrics table.
+  '''
   connection = initDBConnection()
   cursor = connection.cursor()
   lastSyncTimestamp = fetchLastSyncTimestamp(cursor)
@@ -328,8 +350,9 @@ def fetchNewData():
     try:
       prs = jsonData["data"]["search"]["edges"]
     except:
-      # TODO This means that API returned error. We might want to bring this to stderr or utilize
-      # other means of logging. Examples: we hit throttling, etc
+      # TODO This means that API returned error.
+      # We might want to bring this to stderr or utilize other means of logging.
+      # Examples: we hit throttling, etc
       print("Got bad json format: ", jsonData)
       return
 
@@ -360,8 +383,7 @@ def fetchNewData():
 
 def probeGitHubIsUp():
   '''
-  Returns True if GitHub responds to simple queries.
-  Else returns False.
+  Returns True if GitHub responds to simple queries. Else returns False.
   '''
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   result = sock.connect_ex(('github.com', 443))
@@ -372,7 +394,8 @@ def probeGitHubIsUp():
 if __name__ == '__main__':
   '''
   This script is supposed to be invoked directly.
-  However for testing purposes and to allow importing, wrap work code in module check.
+  However for testing purposes and to allow importing,
+  wrap work code in module check.
   '''
   print("Started.")
 
