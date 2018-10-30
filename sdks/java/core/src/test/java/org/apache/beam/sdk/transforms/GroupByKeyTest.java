@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -308,7 +309,7 @@ public class GroupByKeyTest implements Serializable {
 
     /** Verify that runners correctly hash/group on the encoded value and not the value itself. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
       final int numValues = 10;
       final int numKeys = 5;
