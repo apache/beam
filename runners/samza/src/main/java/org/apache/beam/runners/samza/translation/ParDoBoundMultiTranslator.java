@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
@@ -257,6 +258,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
       ParDo.MultiOutput<InT, OutT> transform, TransformHierarchy.Node node, ConfigContext ctx) {
     final Map<String, String> config = new HashMap<>();
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    final SamzaPipelineOptions options = ctx.getPipelineOptions();
+
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
@@ -266,6 +269,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
         config.put("stores." + storeId + ".key.serde", "byteSerde");
         config.put("stores." + storeId + ".msg.serde", "byteSerde");
+
+        if (options.getStateDurable()) {
+          config.put(
+              "stores." + storeId + ".changelog",
+              ConfigBuilder.getChangelogTopic(options, storeId));
+        }
       }
     }
     return config;
