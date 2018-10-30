@@ -22,7 +22,7 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN pip install pylint yapf
+RUN pip install pylint yapf nose
 RUN pip install --no-cache-dir -r requirements.txt
 
 
