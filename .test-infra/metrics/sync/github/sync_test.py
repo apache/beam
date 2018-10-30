@@ -12,18 +12,18 @@
 
 import unittest
 from ddt import ddt, data
-import sync
+import ghutilities
 
 
 @ddt
-class FindMentionedTestCase(unittest.TestCase):
+class GhutilitiesTestCase(unittest.TestCase):
 
   @data(("sample text with mention @mention", ["mention"]),
         ("Data without mention", []),
         ("sample text with several mentions @first, @second @third", ["first", "second", "third"]))
-  def test_findMentioned_finds_mentions_by_pattern(self, params):
+  def test_findMentions_finds_mentions_by_pattern(self, params):
     input, expectedResult = params
-    result = sync.findMentioned(input)
+    result = ghutilities.findMentions(input)
     self.assertEqual(expectedResult, result)
 
   def test_findCommentReviewers(self):
