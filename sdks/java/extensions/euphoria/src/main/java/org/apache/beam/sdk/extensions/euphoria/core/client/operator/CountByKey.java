@@ -19,15 +19,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -35,6 +31,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,6 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -76,9 +75,9 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input) {
     return new Builder<>(null).of(input);
   }
 
@@ -96,7 +95,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'keyBy' step. */
@@ -169,7 +168,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
 
@@ -179,8 +178,8 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> KeyByBuilder<T> of(Dataset<T> input) {
-      this.input = (Dataset<InputT>) requireNonNull(input);
+    public <T> KeyByBuilder<T> of(PCollection<T> input) {
+      this.input = (PCollection<InputT>) requireNonNull(input);
       return (KeyByBuilder) this;
     }
 
@@ -240,8 +239,8 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
     }
 
     @Override
-    public Dataset<KV<KeyT, Long>> output(OutputHint... outputHints) {
-      final CountByKey<InputT, KeyT> rbk =
+    public PCollection<KV<KeyT, Long>> output(OutputHint... outputHints) {
+      final CountByKey<InputT, KeyT> cbk =
           new CountByKey<>(
               name,
               keyExtractor,
@@ -249,7 +248,7 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
               windowBuilder.getWindow().orElse(null),
               TypeUtils.keyValues(
                   TypeAwareness.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
-      return OperatorTransform.apply(rbk, Collections.singletonList(input));
+      return OperatorTransform.apply(cbk, PCollectionList.of(input));
     }
   }
 
@@ -263,9 +262,9 @@ public class CountByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<K
   }
 
   @Override
-  public Dataset<KV<KeyT, Long>> expand(List<Dataset<InputT>> inputs) {
+  public PCollection<KV<KeyT, Long>> expand(PCollectionList<InputT> inputs) {
     return ReduceByKey.named(getName().orElse(null))
-        .of(Iterables.getOnlyElement(inputs))
+        .of(PCollectionLists.getOnlyElement(inputs))
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(v -> 1L, TypeDescriptors.longs())
         .combineBy(Sums.ofLongs(), TypeDescriptors.longs())

@@ -22,12 +22,12 @@ import static java.util.Objects.requireNonNull;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>When joining two streams, the join has to specify windowing which groups elements from streams
  * into {@link org.apache.beam.sdk.transforms.windowing.Window}s. The join operation is performed
- * within same windows produced on left and right side of input {@link Dataset}s.
+ * within same windows produced on left and right side of input {@link PCollection}s.
  *
  * <h3>Builders:</h3>
  *
@@ -66,7 +66,7 @@ public class FullJoin {
    * @return ByBuilder
    */
   public static <LeftT, RightT> ByBuilder<LeftT, RightT> of(
-      Dataset<LeftT> left, Dataset<RightT> right) {
+      PCollection<LeftT> left, PCollection<RightT> right) {
     return named("FullJoin").of(left, right);
   }
 
@@ -83,7 +83,7 @@ public class FullJoin {
   /** Builder for the 'of' step. */
   public interface OfBuilder {
 
-    <LeftT, RightT> ByBuilder<LeftT, RightT> of(Dataset<LeftT> left, Dataset<RightT> right);
+    <LeftT, RightT> ByBuilder<LeftT, RightT> of(PCollection<LeftT> left, PCollection<RightT> right);
   }
 
   /** Builder for the 'by' step. */
@@ -118,8 +118,8 @@ public class FullJoin {
       implements OfBuilder, ByBuilder<LeftT, RightT>, UsingBuilder<LeftT, RightT, KeyT> {
 
     private final String name;
-    private Dataset<LeftT> left;
-    private Dataset<RightT> right;
+    private PCollection<LeftT> left;
+    private PCollection<RightT> right;
     private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
     private UnaryFunction<RightT, KeyT> rightKeyExtractor;
     @Nullable TypeDescriptor<KeyT> keyType;
@@ -129,10 +129,10 @@ public class FullJoin {
     }
 
     @Override
-    public <LeftElT, RightElT> ByBuilder<LeftElT, RightElT> of(
-        Dataset<LeftElT> left, Dataset<RightElT> right) {
+    public <FirstT, SecondT> ByBuilder<FirstT, SecondT> of(
+        PCollection<FirstT> left, PCollection<SecondT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftElT, RightElT, ?> casted = (Builder) this;
+      final Builder<FirstT, SecondT, ?> casted = (Builder) this;
       casted.left = requireNonNull(left);
       casted.right = requireNonNull(right);
       return casted;

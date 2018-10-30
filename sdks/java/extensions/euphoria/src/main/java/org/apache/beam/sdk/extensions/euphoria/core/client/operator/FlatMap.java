@@ -19,13 +19,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -34,6 +32,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -47,8 +47,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>Example:
  *
  * <pre>{@code
- * Dataset<String> strings = ...;
- * Dataset<Integer> ints =
+ * PCollection<String> strings = ...;
+ * PCollection<Integer> ints =
  *        FlatMap.named("TO-INT")
  *           .of(strings)
  *           .using((String s, Context<String> c) -> {
@@ -90,9 +90,9 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
    * @param input the input data set to be transformed
    * @return a builder to complete the setup of the new {@link FlatMap} operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> UsingBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -108,11 +108,11 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
 
   // ------------- Builders chain
 
-  /** Builder exposing {@link #of(Dataset)} method. */
+  /** Builder exposing {@link #of(PCollection)} method. */
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> UsingBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /**
@@ -160,11 +160,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {
-
-    @Override
-    Dataset<OutputT> output(OutputHint... outputHints);
-  }
+  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
   /** Builder of {@link FlatMap}. */
   public static class Builder<InputT, OutputT>
@@ -174,7 +170,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
           OutputBuilder<OutputT> {
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunctor<InputT, OutputT> functor;
     @Nullable private TypeDescriptor<OutputT> outputType;
     @Nullable private ExtractEventTime<InputT> evtTimeFn;
@@ -184,7 +180,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public <InputLocalT> UsingBuilder<InputLocalT> of(Dataset<InputLocalT> input) {
+    public <InputLocalT> UsingBuilder<InputLocalT> of(PCollection<InputLocalT> input) {
       @SuppressWarnings("unchecked")
       Builder<InputLocalT, ?> casted = (Builder) this;
       casted.input = requireNonNull(input);
@@ -214,9 +210,9 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public Dataset<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output(OutputHint... outputHints) {
       return OperatorTransform.apply(
-          new FlatMap<>(name, functor, outputType, evtTimeFn), Collections.singletonList(input));
+          new FlatMap<>(name, functor, outputType, evtTimeFn), PCollectionList.of(input));
     }
   }
 

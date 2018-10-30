@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunc
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.SingleValueCollector;
 import org.apache.beam.sdk.transforms.Combine;
@@ -60,8 +61,8 @@ public class ReduceByKeyTranslator<InputT, KeyT, ValueT, OutputT>
     final PCollection<InputT> input =
         operator
             .getWindow()
-            .map(window -> OperatorTranslators.getSingleInput(inputs).apply(window))
-            .orElseGet(() -> OperatorTranslators.getSingleInput(inputs));
+            .map(window -> PCollectionLists.getOnlyElement(inputs).apply(window))
+            .orElseGet(() -> PCollectionLists.getOnlyElement(inputs));
 
     // ~ create key & value extractor
     final MapElements<InputT, KV<KeyT, ValueT>> extractor =

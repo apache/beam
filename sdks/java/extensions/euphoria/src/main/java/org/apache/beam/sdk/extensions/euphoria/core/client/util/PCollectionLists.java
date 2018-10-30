@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.euphoria.core.translate;
+package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-/** Utilities related to {@link OperatorTranslator}s. */
-class OperatorTranslators {
+/** Utilities related to {@link PCollection}s. */
+public class PCollectionLists {
 
-  private OperatorTranslators() {}
+  private PCollectionLists() {}
 
-  static <T> PCollection<T> getSingleInput(PCollectionList<T> inputs) {
-    Preconditions.checkArgument(inputs.size() == 1, "There should be exactly one input.");
-    return inputs.get(0);
+  public static <T> PCollection<T> getOnlyElement(PCollectionList<T> inputs) {
+    return Iterables.getOnlyElement(inputs.getAll());
   }
 }
