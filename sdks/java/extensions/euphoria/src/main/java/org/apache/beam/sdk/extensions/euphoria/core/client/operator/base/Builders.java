@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -50,7 +50,7 @@ public class Builders {
 
   /**
    * Usually the first builder in a chain. It defines an {@link Operator Operator's} input {@link
-   * Dataset}.
+   * PCollection}.
    */
   public interface Of {
 
@@ -61,7 +61,7 @@ public class Builders {
      * @param input the input dataset to recuce
      * @return the next builder to complete the setup of the operator
      */
-    <InputT> Object of(Dataset<InputT> input);
+    <InputT> Object of(PCollection<InputT> input);
   }
 
   /**
@@ -189,7 +189,7 @@ public class Builders {
      * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
-    Dataset<T> output(OutputHint... outputHints);
+    PCollection<T> output(OutputHint... outputHints);
   }
 
   /** Similar to {@link Output}, but it adds method which extracts values from {@link KV}. */
@@ -202,6 +202,6 @@ public class Builders {
      * @param outputHints output dataset description
      * @return the dataset representing the new operator's output
      */
-    Dataset<V> outputValues(OutputHint... outputHints);
+    PCollection<V> outputValues(OutputHint... outputHints);
   }
 }

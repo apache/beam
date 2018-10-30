@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunction;
@@ -47,6 +45,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -104,9 +104,9 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -124,7 +124,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'keyBy' step. */
@@ -319,7 +319,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
@@ -334,7 +334,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> KeyByBuilder<T> of(Dataset<T> input) {
+    public <T> KeyByBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       final Builder<T, ?, ?, ?> casted = (Builder) this;
       casted.input = input;
@@ -436,29 +436,29 @@ public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     }
 
     @Override
-    public Dataset<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
-      final ReduceByKey<InputT, KeyT, ValueT, OutputT> rbk =
-          new ReduceByKey<>(
-              name,
-              keyExtractor,
-              keyType,
-              valueExtractor,
-              valueType,
-              reducer,
-              valueComparator,
-              windowBuilder.getWindow().orElse(null),
-              TypeDescriptors.kvs(
-                  TypeAwareness.orObjects(Optional.ofNullable(keyType)),
-                  TypeAwareness.orObjects(Optional.ofNullable(outputType))));
-      return OperatorTransform.apply(rbk, Collections.singletonList(input));
+    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+      return OperatorTransform.apply(createOperator(), PCollectionList.of(input));
     }
 
     @Override
-    public Dataset<OutputT> outputValues(OutputHint... outputHints) {
-      return MapElements.named(name != null ? name + "::extract-values" : null)
-          .of(output(outputHints))
-          .using(KV::getValue, outputType)
-          .output(outputHints);
+    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+      return OperatorTransform.apply(
+          new OutputValues<>(name, outputType, createOperator()), PCollectionList.of(input));
+    }
+
+    private ReduceByKey<InputT, KeyT, ValueT, OutputT> createOperator() {
+      return new ReduceByKey<>(
+          name,
+          keyExtractor,
+          keyType,
+          valueExtractor,
+          valueType,
+          reducer,
+          valueComparator,
+          windowBuilder.getWindow().orElse(null),
+          TypeDescriptors.kvs(
+              TypeAwareness.orObjects(Optional.ofNullable(keyType)),
+              TypeAwareness.orObjects(Optional.ofNullable(outputType))));
     }
   }
 

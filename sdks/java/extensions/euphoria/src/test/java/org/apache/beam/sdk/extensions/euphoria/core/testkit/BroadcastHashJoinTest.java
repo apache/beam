@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.FlatMapTranslator;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SimpleTranslatorProvider;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
       extends JoinTest.JoinTestCase<LeftT, RightT, OutputT> {
 
     @Override
-    public Dataset<OutputT> getOutput(Pipeline pipeline) {
+    public PCollection<OutputT> getOutput(Pipeline pipeline) {
       pipeline
           .getOptions()
           .as(EuphoriaOptions.class)
@@ -63,8 +63,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
         new TestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -116,8 +116,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
         new TestCase<Integer, Long, KV<Integer, String>>() {
 
           @Override
-          protected Dataset<KV<Integer, String>> getOutput(
-              Dataset<Integer> left, Dataset<Long> right) {
+          protected PCollection<KV<Integer, String>> getOutput(
+              PCollection<Integer> left, PCollection<Long> right) {
             return RightJoin.of(MapElements.of(left).using(i -> i).output(), right)
                 .by(e -> e, e -> (int) (e % 10))
                 .using(
@@ -169,8 +169,8 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
         new TestCase<String, Integer, KV<String, String>>() {
 
           @Override
-          protected Dataset<KV<String, String>> getOutput(
-              Dataset<String> left, Dataset<Integer> right) {
+          protected PCollection<KV<String, String>> getOutput(
+              PCollection<String> left, PCollection<Integer> right) {
             return LeftJoin.of(left, MapElements.of(right).using(i -> i).output())
                 .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
                 .using(

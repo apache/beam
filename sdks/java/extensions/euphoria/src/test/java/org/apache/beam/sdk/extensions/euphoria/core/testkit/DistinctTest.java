@@ -20,12 +20,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
             return Distinct.of(input).output();
           }
 
@@ -73,7 +73,7 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<KV<Integer, Long>> input) {
+          protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             return Distinct.of(input)
                 .mapped(KV::getKey)
@@ -112,7 +112,7 @@ public class DistinctTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<KV<Integer, Long>> input) {
+          protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             return Distinct.of(input)
                 .mapped(KV::getKey)
