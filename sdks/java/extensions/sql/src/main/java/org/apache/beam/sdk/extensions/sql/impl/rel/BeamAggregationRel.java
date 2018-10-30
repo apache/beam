@@ -19,25 +19,21 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.Lists;
+import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.impl.transform.MultipleAggregationsFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -118,58 +114,51 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    Schema inputSchema = CalciteUtils.toSchema(getInput().getRowType());
     Schema outputSchema = CalciteUtils.toSchema(getRowType());
-    List<AggregationCombineFnAdapter> aggregationAdapters =
+    List<FieldAggregation> aggregationAdapters =
         getNamedAggCalls()
             .stream()
-            .map(aggCall -> AggregationCombineFnAdapter.of(aggCall, inputSchema))
+            .map(aggCall -> new FieldAggregation(aggCall.getKey(), aggCall.getValue()))
             .collect(toList());
 
     return new Transform(
-        windowFn, windowFieldIndex, inputSchema, getGroupSet(), aggregationAdapters, outputSchema);
+        windowFn, windowFieldIndex, getGroupSet(), aggregationAdapters, outputSchema);
+  }
+
+  private static class FieldAggregation implements Serializable {
+    final List<Integer> inputs;
+    final CombineFn combineFn;
+    final Field outputField;
+
+    FieldAggregation(AggregateCall call, String alias) {
+      inputs = call.getArgList();
+      outputField = CalciteUtils.toField(alias, call.getType());
+      combineFn =
+          AggregationCombineFnAdapter.createCombineFn(
+              call, outputField, call.getAggregation().getName());
+    }
   }
 
   private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     private final List<Integer> keyFieldsIds;
     private Schema outputSchema;
-    private Schema keySchema;
-    private SchemaCoder<Row> keyCoder;
     private WindowFn<Row, IntervalWindow> windowFn;
     private int windowFieldIndex;
-    private List<AggregationCombineFnAdapter> aggregationCalls;
-    private SchemaCoder<Row> aggCoder;
+    private List<FieldAggregation> fieldAggregations;
 
     private Transform(
         WindowFn<Row, IntervalWindow> windowFn,
         int windowFieldIndex,
-        Schema inputSchema,
         ImmutableBitSet groupSet,
-        List<AggregationCombineFnAdapter> aggregationCalls,
+        List<FieldAggregation> fieldAggregations,
         Schema outputSchema) {
-
       this.windowFn = windowFn;
       this.windowFieldIndex = windowFieldIndex;
-      this.aggregationCalls = aggregationCalls;
-
+      this.fieldAggregations = fieldAggregations;
       this.outputSchema = outputSchema;
-
-      this.keySchema =
-          groupSet
-              .asList()
-              .stream()
-              .filter(i -> i != windowFieldIndex)
-              .map(inputSchema::getField)
-              .collect(toSchema());
-
       this.keyFieldsIds =
           groupSet.asList().stream().filter(i -> i != windowFieldIndex).collect(toList());
-
-      this.keyCoder = SchemaCoder.of(keySchema);
-      this.aggCoder =
-          SchemaCoder.of(
-              aggregationCalls.stream().map(aggCall -> aggCall.field()).collect(toSchema()));
     }
 
     @Override
@@ -187,13 +176,40 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       validateWindowIsSupported(windowedStream);
 
-      PCollection<KV<Row, Row>> exCombineByStream = extractGroupingKeys(upstream, windowedStream);
+      org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> byFields =
+          org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(keyFieldsIds);
+      org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsByFields<Row> combined = null;
+      for (FieldAggregation fieldAggregation : fieldAggregations) {
+        List<Integer> inputs = fieldAggregation.inputs;
+        CombineFn combineFn = fieldAggregation.combineFn;
+        if (inputs.size() > 1 || inputs.isEmpty()) {
+          // In this path we extract a Row (an empty row if inputs.isEmpty).
+          combined =
+              (combined == null)
+                  ? byFields.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldsById(inputs, combineFn, fieldAggregation.outputField);
+        } else {
+          // Combining over a single field, so extract just that field.
+          combined =
+              (combined == null)
+                  ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
+                  : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+        }
+      }
 
-      PCollection<KV<Row, Row>> aggregatedStream = performAggregation(exCombineByStream);
+      PTransform<PCollection<Row>, PCollection<KV<Row, Row>>> combiner = combined;
+      if (combiner == null) {
+        // If no field aggregations were specified, we run a constant combiner that always returns
+        // a single empty row for each key. This is used by the SELECT DISTINCT query plan - in this
+        // case a group by is generated to determine unique keys, and a constant null combiner is
+        // used.
+        combiner = byFields.aggregate(AggregationCombineFnAdapter.createConstantCombineFn());
+      }
 
-      PCollection<Row> mergedStream = mergeRows(aggregatedStream);
-
-      return mergedStream;
+      return windowedStream
+          .apply(combiner)
+          .apply("mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)))
+          .setRowSchema(outputSchema);
     }
 
     /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
@@ -208,33 +224,6 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               .setCoder(upstream.getCoder())
               .apply(Window.into(windowFn));
       return windowedStream;
-    }
-
-    /** Extract non-windowing group-by fields, assign them as a key. */
-    private PCollection<KV<Row, Row>> extractGroupingKeys(
-        PCollection<Row> upstream, PCollection<Row> windowedStream) {
-      return windowedStream
-          .apply(
-              "exCombineBy",
-              WithKeys.of(
-                  row -> keyFieldsIds.stream().map(row::getValue).collect(toRow(keySchema))))
-          .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
-    }
-
-    private PCollection<KV<Row, Row>> performAggregation(
-        PCollection<KV<Row, Row>> exCombineByStream) {
-      return exCombineByStream
-          .apply("combineBy", Combine.perKey(MultipleAggregationsFn.combineFns(aggregationCalls)))
-          .setCoder(KvCoder.of(keyCoder, aggCoder));
-    }
-
-    /** Merge the KVs back into whole rows. */
-    private PCollection<Row> mergeRows(PCollection<KV<Row, Row>> aggregatedStream) {
-      PCollection<Row> mergedStream =
-          aggregatedStream.apply(
-              "mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex)));
-      mergedStream.setRowSchema(outputSchema);
-      return mergedStream;
     }
 
     /**
@@ -261,14 +250,14 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     }
 
     static DoFn<KV<Row, Row>, Row> mergeRecord(Schema outputSchema, int windowStartFieldIndex) {
-
       return new DoFn<KV<Row, Row>, Row>() {
         @ProcessElement
-        public void processElement(ProcessContext c, BoundedWindow window) {
-          KV<Row, Row> kvRow = c.element();
+        public void processElement(
+            @Element KV<Row, Row> kvRow, BoundedWindow window, OutputReceiver<Row> o) {
           List<Object> fieldValues =
               Lists.newArrayListWithCapacity(
                   kvRow.getKey().getValues().size() + kvRow.getValue().getValues().size());
+
           fieldValues.addAll(kvRow.getKey().getValues());
           fieldValues.addAll(kvRow.getValue().getValues());
 
@@ -276,7 +265,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
           }
 
-          c.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
+          o.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
         }
       };
     }

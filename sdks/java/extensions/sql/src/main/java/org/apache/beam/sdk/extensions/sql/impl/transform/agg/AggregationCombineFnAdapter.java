@@ -17,77 +17,138 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
-import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationArgsAdapter.ArgsAdapter;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
-import org.apache.calcite.util.Pair;
 
-/**
- * Wrapper {@link CombineFn} for aggregation function call.
- *
- * <p>Delegates to the actual aggregation {@link CombineFn}, either built-in, or UDAF.
- *
- * <p>Actual aggregation {@link CombineFn CombineFns} expect their specific arguments, not the full
- * input row. This class uses {@link ArgsAdapter arg adapters} to extract and map the call arguments
- * to the {@link CombineFn CombineFn's} inputs.
- */
-public class AggregationCombineFnAdapter extends CombineFn<Row, Object, Object> {
+/** Wrapper {@link CombineFn}s for aggregation function calls. */
+public class AggregationCombineFnAdapter<T> {
+  private abstract static class WrappedCombinerBase<T> extends CombineFn<T, Object, Object> {
+    CombineFn<T, Object, Object> combineFn;
 
-  // Field for a function call
-  private Schema.Field field;
+    WrappedCombinerBase(CombineFn<T, Object, Object> combineFn) {
+      this.combineFn = combineFn;
+    }
 
-  // Actual aggregation CombineFn
-  private CombineFn combineFn;
+    @Override
+    public Object createAccumulator() {
+      return combineFn.createAccumulator();
+    }
 
-  // Adapter to convert input Row to CombineFn's arguments
-  private ArgsAdapter argsAdapter;
+    @Override
+    public Object addInput(Object accumulator, T input) {
+      T processedInput = getInput(input);
+      return (processedInput == null)
+          ? accumulator
+          : combineFn.addInput(accumulator, getInput(input));
+    }
 
-  /** {@link Schema.Field} with this function call. */
-  public Schema.Field field() {
-    return field;
+    @Override
+    public Object mergeAccumulators(Iterable<Object> accumulators) {
+      return combineFn.mergeAccumulators(accumulators);
+    }
+
+    @Override
+    public Object extractOutput(Object accumulator) {
+      return combineFn.extractOutput(accumulator);
+    }
+
+    @Nullable
+    abstract T getInput(T input);
   }
 
-  private AggregationCombineFnAdapter(
-      Schema.Field field, CombineFn combineFn, ArgsAdapter argsAdapter) {
-    this.field = field;
-    this.combineFn = combineFn;
-    this.argsAdapter = argsAdapter;
+  private static class MultiInputCombiner extends WrappedCombinerBase<Row> {
+    MultiInputCombiner(CombineFn<Row, Object, Object> combineFn) {
+      super(combineFn);
+    }
+
+    @Override
+    Row getInput(Row input) {
+      for (Object o : input.getValues()) {
+        if (o == null) {
+          return null;
+        }
+      }
+      return input;
+    }
   }
 
-  /**
-   * Creates an instance of {@link AggregationCombineFnAdapter}.
-   *
-   * @param callWithAlias Calcite's output, represents a function call paired with its field alias
-   */
-  public static AggregationCombineFnAdapter of(
-      Pair<AggregateCall, String> callWithAlias, Schema inputSchema) {
-    AggregateCall call = callWithAlias.getKey();
-    Schema.Field field = CalciteUtils.toField(callWithAlias.getValue(), call.getType());
-    String functionName = call.getAggregation().getName();
+  private static class SingleInputCombiner extends WrappedCombinerBase<Object> {
+    SingleInputCombiner(CombineFn<Object, Object, Object> combineFn) {
+      super(combineFn);
+    }
 
-    return new AggregationCombineFnAdapter(
-        field,
-        createCombineFn(call, field, functionName),
-        AggregationArgsAdapter.of(call.getArgList(), inputSchema));
+    @Override
+    Object getInput(Object input) {
+      return input;
+    }
+  }
+
+  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
+    private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+    private static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
+
+    public static final ConstantEmpty INSTANCE = new ConstantEmpty();
+
+    @Override
+    public Row createAccumulator() {
+      return EMPTY_ROW;
+    }
+
+    @Override
+    public Row addInput(Row accumulator, Row input) {
+      return EMPTY_ROW;
+    }
+
+    @Override
+    public Row mergeAccumulators(Iterable<Row> accumulators) {
+      return EMPTY_ROW;
+    }
+
+    @Override
+    public Row extractOutput(Row accumulator) {
+      return EMPTY_ROW;
+    }
+
+    @Nullable
+    public Row getInput(Row input) {
+      return EMPTY_ROW;
+    }
+
+    @Override
+    public Coder<Row> getDefaultOutputCoder(CoderRegistry registry, Coder<Row> inputCoder) {
+      return SchemaCoder.of(EMPTY_SCHEMA);
+    }
   }
 
   /** Creates either a UDAF or a built-in {@link CombineFn}. */
-  private static CombineFn<?, ?, ?> createCombineFn(
+  public static CombineFn<?, ?, ?> createCombineFn(
       AggregateCall call, Schema.Field field, String functionName) {
+    CombineFn combineFn;
     if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-      return getUdafCombineFn(call);
+      combineFn = getUdafCombineFn(call);
+    } else {
+      combineFn = BeamBuiltinAggregations.create(functionName, field.getType().getTypeName());
     }
+    if (call.getArgList().isEmpty()) {
+      return new SingleInputCombiner(combineFn);
+    } else if (call.getArgList().size() == 1) {
+      return new SingleInputCombiner(combineFn);
+    } else {
+      return new MultiInputCombiner(combineFn);
+    }
+  }
 
-    return BeamBuiltinAggregations.create(functionName, field.getType().getTypeName());
+  public static CombineFn<Row, ?, Row> createConstantCombineFn() {
+    return ConstantEmpty.INSTANCE;
   }
 
   private static CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
@@ -97,45 +158,5 @@ public class AggregationCombineFnAdapter extends CombineFn<Row, Object, Object> 
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
-  }
-
-  @Override
-  public Object createAccumulator() {
-    return combineFn.createAccumulator();
-  }
-
-  /**
-   * Calls the args adapter to extract the fields from the input row and pass them into the actual
-   * {@link CombineFn}. E.g. input of a MAX(f) is not a full row, but just a number.
-   *
-   * <p>If argument is null, skip it and return the original accumulator. This is what SQL
-   * aggregations are supposed to do.
-   */
-  @Override
-  public Object addInput(Object accumulator, Row input) {
-    Object argsValues = argsAdapter.getArgsValues(input);
-    return (argsValues == null) ? accumulator : combineFn.addInput(accumulator, argsValues);
-  }
-
-  @Override
-  public Object mergeAccumulators(Iterable<Object> accumulators) {
-    return combineFn.mergeAccumulators(accumulators);
-  }
-
-  @Override
-  public Object extractOutput(Object accumulator) {
-    return combineFn.extractOutput(accumulator);
-  }
-
-  /**
-   * {@link CombineFn#getAccumulatorCoder} is supposed to use input {@link Coder coder} to infer the
-   * {@link Coder coder} for the accumulator. Here we call the args adapter to get the input coder
-   * for the delegate {@link CombineFn}.
-   */
-  @Override
-  public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Row> inputCoder)
-      throws CannotProvideCoderException {
-
-    return combineFn.getAccumulatorCoder(registry, argsAdapter.getArgsValuesCoder());
   }
 }
