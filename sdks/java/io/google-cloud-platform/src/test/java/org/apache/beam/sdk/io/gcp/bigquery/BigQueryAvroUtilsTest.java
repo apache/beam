@@ -114,7 +114,7 @@ public class BigQueryAvroUtilsTest {
     List<Schema.Field> avroFields = new ArrayList<>();
     for (Schema.Field field : AvroCoder.of(Bird.class).getSchema().getFields()) {
       Schema schema = field.schema();
-      if (field.name().equals("birthdayMoney")) {
+      if ("birthdayMoney".equals(field.name())) {
         // birthdayMoney is a nullable field with type BYTES/DECIMAL.
         schema =
             Schema.createUnion(

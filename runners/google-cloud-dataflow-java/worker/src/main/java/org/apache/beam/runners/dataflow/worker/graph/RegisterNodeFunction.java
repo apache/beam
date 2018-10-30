@@ -290,7 +290,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         CloudObject userFnSpec = CloudObject.fromSpec(parDoInstruction.getUserFn());
         String userFnClassName = userFnSpec.getClassName();
 
-        if (userFnClassName.equals("CombineValuesFn") || userFnClassName.equals("KeyedCombineFn")) {
+        if ("CombineValuesFn".equals(userFnClassName) || "KeyedCombineFn".equals(userFnClassName)) {
           transformSpec = transformCombineValuesFnToFunctionSpec(userFnSpec);
           ptransformIdToPCollectionViews.put(ptransformId, Collections.emptyList());
         } else {
