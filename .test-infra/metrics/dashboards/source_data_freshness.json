@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "5.3.1"
+      "version": "5.3.2"
     },
     {
       "type": "panel",
@@ -134,7 +134,7 @@
           "hide": false,
           "metricColumn": "build_result",
           "rawQuery": true,
-          "rawSql": "WITH sources AS (\n  SELECT\n    'Jenkins' as source,\n    MAX(build_timestamp + make_interval(secs:= timing_executingtimemillis / 1000.0)) AS last_sync\n  FROM jenkins_builds\n  UNION SELECT\n    'JIRA' as source,\n    lastsynctime AS last_sync\n  FROM jira_issues_metadata\n)\nSELECT\n  current_timestamp AS time,\n  source,\n  EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / (60) AS value\nFROM sources",
+          "rawSql": "WITH sources AS (\n  SELECT\n    'Jenkins' as source,\n    MAX(build_timestamp + make_interval(secs:= timing_executingtimemillis / 1000.0)) AS last_sync\n  FROM jenkins_builds\n  UNION SELECT\n    'JIRA' as source,\n    lastsynctime AS last_sync\n  FROM jira_issues_metadata\n  UNION SELECT\n    'GitHub' as source,\n    timestamp AS last_sync\n  FROM gh_sync_metadata\n)\nSELECT\n  current_timestamp AS time,\n  source,\n  EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / (60) AS value\nFROM sources",
           "refId": "A",
           "select": [
             [
@@ -254,5 +254,5 @@
   "timezone": "",
   "title": "Source Data Freshness",
   "uid": "data-freshness",
-  "version": 7
+  "version": 8
 }
