@@ -292,7 +292,7 @@ public class Schema implements Serializable {
     INT16, // two-byte signed integer.
     INT32, // four-byte signed integer.
     INT64, // eight-byte signed integer.
-    DECIMAL, // Decimal integer
+    DECIMAL, // Arbitrary-precision decimal number
     FLOAT,
     DOUBLE,
     STRING, // String.
@@ -337,6 +337,47 @@ public class Schema implements Serializable {
 
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
+    }
+
+    public boolean isSubtypeOf(TypeName other) {
+      return other.isSupertypeOf(this);
+    }
+
+    public boolean isSupertypeOf(TypeName other) {
+      if (this == other) {
+        return true;
+      }
+
+      // defined only for numeric types
+      if (!isNumericType() || !other.isNumericType()) {
+        return false;
+      }
+
+      switch (this) {
+        case BYTE:
+          return false;
+
+        case INT16:
+          return other == BYTE;
+
+        case INT32:
+          return other == BYTE || other == INT16;
+
+        case INT64:
+          return other == BYTE || other == INT16 || other == INT32;
+
+        case FLOAT:
+          return false;
+
+        case DOUBLE:
+          return other == FLOAT;
+
+        case DECIMAL:
+          return other == FLOAT || other == DOUBLE;
+
+        default:
+          return false;
+      }
     }
   }
 

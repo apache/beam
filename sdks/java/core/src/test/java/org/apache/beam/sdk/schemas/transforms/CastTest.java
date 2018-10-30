@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Objects;
@@ -45,36 +46,14 @@ public class CastTest {
   @Category(NeedsRunner.class)
   public void testProjection() throws Exception {
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
-
     PCollection<Projection2> pojos =
         pipeline
             .apply(Create.of(new Projection1()))
-            .apply(
-                Cast.<Projection1>builder()
-                    .nullability(Cast.Nullability.SAME)
-                    .shape(Cast.Shape.PROJECTION)
-                    .type(Cast.Type.SAME)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.widening(outputSchema))
             .apply(Convert.to(Projection2.class));
 
     PAssert.that(pojos).containsInAnyOrder(new Projection2());
     pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testProjectionFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Projection1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
-
-    Cast.<Projection1>builder()
-        .nullability(Cast.Nullability.SAME)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.SAME)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
   }
 
   @Test
@@ -85,32 +64,11 @@ public class CastTest {
     PCollection<TypeWiden2> pojos =
         pipeline
             .apply(Create.of(new TypeWiden1()))
-            .apply(
-                Cast.<TypeWiden1>builder()
-                    .nullability(Cast.Nullability.SAME)
-                    .shape(Cast.Shape.SAME)
-                    .type(Cast.Type.WIDEN)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.widening(outputSchema))
             .apply(Convert.to(TypeWiden2.class));
 
     PAssert.that(pojos).containsInAnyOrder(new TypeWiden2());
     pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testTypeWidenFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
-
-    Cast.<Projection1>builder()
-        .nullability(Cast.Nullability.SAME)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.SAME)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
   }
 
   @Test
@@ -122,13 +80,7 @@ public class CastTest {
     PCollection<TypeWiden1> pojos =
         pipeline
             .apply(Create.of(new TypeWiden2()))
-            .apply(
-                Cast.<TypeWiden2>builder()
-                    .nullability(Cast.Nullability.SAME)
-                    .shape(Cast.Shape.SAME)
-                    .type(Cast.Type.NARROW)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.narrowing(outputSchema))
             .apply(Convert.to(TypeWiden1.class));
 
     PAssert.that(pojos).containsInAnyOrder(new TypeWiden1());
@@ -142,13 +94,7 @@ public class CastTest {
     Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
 
-    Cast.<TypeWiden2>builder()
-        .nullability(Cast.Nullability.SAME)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.WIDEN)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
+    Cast.narrowing(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
@@ -159,13 +105,7 @@ public class CastTest {
     PCollection<Nullable2> pojos =
         pipeline
             .apply(Create.of(new Nullable1()))
-            .apply(
-                Cast.<Nullable1>builder()
-                    .nullability(Cast.Nullability.WEAKEN)
-                    .shape(Cast.Shape.SAME)
-                    .type(Cast.Type.SAME)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.narrowing(outputSchema))
             .apply(Convert.to(Nullable2.class));
 
     PAssert.that(pojos).containsInAnyOrder(new Nullable2());
@@ -178,13 +118,7 @@ public class CastTest {
     Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
 
-    Cast.<Nullable1>builder()
-        .nullability(Cast.Nullability.SAME)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.SAME)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
+    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
@@ -196,13 +130,7 @@ public class CastTest {
     PCollection<Nullable1> pojos =
         pipeline
             .apply(Create.of(new Nullable2()))
-            .apply(
-                Cast.<Nullable2>builder()
-                    .nullability(Cast.Nullability.IGNORE)
-                    .shape(Cast.Shape.SAME)
-                    .type(Cast.Type.SAME)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.narrowing(outputSchema))
             .apply(Convert.to(Nullable1.class));
 
     PAssert.that(pojos).containsInAnyOrder(new Nullable1());
@@ -216,13 +144,7 @@ public class CastTest {
     Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
 
-    Cast.<Nullable2>builder()
-        .nullability(Cast.Nullability.WEAKEN)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.SAME)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
+    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
@@ -233,13 +155,7 @@ public class CastTest {
     PCollection<All2> pojos =
         pipeline
             .apply(Create.of(new All1()))
-            .apply(
-                Cast.<All1>builder()
-                    .nullability(Cast.Nullability.IGNORE)
-                    .shape(Cast.Shape.PROJECTION)
-                    .type(Cast.Type.NARROW)
-                    .outputSchema(outputSchema)
-                    .build())
+            .apply(Cast.narrowing(outputSchema))
             .apply(Convert.to(All2.class));
 
     PAssert.that(pojos).containsInAnyOrder(new All2());
@@ -252,19 +168,13 @@ public class CastTest {
     Schema inputSchema = pipeline.getSchemaRegistry().getSchema(All1.class);
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
 
-    Cast.<All1>builder()
-        .nullability(Cast.Nullability.SAME)
-        .shape(Cast.Shape.SAME)
-        .type(Cast.Type.SAME)
-        .outputSchema(outputSchema)
-        .build()
-        .verifyCompatibility(inputSchema);
+    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
   public void testCastArray() {
     Object output =
-        Cast.castObject(
+        Cast.castValue(
             Arrays.asList((short) 1, (short) 2, (short) 3),
             Schema.FieldType.array(Schema.FieldType.INT16),
             Schema.FieldType.array(Schema.FieldType.INT32));
@@ -275,7 +185,7 @@ public class CastTest {
   @Test
   public void testCastMap() {
     Object output =
-        Cast.castObject(
+        Cast.castValue(
             ImmutableMap.of((short) 1, 1, (short) 2, 2, (short) 3, 3),
             Schema.FieldType.map(Schema.FieldType.INT16, Schema.FieldType.INT32),
             Schema.FieldType.map(Schema.FieldType.INT32, Schema.FieldType.INT64));
@@ -291,8 +201,10 @@ public class CastTest {
     Cast.castRow(Row.withSchema(inputSchema).addValue(null).build(), inputSchema, outputSchema);
   }
 
+  /** POJO for {@link CastTest#testProjection()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class Projection1 {
+  @VisibleForTesting
+  public static class Projection1 {
 
     public Short field1 = 42;
     public Integer field2 = 1337;
@@ -329,8 +241,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testProjection()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class Projection2 {
+  @VisibleForTesting
+  public static class Projection2 {
     public Integer field2 = 1337;
 
     @Override
@@ -356,8 +270,9 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testTypeWiden()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class TypeWiden1 {
+  public static class TypeWiden1 {
 
     public Short field1 = 42;
     public Integer field2 = 1337;
@@ -385,8 +300,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testTypeWiden()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class TypeWiden2 {
+  @VisibleForTesting
+  public static class TypeWiden2 {
 
     public Integer field1 = 42;
     public Long field2 = 1337L;
@@ -414,8 +331,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testWeakedNullable()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class Nullable1 {
+  @VisibleForTesting
+  public static class Nullable1 {
     public Integer field1 = 42;
     public @Nullable Long field2 = null;
 
@@ -442,8 +361,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testWeakedNullable()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class Nullable2 {
+  @VisibleForTesting
+  public static class Nullable2 {
     public @Nullable Integer field1 = 42;
     public @Nullable Long field2 = null;
 
@@ -470,8 +391,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testComplexCast()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class All1 {
+  @VisibleForTesting
+  public static class All1 {
     public Projection1 field1 = new Projection1();
     public TypeWiden1 field2 = new TypeWiden1();
     public TypeWiden2 field3 = new TypeWiden2();
@@ -516,8 +439,10 @@ public class CastTest {
     }
   }
 
+  /** POJO for {@link CastTest#testComplexCast()}. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class All2 {
+  @VisibleForTesting
+  public static class All2 {
     public Projection2 field1 = new Projection2();
     public TypeWiden2 field2 = new TypeWiden2();
     public TypeWiden1 field3 = new TypeWiden1();
