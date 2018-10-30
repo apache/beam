@@ -301,7 +301,7 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
             dStream.transform(
                 rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder, true));
+                    GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder, null));
 
         // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
