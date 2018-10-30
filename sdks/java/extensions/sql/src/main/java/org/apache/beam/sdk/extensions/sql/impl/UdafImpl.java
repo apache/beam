@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.calcite.adapter.enumerable.AggImplementor;
 import org.apache.calcite.rel.type.RelDataType;
@@ -65,8 +66,8 @@ public final class UdafImpl<InputT, AccumT, OutputT>
           @Override
           public RelDataType getType(RelDataTypeFactory typeFactory) {
             ParameterizedType parameterizedType = findCombineFnSuperClass();
-            return typeFactory.createJavaType(
-                (Class) parameterizedType.getActualTypeArguments()[0]);
+            return CalciteUtils.sqlTypeWithAutoCast(
+                typeFactory, parameterizedType.getActualTypeArguments()[0]);
           }
 
           private ParameterizedType findCombineFnSuperClass() {
@@ -100,6 +101,6 @@ public final class UdafImpl<InputT, AccumT, OutputT>
 
   @Override
   public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-    return typeFactory.createJavaType((Class) combineFn.getOutputType().getType());
+    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, combineFn.getOutputType().getType());
   }
 }
