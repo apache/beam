@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "5.3.1"
+      "version": "5.3.2"
     },
     {
       "type": "panel",
@@ -267,11 +267,12 @@
       },
       "yaxes": [
         {
+          "decimals": null,
           "format": "percentunit",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": "1",
+          "min": "0",
           "show": true
         },
         {
@@ -327,5 +328,5 @@
   "timezone": "",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 9
+  "version": 10
 }
