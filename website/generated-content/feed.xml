@@ -20,6 +20,109 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam 2.8.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.8.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#280-2018-10-26&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.8.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12343985&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
+
+&lt;h2 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-4783&quot;&gt;BEAM-4783&lt;/a&gt; Performance degradations in certain situations when Spark runner is used.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Elastic Search dependency upgraded to 6.3.2&lt;/li&gt;
+  &lt;li&gt;google-cloud-pubsub dependency upgraded to 0.35.4&lt;/li&gt;
+  &lt;li&gt;google-api-client dependency upgraded to 1.24.1&lt;/li&gt;
+  &lt;li&gt;Updated Flink Runner to 1.5.3&lt;/li&gt;
+  &lt;li&gt;Updated Spark runner to Spark version 2.3.2&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sdks&quot;&gt;SDKs&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Python SDK added support for user state and timers.&lt;/li&gt;
+  &lt;li&gt;Go SDK added support for side inputs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://beam.apache.org/roadmap/portability/#python-on-flink&quot;&gt;Python on Flink MVP&lt;/a&gt; completed.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Fixes to RedisIO non-prefix read operations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Several bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed
+to the 2.8.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Adam Horky, Ahmet Altay, Alan Myrvold, Aleksandr Kokhaniukov,
+Alex Amato, Alexey Romanenko, Aljoscha Krettek, Andrew Fulton,
+Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Batkhuyag Batsaikhan, Ben Song,
+Bingfeng Shu, Boyuan Zhang, Chamikara Jayalath, Charles Chen,
+Christian Schneider, Cody Schroeder, Colm O hEigeartaigh, Daniel Mills,
+Daniel Oliveira, Dat Tran, David Moravek, Dusan Rychnovsky, Etienne Chauchot,
+Eugene Kirpichov, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía,
+Jan Lukavský, Jaromir Vanek, Jean-Baptiste Onofré, Jeff Klukas, Joar Wandborg,
+Jozef Vilcek, Julien Phalip, Julien Tournay, Juta, Jára Vaněk,
+Katarzyna Kucharczyk, Kengo Seki, Kenneth Knowles, Kevin Si, Kirill Kozlov,
+Kyle Winkelman, Logan HAUSPIE, Lukasz Cwik, Manu Zhang, Mark Liu,
+Matthias Baetens, Matthias Feys, Maximilian Michels, Melissa Pashniak,
+Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,
+Petr, Ondrej Kvasnicka, Pablo Estrada, PaulVelthuis93, Pavel Slechta,
+Rafael Fernández, Raghu Angadi, Renat, Reuven Lax, Robbe Sneyders,
+Robert Bradshaw, Robert Burke, Rodrigo Benenson, Rong Ou, Ruoyun Huang,
+Ryan Williams, Sam Rohde, Scott Wegner, Shinsuke Sugaya, Shnitz, Simon P,
+Sindy Li, Stephen Lumenta, Stijn Decubber, Thomas Weise, Tomas Novak,
+Tomas Roos, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Vitalii Tverdokhlib,
+Xinyu Liu, XuMingmin, Yifan Zou, Yuan, Yueyang Qiu, aalbatross, amaliujia,
+cclauss, connelloG, daidokoro, deepyaman, djhworld, flyisland, huygaa11,
+jasonkuster, jglezt, kkpoon, mareksimunek, nielm, svXaverius, timrobertson100,
+vaclav.plajt@gmail.com, vitaliytv, vvarma, xiliu, xinyuiscool, xitep,
+Łukasz Gajowy.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 29 Oct 2018 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2018/10/29/beam-2.8.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.7.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1978,133 +2081,6 @@ Beam developers)!&lt;/p&gt;
         <pubDate>Wed, 16 Aug 2017 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2017/08/16/splittable-do-fn.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2017/08/16/splittable-do-fn.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam publishes the first stable release</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;The Apache Beam community is pleased to &lt;a href=&quot;https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12&quot;&gt;announce the availability of version 2.0.0&lt;/a&gt;. This is the first stable release of Apache Beam, signifying a statement from the community that it intends to maintain API stability with all releases for the foreseeable future, and making Beam suitable for enterprise deployment.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;This first stable release is the third important milestone for the Apache Beam community. Beam joined the Apache Incubator in February 2016 and graduated as a top-level project of The Apache Software Foundation in December. Through these fifteen months of concentrated effort, a slightly chaotic codebase, merged from multiple organizations, has been developed into a generalized framework for data processing that is truly engine- and environment-independent. Apache Beam has evolved and improved through three incubating and three post-incubation releases, culminating in the stable release announced today as version 2.0.0.&lt;/p&gt;
-
-&lt;p&gt;In the five months since graduation, Apache Beam has seen a significant growth, both in terms of adoption and community contribution. Apache Beam is &lt;a href=&quot;https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12&quot;&gt;in use&lt;/a&gt; at Google Cloud, PayPal, and Talend, among others.&lt;/p&gt;
-
-&lt;p&gt;Apache Beam, version 2.0.0 improves user experience across the project, focusing on seamless portability across execution environments, including engines, operating systems, on-premise clusters, cloud providers, and data storage systems. Other highlights include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;API stability and future compatibility within this major version.&lt;/li&gt;
-  &lt;li&gt;Stateful data processing paradigms that unlock efficient, data-dependent computations.&lt;/li&gt;
-  &lt;li&gt;Support for user-extensible file systems, with built-in support for Hadoop Distributed File System, among others.&lt;/li&gt;
-  &lt;li&gt;A metrics subsystem for deeper insight into pipeline execution.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Many contributors made this release possible, by participating in different roles: contributing code, writing documentation, testing release candidates, supporting users, or helping in some other way. The following is a partial list of contributors – 76 individuals contributed code to the project since the previous release, assembled from source history:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Ahmet Altay&lt;/li&gt;
-  &lt;li&gt;Eric Anderson&lt;/li&gt;
-  &lt;li&gt;Raghu Angadi&lt;/li&gt;
-  &lt;li&gt;Sourabh Bajaj&lt;/li&gt;
-  &lt;li&gt;Péter Gergő Barna&lt;/li&gt;
-  &lt;li&gt;Chen Bin&lt;/li&gt;
-  &lt;li&gt;Davor Bonaci&lt;/li&gt;
-  &lt;li&gt;Robert Bradshaw&lt;/li&gt;
-  &lt;li&gt;Ben Chambers&lt;/li&gt;
-  &lt;li&gt;Etienne Chauchot&lt;/li&gt;
-  &lt;li&gt;Chang Chen&lt;/li&gt;
-  &lt;li&gt;Charles Chen&lt;/li&gt;
-  &lt;li&gt;Craig Citro&lt;/li&gt;
-  &lt;li&gt;Lukasz Cwik&lt;/li&gt;
-  &lt;li&gt;Márton Elek&lt;/li&gt;
-  &lt;li&gt;Pablo Estrada&lt;/li&gt;
-  &lt;li&gt;Josh Forman-Gornall&lt;/li&gt;
-  &lt;li&gt;Maria García Herrero&lt;/li&gt;
-  &lt;li&gt;Jins George&lt;/li&gt;
-  &lt;li&gt;Damien Gouyette&lt;/li&gt;
-  &lt;li&gt;Thomas Groh&lt;/li&gt;
-  &lt;li&gt;Dan Halperin&lt;/li&gt;
-  &lt;li&gt;Pei He&lt;/li&gt;
-  &lt;li&gt;Hadar Hod&lt;/li&gt;
-  &lt;li&gt;Chamikara Jayalath&lt;/li&gt;
-  &lt;li&gt;Rekha Joshi&lt;/li&gt;
-  &lt;li&gt;Uwe Jugel&lt;/li&gt;
-  &lt;li&gt;Sung Junyoung&lt;/li&gt;
-  &lt;li&gt;Holden Karau&lt;/li&gt;
-  &lt;li&gt;Vikas Kedigehalli&lt;/li&gt;
-  &lt;li&gt;Eugene Kirpichov&lt;/li&gt;
-  &lt;li&gt;Tibor Kiss&lt;/li&gt;
-  &lt;li&gt;Kenneth Knowles&lt;/li&gt;
-  &lt;li&gt;Vassil Kolarov&lt;/li&gt;
-  &lt;li&gt;Chinmay Kolhatkar&lt;/li&gt;
-  &lt;li&gt;Aljoscha Krettek&lt;/li&gt;
-  &lt;li&gt;Dipti Kulkarni&lt;/li&gt;
-  &lt;li&gt;Radhika Kulkarni&lt;/li&gt;
-  &lt;li&gt;Jason Kuster&lt;/li&gt;
-  &lt;li&gt;Reuven Lax&lt;/li&gt;
-  &lt;li&gt;Stas Levin&lt;/li&gt;
-  &lt;li&gt;Julien Lhermitte&lt;/li&gt;
-  &lt;li&gt;Jingsong Li&lt;/li&gt;
-  &lt;li&gt;Neville Li&lt;/li&gt;
-  &lt;li&gt;Mark Liu&lt;/li&gt;
-  &lt;li&gt;Michael Luckey&lt;/li&gt;
-  &lt;li&gt;Andrew Martin&lt;/li&gt;
-  &lt;li&gt;Ismaël Mejía&lt;/li&gt;
-  &lt;li&gt;Devon Meunier&lt;/li&gt;
-  &lt;li&gt;Neda Mirian&lt;/li&gt;
-  &lt;li&gt;Anil Muppalla&lt;/li&gt;
-  &lt;li&gt;Gergely Novak&lt;/li&gt;
-  &lt;li&gt;Jean-Baptiste Onofré&lt;/li&gt;
-  &lt;li&gt;Melissa Pashniak&lt;/li&gt;
-  &lt;li&gt;peay&lt;/li&gt;
-  &lt;li&gt;David Rieber&lt;/li&gt;
-  &lt;li&gt;Rahul Sabbineni&lt;/li&gt;
-  &lt;li&gt;Kobi Salant&lt;/li&gt;
-  &lt;li&gt;Amit Sela&lt;/li&gt;
-  &lt;li&gt;Mark Shalda&lt;/li&gt;
-  &lt;li&gt;Stephen Sisk&lt;/li&gt;
-  &lt;li&gt;Yuya Tajima&lt;/li&gt;
-  &lt;li&gt;Wesley Tanaka&lt;/li&gt;
-  &lt;li&gt;JiJun Tang&lt;/li&gt;
-  &lt;li&gt;Valentyn Tymofieiev&lt;/li&gt;
-  &lt;li&gt;David Volquartz&lt;/li&gt;
-  &lt;li&gt;Huafeng Wang&lt;/li&gt;
-  &lt;li&gt;Thomas Weise&lt;/li&gt;
-  &lt;li&gt;Rafal Wojdyla&lt;/li&gt;
-  &lt;li&gt;Yangping Wu&lt;/li&gt;
-  &lt;li&gt;wyp&lt;/li&gt;
-  &lt;li&gt;James Xu&lt;/li&gt;
-  &lt;li&gt;Mingmin Xu&lt;/li&gt;
-  &lt;li&gt;Ted Yu&lt;/li&gt;
-  &lt;li&gt;Borisa Zivkovic&lt;/li&gt;
-  &lt;li&gt;Aviem Zur&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Apache Beam, version 2.0.0, is making its debut at Apache: Big Data, taking place this week in Miami, FL, with four sessions featuring Apache Beam. Apache Beam will also be highlighted at numerous face-to-face meetups and conferences, including the Future of Data San Jose meetup, Strata Data Conference London, Berlin Buzzwords, and DataWorks Summit San Jose.&lt;/p&gt;
-
-&lt;p&gt;We’d like to invite everyone to try out Apache Beam today and consider joining our vibrant community. We welcome feedback, contribution and participation through our mailing lists, issue tracker, pull requests, and events.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 17 May 2017 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</guid>
         
         
         <category>blog</category>
