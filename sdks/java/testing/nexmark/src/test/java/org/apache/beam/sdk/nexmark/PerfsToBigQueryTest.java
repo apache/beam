@@ -17,58 +17,42 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.Iterables;
-import java.io.IOException;
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
-import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
-import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testutils.fakes.FakeBigQueryClient;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 /** Test class for BigQuery sinks. */
 public class PerfsToBigQueryTest {
 
   private static final NexmarkQueryName QUERY = NexmarkQueryName.CURRENCY_CONVERSION;
   private NexmarkOptions options;
-  private FakeDatasetService fakeDatasetService = new FakeDatasetService();
-  private FakeJobService fakeJobService = new FakeJobService();
-  private FakeBigQueryServices fakeBqServices =
-      new FakeBigQueryServices()
-          .withDatasetService(fakeDatasetService)
-          .withJobService(fakeJobService);
-  @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
+
+  private FakeBigQueryClient bigQueryClient;
 
   @Before
-  public void before() throws IOException, InterruptedException {
+  public void before() {
     options = PipelineOptionsFactory.create().as(NexmarkOptions.class);
     options.setBigQueryTable("nexmark");
     options.setBigQueryDataset("nexmark");
     options.setRunner(DirectRunner.class);
     options.setStreaming(true);
     options.setProject("nexmark-test");
-    options.setTempLocation(testFolder.getRoot().getAbsolutePath());
     options.setResourceNameMode(NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE);
-    FakeDatasetService.setUp();
-    fakeDatasetService.createDataset(
-        options.getProject(), options.getBigQueryDataset(), "", "", null);
+
+    bigQueryClient = new FakeBigQueryClient(options.getBigQueryDataset());
   }
 
   @Test
-  public void testSavePerfsToBigQuery() throws IOException, InterruptedException {
+  public void testSavePerfsToBigQuery() {
     NexmarkConfiguration nexmarkConfiguration1 = new NexmarkConfiguration();
     nexmarkConfiguration1.query = QUERY;
     // just for the 2 configurations to be different to have different keys
@@ -87,41 +71,48 @@ public class PerfsToBigQueryTest {
     nexmarkPerf2.eventsPerSec = 1.5F;
     nexmarkPerf2.runtimeSec = 1.325F;
 
-    // simulate 2 runs of the same query just to check that rows are apened correctly.
+    // simulate 2 runs of the same query just to check that rows are appended correctly.
     HashMap<NexmarkConfiguration, NexmarkPerf> perfs = new HashMap<>(2);
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
 
-    // cast to int due to BEAM-4734. To avoid overflow on int capacity,
-    // set the instant to a fixed date (and not Instant.now())
-    int startTimestampSeconds = 1454284800;
+    long startTimestampMilliseconds = 1454284800000L;
     Main.savePerfsToBigQuery(
-        options, perfs, fakeBqServices, new Instant(startTimestampSeconds * 1000L));
+        bigQueryClient, options, perfs, new Instant(startTimestampMilliseconds));
 
-    String tableSpec = NexmarkUtils.tableSpec(options, QUERY.getNumberOrName(), 0L, null);
-    List<TableRow> actualRows =
-        fakeDatasetService.getAllRows(
-            options.getProject(),
-            options.getBigQueryDataset(),
-            BigQueryHelpers.parseTableSpec(tableSpec).getTableId());
-    assertEquals("Wrong number of rows inserted", 2, actualRows.size());
-    List<TableRow> expectedRows = new ArrayList<>();
-    TableRow row1 =
-        new TableRow()
-            .set("timestamp", startTimestampSeconds)
-            .set("runtimeSec", nexmarkPerf1.runtimeSec)
-            .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
-            // cast to int due to BEAM-4734.
-            .set("numResults", (int) nexmarkPerf1.numResults);
-    expectedRows.add(row1);
-    TableRow row2 =
-        new TableRow()
-            .set("timestamp", startTimestampSeconds)
-            .set("runtimeSec", nexmarkPerf2.runtimeSec)
-            .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
-            // cast to int  due to BEAM-4734.
-            .set("numResults", (int) nexmarkPerf2.numResults);
-    expectedRows.add(row2);
-    assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
+    String tableName = NexmarkUtils.tableName(options, QUERY.getNumberOrName(), 0L, null);
+    List<Map<String, ?>> rows = bigQueryClient.getRows(tableName);
+
+    // savePerfsToBigQuery converts millis to seconds (it's a BigQuery's requirement).
+    assertContains(nexmarkRecord(nexmarkPerf1, startTimestampMilliseconds / 1000), rows);
+    assertContains(nexmarkRecord(nexmarkPerf2, startTimestampMilliseconds / 1000), rows);
+  }
+
+  private Map<String, Object> nexmarkRecord(NexmarkPerf nexmarkPerf, long startTimestampSeconds) {
+    return ImmutableMap.<String, Object>builder()
+        .put("timestamp", startTimestampSeconds)
+        .put("runtimeSec", nexmarkPerf.runtimeSec)
+        .put("eventsPerSec", nexmarkPerf.eventsPerSec)
+        .put("numResults", nexmarkPerf.numResults)
+        .build();
+  }
+
+  private void assertContains(Map<String, ?> expectedRecord, List<Map<String, ?>> actualRecords) {
+    assertTrue(
+        String.format("Record not found: %s", expectedRecord),
+        actualRecords
+            .stream()
+            .anyMatch(actualRecord -> recordEquals(actualRecord, expectedRecord)));
+  }
+
+  private boolean recordEquals(Map<String, ?> expected, Map<String, ?> actual) {
+    if (expected == null || actual == null) {
+      return false;
+    }
+
+    return expected.get("timestamp").equals(actual.get("timestamp"))
+        && expected.get("runtimeSec").equals(actual.get("runtimeSec"))
+        && expected.get("eventsPerSec").equals(actual.get("eventsPerSec"))
+        && expected.get("numResults").equals(actual.get("numResults"));
   }
 }
