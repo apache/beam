@@ -50,7 +50,8 @@ public class PipelineOptionsReflectorTest {
                 SimpleOptions.class, "foo", SimpleOptions.class.getDeclaredMethod("getFoo"))));
   }
 
-  interface SimpleOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface SimpleOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -64,7 +65,8 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, not(hasItem(hasName(isOneOf("misspelled", "hasParameter", "prefix")))));
   }
 
-  interface OnlyTwoValidGetters extends PipelineOptions {
+  /** Test interface. */
+  public interface OnlyTwoValidGetters extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -96,7 +98,8 @@ public class PipelineOptionsReflectorTest {
     assertThat(props, hasItem(allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
   }
 
-  interface ExtendsSimpleOptions extends SimpleOptions {
+  /** Test interface. */
+  public interface ExtendsSimpleOptions extends SimpleOptions {
     @Override
     String getFoo();
 
@@ -116,13 +119,15 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, not(hasItem(hasName("foo"))));
   }
 
-  interface NoExtendsClause {
+  /** Test interface. */
+  public interface NoExtendsClause {
     String getFoo();
 
     void setFoo(String value);
   }
 
-  interface ExtendsNonPipelineOptions extends NoExtendsClause, PipelineOptions {}
+  /** Test interface. */
+  public interface ExtendsNonPipelineOptions extends NoExtendsClause, PipelineOptions {}
 
   @Test
   public void testExcludesHiddenInterfaces() {
@@ -132,8 +137,9 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, not(hasItem(hasName("foo"))));
   }
 
+  /** Test interface. */
   @Hidden
-  interface HiddenOptions extends PipelineOptions {
+  public interface HiddenOptions extends PipelineOptions {
     String getFoo();
 
     void setFoo(String value);
@@ -148,7 +154,8 @@ public class PipelineOptionsReflectorTest {
     assertThat(properties, hasItem(allOf(hasName("ignored"), not(shouldSerialize()))));
   }
 
-  interface JsonIgnoreOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface JsonIgnoreOptions extends PipelineOptions {
     String getNotIgnored();
 
     void setNotIgnored(String value);
@@ -171,19 +178,22 @@ public class PipelineOptionsReflectorTest {
     assertThat(props, hasItem(allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
   }
 
-  interface BaseOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface BaseOptions extends PipelineOptions {
     String getBaseOption();
 
     void setBaseOption(String value);
   }
 
-  interface ExtendOptions1 extends BaseOptions {
+  /** Test interface. */
+  public interface ExtendOptions1 extends BaseOptions {
     String getExtendOption1();
 
     void setExtendOption1(String value);
   }
 
-  interface ExtendOptions2 extends BaseOptions {
+  /** Test interface. */
+  public interface ExtendOptions2 extends BaseOptions {
     String getExtendOption2();
 
     void setExtendOption2(String value);

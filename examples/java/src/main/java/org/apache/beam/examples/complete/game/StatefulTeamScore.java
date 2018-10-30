@@ -79,7 +79,7 @@ import org.joda.time.Instant;
 public class StatefulTeamScore extends LeaderBoard {
 
   /** Options supported by {@link StatefulTeamScore}. */
-  interface Options extends LeaderBoard.Options {
+  public interface Options extends LeaderBoard.Options {
 
     @Description("Numeric value, multiple of which is used as threshold for outputting team score.")
     @Default.Integer(5000)
