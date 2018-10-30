@@ -114,10 +114,10 @@ _MethodDescriptorType = type(str.upper)
 
 try:
   _original_getfullargspec = inspect.getfullargspec
-  _use_legacy_getargspec = False
+  _use_full_argspec = True
 except AttributeError:  # Python 2
   _original_getfullargspec = inspect.getargspec
-  _use_legacy_getargspec = True
+  _use_full_argspec = False
 
 
 def getfullargspec(func):
@@ -137,11 +137,11 @@ def getfullargspec(func):
         # whose name won't match any real argument.
         # Arguments with the %unknown% prefix will be ignored in the type
         # checking code.
-        try:
+        if _use_full_argspec:
           return inspect.FullArgSpec(
               ['_'], '__unknown__varargs', '__unknown__keywords', (),
               [], {}, {})
-        except AttributeError:  # Python 2
+        else:  # Python 2
           return inspect.ArgSpec(
               ['_'], '__unknown__varargs', '__unknown__keywords', ())
     else:
@@ -271,10 +271,11 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
 
   # Monkeypatch inspect.getfullargspec to allow passing non-function objects.
   # getfullargspec (getargspec on Python 2) are used by inspect.getcallargs.
-  if _use_legacy_getargspec:  # Python 2
-    inspect.getargspec = getfullargspec
-  else:
+  # TODO(BEAM-5490): Reimplement getcallargs and stop relying on monkeypatch.
+  if _use_full_argspec:
     inspect.getfullargspec = getfullargspec
+  else:  # Python 2
+    inspect.getargspec = getfullargspec
 
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
@@ -282,10 +283,10 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
     raise TypeCheckError(e)
   finally:
     # Revert monkey-patch.
-    if _use_legacy_getargspec:
-      inspect.getargspec = _original_getfullargspec
-    else:
+    if _use_full_argspec:
       inspect.getfullargspec = _original_getfullargspec
+    else:
+      inspect.getargspec = _original_getfullargspec
 
   if argspec.defaults:
     # Declare any default arguments to be Any.
@@ -298,9 +299,9 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   if argspec.varargs:
     callargs[argspec.varargs] = typekwargs.get(
         argspec.varargs, typehints.Tuple[typehints.Any, ...])
-  try:
+  if _use_full_argspec:
     varkw = argspec.varkw
-  except AttributeError:  # Python 2
+  else:  # Python 2
     varkw = argspec.keywords
 
   if varkw:
