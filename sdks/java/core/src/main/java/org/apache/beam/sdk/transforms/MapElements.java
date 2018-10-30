@@ -17,37 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
+import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
-public class MapElements<InputT, OutputT>
-    extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  @Nullable private final transient TypeDescriptor<InputT> inputType;
-  @Nullable private final transient TypeDescriptor<OutputT> outputType;
-  @Nullable private final transient Object originalFnForDisplayData;
-  @Nullable private final Contextful<Fn<InputT, OutputT>> fn;
-
-  private MapElements(
-      @Nullable Contextful<Fn<InputT, OutputT>> fn,
-      @Nullable Object originalFnForDisplayData,
-      @Nullable TypeDescriptor<InputT> inputType,
-      TypeDescriptor<OutputT> outputType) {
-    this.fn = fn;
-    this.originalFnForDisplayData = originalFnForDisplayData;
-    this.inputType = inputType;
-    this.outputType = outputType;
-  }
+public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
 
   /**
    * For a {@code SimpleFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
@@ -114,52 +95,26 @@ public class MapElements<InputT, OutputT>
         fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
-  @Override
-  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-    checkNotNull(fn, "Must specify a function on MapElements using .via()");
-    return input.apply(
-        "Map",
-        ParDo.of(
-                new DoFn<InputT, OutputT>() {
-                  @ProcessElement
-                  public void processElement(
-                      @Element InputT element, OutputReceiver<OutputT> receiver, ProcessContext c)
-                      throws Exception {
-                    receiver.output(
-                        fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c)));
-                  }
+  ///////////////////////////////////////////////////////////////////////////////
 
-                  @Override
-                  public void populateDisplayData(DisplayData.Builder builder) {
-                    builder.delegate(MapElements.this);
-                  }
-
-                  @Override
-                  public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                    return inputType;
-                  }
-
-                  @Override
-                  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                    checkState(
-                        outputType != null,
-                        "%s output type descriptor was null; "
-                            + "this probably means that getOutputTypeDescriptor() was called after "
-                            + "serialization/deserialization, but it is only available prior to "
-                            + "serialization, for constructing a pipeline and inferring coders",
-                        MapElements.class.getSimpleName());
-                    return outputType;
-                  }
-                })
-            .withSideInputs(fn.getRequirements().getSideInputs()));
+  private MapElements(
+      @Nullable Contextful<Fn<InputT, OutputT>> fn,
+      @Nullable Object originalFnForDisplayData,
+      @Nullable TypeDescriptor<InputT> inputType,
+      TypeDescriptor<OutputT> outputType) {
+    super("Map", wrapResultAsIterable(fn), originalFnForDisplayData, inputType, outputType);
   }
 
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-    builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
-    if (originalFnForDisplayData instanceof HasDisplayData) {
-      builder.include("fn", (HasDisplayData) originalFnForDisplayData);
+  @Nullable
+  private static <InputT, OutputT> Contextful<Fn<InputT, Iterable<OutputT>>> wrapResultAsIterable(
+      Contextful<Fn<InputT, OutputT>> fn) {
+    if (fn == null) {
+      return null;
+    } else {
+      return Contextful.fn(
+          (InputT element, Context c) -> Collections
+              .singletonList(fn.getClosure().apply(element, c)),
+          fn.getRequirements());
     }
   }
 }

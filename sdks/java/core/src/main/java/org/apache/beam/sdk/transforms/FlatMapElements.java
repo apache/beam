@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -33,23 +28,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
  * {@link PCollection} and merging the results.
  */
-public class FlatMapElements<InputT, OutputT>
-    extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  @Nullable private final transient TypeDescriptor<InputT> inputType;
-  @Nullable private final transient TypeDescriptor<OutputT> outputType;
-  @Nullable private final transient Object originalFnForDisplayData;
-  @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
-
-  private FlatMapElements(
-      @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
-      @Nullable Object originalFnForDisplayData,
-      @Nullable TypeDescriptor<InputT> inputType,
-      TypeDescriptor<OutputT> outputType) {
-    this.fn = fn;
-    this.originalFnForDisplayData = originalFnForDisplayData;
-    this.inputType = inputType;
-    this.outputType = outputType;
-  }
+public class FlatMapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
 
   /**
    * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, return a {@link
@@ -125,53 +104,13 @@ public class FlatMapElements<InputT, OutputT>
         fn, fn.getClosure(), TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
-  @Override
-  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-    checkArgument(fn != null, ".via() is required");
-    return input.apply(
-        "FlatMap",
-        ParDo.of(
-                new DoFn<InputT, OutputT>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) throws Exception {
-                    Iterable<OutputT> res =
-                        fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
-                    for (OutputT output : res) {
-                      c.output(output);
-                    }
-                  }
+  ///////////////////////////////////////////////////////////////////////////////
 
-                  @Override
-                  public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                    return inputType;
-                  }
-
-                  @Override
-                  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                    checkState(
-                        outputType != null,
-                        "%s output type descriptor was null; "
-                            + "this probably means that getOutputTypeDescriptor() was called after "
-                            + "serialization/deserialization, but it is only available prior to "
-                            + "serialization, for constructing a pipeline and inferring coders",
-                        FlatMapElements.class.getSimpleName());
-                    return outputType;
-                  }
-
-                  @Override
-                  public void populateDisplayData(DisplayData.Builder builder) {
-                    builder.delegate(FlatMapElements.this);
-                  }
-                })
-            .withSideInputs(fn.getRequirements().getSideInputs()));
-  }
-
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-    builder.add(DisplayData.item("class", originalFnForDisplayData.getClass()));
-    if (originalFnForDisplayData instanceof HasDisplayData) {
-      builder.include("fn", (HasDisplayData) originalFnForDisplayData);
-    }
+  private FlatMapElements(
+      @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
+      @Nullable Object originalFnForDisplayData,
+      @Nullable TypeDescriptor<InputT> inputType,
+      TypeDescriptor<OutputT> outputType) {
+    super("FlatMap", fn, originalFnForDisplayData, inputType, outputType);
   }
 }
