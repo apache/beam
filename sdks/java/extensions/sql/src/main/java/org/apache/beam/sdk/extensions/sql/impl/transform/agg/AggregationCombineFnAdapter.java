@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
@@ -63,6 +64,12 @@ public class AggregationCombineFnAdapter<T> {
 
     @Nullable
     abstract T getInput(T input);
+
+    @Override
+    public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder)
+        throws CannotProvideCoderException {
+      return combineFn.getAccumulatorCoder(registry, inputCoder);
+    }
   }
 
   private static class MultiInputCombiner extends WrappedCombinerBase<Row> {
@@ -118,9 +125,10 @@ public class AggregationCombineFnAdapter<T> {
       return EMPTY_ROW;
     }
 
-    @Nullable
-    public Row getInput(Row input) {
-      return EMPTY_ROW;
+    @Override
+    public Coder<Row> getAccumulatorCoder(CoderRegistry registry, Coder<Row> inputCoder)
+        throws CannotProvideCoderException {
+      return SchemaCoder.of(EMPTY_SCHEMA);
     }
 
     @Override
