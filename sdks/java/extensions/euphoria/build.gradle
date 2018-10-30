@@ -37,7 +37,6 @@ dependencies {
     testCompile library.java.mockito_core
     testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     testCompile project(':beam-runners-direct-java')
-
 }
 
 tasks.withType(JavaCompile) {

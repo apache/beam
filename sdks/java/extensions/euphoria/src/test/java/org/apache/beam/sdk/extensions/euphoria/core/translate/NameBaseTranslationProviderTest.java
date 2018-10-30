@@ -38,7 +38,7 @@ public class NameBaseTranslationProviderTest {
               SimpleTranslatorProvider.newBuilder()
                   .registerTranslator(joinMock.getClass(), new JoinTranslator<>())
                   .build())
-          .addShortNameTranslation(
+          .addNameBasedTranslation(
               joinMock.getClass(), new BroadcastHashJoinTranslator<>(), "broadcast")
           .build();
 

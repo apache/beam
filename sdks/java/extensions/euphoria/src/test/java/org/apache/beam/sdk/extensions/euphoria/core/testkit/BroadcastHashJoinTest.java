@@ -50,7 +50,7 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
           .setTranslatorProvider(
               NameBasedTranslatorProvider.newBuilder()
                   .setDefaultTranslationProvider(SimpleTranslatorProvider.create())
-                  .addShortNameTranslation(
+                  .addNameBasedTranslation(
                       Join.class, new BroadcastHashJoinTranslator<>(), "broadcast")
                   .build());
       return super.getOutput(pipeline);

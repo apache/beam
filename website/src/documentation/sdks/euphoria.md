@@ -343,7 +343,7 @@ Represents left join of two (left and right) datasets on given key producing sin
 // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(1, "1+X")]
 ```
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. User can indicate by operators name that right side of left join fits in executors memory (more [NameBasedTranslation](#namebasedtranslatorprovider)). Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. Broadcast join can be very efficient when joining two dataset where one fits in memory (in `LeftJoin` right dataset has to fit in memory). How to use 'Broadcast Hash Join' check  [TranslationProviders](#translationproviders). 
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -362,7 +362,8 @@ Dataset<KV<Integer, String>> joined =
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 ```
-Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. User can indicate by operators name that left side of right join fits in executors memory (more [NameBasedTranslation](#namebasedtranslatorprovider)). Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. Broadcast join can be very efficient when joining two dataset where one fits in memory (in `RightJoin` left dataset has to fit in memory). How to use 'Broadcast Hash Join' check  [TranslationProviders](#translationproviders) section. 
+
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -568,14 +569,19 @@ Dataset<SomeEventObject> timeStampedEvents =
 ```
 
 ## TranslationProviders
+The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Euphoria uses `TranslationProvider` to decide which `OperatorTranslator` should be used. User of Euphoria API can supply it ts own `TranslationProvider` by extending `EuphoriaOptions`. Euphoria already contains some implementations.
+
+### `SimpleTranslatorProvider`
+Default implementation of `TranslationProvider`. It is able to give default translators for all Euphoria operators.
+
 ### `NameBasedTranslatorProvider`
  TranslationProvider that selects name matching translation (operator name starts same as added short name translation). This is useful when we want use more optimized translation
  for our operator. E.g. We want to use Broadcast Hash Join translation for [Join](#join), when one side of join fits in memory. 
-```java
 
+```java
 NameBasedTranslatorProvider.newBuilder()
         .setDefaultTranslationProvider(SimpleTranslatorProvider.create())
-        .addShortNameTranslation(Join.class, new BroadcastHashJoinTranslator<>(), "broadcast")
+        .addNameBasedTranslation(Join.class, new BroadcastHashJoinTranslator<>(), "broadcast")
         .build();
 ``` 
 Then `BroadcastHashJoinTranslator` will be used for every `LeftJoin` or `RightJoin` operator, which will have set name - `LeftJoin.named("broadcast.....")`.
