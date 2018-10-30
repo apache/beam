@@ -29,6 +29,9 @@ class PrecommitJobBuilder {
   /**  The Gradle task to execute. */
   String gradleTask
 
+  /** If defined, set of additional switches to pass to Gradle. */
+  List<String> gradleSwitches = []
+
   /** Overall job timeout. */
   int timeoutMins = 120
 
@@ -104,6 +107,7 @@ class PrecommitJobBuilder {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
+          gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

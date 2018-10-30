@@ -20,19 +20,13 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Examples_Dataflow',
-    gradleTask: ':javaExamplesDataflowPreCommit',
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
+    nameBase: 'Spotless',
+    gradleTask: 'spotlessCheck',
     triggerPathPatterns: [
-      '^model/.*$',
+      '^buildSrc/.*$',
       '^sdks/java/.*$',
-      '^runners/google-cloud-dataflow/.*$',
+      '^runners/.*$',
       '^examples/java/.*$',
-      '^release/.*$',
     ]
 )
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-}
+builder.build()
