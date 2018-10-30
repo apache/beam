@@ -289,7 +289,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     setCurrentSideInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
     setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
     sideInputReader = NullSideInputReader.of(sideInputs);
 
     // maybe init by initializeState
@@ -333,16 +332,18 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
       timerInternals = new FlinkTimerInternals();
     }
+  }
 
+  @Override
+  public void open() throws Exception {
     // WindowDoFnOperator need use state and timer to get DoFn.
     // So must wait StateInternals and TimerInternals ready.
+    // This will be called after initializeState()
     this.doFn = getDoFn();
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
-
     doFnInvoker.invokeSetup();
 
-    StepContext stepContext = new FlinkStepContext();
-
+    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
     doFnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -351,7 +352,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            stepContext,
+            new FlinkStepContext(),
             inputCoder,
             outputCoders,
             windowingStrategy);
