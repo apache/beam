@@ -147,20 +147,20 @@
 
 <li><span class="section-nav-list-main-title">Contribute</span></li>
 <li><a href="/contribute/">Get started contributing</a></li>
-<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE">Using IntelliJ IDE</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">FAQ</a></li>
 <li>
   <span class="section-nav-list-title">Technical Docs</span>
 
   <ul class="section-nav-list">
+    <li><a href="/roadmap/">Roadmap</a></li>
     <li><a href="/contribute/testing/">Testing guide</a></li>
-    <ul>
-      <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage Guide</a></li>
-    </ul>
+    <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage</a></li>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
     <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
     <li><a href="/contribute/docker-images/">Docker images</a></li>
     <li><a href="/contribute/design-documents/">Design documents</a></li>
     <li><a href="/contribute/dependencies/">Dependencies guide</a></li>
+    <li><a href="/contribute/feature-branches/">Feature branches</a></li>
   </ul>
 </li>
 <li>
@@ -172,8 +172,8 @@
 </li>
 <li>
   <span class="section-nav-list-title">Committers</span>
-
   <ul class="section-nav-list">
+    <li><a href="/contribute/team/">PMC and committers</a></li>
     <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
     <li><a href="/contribute/committer-guide/">Committer guide</a></li>
     <li><a href="/contribute/release-guide/">Release guide</a></li>
@@ -201,24 +201,14 @@
 
 
 <ul class="nav">
-  <li><a href="#finding-help">Finding Help</a></li>
-  <li><a href="#permissions">Permissions</a></li>
-  <li><a href="#contributing-code">Contributing code</a>
-    <ul>
-      <li><a href="#building--testing">Building &amp; Testing</a></li>
-      <li><a href="#pull-requests">Pull requests</a></li>
-      <li><a href="#developing-with-the-python-sdk">Developing with the Python SDK</a></li>
-    </ul>
-  </li>
-  <li><a href="#reviews">Reviews</a>
-    <ul>
-      <li><a href="#finding-reviewers">Finding reviewers</a></li>
-      <li><a href="#adding-yourself-as-a-reviewer">Adding yourself as a reviewer</a></li>
-    </ul>
-  </li>
-  <li><a href="#contributing-to-the-website">Contributing to the website</a></li>
-  <li><a href="#works-in-progress">Works in progress</a></li>
+  <li><a href="#prerequisites-for-contributing-code">Prerequisites for contributing code</a></li>
+  <li><a href="#submitting-your-first-code-change">Submitting your first code change</a></li>
+  <li><a href="#when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</a></li>
   <li><a href="#stale-pull-requests">Stale pull requests</a></li>
+  <li><a href="#accounts-and-permissions">Accounts and Permissions</a></li>
+  <li><a href="#communication">Communication</a></li>
+  <li><a href="#additional-resources">Additional resources</a></li>
+  <li><a href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 
 
@@ -243,8 +233,15 @@ limitations under the License.
 
 <p>The Apache Beam community welcomes contributions from anyone!</p>
 
-<p>There are lots of opportunities:</p>
+<p>If you have questions, consult the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a>, and if that doesn’t
+help please <a href="/community/contact-us">reach out to the Beam community</a>.</p>
 
+<p>The Apache Beam SDK is a unified programming model for both batch and streaming data processing pipelines.
+Pipelines can be described in Java, Python, Go, or SQL, or in a DSL and be executed on
+different runners including Google Cloud Dataflow, Apache Flink, Apache Spark, Apache Apex,
+Apache Gearpump, Apache Hadoop MapReduce, JStorm, IBM Streams, or Apache Samza.</p>
+
+<p>There are lots of opportunities to contribute:</p>
 <ul>
   <li>ask or answer questions on <a href="/community/contact-us/">user@beam.apache.org</a> or
 <a href="https://stackoverflow.com/questions/tagged/apache-beam">stackoverflow</a></li>
@@ -257,293 +254,151 @@ etc)</li>
   <li>improve your favorite language SDK (Java, Python, Go, etc)</li>
   <li>improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
 Cloud Dataflow, etc)</li>
+  <li>improve or add IO connectors</li>
   <li>work on the core programming model (what is a Beam pipeline and how does it
 run?)</li>
   <li>improve the developer experience on Windows</li>
+  <li>adding answers to the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a></li>
+  <li>organize local meetups of users or contributors to the Apache Beam SDK</li>
 </ul>
 
 <p>Most importantly, if you have an idea of how to contribute, then do it!</p>
 
-<p>For a list of open starter tasks, check
-<a href="https://s.apache.org/beam-starter-tasks">https://s.apache.org/beam-starter-tasks</a>.</p>
+<h2 id="prerequisites-for-contributing-code">Prerequisites for contributing code</h2>
 
-<h2 id="finding-help">Finding Help</h2>
-
-<p>If you find any issues with this guide or have questions that aren’t answered, please
-<a href="/community/contact-us">reach out to the Beam community</a>.</p>
-
-<h2 id="permissions">Permissions</h2>
-
-<p>For the <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>, 
-anyone can access it and browse issues. Anyone can register an account and login 
-to create issues or add comments. Only contributors can be assigned issues. If 
-you want to be assigned issues, a PMC member can add you to the project contributor
-group.  Email the <a href="/community/contact-us">dev@ mailing list</a>
-to ask to be added as a contributor in the Beam issue tracker.</p>
-
-<p>Anyone can browse the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>.
-If you wish to contribute changes, please request edit access on the <a href="/community/contact-us">dev@ mailing list</a>.</p>
-
-<h2 id="contributing-code">Contributing code</h2>
-
-<p>Discussons about contributing code to beam  happens on the <a href="/community/contact-us/">dev@ mailing list</a>. Introduce yourself!</p>
-
-<p>Questions can be asked on the <a href="/community/contact-us/">#beam channel of the ASF slack</a>. Introduce yourself!</p>
-
-<p>Coding happens at
-<a href="https://github.com/apache/beam">https://github.com/apache/beam</a>. To
-contribute, follow the usual GitHub process: fork the repo, make your changes,
-and open a pull request and @mention a reviewer. If you have more than one commit
-in your change, you may be asked to rebase and squash the commits.
-If you are unfamiliar with this workflow, GitHub maintains these helpful guides:</p>
-
+<p>To contribute code, you need</p>
 <ul>
-  <li><a href="https://guides.github.com/introduction/git-handbook/">Git Handbook</a></li>
-  <li><a href="https://guides.github.com/activities/forking/">Forking a repository</a></li>
+  <li>a GitHub account</li>
+  <li>a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed</li>
+  <li><a href="https://www.docker.com/">Docker</a> installed for some tasks including building worker containers and testing website
+changes locally</li>
+  <li><a href="https://golang.org">Go</a> 1.10 or later installed for Go SDK development</li>
+  <li>Python, virtualenv, and tox installed for Python SDK development</li>
+  <li>for large contributions, a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
+Agreement</a> (ICLA) to the Apache
+Software Foundation (ASF).</li>
 </ul>
 
-<p>If your change is large or it is your first change, it is a good idea to
-<a href="/community/contact-us/">discuss it on the dev@ mailing list</a></p>
+<h2 id="submitting-your-first-code-change">Submitting your first code change</h2>
 
-<p>For large changes (you may be asked to create a design doc
+<ol>
+  <li>Consider subscribing to the <a href="/community/contact-us/">dev@ mailing list</a>, especially
+if you plan to make more than one change or the change will be large. All decisions happen on the
+public dev list.</li>
+  <li>Create an account on <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.</li>
+  <li>(Optionally) Join the <a href="/community/contact-us/">#beam channel of the ASF slack</a>.</li>
+  <li>Find or create an issue in the <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.
+All changes should be tracked in an issue and referenced by the pull request. For a list of open starter tasks, check
+<a href="https://s.apache.org/beam-starter-tasks">https://s.apache.org/beam-starter-tasks</a>.</li>
+  <li>Assign the issue to yourself. To get the permission to do so, email
+the <a href="/community/contact-us">dev@ mailing list</a>
+to introduce yourself and to be added as a contributor in the Beam issue tracker including your
+ASF Jira Username. For example <a href="https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E">this welcome email</a></li>
+  <li>If your change is large or it is your first change, it is a good idea to
+<a href="/community/contact-us/">discuss it on the dev@ mailing list</a></li>
+  <li>For large changes create a design doc
 (<a href="https://s.apache.org/beam-design-doc-template">template</a>,
-<a href="https://s.apache.org/beam-design-docs">examples</a>)).</p>
-
-<p>Documentation happens at
-<a href="https://github.com/apache/beam/tree/master/website">https://github.com/apache/beam/tree/master/website</a>
-and contributions are welcome.</p>
-
-<p>Large contributions require a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
+<a href="https://s.apache.org/beam-design-docs">examples</a>) and email it to the dev@ mailing list.
+Large contributions also require a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
 Agreement</a> (ICLA) to the Apache
-Software Foundation (ASF).</p>
+Software Foundation (ASF).</li>
+  <li>If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
+<a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a></li>
+  <li>
+    <p>Familiarize yourself with gradle and the project structure. At the root of the git repository, run:</p>
 
-<p>If you are contributing a <code class="highlighter-rouge">PTransform</code> to Beam, we have an extensive
-<a href="/contribute/ptransform-style-guide">PTransform Style Guide</a>.</p>
-
-<h3 id="building--testing">Building &amp; Testing</h3>
-
-<p>We use the <a href="https://gradle.org/">Gradle Build Tool</a>.</p>
-
-<p>You do not need to install Gradle, but you do need a Java SDK installed. You can develop on Linux, macOS, or Microsoft Windows. There have been issues noted when developing using Windows; feel free to contribute fixes to make it easier.</p>
-
-<p>Familiarize yourself with the project structure. At the root of the git repository, run:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew projects
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew projects
 </code></pre>
-</div>
+    </div>
 
-<p>Run the entire set of tests with:</p>
+    <p>Examine the available tasks in a project. For the default set of tasks, use:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew check
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks
 </code></pre>
-</div>
+    </div>
 
-<p>You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:</p>
+    <p>For a given module, use:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew -p sdks/go check
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew sdks/java/io/cassandra tasks
+</code></pre>
+    </div>
+
+    <p>For an exhaustive list of tasks, use:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks --all
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Make sure you can build and run tests</p>
+
+    <p>Run the entire set of tests with:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew check
+</code></pre>
+    </div>
+
+    <p>You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew -p sdks/go check
 $ ./gradlew -p sdks/java/io/cassandra check
 $ ./gradlew -p runners/flink check
 </code></pre>
-</div>
-
-<p>Examine the available tasks in a project. For the default set of tasks, use:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks
-</code></pre>
-</div>
-
-<p>For a given module, use:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew sdks/java/io/cassandra tasks
-</code></pre>
-</div>
-
-<p>For an exhaustive list of tasks, use:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew tasks --all
-</code></pre>
-</div>
-
-<p>We run <strong>integration and performance test</strong> using <a href="https://jenkins.io/">Jenkins</a>. The job definitions are available in the <a href="https://github.com/apache/beam/tree/master/.test-infra/jenkins">Beam GitHub repository</a>.</p>
-
-<h4 id="troubleshooting">Troubleshooting</h4>
-
-<p>You might get an OutOfMemoryException during the Gradle build. If you have more memory
-available, you can try to increase the memory allocation of the Gradle JVM. Otherwise,
-disabling parallel test execution reduces memory consumption. In the root of the Beam
-source, edit the <code class="highlighter-rouge">gradle.properties</code> file and add/modify the following lines:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>org.gradle.parallel=false
-org.gradle.jvmargs=-Xmx2g -XX:MaxPermSize=512m
-</code></pre>
-</div>
-
-<h3 id="pull-requests">Pull requests</h3>
-
-<p>When your change is ready to be reviewed and merged, create a pull request.
+    </div>
+  </li>
+  <li>Depending on the area you are updating, review tips for
+    <ul>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Java+Tips">Java</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips">Python</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Go+Tips">Go</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Website+Tips">Website</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips">Gradle</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips">Jenkins</a></li>
+    </ul>
+  </li>
+  <li>Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
+have an open source license <a href="https://www.apache.org/legal/resolved.html#criteria">compatible</a> with Apache.</li>
+  <li>Add unit tests for your change</li>
+  <li>Ensure tests pass locally</li>
+  <li>When your change is ready to be reviewed and merged, create a pull request.
 Format the pull request title like <code class="highlighter-rouge">[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
 where you replace BEAM-XXX with the appropriate JIRA issue.
-This will automatically link the pull request to the issue.</p>
-
-<p>Pull requests can only be merged by a
-<a href="https://people.apache.org/phonebook.html?unix=beam">beam committer</a>.
-To find a committer for your area, look for similar code merges or ask on
-<a href="/community/contact-us/">dev@beam.apache.org</a></p>
-
-<p>Use @mention in the pull request to notify the reviewer.</p>
-
-<p>The pull request and any changes pushed to it will trigger <a href="/contribute/testing/">pre-commit
+This will automatically link the pull request to the issue.</li>
+  <li>
+    <p>The pull request and any changes pushed to it will trigger <a href="/contribute/testing/">pre-commit
 jobs</a>. If a test fails and appears unrelated to your
 change, you can cause tests to be re-run by adding a single line comment on your
 PR</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code> retest this please
+    <div class="highlighter-rouge"><pre class="highlight"><code> retest this please
 </code></pre>
-</div>
+    </div>
 
-<p>There are other trigger phrases for post-commit tests found in
+    <p>There are other trigger phrases for post-commit tests found in
 .testinfra/jenkins, but use these sparingly because post-commit
 tests consume shared development resources.</p>
+  </li>
+  <li>Pull requests can only be merged by a
+<a href="/contribute/team/">beam committer</a>.
+To find a committer for your area, either:
+    <ul>
+      <li>look in the OWNERS file of the directory where you changed files, or</li>
+      <li>look for similar code merges, or</li>
+      <li>ask on <a href="/community/contact-us/">dev@beam.apache.org</a></li>
+    </ul>
 
-<h3 id="developing-with-the-python-sdk">Developing with the Python SDK</h3>
+    <p>Use <code class="highlighter-rouge">R: @username</code> in the pull request to notify a reviewer.</p>
+  </li>
+  <li>If you don’t get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
+request.</li>
+</ol>
 
-<p>Gradle can build and test python, and is used by the Jenkins jobs, so needs to
-be maintained.</p>
+<h2 id="when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</h2>
 
-<p>You can directly use the Python toolchain instead of having Gradle orchestrate
-it, which may be faster for you, but it is your preference.
-If you do want to use Python tools directly, we recommend setting up a virtual
-environment before testing your code.</p>
-
-<p>If you update any of the <a href="http://cython.org">cythonized</a> files in Python SDK,
-you must install the <code class="highlighter-rouge">cython</code> package before running following command to
-properly test your code.</p>
-
-<p>The following commands should be run in the <code class="highlighter-rouge">sdks/python</code> directory.
-This installs Python from source and includes the test and gcp dependencies.</p>
-
-<p>On macOS/Linux:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ virtualenv env
-$ . ./env/bin/activate
-(env) $ pip install -e .[gcp,test]
-</code></pre>
-</div>
-
-<p>On Windows:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>&gt; c:\Python27\python.exe -m virtualenv
-&gt; env\Scripts\activate
-(env) &gt; pip install -e .[gcp,test]
-</code></pre>
-</div>
-
-<p>This command runs all Python tests. The nose dependency is installed by [test] in pip install.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>(env) $ python setup.py nosetests
-</code></pre>
-</div>
-
-<p>You can use following command to run a single test method.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>(env) $ python setup.py nosetests --tests &lt;module&gt;:&lt;test class&gt;.&lt;test method&gt;
-
-For example:
-(env) $ python setup.py nosetests --tests apache_beam.io.textio_test:TextSourceTest.test_progress
-</code></pre>
-</div>
-
-<p>You can deactivate the virtualenv when done.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>(env) $ deactivate
-$
-</code></pre>
-</div>
-
-<p>To check just for Python lint errors, run the following command.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ../../gradlew lint
-</code></pre>
-</div>
-
-<p>Or use <code class="highlighter-rouge">tox</code> commands to run the lint tasks:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ tox -e py27-lint    # For python 2.7
-$ tox -e py3-lint     # For python 3
-$ tox -e py27-lint3   # For python 2-3 compatibility
-</code></pre>
-</div>
-
-<h4 id="remote-testing">Remote testing</h4>
-
-<p>This step is only required for testing SDK code changes remotely (not using
-directrunner). In order to do this you must build the Beam tarball. From the
-root of the git repository, run:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ cd sdks/python/
-$ python setup.py sdist
-</code></pre>
-</div>
-
-<p>Pass the <code class="highlighter-rouge">--sdk_location</code> flag to use the newly built version. For example:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py sdist &gt; /dev/null &amp;&amp; \
-    python -m apache_beam.examples.wordcount ... \
-        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
-</code></pre>
-</div>
-
-<h2 id="reviews">Reviews</h2>
-
-<p>Reviewers for <a href="https://github.com/apache/beam">apache/beam</a> are listed in
-Prow-style OWNERS files. A description of these files can be found
-<a href="https://go.k8s.io/owners">here</a>.</p>
-
-<h3 id="finding-reviewers">Finding reviewers</h3>
-
-<p>Currently this is a manual process. Tracking bug for automating this:
-<a href="https://issues.apache.org/jira/browse/BEAM-4790">BEAM-4790</a>.</p>
-
-<p>For each file to be reviewed, look for an OWNERS file in its directory. Pick a
-single reviewer from that file. If the directory doesn’t contain an OWNERS file,
-go up a directory. Keep going until you find one. Try to limit the number of
-reviewers to 2 per PR if possible, to minimize reviewer load. Comment on your PR
-tagging the reviewer as follows:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>R: @reviewer
-</code></pre>
-</div>
-
-<h3 id="adding-yourself-as-a-reviewer">Adding yourself as a reviewer</h3>
-
-<p>Find the deepest sub-directory that contains the files you want to be a reviewer
-for and add your Github username under <code class="highlighter-rouge">reviewers</code> in the OWNERS file (create a
-new OWNERS file if necessary).</p>
-
-<p>The Beam project currently only uses the <code class="highlighter-rouge">reviewers</code> key in OWNERS and no other
-features, as reviewer selection is still a manual process.</p>
-
-<!-- TODO(BEAM-4790): If Prow write access gets approved
-(https://issues.apache.org/jira/browse/INFRA-16869), document that if you are
-not a committer you can still be listed as a reviewer. Just ask to get added as
-a read-only collaborator to apache/beam by opening an INFRA ticket. -->
-
-<h2 id="contributing-to-the-website">Contributing to the website</h2>
-
-<p>The Beam website is in the <code class="highlighter-rouge">/website</code> directory of the repo. The
-<a href="https://github.com/apache/beam/blob/master/website">README</a> there explains how
-to modify different parts of the site. The GitHub workflow is the same - make
-your change and open a pull request.</p>
-
-<p>Issues are tracked in the
-<a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website">website</a>
-component in JIRA.</p>
-
-<h2 id="works-in-progress">Works in progress</h2>
-
-<p>A great way to contribute is to join an existing effort. For the most
-intensive efforts, check out the <a href="/roadmap/">roadmap</a>.
-You can also find a more exhaustive list on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ wiki</a></p>
+<p>Apache Beam makes minor releases every 6 weeks. Apache Beam has a
+<a href="https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com">calendar</a> for
+cutting the next release branch. Your change needs to be checked into master before the release branch is cut
+to make the next release.</p>
 
 <h2 id="stale-pull-requests">Stale pull requests</h2>
 
@@ -553,7 +408,61 @@ actionable comments for 60 days.  Author of a closed pull request is welcome to
 reopen the same pull request again in the future. The associated JIRAs will be
 unassigned from the author but will stay open.</p>
 
-<hr />
+<h2 id="accounts-and-permissions">Accounts and Permissions</h2>
+
+<ul>
+  <li>
+    <p><a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>
+anyone can access it and browse issues. Anyone can register an account and login
+to create issues or add comments. Only contributors can be assigned issues. If
+you want to be assigned issues, a PMC member can add you to the project contributor
+group.  Email the <a href="/community/contact-us">dev@ mailing list</a>
+to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.</p>
+  </li>
+  <li>
+    <p><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>.
+If you wish to contribute changes, please request edit access on the
+<a href="/community/contact-us">dev@ mailing list</a>.</p>
+  </li>
+  <li>
+    <p>Pull requests can only be merged by a
+<a href="/contribute/team/">beam committer</a>.</p>
+  </li>
+  <li>
+    <p><a href="https://www.apache.org/foundation/voting.html">Voting on a release</a>. Everyone can vote. Only
+<a href="/contribute/team/">Beam PMC</a> members should mark their votes as binding.</p>
+  </li>
+</ul>
+
+<h2 id="communication">Communication</h2>
+
+<p>All communication is expected to align with the <a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a>.</p>
+
+<p>Discussions about contributing code to beam  happens on the <a href="/community/contact-us/">dev@ mailing list</a>. Introduce yourself!</p>
+
+<p>Questions can be asked on the <a href="/community/contact-us/">#beam channel of the ASF slack</a>. Introduce yourself!</p>
+
+<h2 id="additional-resources">Additional resources</h2>
+
+<p>If you are contributing a <code class="highlighter-rouge">PTransform</code> to Beam, we have an extensive
+<a href="/contribute/ptransform-style-guide">PTransform Style Guide</a>.</p>
+
+<p>If you are contributing a Runner to Beam, refer to the
+<a href="/contribute/runner-guide/">Runner authoring guide</a></p>
+
+<p>Review <a href="https://s.apache.org/beam-design-docs">design documents</a>.</p>
+
+<p>A great way to contribute is to join an existing effort. For the most
+intensive efforts, check out the <a href="/roadmap/">roadmap</a>.</p>
+
+<p>You can also find a more exhaustive list on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ wiki</a></p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<p>If you run into any issues, check out the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a> or ask on
+on the <a href="/community/contact-us/">dev@ mailing list</a> or
+<a href="/community/contact-us/">#beam channel of the ASF slack</a>.
+—-</p>
 
 <p>If you didn’t find the information you were looking for in this guide, please
 <a href="/community/contact-us">reach out to the Beam community</a>.</p>
