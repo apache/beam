@@ -158,6 +158,7 @@ public class ConfigBuilder {
 
     if (options.getStateDurable()) {
       configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
+      configBuilder.put("job.host-affinity.enabled", "true");
     }
 
     return configBuilder.build();
