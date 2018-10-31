@@ -56,6 +56,21 @@ public class NexmarkConfiguration implements Serializable {
    */
   @JsonProperty public NexmarkUtils.PubSubMode pubSubMode = NexmarkUtils.PubSubMode.COMBINED;
 
+  /** The type of side input to use. */
+  @JsonProperty public NexmarkUtils.SideInputType sideInputType;
+
+  /** Specify the number of rows to write to the side input. */
+  @JsonProperty public int sideInputRowCount = 0;
+
+  /** Specify the number of shards to write to the side input. */
+  @JsonProperty public int sideInputNumShards = 0;
+
+  /**
+   * Specify a prefix URL for side input files, which will be created for use queries that join the
+   * stream to static enrichment data.
+   */
+  @JsonProperty public String sideInputUrl = null;
+
   /**
    * Number of events to generate. If zero, generate as many as possible without overflowing
    * internal counters etc.
