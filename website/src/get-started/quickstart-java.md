@@ -26,6 +26,8 @@ limitations under the License.
 
 This Quickstart will walk you through executing your first Beam pipeline to run [WordCount]({{ site.baseurl }}/get-started/wordcount-example), written using Beam's [Java SDK]({{ site.baseurl }}/documentation/sdks/java), on a [runner]({{ site.baseurl }}/documentation#runners) of your choice.
 
+If you're interested in contributing to the Apache Beam Java codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 
