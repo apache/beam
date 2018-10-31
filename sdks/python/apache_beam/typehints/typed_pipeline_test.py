@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import inspect
 import os
 import sys
 import typing
@@ -33,6 +32,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.decorators import getfullargspec
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -162,7 +162,7 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, times='z')
     with self.assertRaises(typehints.TypeCheckError):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
-    if not inspect.getargspec(repeat).defaults:
+    if not getfullargspec(repeat).defaults:
       with self.assertRaises(typehints.TypeCheckError):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
