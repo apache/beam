@@ -1094,7 +1094,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), (s) -> new StageInfo(s, mapTask.getSystemName()));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName()));
 
     ExecutionState executionState = null;
 
@@ -1709,7 +1709,7 @@ public class StreamingDataflowWorker {
 
     List<CounterUpdate> counterUpdates = new ArrayList<>();
     if (publishCounters) {
-      stageInfoMap.values().forEach((s) -> counterUpdates.addAll(s.extractCounterUpdates()));
+      stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
 
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));

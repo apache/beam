@@ -318,7 +318,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           new OutputReceiverFactory() {
             @Override
             public FnDataReceiver<OutputT> create(String pCollectionId) {
-              return (receivedElement) -> {
+              return receivedElement -> {
                 // handover to queue, do not block the grpc thread
                 outputQueue.put(KV.of(pCollectionId, receivedElement));
               };

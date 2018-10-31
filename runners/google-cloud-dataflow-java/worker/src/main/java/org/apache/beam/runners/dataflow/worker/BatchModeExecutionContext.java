@@ -472,12 +472,12 @@ public class BatchModeExecutionContext
               return Iterables.concat(
                   FluentIterable.from(updates.counterUpdates())
                       .transform(
-                          (update) ->
+                          update ->
                               MetricsToCounterUpdateConverter.fromCounter(
                                   update.getKey(), true, update.getUpdate())),
                   FluentIterable.from(updates.distributionUpdates())
                       .transform(
-                          (update) ->
+                          update ->
                               MetricsToCounterUpdateConverter.fromDistribution(
                                   update.getKey(), true, update.getUpdate())));
             });

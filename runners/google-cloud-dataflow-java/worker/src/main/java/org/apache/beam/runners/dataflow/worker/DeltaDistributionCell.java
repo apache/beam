@@ -64,7 +64,7 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   public DistributionData getAndReset() {
-    return value.getAndUpdate((unused) -> DistributionData.EMPTY);
+    return value.getAndUpdate(unused -> DistributionData.EMPTY);
   }
 
   @Override

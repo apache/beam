@@ -473,7 +473,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     BagState<ByteString> state =
         userStateData.computeIfAbsent(
             stateRequest.getStateKey(),
-            (unused) ->
+            unused ->
                 userStepContext
                     .stateInternals()
                     .state(

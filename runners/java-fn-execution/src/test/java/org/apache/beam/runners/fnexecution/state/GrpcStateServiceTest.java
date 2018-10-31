@@ -92,7 +92,7 @@ public class GrpcStateServiceTest {
         BeamFnApi.StateResponse.newBuilder()
             .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(expectedResponseData));
     StateRequestHandler dummyHandler =
-        (request) -> {
+        request -> {
           CompletableFuture<BeamFnApi.StateResponse.Builder> response = new CompletableFuture<>();
           response.complete(expectedBuilder);
           return response;

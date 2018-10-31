@@ -241,7 +241,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       Integer unionTag = outputMap.get(collectionId);
       checkArgument(unionTag != null, "Unknown PCollection id: %s", collectionId);
       int tagInt = unionTag;
-      return (receivedElement) -> {
+      return receivedElement -> {
         synchronized (collectorLock) {
           collector.collect(new RawUnionValue(tagInt, receivedElement));
         }
