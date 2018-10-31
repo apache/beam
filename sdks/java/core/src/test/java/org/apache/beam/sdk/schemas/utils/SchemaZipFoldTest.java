@@ -23,7 +23,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
-/** Tests for {@link SchemaZipFold} with examples. */
+/** TestWidenings for {@link SchemaZipFold} with examples. */
 public class SchemaZipFoldTest {
 
   private static final Schema LEFT =
