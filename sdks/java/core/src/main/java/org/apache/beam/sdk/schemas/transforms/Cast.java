@@ -84,16 +84,32 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
   /**
    * Widening changes to type that can represent any possible value of the original type.
    *
-   * <p>Standard widening conversions: - BYTE to INT16, INT32, INT64, FLOAT, DOUBLE, DECIMAL - INT16
-   * to INT32, INT64, FLOAT, DOUBLE, DECIMAL - INT32 to INT64, FLOAT, DOUBLE, DECIMAL - INT64 to
-   * FLOAT, DOUBLE, DECIMAL - FLOAT to DOUBLE, DECIMAL - DOUBLE to DECIMAL
+   * <p>Standard widening conversions:
    *
-   * <p>Row widening: - wider schema to schema with a subset of fields - non-nullable fields to
-   * nullable fields
+   * <ul>
+   *   <li>BYTE to INT16, INT32, INT64, FLOAT, DOUBLE, DECIMAL
+   *   <li>INT16 to INT32, INT64, FLOAT, DOUBLE, DECIMAL
+   *   <li>INT32 to INT64, FLOAT, DOUBLE, DECIMAL
+   *   <li>INT64 to FLOAT, DOUBLE, DECIMAL
+   *   <li>FLOAT to DOUBLE, DECIMAL
+   *   <li>DOUBLE to DECIMAL
+   * </ul>
    *
-   * <p>Widening doesn't lose information about the overall magnitude in following cases: - integral
-   * type to another integral type - BYTE or INT16 to FLOAT, DOUBLE or DECIMAL - INT32 to DOUBLE -
-   * INT to DOUBLE
+   * <p>Row widening:
+   *
+   * <ul>
+   *   <li>wider schema to schema with a subset of fields
+   *   <li>non-nullable fields to nullable fields
+   * </ul>
+   *
+   * <p>Widening doesn't lose information about the overall magnitude in following cases:
+   *
+   * <ul>
+   *   <li>integral type to another integral type
+   *   <li>BYTE or INT16 to FLOAT, DOUBLE or DECIMAL
+   *   <li>INT32 to DOUBLE
+   *   <li>
+   * </ul>
    *
    * <p>Other conversions to may cause loss of precision.
    */
@@ -166,11 +182,20 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
   /**
    * Narrowing changes type without guarantee to preserve data.
    *
-   * <p>Standard narrowing conversions: - any conversions of {@link Widening} - conversions the
-   * opposite to {@link Widening}
+   * <p>Standard narrowing conversions:
    *
-   * <p>Row narrowing: - wider schema to schema with a subset of fields - non-nullable fields to
-   * nullable fields - nullable fields to non-nullable fields
+   * <ul>
+   *   <li>any conversions of {@link Widening}
+   *   <li>conversions the opposite to {@link Widening}
+   * </ul>
+   *
+   * <p>Row narrowing
+   *
+   * <ul>
+   *   <li>wider schema to schema with a subset of fields
+   *   <li>non-nullable fields to nullable fields
+   *   <li>nullable fields to non-nullable fields
+   * </ul>
    */
   public static class Narrowing implements Validator {
     private final Fold fold = new Fold();
