@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import com.google.auto.service.AutoService;
 
 /**
  * IS_NAN(X)
@@ -26,18 +26,25 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
  *
  * <p>Output: Boolean
  */
-public class IsNan implements BeamSqlUdf {
-  public static final String FUNCTION_NAME = "IS_NAN";
+@AutoService(BeamBuiltinFunctionClass.class)
+public class IsNan implements BeamBuiltinFunctionClass {
+  private static final String SQL_FUNCTION_NAME = "IS_NAN";
 
-  static final String ERROR_MSG = FUNCTION_NAME + " only accepts FLOAT or DOUBLE type.";
+  @UserDefinedFunctionAnnotation(
+    funcName = SQL_FUNCTION_NAME,
+    parameterArray = {Float.class},
+    returnType = Boolean.class
+  )
+  public Boolean isNan(Float value) {
+    return Float.isNaN(value);
+  }
 
-  public static boolean eval(Object value) throws Exception {
-    if (value instanceof Float) {
-      return Float.isNaN((Float) value);
-    } else if (value instanceof Double) {
-      return Double.isNaN((Double) value);
-    }
-
-    throw new Exception(ERROR_MSG);
+  @UserDefinedFunctionAnnotation(
+    funcName = SQL_FUNCTION_NAME,
+    parameterArray = {Double.class},
+    returnType = Boolean.class
+  )
+  public Boolean isNan(Double value) {
+    return Double.isNaN(value);
   }
 }

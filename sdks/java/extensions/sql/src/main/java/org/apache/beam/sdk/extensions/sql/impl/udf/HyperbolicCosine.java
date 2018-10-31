@@ -17,18 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import com.google.auto.service.AutoService;
 
 /**
  * COSH(X)
  *
  * <p>Computes the hyperbolic cosine of X. Generates an error if an overflow occurs.
  */
-public class HyperbolicCosine implements BeamSqlUdf {
-  public static final String FUNCTION_NAME = "COSH";
+@AutoService(BeamBuiltinFunctionClass.class)
+public class HyperbolicCosine implements BeamBuiltinFunctionClass {
+  private static final String SQL_FUNCTION_NAME = "COSH";
 
   // TODO: handle overflow
-  public static Double eval(Double o) {
-    return o == null ? null : Math.cosh(o);
+  @UserDefinedFunctionAnnotation(
+    funcName = SQL_FUNCTION_NAME,
+    parameterArray = {Double.class},
+    returnType = Double.class
+  )
+  public Double cosh(Double o) {
+    return Math.cosh(o);
   }
 }

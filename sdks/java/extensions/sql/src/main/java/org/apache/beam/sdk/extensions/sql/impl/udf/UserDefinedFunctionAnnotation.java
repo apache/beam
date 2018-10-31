@@ -17,27 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import java.util.List;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/** Util functions for UDF. */
-class UDFUtils {
-  public static boolean hasNull(List<Object> value) {
-    for (Object o : value) {
-      if (o == null) {
-        return true;
-      }
-    }
-    return false;
-  }
+/** Make UserDefinedFunction annotation as package private. */
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD})
+@interface UserDefinedFunctionAnnotation {
+  String funcName();
 
-  public static Object hasNaN(List<Object> value) {
-    for (Object o : value) {
-      if (o instanceof Float && Float.isNaN((Float) o)) {
-        return o;
-      } else if (o instanceof Double && Double.isNaN((Double) o)) {
-        return o;
-      }
-    }
-    return null;
-  }
+  Class<?>[] parameterArray();
+
+  Class<?> returnType();
 }

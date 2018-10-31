@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -90,6 +91,12 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
+    // TODO: validate duplicate functions.
+    try {
+      registerBuiltinFunctions(sqlEnv);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     registerFunctions(sqlEnv);
     if (autoUdfUdafLoad()) {
       sqlEnv.loadUdfUdafFromProvider();
@@ -115,6 +122,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
       tables.put(input.getKey().getId(), new BeamPCollectionTable(pCollection));
     }
     return tables.build();
+  }
+
+  private void registerBuiltinFunctions(BeamSqlEnv sqlEnv) throws ClassNotFoundException {
+    sqlEnv.registerBuiltinUdf(BeamBuiltinFunctions.getBeamBuiltinFunctions());
   }
 
   private void registerFunctions(BeamSqlEnv sqlEnv) {

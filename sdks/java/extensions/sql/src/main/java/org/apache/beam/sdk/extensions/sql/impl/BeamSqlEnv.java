@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -73,6 +75,14 @@ public class BeamSqlEnv {
     }
 
     return withTableProvider(inMemoryMetaStore);
+  }
+
+  public void registerBuiltinUdf(Map<String, List<Method>> methods) {
+    for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
+      for (Method method : entry.getValue()) {
+        defaultSchema.add(entry.getKey(), ScalarFunctionImpl.create(method));
+      }
+    }
   }
 
   /** Register a UDF function which can be used in SQL expression. */
