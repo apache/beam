@@ -108,7 +108,6 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
    *   <li>integral type to another integral type
    *   <li>BYTE or INT16 to FLOAT, DOUBLE or DECIMAL
    *   <li>INT32 to DOUBLE
-   *   <li>
    * </ul>
    *
    * <p>Other conversions to may cause loss of precision.

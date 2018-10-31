@@ -17,9 +17,16 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Joiner;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
@@ -67,6 +74,13 @@ public class SchemaZipFoldTest {
   @Test
   public void testCountMissingFields() {
     assertEquals(4, new CountMissingFields().apply(LEFT, RIGHT).intValue());
+  }
+
+  @Test
+  public void testListCommonFields() {
+    assertThat(
+        new ListCommonFields().apply(LEFT, RIGHT),
+        containsInAnyOrder("f0", "f1", "f2", "f3", "f3.f0", "f3.f1"));
   }
 
   static class CountCommonLeafs extends SchemaZipFold<Integer> {
@@ -149,6 +163,30 @@ public class SchemaZipFoldTest {
         return 1;
       } else {
         return 0;
+      }
+    }
+  }
+
+  static class ListCommonFields extends SchemaZipFold<List<String>> {
+
+    @Override
+    public List<String> accumulate(List<String> left, List<String> right) {
+      return Stream.concat(left.stream(), right.stream()).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<String> accept(Context context, Schema.FieldType left, Schema.FieldType right) {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<String> accept(
+        Context context, Optional<Schema.Field> left, Optional<Schema.Field> right) {
+      if (left.isPresent() && right.isPresent()) {
+        String pathStr = Joiner.on('.').join(context.path());
+        return Collections.singletonList(pathStr);
+      } else {
+        return Collections.emptyList();
       }
     }
   }
