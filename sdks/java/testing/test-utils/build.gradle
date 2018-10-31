@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.guava
+  compile library.java.guava
 
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
