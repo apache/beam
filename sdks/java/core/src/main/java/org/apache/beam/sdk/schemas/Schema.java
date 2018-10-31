@@ -376,7 +376,7 @@ public class Schema implements Serializable {
           return other == FLOAT || other == DOUBLE;
 
         default:
-          return false;
+          throw new AssertionError("Unexpected numeric type: " + this);
       }
     }
   }
