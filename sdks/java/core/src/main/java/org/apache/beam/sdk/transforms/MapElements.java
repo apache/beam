@@ -22,13 +22,13 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
-public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
+public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT, OutputT> {
 
   /**
    * For a {@code SimpleFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
@@ -102,7 +102,13 @@ public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
       @Nullable Object originalFnForDisplayData,
       @Nullable TypeDescriptor<InputT> inputType,
       TypeDescriptor<OutputT> outputType) {
-    super("Map", wrapResultAsIterable(fn), originalFnForDisplayData, inputType, outputType);
+    super("Map", fn, originalFnForDisplayData, inputType, outputType);
+  }
+
+  @Override
+  public void emitOutput(
+      InputT inputElement, OutputT outputElement, OutputReceiver<OutputT> receiver) {
+    receiver.output(outputElement);
   }
 
   @Nullable
@@ -112,8 +118,8 @@ public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
       return null;
     } else {
       return Contextful.fn(
-          (InputT element, Context c) -> Collections
-              .singletonList(fn.getClosure().apply(element, c)),
+          (InputT element, Fn.Context c) ->
+              Collections.singletonList(fn.getClosure().apply(element, c)),
           fn.getRequirements());
     }
   }

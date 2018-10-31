@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -28,7 +29,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
  * {@link PCollection} and merging the results.
  */
-public class FlatMapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
+public class FlatMapElements<InputT, OutputT>
+    extends MapperBase<InputT, Iterable<OutputT>, OutputT> {
 
   /**
    * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, return a {@link
@@ -112,5 +114,13 @@ public class FlatMapElements<InputT, OutputT> extends MapperBase<InputT, OutputT
       @Nullable TypeDescriptor<InputT> inputType,
       TypeDescriptor<OutputT> outputType) {
     super("FlatMap", fn, originalFnForDisplayData, inputType, outputType);
+  }
+
+  @Override
+  public void emitOutput(
+      InputT inputElement, Iterable<OutputT> outputElements, OutputReceiver<OutputT> receiver) {
+    for (OutputT outputElement : outputElements) {
+      receiver.output(outputElement);
+    }
   }
 }
