@@ -55,11 +55,13 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Integration test for BigqueryIO with DataflowRunner and DirectRunner. */
 @RunWith(JUnit4.class)
 public class BigQueryToTableIT {
-
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryToTableIT.class);
   private BigQueryToTableOptions options;
   private String project;
 
@@ -147,9 +149,11 @@ public class BigQueryToTableIT {
   }
 
   private void verifyLegacyQueryRes() throws Exception {
+    LOG.info("Starting verifyLegacyQueryRes in outputTable {}", outputTable);
     List<String> legacyQueryExpectedRes = ImmutableList.of("apple", "orange");
     QueryResponse response =
         bqClient.queryWithRetries(String.format("SELECT fruit from [%s];", outputTable), project);
+    LOG.info("Finished to query result table {}", this.outputTable);
     List<String> tableResult =
         response
             .getRows()
@@ -162,6 +166,7 @@ public class BigQueryToTableIT {
   }
 
   private void verifyNewTypesQueryRes() throws Exception {
+    LOG.info("Starting verifyNewTypesQueryRes with outputTable {}", outputTable);
     List<String> newTypeQueryExpectedRes =
         ImmutableList.of(
             "abc=,2000-01-01,00:00:00",
@@ -170,6 +175,7 @@ public class BigQueryToTableIT {
     QueryResponse response =
         bqClient.queryWithRetries(
             String.format("SELECT bytes, date, time FROM [%s];", this.outputTable), this.project);
+    LOG.info("Finished to query result table {}", this.outputTable);
     List<String> tableResult =
         response
             .getRows()
@@ -250,6 +256,7 @@ public class BigQueryToTableIT {
 
   @After
   public void cleanBqEnvironment() {
+    LOG.info("Start to clean up tables and datasets.");
     bqClient.deleteDataset(project, this.bigQueryDatasetId);
   }
 
