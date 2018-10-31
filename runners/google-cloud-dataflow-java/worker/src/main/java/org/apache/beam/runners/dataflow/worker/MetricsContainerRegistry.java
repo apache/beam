@@ -36,7 +36,7 @@ public abstract class MetricsContainerRegistry<T extends MetricsContainer> {
 
   /** Retrieve (creating if necessary) the {@link MetricsContainer} to use with the given step. */
   public T getContainer(String stepName) {
-    return containers.computeIfAbsent(stepName, (unused) -> createContainer(stepName));
+    return containers.computeIfAbsent(stepName, unused -> createContainer(stepName));
   }
 
   /**
