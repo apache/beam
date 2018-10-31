@@ -196,4 +196,10 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetry();
   }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Throwable {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
+  }
 }
