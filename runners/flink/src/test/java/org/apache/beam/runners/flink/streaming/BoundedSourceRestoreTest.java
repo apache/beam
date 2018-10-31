@@ -19,13 +19,13 @@ package org.apache.beam.runners.flink.streaming;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
@@ -78,15 +78,20 @@ public class BoundedSourceRestoreTest {
     final Object checkpointLock = new Object();
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    // bounded source wrapped as unbounded source
     BoundedSource<Long> source = CountingSource.upTo(numElements);
-    BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(source);
-    UnboundedSourceWrapper<Long, Checkpoint<Long>> flinkWrapper =
-        new UnboundedSourceWrapper<>("stepName", options, unboundedSource, numSplits);
+    ArrayDeque<BoundedSource<Long>> queue = new ArrayDeque<>(Arrays.asList(source));
+    UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<Long> unboundedSource =
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(queue);
+    UnboundedSourceWrapper<
+            Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>
+        flinkWrapper =
+            new UnboundedSourceWrapper<>("stepName", options, unboundedSource, numSplits);
 
     StreamSource<
-            WindowedValue<ValueWithRecordId<Long>>, UnboundedSourceWrapper<Long, Checkpoint<Long>>>
+            WindowedValue<ValueWithRecordId<Long>>,
+            UnboundedSourceWrapper<
+                Long,
+                UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>>
         sourceOperator = new StreamSource<>(flinkWrapper);
 
     AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<Long>>> testHarness =
@@ -103,9 +108,9 @@ public class BoundedSourceRestoreTest {
       testHarness.open();
       sourceOperator.run(
           checkpointLock,
-          new TestStreamStatusMaintainer(),
-          new PartialCollector<>(emittedElements, firstBatchSize));
-    } catch (SuccessException e) {
+          new BoundedSourceRestoreTest.TestStreamStatusMaintainer(),
+          new BoundedSourceRestoreTest.PartialCollector<>(emittedElements, firstBatchSize));
+    } catch (BoundedSourceRestoreTest.SuccessException e) {
       // success
       readFirstBatchOfElements = true;
     }
@@ -121,12 +126,19 @@ public class BoundedSourceRestoreTest {
 
     // create a completely new source but restore from the snapshot
     BoundedSource<Long> restoredSource = CountingSource.upTo(numElements);
-    BoundedToUnboundedSourceAdapter<Long> restoredUnboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(restoredSource);
-    UnboundedSourceWrapper<Long, Checkpoint<Long>> restoredFlinkWrapper =
-        new UnboundedSourceWrapper<>("stepName", options, restoredUnboundedSource, numSplits);
+    final ArrayDeque<BoundedSource<Long>> restoreSourcesQueue =
+        new ArrayDeque<>(Arrays.asList(restoredSource));
+    UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<Long> restoredUnboundedSource =
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(restoreSourcesQueue);
+    UnboundedSourceWrapper<
+            Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>
+        restoredFlinkWrapper =
+            new UnboundedSourceWrapper<>("stepName", options, restoredUnboundedSource, numSplits);
     StreamSource<
-            WindowedValue<ValueWithRecordId<Long>>, UnboundedSourceWrapper<Long, Checkpoint<Long>>>
+            WindowedValue<ValueWithRecordId<Long>>,
+            UnboundedSourceWrapper<
+                Long,
+                UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>>
         restoredSourceOperator = new StreamSource<>(restoredFlinkWrapper);
 
     // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
@@ -193,7 +205,7 @@ public class BoundedSourceRestoreTest {
       emittedElements.add(record.getValue().getValue().getValue());
       count++;
       if (count >= elementsToConsumeLimit) {
-        throw new SuccessException();
+        throw new BoundedSourceRestoreTest.SuccessException();
       }
     }
 

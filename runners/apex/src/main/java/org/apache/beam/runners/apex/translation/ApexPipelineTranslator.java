@@ -18,6 +18,7 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
@@ -27,8 +28,9 @@ import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInput
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -141,8 +143,10 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     @Override
     public void translate(Read.Bounded<T> transform, TranslationContext context) {
       // TODO: adapter is visibleForTesting
-      BoundedToUnboundedSourceAdapter unboundedSource =
-          new BoundedToUnboundedSourceAdapter<>(transform.getSource());
+      ArrayDeque<BoundedSource<T>> unboundedSources = new ArrayDeque<>();
+      unboundedSources.add(transform.getSource());
+      UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter unboundedSource =
+          new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter(unboundedSources);
       ApexReadUnboundedInputOperator<T, ?> operator =
           new ApexReadUnboundedInputOperator<>(unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);

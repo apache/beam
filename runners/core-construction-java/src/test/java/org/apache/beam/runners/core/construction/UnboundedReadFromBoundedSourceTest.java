@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
@@ -86,7 +88,7 @@ public class UnboundedReadFromBoundedSourceTest {
     Checkpoint<String> decodedEmptyCheckpoint =
         CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, emptyCheckpoint));
     assertNull(decodedEmptyCheckpoint.getResidualElements());
-    assertNull(decodedEmptyCheckpoint.getResidualSource());
+    assertNull(decodedEmptyCheckpoint.getResidualSources());
   }
 
   @Test
@@ -99,8 +101,9 @@ public class UnboundedReadFromBoundedSourceTest {
   public void testBoundedToUnboundedSourceAdapter() throws Exception {
     long numElements = 100;
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
+    ArrayDeque<BoundedSource<Long>> boundedSources = new ArrayDeque<>(Arrays.asList(boundedSource));
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSources);
 
     PCollection<Long> output = p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
 
@@ -144,8 +147,9 @@ public class UnboundedReadFromBoundedSourceTest {
 
   private <T> void testBoundedToUnboundedSourceAdapterCheckpoint(
       BoundedSource<T> boundedSource, List<T> expectedElements) throws Exception {
+    ArrayDeque<BoundedSource<T>> boundedSources = new ArrayDeque<>(Arrays.asList(boundedSource));
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSources);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedToUnboundedSourceAdapter<T>.Reader reader = unboundedSource.createReader(options, null);
@@ -196,8 +200,9 @@ public class UnboundedReadFromBoundedSourceTest {
 
   private <T> void testBoundedToUnboundedSourceAdapterCheckpointRestart(
       BoundedSource<T> boundedSource, List<T> expectedElements) throws Exception {
+    ArrayDeque<BoundedSource<T>> boundedSources = new ArrayDeque<>(Arrays.asList(boundedSource));
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSources);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedToUnboundedSourceAdapter<T>.Reader reader = unboundedSource.createReader(options, null);
@@ -237,8 +242,10 @@ public class UnboundedReadFromBoundedSourceTest {
     thrown.expect(NoSuchElementException.class);
 
     BoundedSource<Long> countingSource = CountingSource.upTo(100);
+    ArrayDeque<BoundedSource<Long>> countingSources =
+        new ArrayDeque<>(Arrays.asList(countingSource));
     BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(countingSource);
+        new BoundedToUnboundedSourceAdapter<>(countingSources);
     PipelineOptions options = PipelineOptionsFactory.create();
 
     unboundedSource.createReader(options, null).getCurrent();
@@ -249,13 +256,15 @@ public class UnboundedReadFromBoundedSourceTest {
     thrown.expect(NoSuchElementException.class);
 
     BoundedSource<Long> countingSource = CountingSource.upTo(100);
+    ArrayDeque<BoundedSource<Long>> countingSources =
+        new ArrayDeque<>(Arrays.asList(countingSource));
     BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(countingSource);
+        new BoundedToUnboundedSourceAdapter<>(countingSources);
     PipelineOptions options = PipelineOptionsFactory.create();
 
     List<TimestampedValue<Long>> elements =
         ImmutableList.of(TimestampedValue.of(1L, new Instant(1L)));
-    Checkpoint<Long> checkpoint = new Checkpoint<>(elements, countingSource);
+    Checkpoint<Long> checkpoint = new Checkpoint<>(elements, countingSources);
     unboundedSource.createReader(options, checkpoint).getCurrent();
   }
 
