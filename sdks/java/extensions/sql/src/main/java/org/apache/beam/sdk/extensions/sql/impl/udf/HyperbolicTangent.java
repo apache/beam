@@ -17,17 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import com.google.auto.service.AutoService;
 
 /**
  * TANH(X)
  *
  * <p>Computes hyperbolic tangent of X. Does not fail.
  */
-public class HyperbolicTangent implements BeamSqlUdf {
-  public static final String FUNCTION_NAME = "TANH";
+@AutoService(BeamBuiltinFunctionClass.class)
+public class HyperbolicTangent implements BeamBuiltinFunctionClass {
+  private static final String SQL_FUNCTION_NAME = "TANH";
 
-  public static Double eval(Double o) {
-    return o == null ? null : Math.tanh(o);
+  @UserDefinedFunctionAnnotation(
+    funcName = SQL_FUNCTION_NAME,
+    parameterArray = {Double.class},
+    returnType = Double.class
+  )
+  public Double tanh(Double o) {
+    return Math.tanh(o);
   }
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.List;
@@ -53,19 +52,13 @@ public class BeamSqlDslBase {
 
   static Schema schemaInTableA;
   static Schema schemaFloatDouble;
-  static Schema schemaArray;
-  static Schema schemaDouble;
   static List<Row> rowsInTableA;
   static List<Row> rowsOfFloatDouble;
-  static List<Row> rowsOfArray;
-  static List<Row> rowsOfDouble;
 
   //bounded PCollections
   protected PCollection<Row> boundedInput1;
   protected PCollection<Row> boundedInput2;
   protected PCollection<Row> boundedInputFloatDouble;
-  protected PCollection<Row> boundedInputArray;
-  protected PCollection<Row> boundedInputDouble;
 
   //unbounded PCollections
   protected PCollection<Row> unboundedInput1;
@@ -135,17 +128,6 @@ public class BeamSqlDslBase {
                 new BigDecimal(4))
             .getRows();
 
-    //    schemaFloatDouble =         Schema.builder()
-    ////            .addNullableField("f_int", Schema.FieldType.INT32)
-    ////            .addNullableField("f_long", Schema.FieldType.INT64)
-    ////            .addNullableField("f_short", Schema.FieldType.INT16)
-    ////            .addNullableField("f_byte", Schema.FieldType.BYTE)
-    ////            .addNullableField("f_float", Schema.FieldType.FLOAT)
-    ////            .addNullableField("f_double", Schema.FieldType.DOUBLE)
-    ////            .addNullableField("f_string", Schema.FieldType.STRING)
-    ////            .addNullableField("f_timestamp", Schema.FieldType.DATETIME)
-    ////            .build();
-
     schemaFloatDouble =
         Schema.builder()
             .addFloatField("f_float_1")
@@ -165,31 +147,6 @@ public class BeamSqlDslBase {
                 Double.NEGATIVE_INFINITY,
                 Float.NaN,
                 Double.NaN)
-            .getRows();
-
-    schemaDouble =
-        Schema.builder()
-            .addStringField("func")
-            .addNullableField("f_double", Schema.FieldType.DOUBLE)
-            .build();
-    rowsOfDouble = TestUtils.RowsBuilder.of(schemaDouble).addRows("COSH", null).getRows();
-
-    schemaArray =
-        Schema.builder()
-            .addInt32Field("id")
-            .addNullableField("arr", Schema.FieldType.array(Schema.FieldType.DOUBLE))
-            .build();
-    rowsOfArray =
-        TestUtils.RowsBuilder.of(schemaArray)
-            .addRows(
-                1,
-                ImmutableList.of(1.0, 2.0, 3.0, 4.0, 5.0),
-                //                2,
-                //                    Arrays.asList(null, 1.0, 2.0),
-                3,
-                ImmutableList.of(1.0, 2.0, Double.NaN),
-                4,
-                ImmutableList.of(100.0, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY))
             .getRows();
   }
 
@@ -213,30 +170,12 @@ public class BeamSqlDslBase {
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
-    boundedInputDouble =
-        pipeline.apply(
-            "boundedInputDouble",
-            Create.of(rowsOfDouble)
-                .withSchema(
-                    schemaDouble,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
-
     boundedInputFloatDouble =
         pipeline.apply(
             "boundedInputFloatDouble",
             Create.of(rowsOfFloatDouble)
                 .withSchema(
                     schemaFloatDouble,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
-
-    boundedInputArray =
-        pipeline.apply(
-            "boundedInputArray",
-            Create.of(rowsOfArray)
-                .withSchema(
-                    schemaArray,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
