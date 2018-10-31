@@ -30,7 +30,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
-/** TestWidenings for {@link SchemaZipFold} with examples. */
+/** Tests for {@link SchemaZipFold} with examples. */
 public class SchemaZipFoldTest {
 
   private static final Schema LEFT =
