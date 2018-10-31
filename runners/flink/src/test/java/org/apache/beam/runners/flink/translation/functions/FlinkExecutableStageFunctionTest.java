@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -51,15 +52,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class FlinkExecutableStageFunctionTest {
+
+  @Parameterized.Parameters
+  public static Object[] data() {
+    return new Object[] {true, false};
+  }
+
+  @Parameterized.Parameter public boolean isStateful;
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private RuntimeContext runtimeContext;
@@ -187,6 +196,12 @@ public class FlinkExecutableStageFunctionTest {
           }
 
           @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return null;
+          }
+
+          @Override
           public void close() throws Exception {}
         };
     // Wire the stage bundle factory into our context.
@@ -195,7 +210,11 @@ public class FlinkExecutableStageFunctionTest {
     FlinkExecutableStageFunction<Integer> function = getFunction(outputTagMap);
     function.open(new Configuration());
 
-    function.mapPartition(Collections.emptyList(), collector);
+    if (isStateful) {
+      function.reduce(Collections.emptyList(), collector);
+    } else {
+      function.mapPartition(Collections.emptyList(), collector);
+    }
     // Ensure that the tagged values sent to the collector have the correct union tags as specified
     // in the output map.
     verify(collector).collect(new RawUnionValue(1, three));
@@ -209,6 +228,7 @@ public class FlinkExecutableStageFunctionTest {
     FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
     function.open(new Configuration());
     function.close();
+    verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
   }
@@ -223,7 +243,8 @@ public class FlinkExecutableStageFunctionTest {
         Mockito.mock(FlinkExecutableStageContext.Factory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory);
+        new FlinkExecutableStageFunction<>(
+            stagePayload, jobInfo, outputMap, contextFactory, isStateful);
     function.setRuntimeContext(runtimeContext);
     Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);
     return function;

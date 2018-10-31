@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.state;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -255,7 +254,18 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
 
                   @Override
                   public ReadableState<Boolean> isEmpty() {
-                    return ReadableStates.immediate(!impl.get().iterator().hasNext());
+                    return new ReadableState<Boolean>() {
+                      @Nullable
+                      @Override
+                      public Boolean read() {
+                        return !impl.get().iterator().hasNext();
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        return this;
+                      }
+                    };
                   }
 
                   @Override

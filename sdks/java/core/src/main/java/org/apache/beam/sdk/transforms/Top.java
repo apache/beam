@@ -414,10 +414,10 @@ public class Top {
 
     @Override
     public String getIncompatibleGlobalWindowErrorMessage() {
-      return "Default values are not supported in Top.[of, smallest, largest]() if the output "
+      return "Default values are not supported in Top.[of, smallest, largest]() if the input "
           + "PCollection is not windowed by GlobalWindows. Instead, use "
-          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the"
-          + " input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
+          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the "
+          + "input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
           + "get a PCollection containing the empty list if the input PCollection is empty.";
     }
   }

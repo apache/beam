@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -46,7 +46,7 @@ public class GroupCombineFunctions {
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       WindowedValueCoder<V> wvCoder,
-      boolean defaultParallelism) {
+      @Nullable Partitioner partitioner) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
@@ -54,13 +54,10 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.unwindowFunction())
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD;
-    if (defaultParallelism) {
-      groupedRDD =
-          pairRDD.groupByKey(new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism()));
-    } else {
-      groupedRDD = pairRDD.groupByKey();
-    }
+
+    // If no partitioner is passed, the default group by key operation is called
+    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
+        (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
 
     // using mapPartitions allows to preserve the partitioner
     // and avoid unnecessary shuffle downstream.
@@ -94,10 +91,10 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     // for readability, we add comments with actual type next to byte[].
     // to shorten line length, we use:
-    //---- WV: WindowedValue
-    //---- Iterable: Itr
-    //---- AccumT: A
-    //---- InputT: I
+    // ---- WV: WindowedValue
+    // ---- Iterable: Itr
+    // ---- AccumT: A
+    // ---- InputT: I
     JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
 
     if (inputRDDBytes.isEmpty()) {
@@ -174,10 +171,10 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     // for readability, we add comments with actual type next to byte[].
     // to shorten line length, we use:
-    //---- WV: WindowedValue
-    //---- Iterable: Itr
-    //---- AccumT: A
-    //---- InputT: I
+    // ---- WV: WindowedValue
+    // ---- Iterable: Itr
+    // ---- AccumT: A
+    // ---- InputT: I
     JavaPairRDD<ByteArray, byte[]> inRddDuplicatedKeyPairBytes =
         inRddDuplicatedKeyPair.mapToPair(CoderHelpers.toByteFunction(keyCoder, wkviCoder));
 

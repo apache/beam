@@ -37,6 +37,8 @@ class CreateTest(unittest.TestCase):
 
   def test_create_transform(self):
     with TestPipeline() as p:
+      assert_that(p | 'Empty' >> Create([]), equal_to([]), label='empty')
+      assert_that(p | 'One' >> Create([None]), equal_to([None]), label='one')
       assert_that(p | Create(list(range(10))), equal_to(list(range(10))))
 
   def test_create_source_read(self):

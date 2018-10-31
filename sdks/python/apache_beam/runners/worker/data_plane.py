@@ -137,10 +137,14 @@ class InMemoryDataChannel(DataChannel):
     return self._inverse
 
   def input_elements(self, instruction_id, unused_expected_targets=None):
+    other_inputs = []
     for data in self._inputs:
       if data.instruction_reference == instruction_id:
         if data.data:
           yield data
+      else:
+        other_inputs.append(data)
+    self._inputs = other_inputs
 
   def output_stream(self, instruction_id, target):
     def add_to_inverse_output(data):

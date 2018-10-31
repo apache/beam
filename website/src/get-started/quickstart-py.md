@@ -22,6 +22,8 @@ limitations under the License.
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
+If you're interested in contributing to the Apache Beam Python codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 

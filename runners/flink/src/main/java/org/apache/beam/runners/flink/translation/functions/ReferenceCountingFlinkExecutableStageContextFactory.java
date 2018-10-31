@@ -115,6 +115,7 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     int environmentCacheTTLMillis =
         pipelineOptions.as(PortablePipelineOptions.class).getEnvironmentCacheMillis();
     if (environmentCacheTTLMillis > 0) {
+      // Do immediate cleanup if this class is not loaded on Flink parent classloader.
       if (this.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader()) {
         LOG.warn(
             "{} is not loaded on parent Flink classloader. "
@@ -184,10 +185,11 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
   /**
    * {@link WrappedContext} does not expose equals of actual {@link FlinkExecutableStageContext}.
    */
-  private class WrappedContext implements FlinkExecutableStageContext {
+  @VisibleForTesting
+  class WrappedContext implements FlinkExecutableStageContext {
     private JobInfo jobInfo;
     private AtomicInteger referenceCount;
-    private FlinkExecutableStageContext context;
+    @VisibleForTesting FlinkExecutableStageContext context;
 
     /** {@link WrappedContext#equals(Object)} is only based on {@link JobInfo#jobId()}. */
     WrappedContext(JobInfo jobInfo, FlinkExecutableStageContext context) {

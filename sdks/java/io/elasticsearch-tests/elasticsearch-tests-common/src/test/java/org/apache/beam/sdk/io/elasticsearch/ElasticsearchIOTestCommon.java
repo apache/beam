@@ -78,7 +78,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final int EXPECTED_RETRIES = 2;
   private static final int MAX_ATTEMPTS = 3;
-  private static final String BAD_FORMATTED_DOC[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+  private static final String[] BAD_FORMATTED_DOC = {"{ \"x\" :a,\"y\":\"ab\" }"};
   private static final String OK_REQUEST =
       "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
           + "{ \"field1\" : 1 }\n";

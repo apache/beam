@@ -24,12 +24,33 @@ class CommonJobProperties {
 
   static String checkoutDir = 'src'
 
-  static void setSCM(def context, String repositoryName, boolean allowRemotePoll = true) {
+  // Sets common top-level job properties for main repository jobs.
+  static void setTopLevelMainJobProperties(def context,
+                                           String defaultBranch = 'master',
+                                           int defaultTimeout = 100,
+                                           boolean allowRemotePoll = true,
+                                           String jenkinsExecutorLabel =  'beam') {
+    // GitHub project.
+    context.properties {
+      githubProjectUrl('https://github.com/apache/beam/')
+    }
+
+    // Set JDK version.
+    context.jdk('JDK 1.8 (latest)')
+
+    // Restrict this project to run only on Jenkins executors as specified
+    context.label(jenkinsExecutorLabel)
+
+    // Discard old builds. Build records are only kept up to this number of days.
+    context.logRotator {
+      daysToKeep(30)
+    }
+
+    // Source code management.
     context.scm {
       git {
         remote {
-          // Double quotes here mean ${repositoryName} is interpolated.
-          github("apache/${repositoryName}")
+          github("apache/beam")
           // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
           // through to Jenkins where it refers to the environment variable.
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
@@ -45,60 +66,6 @@ class CommonJobProperties {
         }
       }
     }
-  }
-
-  // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(def context,
-                                              String branch = 'asf-site',
-                                              int timeout = 100) {
-    setTopLevelJobProperties(
-            context,
-            'beam-site',
-            branch,
-            timeout)
-  }
-
-  // Sets common top-level job properties for main repository jobs.
-  static void setTopLevelMainJobProperties(def context,
-                                           String branch = 'master',
-                                           int timeout = 100,
-                                           boolean allowRemotePoll = true,
-                                           String jenkinsExecutorLabel =  'beam') {
-    setTopLevelJobProperties(
-            context,
-            'beam',
-            branch,
-            timeout,
-            allowRemotePoll,
-            jenkinsExecutorLabel)
-  }
-
-  // Sets common top-level job properties. Accessed through one of the above
-  // methods to protect jobs from internal details of param defaults.
-  private static void setTopLevelJobProperties(def context,
-                                               String repositoryName,
-                                               String defaultBranch,
-                                               int defaultTimeout,
-                                               boolean allowRemotePoll = true,
-                                               String jenkinsExecutorLabel = 'beam') {
-    // GitHub project.
-    context.properties {
-      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
-    }
-
-    // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
-
-    // Restrict this project to run only on Jenkins executors as specified
-    context.label(jenkinsExecutorLabel)
-
-    // Discard old builds. Build records are only kept up to this number of days.
-    context.logRotator {
-      daysToKeep(30)
-    }
-
-    // Source code management.
-    setSCM(context, repositoryName, allowRemotePoll)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -196,14 +163,6 @@ class CommonJobProperties {
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
   }
 
-  // Sets common config for PreCommit jobs.
-  static void setPreCommit(context,
-                           String commitStatusName,
-                           String prTriggerPhrase = '') {
-    // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false)
-  }
-
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
@@ -227,7 +186,7 @@ class CommonJobProperties {
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
                          String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'commits@beam.apache.org',
+                         notifyAddress = 'builds@beam.apache.org',
                          triggerOnCommit = false,
                          emailIndividuals = false) {
 
@@ -244,7 +203,7 @@ class CommonJobProperties {
 
 
     context.publishers {
-      // Notify an email address for each failed build (defaults to commits@).
+      // Notify an email address for each failed build (defaults to builds@).
       mailer(
           notifyAddress,
           /* _do_ notify every unstable build */ false,

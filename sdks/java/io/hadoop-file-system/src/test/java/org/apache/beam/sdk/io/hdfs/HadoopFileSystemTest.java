@@ -36,7 +36,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
@@ -301,7 +300,8 @@ public class HadoopFileSystemTest {
         ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("testFileA")));
   }
 
-  @Test(expected = FileAlreadyExistsException.class)
+  /** Test that rename overwrites existing files. */
+  @Test
   public void testRenameExistingDestination() throws Exception {
     create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
     create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
@@ -312,6 +312,10 @@ public class HadoopFileSystemTest {
 
     fileSystem.rename(
         ImmutableList.of(testPath("testFileA")), ImmutableList.of(testPath("testFileB")));
+
+    expectedLogs.verifyDebug(
+        String.format(HadoopFileSystem.LOG_DELETING_EXISTING_FILE, "/testFileB"));
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
   }
 
   /** Test that rename throws predictably when source doesn't exist and destination does. */

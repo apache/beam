@@ -38,6 +38,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -990,6 +991,9 @@ class ParDo(PTransformWithSideInputs):
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
+  def runner_api_requires_keyed_input(self):
+    return userstate.is_stateful_dofn(self.fn)
+
 
 class _MultiParDo(PTransform):
 
@@ -1374,6 +1378,9 @@ class CombinePerKey(PTransformWithSideInputs):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
+  def runner_api_requires_keyed_input(self):
+    return True
+
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
@@ -1605,12 +1612,19 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
+  def infer_output_type(self, input_type):
+    key_type, value_type = trivial_inference.key_value_types(input_type)
+    return KV[key_type, Iterable[value_type]]
+
   def to_runner_api_parameter(self, unused_context):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
+
+  def runner_api_requires_keyed_input(self):
+    return True
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1942,19 +1956,19 @@ PTransform.register_urn(
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, value):
+  def __init__(self, values):
     """Initializes a Create transform.
 
     Args:
-      value: An object of values for the PCollection
+      values: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(value, (unicode, str, bytes)):
+    if isinstance(values, (unicode, str, bytes)):
       raise TypeError('PTransform Create: Refusing to treat string as '
-                      'an iterable. (string=%r)' % value)
-    elif isinstance(value, dict):
-      value = value.items()
-    self.value = tuple(value)
+                      'an iterable. (string=%r)' % values)
+    elif isinstance(values, dict):
+      values = values.items()
+    self.values = tuple(values)
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -1962,22 +1976,47 @@ class Create(PTransform):
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):
-    if not self.value:
+    if not self.values:
       return Any
-    return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
+    return Union[[trivial_inference.instance_to_type(v) for v in self.values]]
 
   def get_output_type(self):
     return (self.get_type_hints().simple_output_type(self.label) or
             self.infer_output_type(None))
 
   def expand(self, pbegin):
-    from apache_beam.io import iobase
     assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    source = self._create_source_from_iterable(self.value, coder)
-    return (pbegin.pipeline
-            | iobase.Read(source).with_output_types(self.get_output_type()))
+    # Must guard against this as some legacy runners don't implement impulse.
+    debug_options = pbegin.pipeline._options.view_as(DebugOptions)
+    fn_api = (debug_options.experiments
+              and 'beam_fn_api' in debug_options.experiments)
+    if fn_api:
+      coder = typecoders.registry.get_coder(self.get_output_type())
+      serialized_values = [coder.encode(v) for v in self.values]
+      # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
+      # These special cases are often used in building up more complex
+      # transforms (e.g. Write).
+
+      class MaybeReshuffle(PTransform):
+        def expand(self, pcoll):
+          if len(serialized_values) > 1:
+            from apache_beam.transforms.util import Reshuffle
+            return pcoll | Reshuffle()
+          else:
+            return pcoll
+      return (
+          pbegin
+          | Impulse()
+          | FlatMap(lambda _: serialized_values)
+          | MaybeReshuffle()
+          | Map(coder.decode).with_output_types(self.get_output_type()))
+    else:
+      self.pipeline = pbegin.pipeline
+      from apache_beam.io import iobase
+      coder = typecoders.registry.get_coder(self.get_output_type())
+      source = self._create_source_from_iterable(self.values, coder)
+      return (pbegin.pipeline
+              | iobase.Read(source).with_output_types(self.get_output_type()))
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())

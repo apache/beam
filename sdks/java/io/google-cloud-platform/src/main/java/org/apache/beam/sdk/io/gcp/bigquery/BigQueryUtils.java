@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -279,7 +278,7 @@ public class BigQueryUtils {
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
     if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
-      return JSON_VALUE_PARSERS.get((fieldType.getTypeName())).apply((String) jsonBQValue);
+      return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
     }
 
     if (jsonBQValue instanceof List) {

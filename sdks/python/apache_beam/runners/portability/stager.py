@@ -59,6 +59,7 @@ import pkg_resources
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
@@ -123,8 +124,7 @@ class Stager(object):
 
         Returns:
           A list of file names (no paths) for the resources staged. All the
-          files
-          are assumed to be staged at staging_location.
+          files are assumed to be staged at staging_location.
 
         Raises:
           RuntimeError: If files specified are not found or error encountered
@@ -255,6 +255,14 @@ class Stager(object):
             raise RuntimeError(
                 'The file "%s" cannot be found. Its location was specified by '
                 'the --sdk_location command-line option.' % sdk_path)
+
+    worker_options = options.view_as(WorkerOptions)
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      jar_staged_filename = 'dataflow-worker.jar'
+      staged_path = FileSystems.join(staging_location, jar_staged_filename)
+      self.stage_artifact(dataflow_worker_jar, staged_path)
+      resources.append(jar_staged_filename)
 
     # Delete all temp files created while staging job resources.
     shutil.rmtree(temp_dir)

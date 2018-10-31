@@ -143,19 +143,30 @@ class Operation(object):
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
+    # Legacy workers cannot call setup() until after setting additional state
+    # on the operation.
+    self.setup_done = False
+
+  def setup(self):
+    with self.scoped_start_state:
+      self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+          logging.DEBUG)
+      # Everything except WorkerSideInputSource, which is not a
+      # top-level operation, should have output_coders
+      #TODO(pabloem): Define better what step name is used here.
+      if getattr(self.spec, 'output_coders', None):
+        self.receivers = [ConsumerSet(self.counter_factory,
+                                      self.name_context.logging_name(),
+                                      i,
+                                      self.consumers[i], coder)
+                          for i, coder in enumerate(self.spec.output_coders)]
+    self.setup_done = True
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
-    # Everything except WorkerSideInputSource, which is not a
-    # top-level operation, should have output_coders
-    #TODO(pabloem): Define better what step name is used here.
-    if getattr(self.spec, 'output_coders', None):
-      self.receivers = [ConsumerSet(self.counter_factory,
-                                    self.name_context.logging_name(),
-                                    i,
-                                    self.consumers[i], coder)
-                        for i, coder in enumerate(self.spec.output_coders)]
+    if not self.setup_done:
+      # For legacy workers.
+      self.setup()
 
   def process(self, o):
     """Process element in operation."""
@@ -164,6 +175,9 @@ class Operation(object):
   def finish(self):
     """Finish operation."""
     pass
+
+  def reset(self):
+    self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
@@ -422,9 +436,9 @@ class DoOperation(Operation):
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
-  def start(self):
+  def setup(self):
     with self.scoped_start_state:
-      super(DoOperation, self).start()
+      super(DoOperation, self).setup()
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -474,6 +488,9 @@ class DoOperation(Operation):
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
 
+  def start(self):
+    with self.scoped_start_state:
+      super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def process(self, o):
@@ -489,6 +506,13 @@ class DoOperation(Operation):
   def finish(self):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
+
+  def reset(self):
+    super(DoOperation, self).reset()
+    for side_input_map in self.side_input_maps:
+      side_input_map.reset()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()

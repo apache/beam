@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.common.collect.Iterables;
@@ -165,6 +164,11 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
+    }
+
+    @Override
+    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
+      return descriptor;
     }
 
     @Override

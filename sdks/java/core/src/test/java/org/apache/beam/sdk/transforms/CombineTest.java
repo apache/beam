@@ -57,6 +57,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -645,7 +646,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
       runTestSimpleCombine(
@@ -655,7 +656,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testSimpleCombineEmpty() {
       runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
@@ -692,7 +693,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testHotKeyCombining() {
       PCollection<KV<String, Integer>> input =
           copy(
@@ -964,13 +965,37 @@ public class CombineTest implements Serializable {
     public void testSimpleCombineWithContextEmpty() {
       runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
     }
+
+    @Test
+    public void testWithDefaultsPreservesSideInputs() {
+      final PCollectionView<Integer> view =
+          pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
+
+      Combine.Globally<Integer, String> combine =
+          Combine.globally(new TestCombineFnWithContext(view))
+              .withSideInputs(view)
+              .withoutDefaults();
+
+      assertEquals(Collections.singletonList(view), combine.getSideInputs());
+    }
+
+    @Test
+    public void testWithFanoutPreservesSideInputs() {
+      final PCollectionView<Integer> view =
+          pipeline.apply(Create.of(1)).apply(Sum.integersGlobally().asSingletonView());
+
+      Combine.Globally<Integer, String> combine =
+          Combine.globally(new TestCombineFnWithContext(view)).withSideInputs(view).withFanout(1);
+
+      assertEquals(Collections.singletonList(view), combine.getSideInputs());
+    }
   }
 
   /** Tests validating windowing behaviors. */
   @RunWith(JUnit4.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testFixedWindowsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -1253,7 +1278,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testWindowedCombineEmpty() {
       PCollection<Double> mean =
           pipeline
@@ -1374,7 +1399,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class AccumulationTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testAccumulatingCombine() {
       runTestAccumulatingCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -1383,7 +1408,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
     public void testAccumulatingCombineEmpty() {
       runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }

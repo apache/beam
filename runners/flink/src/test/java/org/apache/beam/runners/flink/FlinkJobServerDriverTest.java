@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.sdk.options.PortablePipelineOptions.SDK_WORKER_PARALLELISM_PIPELINE;
-import static org.apache.beam.sdk.options.PortablePipelineOptions.SDK_WORKER_PARALLELISM_STAGE;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.core.Is.is;
@@ -46,7 +44,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.port, is(8099));
     assertThat(config.artifactPort, is(8098));
     assertThat(config.flinkMasterUrl, is("[auto]"));
-    assertThat(config.sdkWorkerParallelism, is(SDK_WORKER_PARALLELISM_PIPELINE));
+    assertThat(config.sdkWorkerParallelism, is(1L));
     assertThat(config.cleanArtifactsPerJob, is(false));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
@@ -63,14 +61,14 @@ public class FlinkJobServerDriverTest {
               "--artifact-port",
               "43",
               "--flink-master-url=jobmanager",
-              "--sdk-worker-parallelism=stage",
+              "--sdk-worker-parallelism=4",
               "--clean-artifacts-per-job",
             });
     assertThat(driver.configuration.host, is("test"));
     assertThat(driver.configuration.port, is(42));
     assertThat(driver.configuration.artifactPort, is(43));
     assertThat(driver.configuration.flinkMasterUrl, is("jobmanager"));
-    assertThat(driver.configuration.sdkWorkerParallelism, is(SDK_WORKER_PARALLELISM_STAGE));
+    assertThat(driver.configuration.sdkWorkerParallelism, is(4L));
     assertThat(driver.configuration.cleanArtifactsPerJob, is(true));
   }
 

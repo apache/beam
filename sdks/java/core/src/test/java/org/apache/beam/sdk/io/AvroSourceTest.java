@@ -141,7 +141,7 @@ public class AvroSourceTest {
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,
@@ -722,7 +722,7 @@ public class AvroSourceTest {
   @Test
   public void testReadMetadataWithCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,

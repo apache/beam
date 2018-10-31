@@ -335,14 +335,6 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in self.proto_pipeline.components.pcollections.values():
-      if pcoll.coder_id not in self.proto_context.coders:
-        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-        pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(
-        self.proto_pipeline.components.coders)
-
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
@@ -351,7 +343,7 @@ class DataflowRunner(PipelineRunner):
     setup_options.beam_plugins = plugins
 
     # Elevate "min_cpu_platform" to pipeline option, but using the existing
-    # experiment
+    # experiment.
     debug_options = pipeline._options.view_as(DebugOptions)
     worker_options = pipeline._options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
@@ -381,6 +373,18 @@ class DataflowRunner(PipelineRunner):
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
+
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      if not apiclient._use_fnapi(pipeline._options):
+        logging.fatal(
+            'Typical end users should not use this worker jar feature. '
+            'It can only be used when fnapi is enabled.')
+
+      experiments = ["use_staged_dataflow_worker_jar"]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.

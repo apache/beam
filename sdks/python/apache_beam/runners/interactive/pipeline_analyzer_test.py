@@ -38,9 +38,9 @@ def to_stable_runner_api(p):
   """The extra round trip ensures a stable pipeline proto.
   """
   return (beam.pipeline.Pipeline.from_runner_api(
-      p.to_runner_api(),
+      p.to_runner_api(use_fake_coders=True),
       p.runner,
-      p._options).to_runner_api())
+      p._options).to_runner_api(use_fake_coders=True))
 
 
 class PipelineAnalyzerTest(unittest.TestCase):

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -86,6 +88,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 
 /**
  * A translator that translates bounded portable pipelines into executable Flink pipelines.
@@ -333,19 +336,46 @@ public class FlinkBatchPortablePipelineTranslator
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    FlinkExecutableStageFunction<InputT> function =
+
+    String inputPCollectionId = stagePayload.getInput();
+    DataSet<WindowedValue<InputT>> inputDataSet = context.getDataSetOrThrow(inputPCollectionId);
+
+    final boolean stateful = stagePayload.getUserStatesCount() > 0;
+    final FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
             stagePayload,
             context.getJobInfo(),
             outputMap,
-            FlinkExecutableStageContext.factory(context.getPipelineOptions()));
+            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
+            stateful);
 
-    DataSet<WindowedValue<InputT>> inputDataSet =
-        context.getDataSetOrThrow(stagePayload.getInput());
+    final SingleInputUdfOperator taggedDataset;
+    if (stateful) {
+      Coder<WindowedValue<InputT>> windowedInputCoder =
+          instantiateCoder(inputPCollectionId, components);
+      Coder valueCoder =
+          ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
+      // Stateful stages are only allowed of KV input to be able to group on the key
+      if (!(valueCoder instanceof KvCoder)) {
+        throw new IllegalStateException(
+            String.format(
+                Locale.ENGLISH,
+                "The element coder for stateful DoFn '%s' must be KvCoder but is: %s",
+                inputPCollectionId,
+                valueCoder.getClass().getSimpleName()));
+      }
+      Coder keyCoder = ((KvCoder) valueCoder).getKeyCoder();
 
-    MapPartitionOperator<WindowedValue<InputT>, RawUnionValue> taggedDataset =
-        new MapPartitionOperator<>(
-            inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+      Grouping<WindowedValue<InputT>> groupedInput =
+          inputDataSet.groupBy(new KvKeySelector<>(keyCoder));
+      taggedDataset =
+          new GroupReduceOperator<>(
+              groupedInput, typeInformation, function, transform.getTransform().getUniqueName());
+    } else {
+      taggedDataset =
+          new MapPartitionOperator<>(
+              inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+    }
 
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
       String collectionId =
@@ -372,7 +402,7 @@ public class FlinkBatchPortablePipelineTranslator
       // no-op sink to each to make sure they are materialized by Flink. However, some SDK-executed
       // stages have no runner-visible output after fusion. We handle this case by adding a sink
       // here.
-      taggedDataset.output(new DiscardingOutputFormat());
+      taggedDataset.output(new DiscardingOutputFormat<>());
     }
   }
 

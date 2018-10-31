@@ -137,7 +137,7 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       currentRow = results.next();
-      return (currentRow != null);
+      return currentRow != null;
     }
 
     @Override

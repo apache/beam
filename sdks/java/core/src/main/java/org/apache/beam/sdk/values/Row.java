@@ -347,12 +347,12 @@ public abstract class Row implements Serializable {
     }
     Row other = (Row) o;
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.equals(getValues(), other.getValues());
+        && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getValues());
+    return Arrays.deepHashCode(new Object[] {getSchema(), getValues().toArray()});
   }
 
   @Override
@@ -381,7 +381,7 @@ public abstract class Row implements Serializable {
       this.schema = schema;
     }
 
-    public Builder addValue(Object values) {
+    public Builder addValue(@Nullable Object values) {
       this.values.add(values);
       return this;
     }
@@ -589,7 +589,7 @@ public abstract class Row implements Serializable {
     public Row build() {
       checkNotNull(schema);
       if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
-        throw new IllegalArgumentException(("Cannot specify both values and getters."));
+        throw new IllegalArgumentException("Cannot specify both values and getters.");
       }
       if (!this.values.isEmpty()) {
         List<Object> storageValues = attached ? this.values : verify(schema, this.values);

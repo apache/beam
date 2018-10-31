@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import com.google.common.collect.Iterables;
@@ -84,7 +83,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
   }
 
   private static class SplittableRemoteStageEvaluator<InputT, RestrictionT>
-      implements TransformEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> {
+      implements TransformEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> {
     private final PTransformNode transform;
     private final ExecutableStage stage;
 
@@ -115,7 +114,7 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
               WireCoders.<KV<InputT, RestrictionT>>instantiateRunnerWireCoder(
                   stage.getInputPCollection(), stage.getComponents());
       KvCoder<InputT, RestrictionT> kvCoder =
-          ((KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder());
+          (KvCoder<InputT, RestrictionT>) windowedValueCoder.getValueCoder();
       this.feeder =
           new SDFFeederViaStateAndTimers<>(
               stateInternals,
@@ -151,9 +150,9 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
 
     @Override
     public void processElement(
-        WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>> windowedWorkItem)
+        WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> windowedWorkItem)
         throws Exception {
-      KeyedWorkItem<String, KV<InputT, RestrictionT>> kwi = windowedWorkItem.getValue();
+      KeyedWorkItem<byte[], KV<InputT, RestrictionT>> kwi = windowedWorkItem.getValue();
       WindowedValue<KV<InputT, RestrictionT>> elementRestriction =
           Iterables.getOnlyElement(kwi.elementsIterable(), null);
       if (elementRestriction != null) {
@@ -165,12 +164,12 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
     }
 
     @Override
-    public TransformResult<KeyedWorkItem<String, KV<InputT, RestrictionT>>> finishBundle()
+    public TransformResult<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> finishBundle()
         throws Exception {
       bundle.close();
       feeder.commit();
       CopyOnAccessInMemoryStateInternals<byte[]> state = stateInternals.commit();
-      StepTransformResult.Builder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> result =
+      StepTransformResult.Builder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> result =
           StepTransformResult.withHold(transform, state.getEarliestWatermarkHold());
       return result
           .addOutput(outputs)

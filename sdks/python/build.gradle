@@ -25,6 +25,8 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+
 def envdir = "${project.buildDir}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
@@ -322,11 +324,19 @@ task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
 }
 
 task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
   doLast {
     exec {
       executable 'sh'
       // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' " +
+              "streaming TestDataflowRunner " +
+              "${dataflowTempRoot} ${dataflowProject}  ${dataflowWorkerJar} "
     }
   }
 }
@@ -340,24 +350,52 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+class CompatibilityMatrixConfig {
+  // Execute batch or streaming pipelines.
+  boolean streaming = false
+  // Execute on Docker or Process based environment.
+  SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
+
+  enum SDK_WORKER_TYPE {
+    DOCKER, PROCESS
+  }
+}
+
 def flinkCompatibilityMatrix = {
-  def type = it
-  def name = 'flinkCompatibilityMatrix' + type
+  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
+  def workerType = config.workerType.name()
+  def streaming = config.streaming
+  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
+  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${workerType}"
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
+    if (workerType.toLowerCase() == 'docker')
+      dependsOn ':beam-sdks-python-container:docker'
+    else
+      dependsOn 'createProcessWorker'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
+        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''}"
       }
     }
   }
 }
 
-flinkCompatibilityMatrix('Batch')
-flinkCompatibilityMatrix('Streaming')
+task flinkCompatibilityMatrixDocker() {
+  dependsOn flinkCompatibilityMatrix(streaming: false)
+  dependsOn flinkCompatibilityMatrix(streaming: true)
+}
+
+task flinkCompatibilityMatrixProcess() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+}
+
+task flinkValidatesRunner() {
+  dependsOn 'flinkCompatibilityMatrixDocker'
+}
 
 task postCommit() {
   dependsOn "preCommit"
@@ -378,4 +416,22 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
 task buildSnapshot() {
   dependsOn 'sdist'
   dependsOn 'depSnapshot'
+}
+
+project.task('createProcessWorker') {
+  dependsOn ':beam-sdks-python-container:build'
+  dependsOn 'setupVirtualenv'
+  def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
+  def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/linux_amd64/boot"
+  def sdkWorkerFileCode = "sh -c \". ${envdir}/bin/activate && ${workerScript} \$* \""
+  outputs.file sdkWorkerFile
+  doLast {
+    sdkWorkerFile.write sdkWorkerFileCode
+    exec {
+      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+    }
+    exec {
+      commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
 }

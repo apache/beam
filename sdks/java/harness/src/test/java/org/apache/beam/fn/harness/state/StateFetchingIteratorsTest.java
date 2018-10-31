@@ -71,7 +71,6 @@ public class StateFetchingIteratorsTest {
       BeamFnStateClient fakeStateClient =
           (requestBuilder, response) -> {
             ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
-            StateGetResponse.Builder builder = StateGetResponse.newBuilder();
 
             int requestedPosition = 0; // Default position is 0
             if (!ByteString.EMPTY.equals(continuationToken)) {

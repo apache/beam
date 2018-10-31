@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -363,7 +362,10 @@ public class QueryablePipeline {
                           Iterables.getOnlyElement(
                               Sets.difference(
                                   transform.getTransform().getInputsMap().keySet(),
-                                  getLocalSideInputNames(transformProto))));
+                                  ImmutableSet.builder()
+                                      .addAll(getLocalSideInputNames(transformProto))
+                                      .addAll(getLocalTimerNames(transformProto))
+                                      .build())));
               PCollection collection = components.getPcollectionsOrThrow(collectionId);
               return UserStateReference.of(
                   PipelineNode.pTransform(transformId, transformProto),

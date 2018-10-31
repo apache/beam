@@ -34,11 +34,8 @@ import grpc
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
 from apache_beam import metrics
-from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
-from apache_beam.internal import pickler
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -65,7 +62,7 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
     beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
         beam.transforms.window.GlobalWindows.windowed_value(b''))
 
-IMPULSE_BUFFER_PREFIX = b'impulse:'
+IMPULSE_BUFFER = b'impulse'
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -123,8 +120,11 @@ class _GroupingBuffer(object):
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
     self._windowing = windowing
+    self._grouped_output = None
 
   def append(self, elements_data):
+    if self._grouped_output:
+      raise RuntimeError('Grouping table append after read.')
     input_stream = create_InputStream(elements_data)
     coder_impl = self._pre_grouped_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
@@ -139,20 +139,24 @@ class _GroupingBuffer(object):
           else windowed_key_value.with_value(value))
 
   def __iter__(self):
-    output_stream = create_OutputStream()
-    if self._windowing.is_default():
-      globally_window = GlobalWindows.windowed_value(None).with_value
-      windowed_key_values = lambda key, values: [globally_window((key, values))]
-    else:
-      trigger_driver = trigger.create_trigger_driver(self._windowing, True)
-      windowed_key_values = trigger_driver.process_entire_key
-    coder_impl = self._post_grouped_coder.get_impl()
-    key_coder_impl = self._key_coder.get_impl()
-    for encoded_key, windowed_values in self._table.items():
-      key = key_coder_impl.decode(encoded_key)
-      for wkvs in windowed_key_values(key, windowed_values):
-        coder_impl.encode_to_stream(wkvs, output_stream, True)
-    return iter([output_stream.get()])
+    if not self._grouped_output:
+      output_stream = create_OutputStream()
+      if self._windowing.is_default():
+        globally_window = GlobalWindows.windowed_value(None).with_value
+        windowed_key_values = lambda key, values: [
+            globally_window((key, values))]
+      else:
+        trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+        windowed_key_values = trigger_driver.process_entire_key
+      coder_impl = self._post_grouped_coder.get_impl()
+      key_coder_impl = self._key_coder.get_impl()
+      for encoded_key, windowed_values in self._table.items():
+        key = key_coder_impl.decode(encoded_key)
+        for wkvs in windowed_key_values(key, windowed_values):
+          coder_impl.encode_to_stream(wkvs, output_stream, True)
+      self._grouped_output = [output_stream.get()]
+      self._table = None
+    return iter(self._grouped_output)
 
 
 class _WindowGroupingBuffer(object):
@@ -199,7 +203,7 @@ class _WindowGroupingBuffer(object):
 
 class FnApiRunner(runner.PipelineRunner):
 
-  def __init__(self, use_grpc=False, sdk_harness_factory=None):
+  def __init__(self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0):
     """Creates a new Fn API Runner.
 
     Args:
@@ -207,6 +211,8 @@ class FnApiRunner(runner.PipelineRunner):
           defaults to False
       sdk_harness_factory: callable used to instantiate customized sdk harnesses
           typcially not set by users
+      bundle_repeat: replay every bundle this many extra times, for profiling
+          and debugging
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
@@ -214,6 +220,7 @@ class FnApiRunner(runner.PipelineRunner):
     if sdk_harness_factory and not use_grpc:
       raise ValueError('GRPC must be used if a harness factory is provided.')
     self._sdk_harness_factory = sdk_harness_factory
+    self._bundle_repeat = bundle_repeat
     self._progress_frequency = None
 
   def _next_uid(self):
@@ -451,14 +458,12 @@ class FnApiRunner(runner.PipelineRunner):
         for transform in list(stage.transforms):
           if transform.spec.urn == common_urns.primitives.IMPULSE.urn:
             stage.transforms.remove(transform)
-            impulse_pc = only_element(transform.outputs.values())
             stage.transforms.append(
                 beam_runner_api_pb2.PTransform(
                     unique_name=transform.unique_name,
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_INPUT_URN,
-                        payload=IMPULSE_BUFFER_PREFIX +
-                        impulse_pc.encode('utf-8')),
+                        payload=IMPULSE_BUFFER),
                     outputs=transform.outputs))
 
         yield stage
@@ -611,7 +616,7 @@ class FnApiRunner(runner.PipelineRunner):
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
 
           # This is used later to correlate the read and write.
-          param = str("group:%s" % stage.name).encode('utf-8')
+          grouping_buffer = create_buffer_id(stage.name, kind='group')
           if stage.name not in pipeline_components.transforms:
             pipeline_components.transforms[stage.name].CopyFrom(transform)
           gbk_write = Stage(
@@ -621,7 +626,7 @@ class FnApiRunner(runner.PipelineRunner):
                   inputs=transform.inputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
-                      payload=param))],
+                      payload=grouping_buffer))],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           yield gbk_write
@@ -633,7 +638,7 @@ class FnApiRunner(runner.PipelineRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      payload=param))],
+                      payload=grouping_buffer))],
               downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
@@ -653,7 +658,7 @@ class FnApiRunner(runner.PipelineRunner):
         transform = stage.transforms[0]
         if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
           # This is used later to correlate the read and writes.
-          param = str("materialize:%s" % transform.unique_name).encode('utf-8')
+          buffer_id = create_buffer_id(transform.unique_name)
           output_pcoll_id, = list(transform.outputs.values())
           output_coder_id = pcollections[output_pcoll_id].coder_id
           flatten_writes = []
@@ -689,7 +694,7 @@ class FnApiRunner(runner.PipelineRunner):
                     inputs={local_in: transcoded_pcollection},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        payload=param))],
+                        payload=buffer_id))],
                 downstream_side_inputs=frozenset(),
                 must_follow=stage.must_follow)
             flatten_writes.append(flatten_write)
@@ -702,7 +707,7 @@ class FnApiRunner(runner.PipelineRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      payload=param))],
+                      payload=buffer_id))],
               downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
@@ -801,7 +806,6 @@ class FnApiRunner(runner.PipelineRunner):
 
       # Now try to fuse away all pcollections.
       for pcoll, producer in producers_by_pcoll.items():
-        pcoll_as_param = str("materialize:%s" % pcoll).encode('utf-8')
         write_pcoll = None
         for consumer in consumers_by_pcoll[pcoll]:
           producer = replacement(producer)
@@ -813,6 +817,7 @@ class FnApiRunner(runner.PipelineRunner):
             fuse(producer, consumer)
           else:
             # If we can't fuse, do a read + write.
+            buffer_id = create_buffer_id(pcoll)
             if write_pcoll is None:
               write_pcoll = Stage(
                   pcoll + '/Write',
@@ -821,7 +826,7 @@ class FnApiRunner(runner.PipelineRunner):
                       inputs={'in': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          payload=pcoll_as_param))])
+                          payload=buffer_id))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
               read_pcoll = Stage(
@@ -831,7 +836,7 @@ class FnApiRunner(runner.PipelineRunner):
                       outputs={'out': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          payload=pcoll_as_param))],
+                          payload=buffer_id))],
                   must_follow=frozenset([write_pcoll]))
               fuse(read_pcoll, consumer)
             else:
@@ -915,16 +920,16 @@ class FnApiRunner(runner.PipelineRunner):
                       outputs={'out': timer_read_pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          payload=('timers:%s' % timer_read_pcoll).encode(
-                              'utf-8'))))
+                          payload=create_buffer_id(
+                              timer_read_pcoll, kind='timers'))))
               stage.transforms.append(
                   beam_runner_api_pb2.PTransform(
                       unique_name=timer_write_pcoll + '/Write',
                       inputs={'in': timer_write_pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          payload=('timers:%s' % timer_write_pcoll).encode(
-                              'utf-8'))))
+                          payload=create_buffer_id(
+                              timer_write_pcoll, kind='timers'))))
               assert tag not in transform.inputs
               transform.inputs[tag] = timer_read_pcoll
               assert tag not in transform.outputs
@@ -953,19 +958,15 @@ class FnApiRunner(runner.PipelineRunner):
 
     pipeline_components = copy.deepcopy(pipeline_proto.components)
 
-    # Reify coders.
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    coders = pipeline_context.PipelineContext(pipeline_components).coders
+    # Some SDK workers require windowed coders for their PCollections.
+    # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
     for pcoll in pipeline_components.pcollections.values():
-      if pcoll.coder_id not in coders:
-        window_coder = coders[
+      if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
+          != common_urns.coders.WINDOWED_VALUE.urn):
+        pcoll.coder_id = windowed_coder_id(
+            pcoll.coder_id,
             pipeline_components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id]
-        coder = WindowedValueCoder(
-            registry.get_coder(pickler.loads(pcoll.coder_id)),
-            window_coder=window_coder)
-        pcoll.coder_id = coders.get_id(coder)
-    coders.populate_map(pipeline_components.coders)
+                pcoll.windowing_strategy_id].window_coder_id)
 
     known_composites = set(
         [common_urns.primitives.GROUP_BY_KEY.urn,
@@ -1041,7 +1042,7 @@ class FnApiRunner(runner.PipelineRunner):
           pcoll_id = transform.spec.payload
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
             target = transform.unique_name, only_element(transform.outputs)
-            if pcoll_id.startswith(IMPULSE_BUFFER_PREFIX):
+            if pcoll_id == IMPULSE_BUFFER:
               data_input[target] = [ENCODED_IMPULSE_VALUE]
             else:
               data_input[target] = pcoll_buffers[pcoll_id]
@@ -1064,7 +1065,7 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
             data_side_input[transform.unique_name, tag] = (
-                'materialize:' + transform.inputs[tag],
+                create_buffer_id(transform.inputs[tag]),
                 beam.pvalue.SideInputData.from_runner_api(si, context))
       return data_input, data_side_input, data_output
 
@@ -1087,12 +1088,12 @@ class FnApiRunner(runner.PipelineRunner):
           controller.state_api_service_descriptor().url)
 
     # Store the required side inputs into state.
-    for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
-      actual_pcoll_id = pcoll_id[len(b"materialize:"):]
+    for (transform_id, tag), (buffer_id, si) in data_side_input.items():
+      _, pcoll_id = split_buffer_id(buffer_id)
       value_coder = context.coders[safe_coders[
-          pipeline_components.pcollections[actual_pcoll_id].coder_id]]
+          pipeline_components.pcollections[pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
-      for element_data in pcoll_buffers[pcoll_id]:
+      for element_data in pcoll_buffers[buffer_id]:
         elements_by_window.append(element_data)
       for key, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
@@ -1103,16 +1104,16 @@ class FnApiRunner(runner.PipelineRunner):
                 key=key))
         controller.state_handler.blocking_append(state_key, elements_data)
 
-    def get_buffer(pcoll_id):
-      if (pcoll_id.startswith(b'materialize:')
-          or pcoll_id.startswith(b'timers:')):
-        if pcoll_id not in pcoll_buffers:
+    def get_buffer(buffer_id):
+      kind, name = split_buffer_id(buffer_id)
+      if kind in ('materialize', 'timers'):
+        if buffer_id not in pcoll_buffers:
           # Just store the data chunks for replay.
-          pcoll_buffers[pcoll_id] = list()
-      elif pcoll_id.startswith(b'group:'):
+          pcoll_buffers[buffer_id] = list()
+      elif kind == 'group':
         # This is a grouping write, create a grouping buffer if needed.
-        if pcoll_id not in pcoll_buffers:
-          original_gbk_transform = pcoll_id.split(b':', 1)[1]
+        if buffer_id not in pcoll_buffers:
+          original_gbk_transform = name
           transform_proto = pipeline_components.transforms[
               original_gbk_transform]
           input_pcoll = only_element(list(transform_proto.inputs.values()))
@@ -1124,13 +1125,22 @@ class FnApiRunner(runner.PipelineRunner):
           windowing_strategy = context.windowing_strategies[
               pipeline_components
               .pcollections[output_pcoll].windowing_strategy_id]
-          pcoll_buffers[pcoll_id] = _GroupingBuffer(
+          pcoll_buffers[buffer_id] = _GroupingBuffer(
               pre_gbk_coder, post_gbk_coder, windowing_strategy)
       else:
         # These should be the only two identifiers we produce for now,
         # but special side input writes may go here.
-        raise NotImplementedError(pcoll_id)
-      return pcoll_buffers[pcoll_id]
+        raise NotImplementedError(buffer_id)
+      return pcoll_buffers[buffer_id]
+
+    for k in range(self._bundle_repeat):
+      try:
+        controller.state_handler.checkpoint()
+        BundleManager(
+            controller, lambda pcoll_id: [], process_bundle_descriptor,
+            self._progress_frequency, k).process_bundle(data_input, data_output)
+      finally:
+        controller.state_handler.restore()
 
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
@@ -1141,7 +1151,8 @@ class FnApiRunner(runner.PipelineRunner):
       for transform_id, timer_writes in stage.timer_pcollections:
         windowed_timer_coder_impl = context.coders[
             pipeline_components.pcollections[timer_writes].coder_id].get_impl()
-        written_timers = get_buffer(b'timers:' + timer_writes.encode('utf-8'))
+        written_timers = get_buffer(
+            create_buffer_id(timer_writes, kind='timers'))
         if written_timers:
           # Keep only the "last" timer set per key and window.
           timers_by_key_and_window = {}
@@ -1171,7 +1182,8 @@ class FnApiRunner(runner.PipelineRunner):
             controller,
             get_buffer,
             process_bundle_descriptor,
-            self._progress_frequency).process_bundle(timer_inputs, data_output)
+            self._progress_frequency,
+            True).process_bundle(timer_inputs, data_output)
       else:
         break
 
@@ -1181,9 +1193,60 @@ class FnApiRunner(runner.PipelineRunner):
 
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
+    class CopyOnWriteState(object):
+      def __init__(self, underlying):
+        self._underlying = underlying
+        self._overlay = {}
+
+      def __getitem__(self, key):
+        if key in self._overlay:
+          return self._overlay[key]
+        else:
+          return FnApiRunner.StateServicer.CopyOnWriteList(
+              self._underlying, self._overlay, key)
+
+      def __delitem__(self, key):
+        self._overlay[key] = []
+
+      def commit(self):
+        self._underlying.update(self._overlay)
+        return self._underlying
+
+    class CopyOnWriteList(object):
+      def __init__(self, underlying, overlay, key):
+        self._underlying = underlying
+        self._overlay = overlay
+        self._key = key
+
+      def __iter__(self):
+        if self._key in self._overlay:
+          return iter(self._overlay[self._key])
+        else:
+          return iter(self._underlying[self._key])
+
+      def append(self, item):
+        if self._key not in self._overlay:
+          self._overlay[self._key] = list(self._underlying[self._key])
+        self._overlay[self._key].append(item)
+
     def __init__(self):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
+      self._checkpoint = None
+
+    def checkpoint(self):
+      assert self._checkpoint is None
+      self._checkpoint = self._state
+      self._state = FnApiRunner.StateServicer.CopyOnWriteState(self._state)
+
+    def commit(self):
+      self._state.commit()
+      self._state = self._checkpoint.commit()
+      self._checkpoint = None
+
+    def restore(self):
+      self._state = self._checkpoint
+      self._checkpoint = None
 
     @contextlib.contextmanager
     def process_instruction_id(self, unused_instruction_id):
@@ -1356,11 +1419,12 @@ class BundleManager(object):
   _uid_counter = 0
 
   def __init__(
-      self, controller, get_buffer, bundle_descriptor, progress_frequency=None):
+      self, controller, get_buffer, bundle_descriptor, progress_frequency=None,
+      skip_registration=False):
     self._controller = controller
     self._get_buffer = get_buffer
     self._bundle_descriptor = bundle_descriptor
-    self._registered = False
+    self._registered = skip_registration
     self._progress_frequency = progress_frequency
 
   def process_bundle(self, inputs, expected_outputs):
@@ -1571,3 +1635,11 @@ def unique_name(existing, prefix):
         return prefix_counter
   else:
     return prefix
+
+
+def create_buffer_id(name, kind='materialize'):
+  return ('%s:%s' % (kind, name)).encode('utf-8')
+
+
+def split_buffer_id(buffer_id):
+  return buffer_id.decode('utf-8').split(':', 1)

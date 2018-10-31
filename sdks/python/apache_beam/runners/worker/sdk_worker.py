@@ -21,6 +21,7 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import collections
 import contextlib
 import logging
 import queue
@@ -174,6 +175,8 @@ class SdkHarness(object):
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle.add(request.instruction_id)
     self._process_thread_pool.submit(task)
+    logging.debug(
+        "Currently using %s threads." % len(self._process_thread_pool._threads))
 
   def _request_process_bundle_progress(self, request):
 
@@ -202,7 +205,8 @@ class SdkWorker(object):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
-    self.bundle_processors = {}
+    self.active_bundle_processors = {}
+    self.cached_bundle_processors = collections.defaultdict(list)
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -221,29 +225,43 @@ class SdkWorker(object):
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
-    state_handler = self.state_handler_factory.create_state_handler(
-        process_bundle_desc.state_api_service_descriptor)
-    self.bundle_processors[
-        instruction_id] = processor = bundle_processor.BundleProcessor(
-            process_bundle_desc,
-            state_handler,
-            self.data_channel_factory)
-    try:
-      with state_handler.process_instruction_id(instruction_id):
-        processor.process_bundle(instruction_id)
-    finally:
-      del self.bundle_processors[instruction_id]
+    with self.get_bundle_processor(
+        instruction_id,
+        request.process_bundle_descriptor_reference) as bundle_processor:
+      bundle_processor.process_bundle(instruction_id)
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              metrics=bundle_processor.metrics(),
+              monitoring_infos=bundle_processor.monitoring_infos()))
 
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-            metrics=processor.metrics(),
-            monitoring_infos=processor.monitoring_infos()))
+  @contextlib.contextmanager
+  def get_bundle_processor(self, instruction_id, bundle_descriptor_id):
+    try:
+      # pop() is threadsafe
+      processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
+      state_handler = processor.state_handler
+    except IndexError:
+      process_bundle_desc = self.fns[bundle_descriptor_id]
+      state_handler = self.state_handler_factory.create_state_handler(
+          process_bundle_desc.state_api_service_descriptor)
+      processor = bundle_processor.BundleProcessor(
+          process_bundle_desc,
+          state_handler,
+          self.data_channel_factory)
+    try:
+      self.active_bundle_processors[instruction_id] = processor
+      with state_handler.process_instruction_id(instruction_id):
+        yield processor
+    finally:
+      del self.active_bundle_processors[instruction_id]
+    # Outside the finally block as we only want to re-use on success.
+    processor.reset()
+    self.cached_bundle_processors[bundle_descriptor_id].append(processor)
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.bundle_processors.get(request.instruction_reference)
+    processor = self.active_bundle_processors.get(request.instruction_reference)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(

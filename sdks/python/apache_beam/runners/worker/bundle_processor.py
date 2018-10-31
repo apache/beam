@@ -151,7 +151,6 @@ class StateBackedSideInputMap(object):
     self._element_coder = coder.wrapped_value_coder
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
-    # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
 
   def __getitem__(self, window):
@@ -204,6 +203,10 @@ class StateBackedSideInputMap(object):
   def is_globally_windowed(self):
     return (self._side_input_data.window_mapping_fn
             == sideinputs._global_window_mapping_fn)
+
+  def reset(self):
+    # TODO(BEAM-5428): Cross-bundle caching respecting cache tokens.
+    self._cache = {}
 
 
 class CombiningValueRuntimeState(userstate.RuntimeState):
@@ -310,6 +313,10 @@ class FnApiUserStateContext(userstate.UserStateContext):
     else:
       raise NotImplementedError(state_spec)
 
+  def reset(self):
+    # TODO(BEAM-5428): Implement cross-bundle state caching.
+    pass
+
 
 def memoize(func):
   cache = {}
@@ -342,6 +349,8 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    for op in self.ops.values():
+      op.setup()
 
   def create_execution_tree(self, descriptor):
 
@@ -384,6 +393,13 @@ class BundleProcessor(object):
         (transform_id, get_operation(transform_id))
         for transform_id in sorted(
             descriptor.transforms, key=topological_height, reverse=True)])
+
+  def reset(self):
+    self.counter_factory.reset()
+    self.state_sampler.reset()
+    # Side input caches.
+    for op in self.ops.values():
+      op.reset()
 
   def process_bundle(self, instruction_id):
     expected_inputs = []
@@ -499,6 +515,9 @@ class BeamTransformFactory(object):
 
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
+    if not transform_proto.unique_name:
+      logging.warn("No unique name set for transform %s" % transform_id)
+      transform_proto.unique_name = transform_id
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
         transform_proto.spec.payload, parameter_type)
@@ -582,15 +601,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.outputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_output_coder(transform_proto)
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_output_coder(transform_proto),
+      output_coder,
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -601,15 +626,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.inputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_input_coder(transform_proto)
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_input_coder(transform_proto),
+      output_coder,
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 

@@ -143,6 +143,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coder, len)
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
+  def test_fast_primitives_coder_large_int(self):
+    coder = coders.FastPrimitivesCoder()
+    self.check_coder(coder, 10 ** 100)
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 

@@ -248,7 +248,7 @@ class Injector {
               + currTime);
       removeTeam(index);
       // Add a new team in its stead.
-      return (addLiveTeam());
+      return addLiveTeam();
     } else {
       return team;
     }

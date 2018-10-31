@@ -101,7 +101,7 @@ import org.joda.time.format.DateTimeFormatter;
  * PipelineOptionsFactory as your command-line interpreter, you will provide a standardized way for
  * users to interact with your application via the command-line.
  *
- * <p>To define your own {@link PipelineOptions}, you create an interface which extends {@link
+ * <p>To define your own {@link PipelineOptions}, you create a public interface which extends {@link
  * PipelineOptions} and define getter/setter pairs. These getter/setter pairs define a collection of
  * <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBean
  * properties</a>.
@@ -445,4 +445,15 @@ public interface PipelineOptions extends HasDisplayData {
   String getMetricsHttpSinkUrl();
 
   void setMetricsHttpSinkUrl(String metricsSink);
+
+  @Description("The graphite metrics host")
+  String getMetricsGraphiteHost();
+
+  void setMetricsGraphiteHost(String host);
+
+  @Description("The graphite metrics port")
+  @Default.Integer(2003)
+  Integer getMetricsGraphitePort();
+
+  void setMetricsGraphitePort(Integer port);
 }
