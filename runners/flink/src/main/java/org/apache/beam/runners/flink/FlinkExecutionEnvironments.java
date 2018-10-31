@@ -77,6 +77,9 @@ public class FlinkExecutionEnvironments {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     }
 
+    // Set the execution more for data exchange.
+    flinkBatchEnv.getConfig().setExecutionMode(options.getExecutionModeForBatch());
+
     // set the correct parallelism.
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
