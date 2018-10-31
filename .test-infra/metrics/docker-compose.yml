@@ -43,6 +43,19 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
       - GF_INSTALL_PLUGINS=vonage-status-panel
+  syncgithub:
+    image: syncgithub
+    container_name: beamsyncgithub
+    build:
+      context: ./sync/github
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
+      - GH_ACCESS_TOKEN=<GitHubAccessToken>
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins

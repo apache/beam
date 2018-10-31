@@ -70,8 +70,14 @@ def fetchJobs():
   return result
 
 def initConnection():
-  conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
-                          f" port='{port}' password='{dbpassword}'")
+  conn = None
+  while not conn:
+    try:
+      conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
+                              f" port='{port}' password='{dbpassword}'")
+    except:
+      print('Failed to connect to DB; retrying in 1 minute')
+      time.sleep(60)
   return conn
 
 def tableExists(cursor, tableName):
@@ -96,7 +102,7 @@ def initDbTablesIfNeeded():
 
   connection.close()
 
-
+# TODO rename to fetchLastSyncJobIds
 def fetchLastSyncTimestamp(cursor):
   fetchQuery = f'''
   select job_name, max(build_id)
