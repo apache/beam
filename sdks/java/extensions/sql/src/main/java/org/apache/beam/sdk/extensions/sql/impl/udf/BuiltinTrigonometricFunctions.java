@@ -20,32 +20,51 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * IS_NAN(X)
- *
- * <p>Returns TRUE if the value is a NaN value. Returns NULL for NULL inputs. input: Float, Double
- *
- * <p>Output: Boolean
- */
+/** TrigonometricFunctions. */
 @AutoService(BeamBuiltinFunctionProvider.class)
-public class IsNan extends BeamBuiltinFunctionProvider {
-  private static final String SQL_FUNCTION_NAME = "IS_NAN";
+public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
 
+  /**
+   * COSH(X)
+   *
+   * <p>Computes the hyperbolic cosine of X. Generates an error if an overflow occurs.
+   */
+  // TODO: handle overflow
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Schema.TypeName.FLOAT},
-    returnType = Schema.TypeName.BOOLEAN
+    funcName = "COSH",
+    parameterArray = {Schema.TypeName.DOUBLE},
+    returnType = Schema.TypeName.DOUBLE
   )
-  public Boolean isNan(Float value) {
-    return Float.isNaN(value);
+  public Double cosh(Double o) {
+    return Math.cosh(o);
   }
 
+  /**
+   * SINH(X)
+   *
+   * <p>Computes the hyperbolic sine of X. Generates an error if an overflow occurs.
+   */
+  // TODO: handle overflow
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
+    funcName = "SINH",
     parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.BOOLEAN
+    returnType = Schema.TypeName.DOUBLE
   )
-  public Boolean isNan(Double value) {
-    return Double.isNaN(value);
+  public Double sinh(Double o) {
+    return Math.sinh(o);
+  }
+
+  /**
+   * TANH(X)
+   *
+   * <p>Computes hyperbolic tangent of X. Does not fail.
+   */
+  @UDF(
+    funcName = "TANH",
+    parameterArray = {Schema.TypeName.DOUBLE},
+    returnType = Schema.TypeName.DOUBLE
+  )
+  public Double tanh(Double o) {
+    return Math.tanh(o);
   }
 }

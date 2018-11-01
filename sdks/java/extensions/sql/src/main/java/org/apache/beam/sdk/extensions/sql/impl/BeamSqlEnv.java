@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -77,7 +78,7 @@ public class BeamSqlEnv {
     return withTableProvider(inMemoryMetaStore);
   }
 
-  public void registerBuiltinUdf(Map<String, List<Method>> methods) {
+  private void registerBuiltinUdf(Map<String, List<Method>> methods) {
     for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
       for (Method method : entry.getValue()) {
         defaultSchema.add(entry.getKey(), ScalarFunctionImpl.create(method));
@@ -121,6 +122,13 @@ public class BeamSqlEnv {
                   .forEach((udfName, udfFn) -> registerUdf(udfName, udfFn));
               ins.getUdafs().forEach((udafName, udafFn) -> registerUdaf(udafName, udafFn));
             });
+  }
+
+  public void loadBeamBuiltinFunctions() {
+    for (BeamBuiltinFunctionProvider provider :
+        ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
+      registerBuiltinUdf(provider.getBuiltinMethods());
+    }
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
