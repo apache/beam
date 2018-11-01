@@ -24,6 +24,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -32,6 +33,7 @@ public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   String AUTO = "[auto]";
+  String PIPELINED = "PIPELINED";
 
   /**
    * List of local files to make available to workers.
@@ -187,4 +189,14 @@ public interface FlinkPipelineOptions
   Long getLatencyTrackingInterval();
 
   void setLatencyTrackingInterval(Long interval);
+
+  @Description(
+      "Flink mode for data exchange of batch pipelines. "
+          + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
+          + "Set this to BATCH_FORCED if pipelines get blocked, see "
+          + "https://issues.apache.org/jira/browse/FLINK-10672")
+  @Default.Enum(PIPELINED)
+  ExecutionMode getExecutionModeForBatch();
+
+  void setExecutionModeForBatch(ExecutionMode executionMode);
 }
