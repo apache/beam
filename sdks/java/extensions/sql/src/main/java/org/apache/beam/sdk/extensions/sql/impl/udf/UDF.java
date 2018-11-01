@@ -17,5 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
-/** BeamBuiltinFunctionClass interface. */
-interface BeamBuiltinFunctionClass {}
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import org.apache.beam.sdk.schemas.Schema;
+
+/** Make UserDefinedFunction annotation as package private. */
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD})
+@interface UDF {
+  String funcName();
+
+  Schema.TypeName[] parameterArray() default {};
+
+  Schema.TypeName returnType();
+}

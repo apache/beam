@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * IS_INF(X)
@@ -27,23 +28,23 @@ import com.google.auto.service.AutoService;
  *
  * <p>Output: Boolean
  */
-@AutoService(BeamBuiltinFunctionClass.class)
-public class IsInf implements BeamBuiltinFunctionClass {
+@AutoService(BeamBuiltinFunctionProvider.class)
+public class IsInf extends BeamBuiltinFunctionProvider {
   private static final String SQL_FUNCTION_NAME = "IS_INF";
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Double.class},
-    returnType = Boolean.class
+    parameterArray = {Schema.TypeName.DOUBLE},
+    returnType = Schema.TypeName.BOOLEAN
   )
   public Boolean isInf(Double value) {
     return Double.isInfinite(value);
   }
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Float.class},
-    returnType = Boolean.class
+    parameterArray = {Schema.TypeName.FLOAT},
+    returnType = Schema.TypeName.BOOLEAN
   )
   public Boolean isInf(Float value) {
     return Float.isInfinite(value);
