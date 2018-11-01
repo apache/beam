@@ -40,7 +40,7 @@ import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
 /**
- * prepare input records to test {@link BeamSql}.
+ * prepare input records to test.
  *
  * <p>Note that, any change in these records would impact tests in this package.
  */
@@ -51,15 +51,18 @@ public class BeamSqlDslBase {
   @Rule public ExpectedException exceptions = ExpectedException.none();
 
   static Schema schemaInTableA;
+  static Schema schemaFloatDouble;
   static List<Row> rowsInTableA;
+  static List<Row> rowsOfFloatDouble;
 
   //bounded PCollections
-  PCollection<Row> boundedInput1;
-  PCollection<Row> boundedInput2;
+  protected PCollection<Row> boundedInput1;
+  protected PCollection<Row> boundedInput2;
+  protected PCollection<Row> boundedInputFloatDouble;
 
   //unbounded PCollections
-  PCollection<Row> unboundedInput1;
-  PCollection<Row> unboundedInput2;
+  protected PCollection<Row> unboundedInput1;
+  protected PCollection<Row> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
@@ -124,6 +127,27 @@ public class BeamSqlDslBase {
                 0,
                 new BigDecimal(4))
             .getRows();
+
+    schemaFloatDouble =
+        Schema.builder()
+            .addFloatField("f_float_1")
+            .addDoubleField("f_double_1")
+            .addFloatField("f_float_2")
+            .addDoubleField("f_double_2")
+            .addFloatField("f_float_3")
+            .addDoubleField("f_double_3")
+            .build();
+
+    rowsOfFloatDouble =
+        TestUtils.RowsBuilder.of(schemaFloatDouble)
+            .addRows(
+                Float.POSITIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                Float.NEGATIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                Float.NaN,
+                Double.NaN)
+            .getRows();
   }
 
   @Before
@@ -143,6 +167,15 @@ public class BeamSqlDslBase {
             Create.of(rowsInTableA.get(0))
                 .withSchema(
                     schemaInTableA,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+
+    boundedInputFloatDouble =
+        pipeline.apply(
+            "boundedInputFloatDouble",
+            Create.of(rowsOfFloatDouble)
+                .withSchema(
+                    schemaFloatDouble,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 

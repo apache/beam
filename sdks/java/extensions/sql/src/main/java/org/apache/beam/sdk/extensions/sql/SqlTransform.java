@@ -90,6 +90,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
+    // TODO: validate duplicate functions.
+    sqlEnv.loadBeamBuiltinFunctions();
     registerFunctions(sqlEnv);
     if (autoUdfUdafLoad()) {
       sqlEnv.loadUdfUdafFromProvider();
