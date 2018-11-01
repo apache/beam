@@ -88,6 +88,14 @@ from functools import partial
 from functools import wraps
 
 
+class BeamDeprecationWarning(DeprecationWarning):
+  """Beam-specific deprecation warnings."""
+
+
+# Don't ignore BeamDeprecationWarnings.
+warnings.simplefilter('once', BeamDeprecationWarning)
+
+
 def annotate(label, since, current, extra_message, custom_message=None):
   """Decorates an API with a deprecated or experimental annotation.
 
@@ -114,7 +122,7 @@ def annotate(label, since, current, extra_message, custom_message=None):
     @wraps(fnc)
     def inner(*args, **kwargs):
       if label == 'deprecated':
-        warning_type = DeprecationWarning
+        warning_type = BeamDeprecationWarning
       else:
         warning_type = FutureWarning
       if custom_message is None:

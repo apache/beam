@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import unittest
 import warnings
 
+from apache_beam.utils.annotations import BeamDeprecationWarning
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
@@ -31,13 +32,10 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1', current='multiply', extra_message='Do this')
       def fnc_test_deprecated_with_since_current_message():
         return 'lol'
-      # Deprecation warnings are ignored by default, turn them on
-      # to enable testing.
-      warnings.simplefilter("always", DeprecationWarning)
       fnc_test_deprecated_with_since_current_message()
       self.check_annotation(
           warning=w,
-          warning_type=DeprecationWarning,
+          warning_type=BeamDeprecationWarning,
           obj_name='fnc_test_deprecated_with_since_current_message',
           annotation_type='deprecated',
           label_check_list=[('since', True),
@@ -49,12 +47,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1', current='multiply')
       def fnc_test_deprecated_with_since_current():
         return 'lol'
-      # Deprecation warnings are ignored by default, turn them on
-      # to enable testing.
-      warnings.simplefilter("once", DeprecationWarning)
       fnc_test_deprecated_with_since_current()
       self.check_annotation(warning=w,
-                            warning_type=DeprecationWarning,
+                            warning_type=BeamDeprecationWarning,
                             obj_name='fnc_test_deprecated_with_since_current',
                             annotation_type='deprecated',
                             label_check_list=[('since', True),
@@ -65,12 +60,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1')
       def fnc_test_deprecated_without_current():
         return 'lol'
-      # Deprecation warnings are ignored by default, turn them on
-      # to enable testing.
-      warnings.simplefilter("once", DeprecationWarning)
       fnc_test_deprecated_without_current()
       self.check_annotation(warning=w,
-                            warning_type=DeprecationWarning,
+                            warning_type=BeamDeprecationWarning,
                             obj_name='fnc_test_deprecated_without_current',
                             annotation_type='deprecated',
                             label_check_list=[('since', True),
@@ -133,7 +125,7 @@ class AnnotationTests(unittest.TestCase):
                             annotation_type='experimental',
                             label_check_list=[('instead', False)])
 
-  def test_decapreted_custom_no_replacements(self):
+  def test_deprecated_custom_no_replacements(self):
     """Tests if custom message prints an empty string
     for each replacement token when only the
     custom_message and since parameter are given."""
@@ -144,12 +136,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since=strSince, custom_message=strCustom)
       def fnc_test_experimental_custom_no_replacements():
         return 'lol'
-      # Deprecation warnings are ignored by default, turn them on
-      # to enable testing.
-      warnings.simplefilter("always", DeprecationWarning)
       fnc_test_experimental_custom_no_replacements()
       self.check_custom_annotation(warning=w,
-                                   warning_type=DeprecationWarning,
+                                   warning_type=BeamDeprecationWarning,
                                    obj_name='fnc_test_experimental_custom_no_\
                                    replacements',
                                    annotation_type='experimental',
@@ -185,13 +174,10 @@ class AnnotationTests(unittest.TestCase):
                   custom_message=strCustom)
       def fnc_test_deprecated_with_since_current_message_custom():
         return 'lol'
-      # Deprecation warnings are ignored by default, turn them
-      # on to enable testing.
-      warnings.simplefilter("always", DeprecationWarning)
       strName = fnc_test_deprecated_with_since_current_message_custom .__name__
       fnc_test_deprecated_with_since_current_message_custom()
       self.check_custom_annotation(warning=w,
-                                   warning_type=DeprecationWarning,
+                                   warning_type=BeamDeprecationWarning,
                                    obj_name='fnc_test_deprecated_with_since_\
                                    current_message_custom',
                                    annotation_type='deprecated',
@@ -213,15 +199,11 @@ class AnnotationTests(unittest.TestCase):
         def foo(self):
           return 'lol'
 
-      # Deprecation warnings are ignored by default, turn them
-      # on to enable testing.
-      warnings.simplefilter("always", DeprecationWarning)
-
       foo = Class_test_deprecated_with_since_current_message()
       strName = Class_test_deprecated_with_since_current_message.__name__
       foo.foo()
       self.check_annotation(warning=w,
-                            warning_type=DeprecationWarning,
+                            warning_type=BeamDeprecationWarning,
                             obj_name=strName,
                             annotation_type='deprecated',
                             label_check_list=[('since', True),
@@ -239,10 +221,6 @@ class AnnotationTests(unittest.TestCase):
                     custom_message=strCustom)
       def fnc_test_experimental_with_current_message_custom():
         return 'lol'
-
-      # Deprecation warnings are ignored by default, turn them
-      # on to enable testing.
-      warnings.simplefilter("always", DeprecationWarning)
 
       strName = fnc_test_experimental_with_current_message_custom.__name__
       fnc_test_experimental_with_current_message_custom()
