@@ -32,6 +32,22 @@ option java_outer_classname = "RunnerApi";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
 
+message BeamConstants {
+  enum Constants {
+    // All timestamps in milliseconds since Jan 1, 1970.
+    MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-9223372036854775"];
+    MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "9223372036854775"];
+    // The maximum timestamp for the global window.
+    // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
+    // the watermark passes their timestamps. So, the timestamp needs to be
+    // smaller than the MAX_TIMESTAMP_MILLIS.
+    // One standard day is subtracted from MAX_TIMESTAMP_MILLIS to make sure
+    // the maxTimestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
+    // to seconds or minutes. See also GlobalWindow in the Java SDK.
+    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "9223371950454775"];
+  }
+}
+
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
 message Components {
@@ -1065,6 +1081,8 @@ extend google.protobuf.EnumValueOptions {
   //   }
   // }
   string beam_urn = 185324356;
+  // A value to store other constants
+  string beam_constant = 185324357;
 }
 
 // A URN along with a parameter object whose schema is determined by the

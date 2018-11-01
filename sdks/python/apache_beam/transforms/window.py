@@ -66,7 +66,6 @@ from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -295,11 +294,6 @@ class TimestampedValue(object):
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance = None
-  # The maximum timestamp for global windows is MAX_TIMESTAMP - 1 day.
-  # This is due to timers triggering when the watermark passes the trigger
-  # time, which is only possible for timestamps < MAX_TIMESTAMP.
-  # See also GlobalWindow in the Java SDK.
-  _END_OF_GLOBAL_WINDOW = MAX_TIMESTAMP - (24 * 60 * 60)
 
   def __new__(cls):
     if cls._instance is None:
@@ -307,7 +301,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(GlobalWindow._END_OF_GLOBAL_WINDOW)
+    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):
@@ -322,6 +316,12 @@ class GlobalWindow(BoundedWindow):
 
   def __ne__(self, other):
     return not self == other
+
+  @staticmethod
+  def _getTimestampFromProto():
+    ts_millis = int(
+        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant)
+    return Timestamp(micros=ts_millis*1000)
 
 
 class NonMergingWindowFn(WindowFn):
