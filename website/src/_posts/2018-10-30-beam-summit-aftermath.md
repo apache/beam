@@ -5,7 +5,7 @@ date:   2018-10-31 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
-  	- mbaetens
+  - mbaetens
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Almost 1 month ago, we had the pleasure to welcome the Beam community at Level39 in London for the inaugural edition of the Beam Summit London Summit. 
+Almost 1 month ago, we had the pleasure to welcome the Beam community at Level39 in London for the inaugural edition of the Beam Summit London Summit. <!--more-->
 
 <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Day 1 of the first Beam Summit London going full speed ahead! Sessions by <a href="https://twitter.com/SkyUK?ref_src=twsrc%5Etfw">@SkyUK</a> <a href="https://twitter.com/GCPcloud?ref_src=twsrc%5Etfw">@GCPcloud</a> <a href="https://twitter.com/Talend?ref_src=twsrc%5Etfw">@Talend</a> <a href="https://twitter.com/PlantixApp?ref_src=twsrc%5Etfw">@PlantixApp</a> and more! <a href="https://twitter.com/hashtag/ApacheBeam?src=hash&amp;ref_src=twsrc%5Etfw">#ApacheBeam</a> <a href="https://twitter.com/hashtag/apachebeamlondon?src=hash&amp;ref_src=twsrc%5Etfw">#apachebeamlondon</a> <a href="https://twitter.com/hashtag/l39?src=hash&amp;ref_src=twsrc%5Etfw">#l39</a> <a href="https://twitter.com/hashtag/level39?src=hash&amp;ref_src=twsrc%5Etfw">#level39</a> <a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam</a> <a href="https://twitter.com/hashtag/summit?src=hash&amp;ref_src=twsrc%5Etfw">#summit</a> <a href="https://t.co/aEESFnbgxT">pic.twitter.com/aEESFnbgxT</a></p>&mdash; Matthias Baetens 🌆 (@matthiasbaetens) <a href="https://twitter.com/matthiasbaetens/status/1046756260996149248?ref_src=twsrc%5Etfw">October 1, 2018</a></blockquote>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
