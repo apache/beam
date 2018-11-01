@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
@@ -79,24 +80,30 @@ public class FileIOTest implements Serializable {
     Path secondPath = tmpFolder.newFile("second").toPath();
     int firstSize = 37;
     int secondSize = 42;
+    long firstModified = 1541097000L;
+    long secondModified = 1541098000L;
     Files.write(firstPath, new byte[firstSize]);
     Files.write(secondPath, new byte[secondSize]);
+    Files.setLastModifiedTime(firstPath, FileTime.fromMillis(firstModified));
+    Files.setLastModifiedTime(secondPath, FileTime.fromMillis(secondModified));
+    MatchResult.Metadata firstMetadata = metadata(firstPath, firstSize, firstModified);
+    MatchResult.Metadata secondMetadata = metadata(secondPath, secondSize, secondModified);
 
     PAssert.that(
             p.apply(
                 "Match existing",
                 FileIO.match().filepattern(tmpFolder.getRoot().getAbsolutePath() + "/*")))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply(
                 "Match existing with provider",
                 FileIO.match()
                     .filepattern(p.newProvider(tmpFolder.getRoot().getAbsolutePath() + "/*"))))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply("Create existing", Create.of(tmpFolder.getRoot().getAbsolutePath() + "/*"))
                 .apply("MatchAll existing", FileIO.matchAll()))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
 
     PAssert.that(
             p.apply(
@@ -232,9 +239,18 @@ public class FileIOTest implements Serializable {
 
     List<MatchResult.Metadata> expected =
         Arrays.asList(
-            metadata(basePath.resolve("first"), 42),
-            metadata(basePath.resolve("second"), 37),
-            metadata(basePath.resolve("third"), 99));
+            metadata(
+                basePath.resolve("first"),
+                42,
+                Files.getLastModifiedTime(basePath.resolve("first")).toMillis()),
+            metadata(
+                basePath.resolve("second"),
+                37,
+                Files.getLastModifiedTime(basePath.resolve("second")).toMillis()),
+            metadata(
+                basePath.resolve("third"),
+                99,
+                Files.getLastModifiedTime(basePath.resolve("third")).toMillis()));
     PAssert.that(matchMetadata).containsInAnyOrder(expected);
     PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
     p.run();
@@ -309,11 +325,12 @@ public class FileIOTest implements Serializable {
     p.run();
   }
 
-  private static MatchResult.Metadata metadata(Path path, int size) {
+  private static MatchResult.Metadata metadata(Path path, int size, long lastModifiedMillis) {
     return MatchResult.Metadata.builder()
         .setResourceId(FileSystems.matchNewResource(path.toString(), false /* isDirectory */))
         .setIsReadSeekEfficient(true)
         .setSizeBytes(size)
+        .setLastModifiedMillis(lastModifiedMillis)
         .build();
   }
 

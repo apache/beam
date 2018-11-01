@@ -20,52 +20,38 @@ package org.apache.beam.sdk.io.fs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata.Builder;
 
-/**
- * A {@link Coder} for {@link Metadata}.
- *
- * <p>The {@link Metadata#lastModifiedMillis()} field was added after this coder was already
- * deployed, so this class decodes a default value for backwards compatibility. See {@link
- * MetadataCoderV2} for retaining timestamp information.
- */
-public class MetadataCoder extends AtomicCoder<Metadata> {
-  private static final MetadataCoder INSTANCE = new MetadataCoder();
-  private static final ResourceIdCoder RESOURCE_ID_CODER = ResourceIdCoder.of();
-  private static final VarIntCoder INT_CODER = VarIntCoder.of();
+/** A {@link Coder} for {@link Metadata} that includes {@link Metadata#lastModifiedMillis()}. */
+@Experimental
+public class MetadataCoderV2 extends AtomicCoder<Metadata> {
+  private static final MetadataCoderV2 INSTANCE = new MetadataCoderV2();
+  private static final MetadataCoder V1_CODER = MetadataCoder.of();
   private static final VarLongCoder LONG_CODER = VarLongCoder.of();
 
-  private MetadataCoder() {}
+  private MetadataCoderV2() {}
 
-  /** Returns the singleton {@link MetadataCoder} instance. */
-  public static MetadataCoder of() {
+  /** Returns the singleton {@link MetadataCoderV2} instance. */
+  public static MetadataCoderV2 of() {
     return INSTANCE;
   }
 
   @Override
   public void encode(Metadata value, OutputStream os) throws IOException {
-    RESOURCE_ID_CODER.encode(value.resourceId(), os);
-    INT_CODER.encode(value.isReadSeekEfficient() ? 1 : 0, os);
-    LONG_CODER.encode(value.sizeBytes(), os);
+    V1_CODER.encode(value, os);
+    LONG_CODER.encode(value.lastModifiedMillis(), os);
   }
 
   @Override
   public Metadata decode(InputStream is) throws IOException {
-    return decodeBuilder(is).build();
-  }
-
-  Metadata.Builder decodeBuilder(InputStream is) throws IOException {
-    ResourceId resourceId = RESOURCE_ID_CODER.decode(is);
-    boolean isReadSeekEfficient = INT_CODER.decode(is) == 1;
-    long sizeBytes = LONG_CODER.decode(is);
-    return Metadata.builder()
-        .setResourceId(resourceId)
-        .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setSizeBytes(sizeBytes);
+    Builder builder = V1_CODER.decodeBuilder(is);
+    long lastModifiedMillis = LONG_CODER.decode(is);
+    return builder.setLastModifiedMillis(lastModifiedMillis).build();
   }
 
   @Override
