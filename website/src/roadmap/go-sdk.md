@@ -35,7 +35,7 @@ The Go SDK should not block users from writing the pipelines they need to run.
 
 ## Performance
 
-Since the Go SDK has no official runner support at this time, this gives us the chance to work the performance
+Since the Go SDK has no official runner support at this time, this gives us the chance to work on the performance
 of the SDK harness. When portable runners are ready, the Go SDK should be ready as well.
 
 * Reducing framework overhead on the SDK Harness side [BEAM-4726](https://issues.apache.org/jira/browse/BEAM-4726)
