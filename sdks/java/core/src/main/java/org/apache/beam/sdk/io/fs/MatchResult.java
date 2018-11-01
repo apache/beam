@@ -82,6 +82,8 @@ public abstract class MatchResult {
 
     public abstract long sizeBytes();
 
+    public abstract long lastModifiedMillis();
+
     public abstract boolean isReadSeekEfficient();
 
     public static Builder builder() {
@@ -94,6 +96,8 @@ public abstract class MatchResult {
       public abstract Builder setResourceId(ResourceId value);
 
       public abstract Builder setSizeBytes(long value);
+
+      public abstract Builder setLastModifiedMillis(long value);
 
       public abstract Builder setIsReadSeekEfficient(boolean value);
 
