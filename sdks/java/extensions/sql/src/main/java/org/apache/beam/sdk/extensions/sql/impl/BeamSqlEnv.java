@@ -38,7 +38,6 @@ import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
@@ -81,14 +80,14 @@ public class BeamSqlEnv {
   private void registerBuiltinUdf(Map<String, List<Method>> methods) {
     for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
       for (Method method : entry.getValue()) {
-        defaultSchema.add(entry.getKey(), ScalarFunctionImpl.create(method));
+        defaultSchema.add(entry.getKey(), UdfImpl.create(method));
       }
     }
   }
 
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
+    defaultSchema.add(functionName, UdfImpl.create(clazz, method));
   }
 
   /** Register a UDF function which can be used in SQL expression. */
