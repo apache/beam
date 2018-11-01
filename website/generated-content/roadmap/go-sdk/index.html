@@ -191,6 +191,12 @@
 
 
 
+<ul class="nav">
+  <li><a href="#usability">Usability</a></li>
+  <li><a href="#performance">Performance</a></li>
+  <li><a href="#integrating-with-the-go-ecosystem">Integrating with the Go ecosystem</a></li>
+  <li><a href="#implement-portability-features">Implement Portability features</a></li>
+</ul>
 
 
       </nav>
@@ -212,19 +218,71 @@ limitations under the License.
 
 <h1 id="go-sdk-roadmap">Go SDK Roadmap</h1>
 
-<p>This roadmap is in progress. In the meantime, here are available resources:</p>
+<p>The Go SDK is currently experimental. As the first purely portable Beam SDK, the Go SDK is constrained
+by the status of the <a href="https://beam.apache.org/roadmap/portability/">Beam Portabillity Framework</a> and the existence of
+portable runners.</p>
+
+<p>With that in mind present work on the Go SDK has the following goals:</p>
+
+<h2 id="usability">Usability</h2>
+
+<p>The Go SDK should not block users from writing the pipelines they need to run.</p>
 
 <ul>
-  <li>
-    <table>
-      <tbody>
-        <tr>
-          <td>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">sdk-go</a> / <a href="https://issues.apache.org/jira/browse/BEAM-2083">BEAM-2083</a></td>
-        </tr>
-      </tbody>
-    </table>
+  <li>Support large elements <a href="https://issues.apache.org/jira/browse/BEAM-4124">BEAM-4124</a></li>
+  <li>Coder Registry to support complex user elements <a href="https://issues.apache.org/jira/browse/BEAM-3306">BEAM-3306</a></li>
+</ul>
+
+<h2 id="performance">Performance</h2>
+
+<p>Since the Go SDK has no official runner support at this time, this gives us the chance to work on the performance
+of the SDK harness. When portable runners are ready, the Go SDK should be ready as well.</p>
+
+<ul>
+  <li>Reducing framework overhead on the SDK Harness side <a href="https://issues.apache.org/jira/browse/BEAM-4726">BEAM-4726</a></li>
+  <li>Tooling to enable and verify pipeline performance <a href="https://issues.apache.org/jira/browse/BEAM-3612">BEAM-3612</a></li>
+  <li>Measure the performance of the SDK at scale.</li>
+</ul>
+
+<h2 id="integrating-with-the-go-ecosystem">Integrating with the Go ecosystem</h2>
+
+<p>The authors of the Go SDK intended to keep the parts of the language we love, and intend for
+user pipelines to be as close to ordinary Go as possible, minimizing framework boiler plate code.</p>
+
+<ul>
+  <li>Migrate to a vanity URL path <a href="https://issues.apache.org/jira/browse/BEAM-4115">BEAM-4115</a></li>
+  <li>Package versioning support <a href="https://issues.apache.org/jira/browse/BEAM-5379">BEAM-5379</a></li>
+</ul>
+
+<h2 id="implement-portability-features">Implement Portability features</h2>
+
+<p>The following are dependant on the features being implemented in the Portability Framework.</p>
+
+<ul>
+  <li>Splitable DoFns (SDFs) for Scalable IO <a href="https://issues.apache.org/jira/browse/BEAM-3301">BEAM-3301</a>
+    <ul>
+      <li>This is the primary blocker for the Go SDK to scale to ingest large numbers of elements in both batch and streaming.</li>
+    </ul>
   </li>
-  <li>Contact: <a href="mailto:herohde@google.com">Henning Rohde</a></li>
+  <li>Triggers and Timers <a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304</a></li>
+  <li>Advanced WindowFns
+    <ul>
+      <li>Session windows <a href="https://issues.apache.org/jira/browse/BEAM-4152">BEAM-4152</a></li>
+      <li>Custom WindowFns (dependant on streaming Splitable DoFn support) <a href="https://issues.apache.org/jira/browse/BEAM-2939">BEAM-2939</a></li>
+    </ul>
+  </li>
+</ul>
+
+<p>Without SDFs, IOs are always constrained to work on a single machine prior to a sharding operation (like CoGroupByKey),
+which makes scalable IOs difficult to impossible to write.</p>
+
+<p>Otherwise, improving examples and documentation for devs and users alike is ongoing. 
+Contributions are welcome. Please contact the <a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F">dev list</a>
+for assistance in finding a place to help out.</p>
+
+<ul>
+  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">sdk-go</a> / <a href="https://issues.apache.org/jira/browse/BEAM-2083">BEAM-2083</a></li>
+  <li>Contact: Robert Burke (@lostluck) <a href="mailto:rebo@google.com,dev@beam.apache.org?subject=%5BGo%20SDK%5D">Email</a></li>
 </ul>
 
       </div>
