@@ -503,6 +503,8 @@ func BenchmarkMethodCalls(b *testing.B) {
 	gV := reflect.ValueOf(g)
 	fV := reflect.ValueOf(f)
 
+	indirectFunc := reflect.ValueOf(WhatsB).Interface().(func(int) int)
+
 	nrF := fV.Method(0)
 	nrFi := nrF.Interface().(func(int) int)
 	rxnrF := reflectx.MakeFunc(nrFi)
@@ -533,6 +535,7 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"DirectMethod", func() { a = g.WhatsA(a) }}, // Baseline as low as we can go.
 		{"DirectFunc", func() { a = WhatsB(a) }},     // For comparison purposes
 
+		{"IndirectFunc", func() { a = indirectFunc(a) }},         // For comparison purposes
 		{"IndirectImplicit", func() { a = nrFi(a) }},             // Measures the indirection through reflect.Value cost.
 		{"TypeAssertedImplicit", func() { ai = nrFi(ai.(int)) }}, // Measures the type assertion cost over the above.
 
@@ -548,20 +551,20 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"ShimedCallImplicit-NoReallocSlice", func() { a = shimnrF.Call(efaceSlice)[0].(int) }}, // Closer to what we're using now.
 		{"ShimedCall1x1Implicit", func() { a = shim0x1nrF.Call1x1(a).(int) }},
 
-		{"IndirectWithExplicit", func() { a = wrFi(g, a) }},                     // Measures the indirection through reflect.Value cost.
-		{"TypeAssertedWithExplicit", func() { ai = wrFi(gi.(*Foo), ai.(int)) }}, // Measures the type assertion cost over the above.
+		{"IndirectExplicit", func() { a = wrFi(g, a) }},                     // Measures the indirection through reflect.Value cost.
+		{"TypeAssertedExplicit", func() { ai = wrFi(gi.(*Foo), ai.(int)) }}, // Measures the type assertion cost over the above.
 
-		{"ReflectCallWithExplicit", func() { a = wrF.Call([]reflect.Value{reflect.ValueOf(g), reflect.ValueOf(a)})[0].Interface().(int) }},
-		{"ReflectCallWithExplicit-NoWrap", func() { a = wrF.Call([]reflect.Value{gV, aV})[0].Interface().(int) }},
-		{"ReflectCallWithExplicit-NoReallocSlice", func() { a = wrF.Call(grvSlice)[0].Interface().(int) }},
+		{"ReflectCallExplicit", func() { a = wrF.Call([]reflect.Value{reflect.ValueOf(g), reflect.ValueOf(a)})[0].Interface().(int) }},
+		{"ReflectCallExplicit-NoWrap", func() { a = wrF.Call([]reflect.Value{gV, aV})[0].Interface().(int) }},
+		{"ReflectCallExplicit-NoReallocSlice", func() { a = wrF.Call(grvSlice)[0].Interface().(int) }},
 
-		{"ReflectXCallWithExplicit", func() { a = rxF.Call([]interface{}{g, a})[0].(int) }},
-		{"ReflectXCallWithExplicit-NoReallocSlice", func() { a = rxF.Call(gEfaceSlice)[0].(int) }},
-		{"ReflectXCall2x1WithExplicit", func() { a = rx1x1F.Call2x1(g, a).(int) }},
+		{"ReflectXCallExplicit", func() { a = rxF.Call([]interface{}{g, a})[0].(int) }},
+		{"ReflectXCallExplicit-NoReallocSlice", func() { a = rxF.Call(gEfaceSlice)[0].(int) }},
+		{"ReflectXCall2x1Explicit", func() { a = rx1x1F.Call2x1(g, a).(int) }},
 
-		{"ShimedCallWithExplicit", func() { a = shimF.Call([]interface{}{g, a})[0].(int) }},        
-		{"ShimedCallWithExplicit-NoReallocSlice", func() { a = shimF.Call(gEfaceSlice)[0].(int) }},
-		{"ShimedCall2x1WithExplicit", func() { a = shim1x1F.Call2x1(g, a).(int) }},
+		{"ShimedCallExplicit", func() { a = shimF.Call([]interface{}{g, a})[0].(int) }},
+		{"ShimedCallExplicit-NoReallocSlice", func() { a = shimF.Call(gEfaceSlice)[0].(int) }},
+		{"ShimedCall2x1Explicit", func() { a = shim1x1F.Call2x1(g, a).(int) }},
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
@@ -576,30 +579,31 @@ func BenchmarkMethodCalls(b *testing.B) {
 /*
 @lostluck 2018/10/30 on a desktop machine.
 
-BenchmarkMethodCalls/DirectMethod-12                                                 	1000000000	         2.02 ns/op
-BenchmarkMethodCalls/DirectFunc-12                                                   	2000000000	         1.81 ns/op
-BenchmarkMethodCalls/IndirectImplicit-12                                             	10000000	       185 ns/op
-BenchmarkMethodCalls/TypeAssertedImplicit-12                                         	10000000	       228 ns/op
-BenchmarkMethodCalls/ReflectCallImplicit-12                                          	 3000000	       479 ns/op
-BenchmarkMethodCalls/ReflectCallImplicit-NoWrap-12                                   	 3000000	       451 ns/op
-BenchmarkMethodCalls/ReflectCallImplicit-NoReallocSlice-12                           	 3000000	       424 ns/op
-BenchmarkMethodCalls/ReflectXCallImplicit-12                                         	 2000000	       756 ns/op
-BenchmarkMethodCalls/ReflectXCallImplicit-NoReallocSlice-12                          	 2000000	       662 ns/op **Default**
-BenchmarkMethodCalls/ReflectXCall1x1Implicit-12                                      	 2000000	       762 ns/op
-BenchmarkMethodCalls/ShimedCallImplicit-12                                           	 5000000	       374 ns/op
-BenchmarkMethodCalls/ShimedCallImplicit-NoReallocSlice-12                            	 5000000	       289 ns/op **With specialized shims**
-BenchmarkMethodCalls/ShimedCall1x1Implicit-12                                        	 5000000	       249 ns/op **Arity specialized re-work of the invoker**
+BenchmarkMethodCalls/DirectMethod-12                         1000000000	         2.02 ns/op
+BenchmarkMethodCalls/DirectFunc-12                           2000000000	         1.81 ns/op
+BenchmarkMethodCalls/IndirectFunc-12         	              300000000	         4.66 ns/op
+BenchmarkMethodCalls/IndirectImplicit-12                       10000000	       185 ns/op
+BenchmarkMethodCalls/TypeAssertedImplicit-12                   10000000	       228 ns/op
+BenchmarkMethodCalls/ReflectCallImplicit-12                     3000000	       479 ns/op
+BenchmarkMethodCalls/ReflectCallImplicit-NoWrap-12              3000000	       451 ns/op
+BenchmarkMethodCalls/ReflectCallImplicit-NoReallocSlice-12      3000000	       424 ns/op
+BenchmarkMethodCalls/ReflectXCallImplicit-12                    2000000	       756 ns/op
+BenchmarkMethodCalls/ReflectXCallImplicit-NoReallocSlice-12		2000000	       662 ns/op **Default**
+BenchmarkMethodCalls/ReflectXCall1x1Implicit-12                 2000000	       762 ns/op
+BenchmarkMethodCalls/ShimedCallImplicit-12                      5000000	       374 ns/op
+BenchmarkMethodCalls/ShimedCallImplicit-NoReallocSlice-12       5000000	       289 ns/op **With specialized shims**
+BenchmarkMethodCalls/ShimedCall1x1Implicit-12                   5000000	       249 ns/op **Arity specialized re-work of the invoker**
 
 ** Everything below requires an overhaul of structural DoFn invocation code, and regeneration of all included shims. **
-BenchmarkMethodCalls/IndirectWithExplicit-12                                         	300000000	         4.81 ns/op
-BenchmarkMethodCalls/TypeAssertedWithExplicit-12                                     	50000000	        35.4 ns/op 
-BenchmarkMethodCalls/ReflectCallWithExplicit-12                                      	 3000000	       434 ns/op
-BenchmarkMethodCalls/ReflectCallWithExplicit-NoWrap-12                               	 5000000	       397 ns/op
-BenchmarkMethodCalls/ReflectCallWithExplicit-NoReallocSlice-12                       	 5000000	       390 ns/op
-BenchmarkMethodCalls/ReflectXCallWithExplicit-12                                     	 2000000	       755 ns/op
-BenchmarkMethodCalls/ReflectXCallWithExplicit-NoReallocSlice-12                      	 2000000	       601 ns/op
-BenchmarkMethodCalls/ReflectXCall2x1WithExplicit-12                                  	 2000000	       735 ns/op
-BenchmarkMethodCalls/ShimedCallWithExplicit-12                                       	10000000	       198 ns/op
-BenchmarkMethodCalls/ShimedCallWithExplicit-NoReallocSlice-12                        	20000000	        93.5 ns/op
-BenchmarkMethodCalls/ShimedCall2x1WithExplicit-12                                    	20000000	        68.3 ns/op  **Best we could do**
+BenchmarkMethodCalls/IndirectExplicit-12                      300000000	         4.81 ns/op
+BenchmarkMethodCalls/TypeAssertedExplicit-12                   50000000	        35.4 ns/op
+BenchmarkMethodCalls/ReflectCallExplicit-12                     3000000	       434 ns/op
+BenchmarkMethodCalls/ReflectCallExplicit-NoWrap-12              5000000	       397 ns/op
+BenchmarkMethodCalls/ReflectCallExplicit-NoReallocSlice-12      5000000	       390 ns/op
+BenchmarkMethodCalls/ReflectXCallExplicit-12                    2000000	       755 ns/op
+BenchmarkMethodCalls/ReflectXCallExplicit-NoReallocSlice-12     2000000	       601 ns/op
+BenchmarkMethodCalls/ReflectXCall2x1Explicit-12                 2000000	       735 ns/op
+BenchmarkMethodCalls/ShimedCallExplicit-12                     10000000	       198 ns/op
+BenchmarkMethodCalls/ShimedCallExplicit-NoReallocSlice-12      20000000	        93.5 ns/op
+BenchmarkMethodCalls/ShimedCall2x1Explicit-12                  20000000	        68.3 ns/op  **Best we could do**
 */
