@@ -35,6 +35,8 @@
 #     sdk_location  -> Python tar ball location. Glob is accepted.
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
+#     streaming     -> True if a streaming job.
+#     worker_jar    -> Customized worker jar for dataflow runner.
 #     pipeline_opts -> List of space separateed pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
@@ -63,9 +65,11 @@
 PROJECT=apache-beam-testing
 RUNNER=TestDataflowRunner
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
-SDK_LOCATION=dist/apache-beam-*.tar.gz
+SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
 SLEEP_SECS=20
+STREAMING=false
+WORKER_JAR=""
 
 # Default test (nose) options.
 # Default test sets are full integration tests.
@@ -102,6 +106,16 @@ case $key in
         ;;
     --sleep_secs)
         SLEEP_SECS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --streaming)
+        STREAMING="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --worker_jar)
+        WORKER_JAR="$2"
         shift # past argument
         shift # past value
         ;;
@@ -143,8 +157,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Create a tarball if not exists
-  SDK_LOCATION=$(find ${SDK_LOCATION})
-  if [[ ! -f $SDK_LOCATION ]]; then
+  if [[ $(find ${SDK_LOCATION}) ]]; then
+    SDK_LOCATION=$(find ${SDK_LOCATION})
+  else
     python setup.py -q sdist
     SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
   fi
@@ -166,6 +181,17 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--num_workers=$NUM_WORKERS"
     "--sleep_secs=$SLEEP_SECS"
   )
+
+  # Add --streaming if provided
+  if [[ "$STREAMING" = true ]]; then
+    opts+=("--streaming")
+  fi
+
+  # Add --dataflow_worker_jar if provided
+  if [[ ! -z "$WORKER_JAR" ]]; then
+    opts+=("--dataflow_worker_jar=$WORKER_JAR")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
