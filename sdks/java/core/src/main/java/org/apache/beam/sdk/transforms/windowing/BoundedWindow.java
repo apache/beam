@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import java.util.concurrent.TimeUnit;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.joda.time.Instant;
 
 /**
@@ -46,7 +46,7 @@ public abstract class BoundedWindow {
    * microseconds-since-epoch can be safely represented with a {@code long}.
    */
   public static final Instant TIMESTAMP_MIN_VALUE =
-      new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
+      extractTimestampFromProto(RunnerApi.BeamConstants.Constants.MIN_TIMESTAMP_MILLIS);
 
   /**
    * The maximum value for any Beam timestamp. Often referred to as "+infinity".
@@ -55,7 +55,7 @@ public abstract class BoundedWindow {
    * microseconds-since-epoch can be safely represented with a {@code long}.
    */
   public static final Instant TIMESTAMP_MAX_VALUE =
-      new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
+      extractTimestampFromProto(RunnerApi.BeamConstants.Constants.MAX_TIMESTAMP_MILLIS);
 
   /**
    * Formats a {@link Instant} timestamp with additional Beam-specific metadata, such as indicating
@@ -76,4 +76,11 @@ public abstract class BoundedWindow {
 
   /** Returns the inclusive upper bound of timestamps for values in this window. */
   public abstract Instant maxTimestamp();
+
+  /** Parses a timestamp from the proto. */
+  private static Instant extractTimestampFromProto(RunnerApi.BeamConstants.Constants constant) {
+    return new Instant(
+        Long.parseLong(
+            constant.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant)));
+  }
 }
