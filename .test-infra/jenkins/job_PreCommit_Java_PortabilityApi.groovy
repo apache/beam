@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java PortabilityApi',
+    nameBase: 'JavaPortabilityApi',
     gradleTask: ':javaPreCommitPortabilityApi',
     gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
     triggerPathPatterns: [
