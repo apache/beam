@@ -736,7 +736,7 @@ logical windows based on when those scores occurred in event time.</em></p>
              <span class="s">'team'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
              <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
              <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
-         <span class="p">}))</span>
+         <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1196,7 +1196,7 @@ between instances are.</em></p>
 <span class="o">|</span> <span class="s">'WriteAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
     <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
         <span class="s">'mean_duration'</span><span class="p">:</span> <span class="s">'FLOAT'</span><span class="p">,</span>
-    <span class="p">}))</span>
+    <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
 </code></pre>
 </div>
 
