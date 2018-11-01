@@ -28,7 +28,6 @@ check.dependsOn test
 evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
 def envdir = "${project.buildDir}/gradleenv"
-def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
@@ -106,7 +105,7 @@ task lintPy27(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py27-lint"
     }
   }
 }
@@ -116,7 +115,7 @@ task lintPy27_3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint3"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py27-lint3"
     }
   }
 }
@@ -126,7 +125,7 @@ task lintPy3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py3-lint"
     }
   }
 }
@@ -136,7 +135,7 @@ task testGcp(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py27-gcp"
     }
   }
 }
@@ -146,7 +145,7 @@ task testPython2(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py27"
     }
   }
 }
@@ -156,7 +155,7 @@ task testPython3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py3"
     }
   }
 }
@@ -166,7 +165,7 @@ task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh py27-cython"
     }
   }
 }
@@ -180,7 +179,7 @@ task docs(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh docs"
     }
   }
 }
@@ -190,7 +189,7 @@ task cover(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh cover"
     }
   }
 }
