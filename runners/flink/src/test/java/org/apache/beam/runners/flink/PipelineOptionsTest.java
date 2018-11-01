@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -84,6 +85,7 @@ public class PipelineOptionsTest {
     assertThat(options.getStateBackend(), is(nullValue()));
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
+    assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
   }
 
   @Test(expected = Exception.class)
