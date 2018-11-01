@@ -67,6 +67,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -330,9 +331,11 @@ public class S3FileSystemTest {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
     s3ObjectMetadata.setContentEncoding("read-seek-efficient");
+    s3ObjectMetadata.setLastModified(new Date(lastModifiedMillis));
     when(s3FileSystem
             .getAmazonS3Client()
             .getObjectMetadata(
@@ -348,6 +351,7 @@ public class S3FileSystemTest {
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
                     .setResourceId(path)
                     .setIsReadSeekEfficient(true)
                     .build())));
@@ -358,8 +362,10 @@ public class S3FileSystemTest {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
+    s3ObjectMetadata.setLastModified(new Date(lastModifiedMillis));
     s3ObjectMetadata.setContentEncoding("gzip");
     when(s3FileSystem
             .getAmazonS3Client()
@@ -376,6 +382,7 @@ public class S3FileSystemTest {
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
                     .setResourceId(path)
                     .setIsReadSeekEfficient(false)
                     .build())));
@@ -386,8 +393,10 @@ public class S3FileSystemTest {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
+    s3ObjectMetadata.setLastModified(new Date(lastModifiedMillis));
     s3ObjectMetadata.setContentEncoding(null);
     when(s3FileSystem
             .getAmazonS3Client()
@@ -404,6 +413,7 @@ public class S3FileSystemTest {
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
                     .setResourceId(path)
                     .setIsReadSeekEfficient(true)
                     .build())));
@@ -488,12 +498,14 @@ public class S3FileSystemTest {
     firstMatch.setBucketName(path.getBucket());
     firstMatch.setKey("foo/bar0baz");
     firstMatch.setSize(100);
+    firstMatch.setLastModified(new Date(1540000000001L));
 
     // Expected to not be returned; prefix matches, but substring after wildcard does not
     S3ObjectSummary secondMatch = new S3ObjectSummary();
     secondMatch.setBucketName(path.getBucket());
     secondMatch.setKey("foo/bar1qux");
     secondMatch.setSize(200);
+    secondMatch.setLastModified(new Date(1540000000002L));
 
     // Expected first request returns continuation token
     ListObjectsV2Result firstResult = new ListObjectsV2Result();
@@ -517,6 +529,7 @@ public class S3FileSystemTest {
     thirdMatch.setBucketName(path.getBucket());
     thirdMatch.setKey("foo/bar2baz");
     thirdMatch.setSize(300);
+    thirdMatch.setLastModified(new Date(1540000000003L));
 
     // Expected second request returns third prefix match and no continuation token
     ListObjectsV2Result secondResult = new ListObjectsV2Result();
@@ -542,6 +555,7 @@ public class S3FileSystemTest {
                         S3ResourceId.fromComponents(
                             firstMatch.getBucketName(), firstMatch.getKey()))
                     .setSizeBytes(firstMatch.getSize())
+                    .setLastModifiedMillis(firstMatch.getLastModified().getTime())
                     .build(),
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
@@ -549,6 +563,7 @@ public class S3FileSystemTest {
                         S3ResourceId.fromComponents(
                             thirdMatch.getBucketName(), thirdMatch.getKey()))
                     .setSizeBytes(thirdMatch.getSize())
+                    .setLastModifiedMillis(thirdMatch.getLastModified().getTime())
                     .build())));
   }
 
@@ -569,12 +584,14 @@ public class S3FileSystemTest {
     firstMatch.setBucketName(path.getBucket());
     firstMatch.setKey("foo/bar\\baz0");
     firstMatch.setSize(100);
+    firstMatch.setLastModified(new Date(1540000000001L));
 
     // Expected to not be returned; prefix matches, but substring after wildcard does not
     S3ObjectSummary secondMatch = new S3ObjectSummary();
     secondMatch.setBucketName(path.getBucket());
     secondMatch.setKey("foo/bar/baz1");
     secondMatch.setSize(200);
+    secondMatch.setLastModified(new Date(1540000000002L));
 
     // Expected first request returns continuation token
     ListObjectsV2Result result = new ListObjectsV2Result();
@@ -600,6 +617,7 @@ public class S3FileSystemTest {
                         S3ResourceId.fromComponents(
                             firstMatch.getBucketName(), firstMatch.getKey()))
                     .setSizeBytes(firstMatch.getSize())
+                    .setLastModifiedMillis(firstMatch.getLastModified().getTime())
                     .build())));
   }
 
@@ -636,6 +654,7 @@ public class S3FileSystemTest {
     S3ResourceId pathExist = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
+    s3ObjectMetadata.setLastModified(new Date(1540000000000L));
     s3ObjectMetadata.setContentEncoding("not-gzip");
     when(s3FileSystem
             .getAmazonS3Client()
@@ -651,6 +670,7 @@ public class S3FileSystemTest {
     foundListObject.setBucketName(pathGlob.getBucket());
     foundListObject.setKey("path/part-0");
     foundListObject.setSize(200);
+    foundListObject.setLastModified(new Date(1541000000000L));
 
     ListObjectsV2Result listObjectsResult = new ListObjectsV2Result();
     listObjectsResult.setNextContinuationToken(null);
@@ -679,9 +699,10 @@ public class S3FileSystemTest {
             MatchResultMatcher.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException()),
             MatchResultMatcher.create(
                 MatchResult.Status.ERROR, new IOException(forbiddenException)),
-            MatchResultMatcher.create(100, pathExist, true),
+            MatchResultMatcher.create(100, 1540000000000L, pathExist, true),
             MatchResultMatcher.create(
                 200,
+                1541000000000L,
                 S3ResourceId.fromComponents(pathGlob.getBucket(), foundListObject.getKey()),
                 true)));
   }

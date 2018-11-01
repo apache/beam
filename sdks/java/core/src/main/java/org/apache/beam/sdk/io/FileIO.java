@@ -745,6 +745,7 @@ public class FileIO {
                 MatchResult.Metadata.builder()
                     .setResourceId(metadata.resourceId())
                     .setSizeBytes(metadata.sizeBytes())
+                    .setLastModifiedMillis(metadata.lastModifiedMillis())
                     .setIsReadSeekEfficient(
                         metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
                     .build(),
