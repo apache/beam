@@ -21,11 +21,16 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the nexmark launch
 def nexmarkArgsProperty = "nexmark.args"
-def nexmarkArgs = project.hasProperty(nexmarkArgsProperty) ?
-    project.getProperty(nexmarkArgsProperty).split() : []
 
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
@@ -98,7 +103,16 @@ if (shouldProvideSpark) {
 //   -Pnexmark.args
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
 task run(type: JavaExec) {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+  // Provide job with a customizable worker jar.
+  // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+  // More context and discussions can be found in PR#6694.
+  def nexmarkArgsStr =  (project.findProperty(nexmarkArgsProperty) ?: "") +
+          " --dataflowWorkerJar=${dataflowWorkerJar} " +
+          " --workerHarnessContainerImage="
+
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
-  args nexmarkArgs
+  args nexmarkArgsStr.split()
 }
