@@ -803,7 +803,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       if (configuration.validateShadowJar) {
         project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+          ext.outFile = project.file("${project.reportsDir}/${name}.out")
           inputs.files project.configurations.shadow.artifacts.files
+          outputs.files outFile
           doLast {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
@@ -813,6 +815,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 exclude "META-INF/versions/*/module-info.class"
                 exclude "META-INF/versions/*/org/apache/beam/**"
               }
+              outFile.text = exposedClasses.files
               if (exposedClasses.files) {
                 throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
               }
@@ -1502,10 +1505,13 @@ artifactId=${project.name}
       }
 
       project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
+        ext.outFile = project.file("${project.reportsDir}/${name}.out")
         inputs.files project.configurations.shadow.artifacts.files
+        outputs.files outFile
         doLast {
           project.configurations.shadow.artifacts.files.each {
             FileTree exportedClasses = project.zipTree(it).matching { include "org/apache/beam/vendor/**" }
+            outFile.text = exportedClasses.files
             if (exportedClasses.files) {
               throw new GradleException("$it exported classes inside of org.apache.beam.vendor namespace: ${exportedClasses.files}")
             }
