@@ -343,7 +343,7 @@ class _AvroBlock(object):
       try:
         import snappy
       except ImportError:
-        raise ValueError('Snappy does not seem to be installed.')
+        raise ValueError('python-snappy does not seem to be installed.')
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
