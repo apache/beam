@@ -330,14 +330,14 @@ class _AvroBlock(object):
 
   @staticmethod
   def _decompress_bytes(data, codec):
-    if codec == 'null':
+    if codec == b'null':
       return data
-    elif codec == 'deflate':
+    elif codec == b'deflate':
       # zlib.MAX_WBITS is the window size. '-' sign indicates that this is
       # raw data (without headers). See zlib and Avro documentations for more
       # details.
       return zlib.decompress(data, -zlib.MAX_WBITS)
-    elif codec == 'snappy':
+    elif codec == b'snappy':
       # Snappy is an optional avro codec.
       # See Snappy and Avro documentation for more details.
       try:
@@ -360,8 +360,10 @@ class _AvroBlock(object):
   def records(self):
     decoder = avroio.BinaryDecoder(
         io.BytesIO(self._decompressed_block_bytes))
-    reader = avroio.DatumReader(
-        writers_schema=self._schema, readers_schema=self._schema)
+    # Kwargs writers_schema and readers_schema were renamed to
+    # writer_schema and reader_schema in py3.
+    # Therefore, the kwargs were left out to be both py2 and py3 compatible.
+    reader = avroio.DatumReader(self._schema, self._schema)
 
     current_record = 0
     while current_record < self._num_records:
