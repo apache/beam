@@ -78,8 +78,10 @@ class VendorJavaPlugin implements Plugin<Project> {
           project.configurations.shadow.artifacts.files.each {
             FileTree exposedClasses = project.zipTree(it).matching {
               include "**/*.class"
-              exclude "org/apache/beam/**"
-              exclude "META-INF/**"
+              exclude "org/apache/beam/vendor/**"
+              // BEAM-5919: Exclude paths for Java 9 multi-release jars.
+              exclude "META-INF/versions/*/module-info.class"
+              exclude "META-INF/versions/*/org/apache/beam/**"
             }
             if (exposedClasses.files) {
               throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
