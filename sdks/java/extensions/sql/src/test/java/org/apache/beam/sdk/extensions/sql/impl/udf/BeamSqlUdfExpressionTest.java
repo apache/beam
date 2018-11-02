@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,7 +32,8 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
         new ExpressionChecker()
             .addExpr("COSH(CAST(1.0 as DOUBLE))", Math.cosh(1.0))
             .addExpr("COSH(CAST(710.0 as DOUBLE))", Math.cosh(710.0))
-            .addExpr("COSH(CAST(-1.0 as DOUBLE))", Math.cosh(-1.0));
+            .addExpr("COSH(CAST(-1.0 as DOUBLE))", Math.cosh(-1.0))
+            .addExprWithNullExpectedValue("COSH(CAST(NULL as DOUBLE))", TypeName.DOUBLE);
 
     checker.buildRunAndCheck();
   }
@@ -42,7 +44,8 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
         new ExpressionChecker()
             .addExpr("SINH(CAST(1.0 as DOUBLE))", Math.sinh(1.0))
             .addExpr("SINH(CAST(710.0 as DOUBLE))", Math.sinh(710.0))
-            .addExpr("SINH(CAST(-1.0 as DOUBLE))", Math.sinh(-1.0));
+            .addExpr("SINH(CAST(-1.0 as DOUBLE))", Math.sinh(-1.0))
+            .addExprWithNullExpectedValue("SINH(CAST(NULL as DOUBLE))", TypeName.DOUBLE);
 
     checker.buildRunAndCheck();
   }
@@ -53,7 +56,8 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
         new ExpressionChecker()
             .addExpr("TANH(CAST(1.0 as DOUBLE))", Math.tanh(1.0))
             .addExpr("TANH(CAST(0.0 as DOUBLE))", Math.tanh(0.0))
-            .addExpr("TANH(CAST(-1.0 as DOUBLE))", Math.tanh(-1.0));
+            .addExpr("TANH(CAST(-1.0 as DOUBLE))", Math.tanh(-1.0))
+            .addExprWithNullExpectedValue("TANH(CAST(NULL as DOUBLE))", TypeName.DOUBLE);
 
     checker.buildRunAndCheck();
   }
@@ -92,7 +96,9 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("LENGTH('abcde')", 5L)
             .addExpr("LENGTH('中文')", 2L)
             .addExpr("LENGTH('\0\0')", 2L)
-            .addExpr("LENGTH('абвгд')", 5L);
+            .addExpr("LENGTH('абвгд')", 5L)
+            .addExprWithNullExpectedValue("LENGTH(CAST(NULL as CHAR(0)))", TypeName.INT64)
+            .addExprWithNullExpectedValue("LENGTH(CAST(NULL as VARBINARY(0)))", TypeName.INT64);
 
     checker.buildRunAndCheck();
   }
@@ -104,7 +110,9 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("REVERSE('')", "")
             .addExpr("REVERSE('foo')", "oof")
             .addExpr("REVERSE('中文')", "文中")
-            .addExpr("REVERSE('абвгд')", "дгвба");
+            .addExpr("REVERSE('абвгд')", "дгвба")
+            .addExprWithNullExpectedValue("REVERSE(CAST(NULL as CHAR(0)))", TypeName.STRING)
+            .addExprWithNullExpectedValue("REVERSE(CAST(NULL as VARBINARY(0)))", TypeName.STRING);
 
     checker.buildRunAndCheck();
   }

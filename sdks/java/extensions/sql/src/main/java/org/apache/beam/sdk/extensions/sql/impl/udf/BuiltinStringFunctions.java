@@ -26,6 +26,9 @@ import org.apache.commons.lang3.ArrayUtils;
 @AutoService(BeamBuiltinFunctionProvider.class)
 public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
 
+  // return a explicitly null for Boolean has NP_BOOLEAN_RETURN_NULL warning.
+  // return null for boolean is not allowed.
+  // TODO: handle null input.
   @UDF(
     funcName = "ENDS_WITH",
     parameterArray = {TypeName.STRING},
@@ -35,6 +38,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     return str1.endsWith(str2);
   }
 
+  // return a explicitly null for Boolean has NP_BOOLEAN_RETURN_NULL warning.
+  // return null for boolean is not allowed.
+  // TODO: handle null input.
   @UDF(
     funcName = "STARTS_WITH",
     parameterArray = {TypeName.STRING},
@@ -50,6 +56,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     returnType = TypeName.INT64
   )
   public Long length(String str) {
+    if (str == null) {
+      return null;
+    }
     return (long) str.length();
   }
 
@@ -59,6 +68,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     returnType = TypeName.INT64
   )
   public Long length(byte[] bytes) {
+    if (bytes == null) {
+      return null;
+    }
     return (long) bytes.length;
   }
 
@@ -68,6 +80,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     returnType = TypeName.STRING
   )
   public String reverse(String str) {
+    if (str == null) {
+      return null;
+    }
     return new StringBuilder(str).reverse().toString();
   }
 
@@ -77,6 +92,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     returnType = TypeName.BYTES
   )
   public byte[] reverse(byte[] bytes) {
+    if (bytes == null) {
+      return null;
+    }
     byte[] ret = Arrays.copyOf(bytes, bytes.length);
     ArrayUtils.reverse(ret);
     return ret;
