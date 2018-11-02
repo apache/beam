@@ -35,6 +35,10 @@ class CustomClass(object):
   def __eq__(self, other):
     return self.number == other.number
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return self.number
 
