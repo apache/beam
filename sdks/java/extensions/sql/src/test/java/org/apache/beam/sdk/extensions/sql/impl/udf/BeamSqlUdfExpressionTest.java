@@ -72,6 +72,19 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
   }
 
   @Test
+  public void testStartsWith() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("STARTS_WITH('string1', 'stri')", true)
+            .addExpr("STARTS_WITH('string2', 'str1')", false)
+            .addExpr("STARTS_WITH('', '')", true)
+            .addExpr("STARTS_WITH('中文', '文')", false)
+            .addExpr("STARTS_WITH('中文', '中')", true);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
   public void testLength() throws Exception {
     ExpressionChecker checker =
         new ExpressionChecker()

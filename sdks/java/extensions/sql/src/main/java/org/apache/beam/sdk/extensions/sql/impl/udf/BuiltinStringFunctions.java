@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -32,6 +33,15 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   )
   public Boolean endsWith(String str1, String str2) {
     return str1.endsWith(str2);
+  }
+
+  @UDF(
+    funcName = "STARTS_WITH",
+    parameterArray = {TypeName.STRING},
+    returnType = TypeName.STRING
+  )
+  public Boolean startsWith(String str1, String str2) {
+    return str1.startsWith(str2);
   }
 
   @UDF(
@@ -67,7 +77,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     returnType = TypeName.BYTES
   )
   public byte[] reverse(byte[] bytes) {
-    ArrayUtils.reverse(bytes);
-    return bytes;
+    byte[] ret = Arrays.copyOf(bytes, bytes.length);
+    ArrayUtils.reverse(ret);
+    return ret;
   }
 }

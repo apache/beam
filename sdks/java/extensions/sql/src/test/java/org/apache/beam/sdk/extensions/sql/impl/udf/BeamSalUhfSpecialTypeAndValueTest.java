@@ -25,13 +25,14 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for UDFs. */
 @RunWith(JUnit4.class)
-public class BeamSqlUdfImplTest extends BeamSqlDslBase {
+public class BeamSalUhfSpecialTypeAndValueTest extends BeamSqlDslBase {
 
   @Test
   public void testIsInf() throws Exception {
@@ -83,8 +84,10 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
 
   @Test
   public void testReverse() throws Exception {
+    byte[] testByets = "абвгд".getBytes(UTF_8);
+    ArrayUtils.reverse(testByets);
     Schema resultType = Schema.builder().addByteArrayField("field").build();
-    Row resultRow = Row.withSchema(resultType).addValues("дгвба".getBytes(UTF_8)).build();
+    Row resultRow = Row.withSchema(resultType).addValues(testByets).build();
     Row resultRow2 = Row.withSchema(resultType).addValues("\1\0".getBytes(UTF_8)).build();
     Row resultRow3 = Row.withSchema(resultType).addValues("".getBytes(UTF_8)).build();
     String sql = "SELECT REVERSE(f_bytes) FROM PCOLLECTION";
