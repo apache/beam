@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.List;
@@ -52,13 +54,16 @@ public class BeamSqlDslBase {
 
   static Schema schemaInTableA;
   static Schema schemaFloatDouble;
+  static Schema schemaBytes;
   static List<Row> rowsInTableA;
   static List<Row> rowsOfFloatDouble;
+  static List<Row> rowsOfBytes;
 
   //bounded PCollections
   protected PCollection<Row> boundedInput1;
   protected PCollection<Row> boundedInput2;
   protected PCollection<Row> boundedInputFloatDouble;
+  protected PCollection<Row> boundedInputBytes;
 
   //unbounded PCollections
   protected PCollection<Row> unboundedInput1;
@@ -148,6 +153,13 @@ public class BeamSqlDslBase {
                 Float.NaN,
                 Double.NaN)
             .getRows();
+
+    schemaBytes = Schema.builder().addByteArrayField("f_bytes").build();
+
+    rowsOfBytes =
+        TestUtils.RowsBuilder.of(schemaBytes)
+            .addRows("".getBytes(UTF_8), "абвгд".getBytes(UTF_8), "\0\0".getBytes(UTF_8))
+            .getRows();
   }
 
   @Before
@@ -176,6 +188,15 @@ public class BeamSqlDslBase {
             Create.of(rowsOfFloatDouble)
                 .withSchema(
                     schemaFloatDouble,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+
+    boundedInputBytes =
+        pipeline.apply(
+            "boundedInputBytes",
+            Create.of(rowsOfBytes)
+                .withSchema(
+                    schemaBytes,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
