@@ -50,6 +50,8 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoin;
+import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoinModel;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
 import org.apache.beam.sdk.nexmark.queries.Query0;
@@ -1110,6 +1112,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       // Generate events.
       PCollection<Event> source = createSource(p, now);
 
+      if (query.needsSideInput()) {
+        query.setSideInput(NexmarkUtils.prepareSideInput(p, configuration));
+      }
+
       if (options.getLogEvents()) {
         source = source.apply(queryName + ".Events.Log", NexmarkUtils.log(queryName + ".Events"));
       }
@@ -1199,6 +1205,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.HIGHEST_BID, new Query7Model(configuration))
         .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8Model(configuration))
         .put(NexmarkQueryName.WINNING_BIDS, new Query9Model(configuration))
+        .put(NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN, new BoundedSideInputJoinModel(configuration))
         .build();
   }
 
@@ -1242,6 +1249,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.LOG_TO_SHARDED_FILES, new Query10(configuration))
         .put(NexmarkQueryName.USER_SESSIONS, new Query11(configuration))
         .put(NexmarkQueryName.PROCESSING_TIME_WINDOWS, new Query12(configuration))
+        .put(NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN, new BoundedSideInputJoin(configuration))
         .build();
   }
 
