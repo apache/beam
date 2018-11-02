@@ -62,6 +62,10 @@ class Event(with_metaclass(ABCMeta, object)):
   def __lt__(self, other):
     raise NotImplementedError
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
 
 class ElementEvent(Event):
   """Element-producing test stream event."""
@@ -71,9 +75,6 @@ class ElementEvent(Event):
 
   def __eq__(self, other):
     return self.timestamped_values == other.timestamped_values
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash(self.timestamped_values)
@@ -91,9 +92,6 @@ class WatermarkEvent(Event):
   def __eq__(self, other):
     return self.new_watermark == other.new_watermark
 
-  def __ne__(self, other):
-    return not self == other
-
   def __hash__(self):
     return hash(self.new_watermark)
 
@@ -109,9 +107,6 @@ class ProcessingTimeEvent(Event):
 
   def __eq__(self, other):
     return self.advance_by == other.advance_by
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash(self.advance_by)
