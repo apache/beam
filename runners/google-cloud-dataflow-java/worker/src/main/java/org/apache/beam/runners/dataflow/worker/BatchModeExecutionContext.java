@@ -508,7 +508,7 @@ public class BatchModeExecutionContext
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {
-        totalThrottleTime += TimeUnit.MICROSECONDS.toSeconds(throttlingMsecs.getCumulative());
+        totalThrottleTime += TimeUnit.MILLISECONDS.toSeconds(throttlingMsecs.getCumulative());
       }
     }
     return totalThrottleTime;
