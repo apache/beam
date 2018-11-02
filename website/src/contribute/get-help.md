@@ -22,6 +22,6 @@ limitations under the License.
 
 If you have any trouble contributing, don't give up!
 
-  - Check the [FAQ on our developers' wiki ![External link to Beam developers' Wiki]({{ site.baseurl }}/images/external-link-icon.png){:width="14px" :height="14px"}](https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ){:target="_blank"}.
+  - Check the [FAQ on our developers' wiki ![External link to Beam developers' Wiki]({{ site.baseurl }}/images/external-link-icon.png){:width="14px" :height="14px"}](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ){:target="_blank"}.
   - Send email to the Beam developer community on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us)
   - Find someone to chat with in realtime at [#beam on Slack]({{ site.baseurl }}/community/contact-us).
