@@ -803,7 +803,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       if (configuration.validateShadowJar) {
         project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
-          ext.outFile = project.file("${project.reportsDir}/${name}.out")
+          def outFile = project.file("${project.reportsDir}/${name}.out")
           inputs.files project.configurations.shadow.artifacts.files
           outputs.files outFile
           doLast {
@@ -1505,7 +1505,7 @@ artifactId=${project.name}
       }
 
       project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
-        ext.outFile = project.file("${project.reportsDir}/${name}.out")
+        def outFile = project.file("${project.reportsDir}/${name}.out")
         inputs.files project.configurations.shadow.artifacts.files
         outputs.files outFile
         doLast {
