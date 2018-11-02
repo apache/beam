@@ -35,7 +35,6 @@ import io
 
 from past.builtins import unicode
 
-import pkg_resources
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
@@ -149,14 +148,12 @@ class Environment(object):
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
 
-    sdk_name, version_string = get_sdk_name_and_version()
-
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(sdk_name)),
+            value=to_json_value(names.BEAM_SDK_NAME)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(version_string))])
+            key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:
@@ -791,11 +788,7 @@ class _LegacyDataflowStager(Stager):
 
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
-    sdk_name, _ = get_sdk_name_and_version()
-    if sdk_name == names.GOOGLE_SDK_NAME:
-      return names.GOOGLE_PACKAGE_NAME
-    else:
-      return names.BEAM_PACKAGE_NAME
+    return names.BEAM_PACKAGE_NAME
 
 
 def to_split_int(n):
@@ -845,17 +838,6 @@ def _use_fnapi(pipeline_options):
 
   return standard_options.streaming or (
       debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
-
-
-def get_sdk_name_and_version():
-  """For internal use only; no backwards-compatibility guarantees.
-
-    Returns name and version of SDK reported to Google Cloud Dataflow."""
-  try:
-    pkg_resources.get_distribution(names.GOOGLE_PACKAGE_NAME)
-    return (names.GOOGLE_SDK_NAME, beam_version.__version__)
-  except pkg_resources.DistributionNotFound:
-    return (names.BEAM_SDK_NAME, beam_version.__version__)
 
 
 def get_default_container_image_for_current_sdk(job_type):
