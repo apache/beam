@@ -17,22 +17,24 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-/** A direct implementation of {@link Query2}. */
-public class Query2Model extends NexmarkQueryModel implements Serializable {
-  /** Simulator for query 2. */
-  private class Simulator extends AbstractSimulator<Event, AuctionPrice> {
+/** A direct implementation of {@link BoundedSideInputJoin}. */
+public class BoundedSideInputJoinModel extends NexmarkQueryModel {
+
+  /** Simulator for query 0. */
+  private static class Simulator extends AbstractSimulator<Event, Bid> {
+    private final NexmarkConfiguration configuration;
+
     public Simulator(NexmarkConfiguration configuration) {
       super(NexmarkUtils.standardEventIterator(configuration));
+      this.configuration = configuration;
     }
 
     @Override
@@ -44,22 +46,26 @@ public class Query2Model extends NexmarkQueryModel implements Serializable {
       }
       Event event = timestampedEvent.getValue();
       if (event.bid == null) {
-        // Ignore non bid events.
+        // Ignore non-bid events.
         return;
       }
+
+      // Join to the side input is always a string representation of the id being looked up
       Bid bid = event.bid;
-      if (bid.auction % configuration.auctionSkip != 0) {
-        // Ignore bids for auctions we don't care about.
-        return;
-      }
-      AuctionPrice auctionPrice = new AuctionPrice(bid.auction, bid.price);
-      TimestampedValue<AuctionPrice> result =
-          TimestampedValue.of(auctionPrice, timestampedEvent.getTimestamp());
+      Bid resultBid =
+          new Bid(
+              bid.auction,
+              bid.bidder,
+              bid.price,
+              bid.dateTime,
+              String.valueOf(bid.bidder % configuration.sideInputRowCount));
+      TimestampedValue<Bid> result =
+          TimestampedValue.of(resultBid, timestampedEvent.getTimestamp());
       addResult(result);
     }
   }
 
-  public Query2Model(NexmarkConfiguration configuration) {
+  public BoundedSideInputJoinModel(NexmarkConfiguration configuration) {
     super(configuration);
   }
 

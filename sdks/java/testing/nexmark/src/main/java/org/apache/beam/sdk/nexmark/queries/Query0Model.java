@@ -54,6 +54,6 @@ public class Query0Model extends NexmarkQueryModel {
 
   @Override
   protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
-    return toValueTimestampOrder(itr);
+    return toValueTimestamp(itr);
   }
 }
