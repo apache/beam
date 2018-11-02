@@ -68,12 +68,12 @@ To contribute code, you need
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
 
-## Submitting your first code change
+## Contributing code
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
 
-### Connect with the Beam community
+### Connect With the Beam community
 
 1. Consider subscribing to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/), especially
    if you plan to make more than one change or the change will be large. All decisions happen on the
@@ -100,7 +100,7 @@ detail.
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the dev@ mailing list.
 
-### Get set up with the code repository
+### Development Setup
    
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
@@ -135,7 +135,6 @@ detail.
 1. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
-   - [Eclipse](https://cwiki.apache.org/confluence/display/BEAM/Eclipse+Tips)
    - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
    - [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
    - [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
