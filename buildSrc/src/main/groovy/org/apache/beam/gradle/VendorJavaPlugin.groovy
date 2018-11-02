@@ -81,7 +81,7 @@ class VendorJavaPlugin implements Plugin<Project> {
               exclude "org/apache/beam/vendor/**"
               // BEAM-5919: Exclude paths for Java 9 multi-release jars.
               exclude "META-INF/versions/*/module-info.class"
-              exclude "META-INF/versions/*/org/apache/beam/**"
+              exclude "META-INF/versions/*/org/apache/beam/vendor/**"
             }
             if (exposedClasses.files) {
               throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
