@@ -125,6 +125,10 @@ class Variant(object):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __repr__(self):
     return ', '.join(
         [str(s) for s in [self.reference_name,
@@ -218,6 +222,10 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return ', '.join(

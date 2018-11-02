@@ -66,6 +66,10 @@ class MetricName(object):
     return (self.namespace == other.namespace and
             self.name == other.name)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __str__(self):
     return 'MetricName(namespace={}, name={})'.format(
         self.namespace, self.name)

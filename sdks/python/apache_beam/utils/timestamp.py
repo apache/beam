@@ -152,6 +152,10 @@ class Timestamp(object):
       other = Timestamp.of(other)
     return self.micros == other.micros
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __lt__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
@@ -236,6 +240,10 @@ class Duration(object):
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return self.micros == other.micros
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __lt__(self, other):
     # Allow comparisons between Duration and Timestamp values.

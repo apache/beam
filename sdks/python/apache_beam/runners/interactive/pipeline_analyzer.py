@@ -433,6 +433,10 @@ class PipelineInfo(object):
         return (self._inputs == other._inputs and
                 self._transform_info == other._transform_info)
 
+    def __ne__(self, other):
+      # TODO(BEAM-5949): Needed for Python 2 compatibility.
+      return not self == other
+
     def __hash__(self):
       if self._hash is None:
         self._hash = (hash(tuple(sorted(self._transform_info.items())))
