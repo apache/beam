@@ -1216,6 +1216,16 @@ artifactId=${project.name}
       //  -DintegrationTestRunner=<runner to be used for testing, eg. dataflow>
       //
       // There are more options with default values that can be tweaked if needed (see below).
+
+      // Changes in this file are to test out if the actual jenkins calling stack
+      // goes this route, which seems to be not the case. [Correct me if I am wrong]
+      def allPipelineOptions = configuration.integrationTestPipelineOptions
+      if (allPipelineOptions) {
+        allPipelineOptions = allPipelineOptions.substring(0, allPipelineOptions.length() - 1)
+        allPipelineOptions = allPipelineOptions + ', "--workerHarnessContainerImage="' + ']'
+      }
+      print "allPipelineOptions: ${allPipelineOptions}"
+
       project.task('performanceTest', type: Exec) {
 
         // PerfKitBenchmarker needs to work in the Beam's root directory,

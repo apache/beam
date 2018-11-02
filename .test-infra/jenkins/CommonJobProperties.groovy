@@ -288,6 +288,21 @@ class CommonJobProperties {
     def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
     context.steps {
+
+       gradle {
+         rootBuildScriptDir(checkoutDir)
+         tasks(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
+         /*
+            Option 1. At this place if we can get shadowJar.archivePath from
+            gradle build, then we can pass the path to pkbArgs down below.
+
+            Option 2. Reversed way. Pass a file name to gradle as
+            shadowjar.ArchivePath, then call the shadowjar build afterwards.
+            But that requies looking into the ShadowJar
+            3rd party package we are using.
+          */
+       }
+
         // Clean up environment.
         shell("rm -rf ${perfkit_root}")
         shell("rm -rf ${perfkit_env}")
