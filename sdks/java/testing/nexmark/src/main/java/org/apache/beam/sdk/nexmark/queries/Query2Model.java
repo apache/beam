@@ -70,6 +70,6 @@ public class Query2Model extends NexmarkQueryModel implements Serializable {
 
   @Override
   protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
-    return toValueTimestampOrder(itr);
+    return toValueTimestamp(itr);
   }
 }
