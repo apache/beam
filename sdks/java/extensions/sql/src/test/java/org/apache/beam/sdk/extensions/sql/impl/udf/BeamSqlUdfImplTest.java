@@ -23,17 +23,13 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for UDFs. */
 @RunWith(JUnit4.class)
 public class BeamSqlUdfImplTest extends BeamSqlDslBase {
-
-  @Rule public ExpectedException expectedEx = ExpectedException.none();
 
   @Test
   public void testIsInf() throws Exception {
@@ -72,68 +68,14 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
   }
 
   @Test
-  public void testCOSH() throws Exception {
-    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
-
-    Row resultRow1 = Row.withSchema(resultType).addValues(Math.cosh(1.0)).build();
-    String sql1 = "SELECT COSH(CAST(1.0 as DOUBLE))";
-    PCollection<Row> result1 = boundedInput1.apply("testUdf1", SqlTransform.query(sql1));
-    PAssert.that(result1).containsInAnyOrder(resultRow1);
-
-    Row resultRow2 = Row.withSchema(resultType).addValues(Math.cosh(710.0)).build();
-    String sql2 = "SELECT COSH(CAST(710.0 as DOUBLE))";
-    PCollection<Row> result2 = boundedInput1.apply("testUdf2", SqlTransform.query(sql2));
-    PAssert.that(result2).containsInAnyOrder(resultRow2);
-
-    Row resultRow3 = Row.withSchema(resultType).addValues(Math.cosh(-1.0)).build();
-    String sql3 = "SELECT COSH(CAST(-1.0 as DOUBLE))";
-    PCollection<Row> result3 = boundedInput1.apply("testUdf3", SqlTransform.query(sql3));
-    PAssert.that(result3).containsInAnyOrder(resultRow3);
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testSINH() throws Exception {
-    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
-
-    Row resultRow1 = Row.withSchema(resultType).addValues(Math.sinh(1.0)).build();
-    String sql1 = "SELECT SINH(CAST(1.0 as DOUBLE))";
-    PCollection<Row> result1 = boundedInput1.apply("testUdf1", SqlTransform.query(sql1));
-    PAssert.that(result1).containsInAnyOrder(resultRow1);
-
-    Row resultRow2 = Row.withSchema(resultType).addValues(Math.sinh(710.0)).build();
-    String sql2 = "SELECT SINH(CAST(710.0 as DOUBLE))";
-    PCollection<Row> result2 = boundedInput1.apply("testUdf2", SqlTransform.query(sql2));
-    PAssert.that(result2).containsInAnyOrder(resultRow2);
-
-    Row resultRow3 = Row.withSchema(resultType).addValues(Math.sinh(-1.0)).build();
-    String sql3 = "SELECT SINH(CAST(-1.0 as DOUBLE))";
-    PCollection<Row> result3 = boundedInput1.apply("testUdf3", SqlTransform.query(sql3));
-    PAssert.that(result3).containsInAnyOrder(resultRow3);
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testTANH() throws Exception {
-    Schema resultType = Schema.builder().addNullableField("field", Schema.FieldType.DOUBLE).build();
-
-    Row resultRow1 = Row.withSchema(resultType).addValues(Math.tanh(1.0)).build();
-    String sql1 = "SELECT TANH(CAST(1.0 as DOUBLE))";
-    PCollection<Row> result1 = boundedInput1.apply("testUdf1", SqlTransform.query(sql1));
-    PAssert.that(result1).containsInAnyOrder(resultRow1);
-
-    Row resultRow2 = Row.withSchema(resultType).addValues(Math.tanh(0.0)).build();
-    String sql2 = "SELECT TANH(CAST(0.0 as DOUBLE))";
-    PCollection<Row> result2 = boundedInput1.apply("testUdf2", SqlTransform.query(sql2));
-    PAssert.that(result2).containsInAnyOrder(resultRow2);
-
-    Row resultRow3 = Row.withSchema(resultType).addValues(Math.tanh(-1.0)).build();
-    String sql3 = "SELECT TANH(CAST(-1.0 as DOUBLE))";
-    PCollection<Row> result3 = boundedInput1.apply("testUdf3", SqlTransform.query(sql3));
-    PAssert.that(result3).containsInAnyOrder(resultRow3);
-
+  public void testLength() throws Exception {
+    Schema resultType = Schema.builder().addInt64Field("field").build();
+    Row resultRow = Row.withSchema(resultType).addValues(10L).build();
+    Row resultRow2 = Row.withSchema(resultType).addValues(0L).build();
+    Row resultRow3 = Row.withSchema(resultType).addValues(2L).build();
+    String sql = "SELECT LENGTH(f_bytes) FROM PCOLLECTION";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3);
     pipeline.run().waitUntilFinish();
   }
 }
