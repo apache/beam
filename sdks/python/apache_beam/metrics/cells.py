@@ -276,7 +276,8 @@ class DistributionResult(object):
     return hash(self.data)
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
@@ -326,7 +327,8 @@ class GaugeResult(object):
     return hash(self.data)
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeResult(value={}, timestamp={})>'.format(
@@ -363,7 +365,8 @@ class GaugeData(object):
     return hash((self.value, self.timestamp))
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeData(value={}, timestamp={})>'.format(
@@ -434,7 +437,8 @@ class DistributionData(object):
     return hash((self.sum, self.count, self.min, self.max))
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
