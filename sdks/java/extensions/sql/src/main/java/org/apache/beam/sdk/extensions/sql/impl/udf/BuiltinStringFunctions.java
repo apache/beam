@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.commons.lang3.ArrayUtils;
 
 /** BuiltinStringFunctions. */
 @AutoService(BeamBuiltinFunctionProvider.class)
@@ -49,5 +50,24 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   )
   public Long length(byte[] bytes) {
     return (long) bytes.length;
+  }
+
+  @UDF(
+    funcName = "REVERSE",
+    parameterArray = {TypeName.STRING},
+    returnType = TypeName.STRING
+  )
+  public String reverse(String str) {
+    return new StringBuilder(str).reverse().toString();
+  }
+
+  @UDF(
+    funcName = "REVERSE",
+    parameterArray = {TypeName.BYTES},
+    returnType = TypeName.BYTES
+  )
+  public byte[] reverse(byte[] bytes) {
+    ArrayUtils.reverse(bytes);
+    return bytes;
   }
 }

@@ -83,4 +83,16 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
 
     checker.buildRunAndCheck();
   }
+
+  @Test
+  public void testReverse() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("REVERSE('')", "")
+            .addExpr("REVERSE('foo')", "oof")
+            .addExpr("REVERSE('中文')", "文中")
+            .addExpr("REVERSE('абвгд')", "дгвба");
+
+    checker.buildRunAndCheck();
+  }
 }

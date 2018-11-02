@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.apache.beam.sdk.extensions.sql.BeamSqlDslBase;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -74,6 +76,18 @@ public class BeamSqlUdfImplTest extends BeamSqlDslBase {
     Row resultRow2 = Row.withSchema(resultType).addValues(0L).build();
     Row resultRow3 = Row.withSchema(resultType).addValues(2L).build();
     String sql = "SELECT LENGTH(f_bytes) FROM PCOLLECTION";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReverse() throws Exception {
+    Schema resultType = Schema.builder().addByteArrayField("field").build();
+    Row resultRow = Row.withSchema(resultType).addValues("дгвба".getBytes(UTF_8)).build();
+    Row resultRow2 = Row.withSchema(resultType).addValues("\1\0".getBytes(UTF_8)).build();
+    Row resultRow3 = Row.withSchema(resultType).addValues("".getBytes(UTF_8)).build();
+    String sql = "SELECT REVERSE(f_bytes) FROM PCOLLECTION";
     PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
     PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3);
     pipeline.run().waitUntilFinish();

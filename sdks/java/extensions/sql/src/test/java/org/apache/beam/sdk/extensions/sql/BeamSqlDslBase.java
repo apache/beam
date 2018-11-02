@@ -158,7 +158,7 @@ public class BeamSqlDslBase {
 
     rowsOfBytes =
         TestUtils.RowsBuilder.of(schemaBytes)
-            .addRows("".getBytes(UTF_8), "абвгд".getBytes(UTF_8), "\0\0".getBytes(UTF_8))
+            .addRows("".getBytes(UTF_8), "абвгд".getBytes(UTF_8), "\0\1".getBytes(UTF_8))
             .getRows();
   }
 
