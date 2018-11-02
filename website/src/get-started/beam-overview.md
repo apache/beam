@@ -66,4 +66,4 @@ Get started using Beam for your data processing tasks.
 
 ## Contribute
 
-Beam is an [Apache Software Foundation](http://www.apache.org) project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.
+Beam is an [Apache Software Foundation](http://www.apache.org){:target="_blank"} project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.
