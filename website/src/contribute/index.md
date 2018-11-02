@@ -28,17 +28,10 @@ limitations under the License.
 
 The Apache Beam community welcomes contributions from anyone!
 
-If you have questions, consult the [contribution FAQ](
-https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ), and if that doesn't
-help please [reach out to the Beam community]({{ site.baseurl }}/community/contact-us).
-
-The Apache Beam SDK is a unified programming model for both batch and streaming data processing pipelines.
-Pipelines can be described in Java, Python, Go, or SQL, or in a DSL and be executed on
-different runners including Google Cloud Dataflow, Apache Flink, Apache Spark, Apache Apex,
-Apache Gearpump, Apache Hadoop MapReduce, JStorm, IBM Streams, or Apache Samza.
-
+If you have questions, please [reach out to the Beam community]({{ site.baseurl }}/contribute/get-help).
 
 There are lots of opportunities to contribute:
+
  - ask or answer questions on [user@beam.apache.org]({{ site.baseurl
 }}/community/contact-us/) or
 [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
@@ -47,24 +40,24 @@ There are lots of opportunities to contribute:
  - improve the documentation
  - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
  - write new examples
- - add new user-facing libraries (new statistical libraries, new IO connectors,
-   etc)
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
    Cloud Dataflow, etc)
  - improve or add IO connectors
+ - add new transform libraries (statistics, ML, image processing, etc)
  - work on the core programming model (what is a Beam pipeline and how does it
    run?)
- - improve the developer experience on Windows
- - adding answers to the [contribution FAQ](
+ - improve the developer experience (for example, Windows guides)
+ - add answers to the [contribution FAQ](
  https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ)
- - organize local meetups of users or contributors to the Apache Beam SDK
+ - organize local meetups of users or contributors to Apache Beam
 
 Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Prerequisites for contributing code
 
 To contribute code, you need
+
  - a GitHub account
  - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
  - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing website
@@ -77,13 +70,24 @@ To contribute code, you need
 
 ## Submitting your first code change
 
+Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+detail.
+
+### Connect with the Beam community
+
 1. Consider subscribing to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/), especially
    if you plan to make more than one change or the change will be large. All decisions happen on the
    public dev list.
-1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
 1. (Optionally) Join the [#beam channel of the ASF slack]({{ site.baseurl}}/community/contact-us/).
+1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
+   (anyone can do this).
+
+### Share your intent
+
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
-   All changes should be tracked in an issue and referenced by the pull request. For a list of open starter tasks, check
+   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
+   a place for notes. Later, your pull request will be linked to the issue as well.
+1. If you want to get involved but don't have a project in mind, check our list of open starter tasks,
    [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 1. Assign the issue to yourself. To get the permission to do so, email
    the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
@@ -95,9 +99,9 @@ To contribute code, you need
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the dev@ mailing list.
-   Large contributions also require a signed [Individual Contributor License
-   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
-   Software Foundation (ASF).
+
+### Get set up with the code repository
+   
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
@@ -127,18 +131,24 @@ To contribute code, you need
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
        $ ./gradlew -p runners/flink check
-
-1. Depending on the area you are updating, review tips for
+       
+1. Now you may want to set up your preferred IDE and other aspects of your development
+   environment. See the Developers' wiki for tips, guides, and FAQs on:
+   - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
+   - [Eclipse](https://cwiki.apache.org/confluence/display/BEAM/Eclipse+Tips)
    - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
    - [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
    - [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
    - [Website](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
    - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
+   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ)
+   
+### Make your change
+   
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change
-1. Ensure tests pass locally
 1. When your change is ready to be reviewed and merged, create a pull request.
    Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.

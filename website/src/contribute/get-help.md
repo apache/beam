@@ -23,8 +23,5 @@ limitations under the License.
 If you have any trouble contributing, don't give up!
 
   - Check the [FAQ on our developers' wiki ![External link to Beam developers' Wiki]({{ site.baseurl }}/images/external-link-icon.png){:width="14px" :height="14px"}](https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ){:target="_blank"}.
-  - Ask the Beam developer community on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us)
-    or [#beam on Slack]({{ site.baseurl }}/community/contact-us).
-  - The [PMC and Committer roster ![External link to Beam roster]({{ site.baseurl }}/images/external-link-icon.png){:width="14px" :height="14px"}](https://projects.apache.org/committee.html?beam){:target="_blank"} is a good list of very experienced Beam developers who also
-    have the ability to merge your pull request.
-
+  - Send email to the Beam developer community on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us)
+  - Find someone to chat with in realtime at [#beam on Slack]({{ site.baseurl }}/community/contact-us).
