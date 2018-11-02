@@ -49,12 +49,17 @@ There are lots of opportunities to contribute:
    run?)
  - improve the developer experience (for example, Windows guides)
  - add answers to the [contribution FAQ](
- https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ)
+ https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
  - organize local meetups of users or contributors to Apache Beam
 
 Most importantly, if you have an idea of how to contribute, then do it!
 
-## Prerequisites for contributing code
+## Contributing code
+
+Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+detail.
+
+### Prerequisites
 
 To contribute code, you need
 
@@ -67,11 +72,6 @@ To contribute code, you need
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
-
-## Contributing code
-
-Below is a tutorial for contributing code to Beam, covering our tools and typical process in
-detail.
 
 ### Connect With the Beam community
 
@@ -141,7 +141,7 @@ detail.
    - [Website](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
    - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
-   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ)
+   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
    
 ### Make your change
    
@@ -236,7 +236,7 @@ https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam)
 ## Troubleshooting
 
 If you run into any issues, check out the [contribution FAQ](
-https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ) or ask on
+https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on
 on the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/) or
 [#beam channel of the ASF slack]({{ site.baseurl}}/community/contact-us/).
 ----
