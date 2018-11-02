@@ -45,7 +45,7 @@ typing==3.6.1
 nose==1.3.7
 
 # GCP extra features
-google-apitools==0.5.20
+google-apitools==0.5.24
 googledatastore==7.0.1
 google-cloud-pubsub==0.35.4
 google-cloud-bigquery==1.6.0
