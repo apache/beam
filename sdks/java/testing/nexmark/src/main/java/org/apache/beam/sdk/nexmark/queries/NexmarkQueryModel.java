@@ -18,11 +18,9 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -57,20 +55,11 @@ public abstract class NexmarkQueryModel implements Serializable {
     return new Instant(lim - s);
   }
 
-  /** Convert {@code itr} to strings capturing values, timestamps and order. */
-  static <T> List<String> toValueTimestampOrder(Iterator<TimestampedValue<T>> itr) {
-    List<String> strings = new ArrayList<>();
+  /** Convert {@code itr} to strings capturing values and timestamps. */
+  static <T> Set<String> toValueTimestamp(Iterator<TimestampedValue<T>> itr) {
+    Set<String> strings = new HashSet<>();
     while (itr.hasNext()) {
       strings.add(itr.next().toString());
-    }
-    return strings;
-  }
-
-  /** Convert {@code itr} to strings capturing values and order. */
-  static <T> List<String> toValueOrder(Iterator<TimestampedValue<T>> itr) {
-    List<String> strings = new ArrayList<>();
-    while (itr.hasNext()) {
-      strings.add(itr.next().getValue().toString());
     }
     return strings;
   }
