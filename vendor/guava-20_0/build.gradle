@@ -28,5 +28,5 @@ vendorJava(
   dependency: "com.google.guava:guava:20.0",
   packagesToRelocate: ["com.google.common", "com.google.thirdparty"],
   intoPackage: "org.apache.beam.guava.v20_0",
-  artifactId: "beam-vendored-guava-20_0"
+  artifactId: "beam-vendor-guava-20_0"
 )
