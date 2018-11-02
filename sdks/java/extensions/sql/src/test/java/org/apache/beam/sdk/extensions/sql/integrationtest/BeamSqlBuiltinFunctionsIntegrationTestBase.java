@@ -243,6 +243,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return this;
     }
 
+    public ExpressionChecker addExprWithNullExpectedValue(
+        String expression, TypeName resultTypeName) {
+      addExpr(expression, null, FieldType.of(resultTypeName));
+      return this;
+    }
+
     public ExpressionChecker addExpr(
         String expression, Object expectedValue, FieldType resultFieldType) {
       exps.add(ExpressionTestCase.of(expression, expectedValue, resultFieldType));
