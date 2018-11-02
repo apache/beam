@@ -147,12 +147,11 @@
 
 <li><span class="section-nav-list-main-title">Contribute</span></li>
 <li><a href="/contribute/">Get started contributing</a></li>
-<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">FAQ</a></li>
+<li><a href="/contribute/get-help/">Get Help</a></li>
 <li>
   <span class="section-nav-list-title">Technical Docs</span>
 
   <ul class="section-nav-list">
-    <li><a href="/roadmap/">Roadmap</a></li>
     <li><a href="/contribute/testing/">Testing guide</a></li>
     <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage</a></li>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
@@ -173,13 +172,11 @@
 <li>
   <span class="section-nav-list-title">Committers</span>
   <ul class="section-nav-list">
-    <li><a href="/contribute/team/">PMC and committers</a></li>
     <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
     <li><a href="/contribute/committer-guide/">Committer guide</a></li>
     <li><a href="/contribute/release-guide/">Release guide</a></li>
   </ul>
 </li>
-<li><a href="/community/contact-us/">Contact Us</a></li>
 
           </ul>
         </nav>
@@ -202,7 +199,14 @@
 
 <ul class="nav">
   <li><a href="#prerequisites-for-contributing-code">Prerequisites for contributing code</a></li>
-  <li><a href="#submitting-your-first-code-change">Submitting your first code change</a></li>
+  <li><a href="#contributing-code">Contributing code</a>
+    <ul>
+      <li><a href="#connect-with-the-beam-community">Connect With the Beam community</a></li>
+      <li><a href="#share-your-intent">Share your intent</a></li>
+      <li><a href="#development-setup">Development Setup</a></li>
+      <li><a href="#make-your-change">Make your change</a></li>
+    </ul>
+  </li>
   <li><a href="#when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</a></li>
   <li><a href="#stale-pull-requests">Stale pull requests</a></li>
   <li><a href="#accounts-and-permissions">Accounts and Permissions</a></li>
@@ -233,15 +237,10 @@ limitations under the License.
 
 <p>The Apache Beam community welcomes contributions from anyone!</p>
 
-<p>If you have questions, consult the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a>, and if that doesn’t
-help please <a href="/community/contact-us">reach out to the Beam community</a>.</p>
-
-<p>The Apache Beam SDK is a unified programming model for both batch and streaming data processing pipelines.
-Pipelines can be described in Java, Python, Go, or SQL, or in a DSL and be executed on
-different runners including Google Cloud Dataflow, Apache Flink, Apache Spark, Apache Apex,
-Apache Gearpump, Apache Hadoop MapReduce, JStorm, IBM Streams, or Apache Samza.</p>
+<p>If you have questions, please <a href="/contribute/get-help">reach out to the Beam community</a>.</p>
 
 <p>There are lots of opportunities to contribute:</p>
+
 <ul>
   <li>ask or answer questions on <a href="/community/contact-us/">user@beam.apache.org</a> or
 <a href="https://stackoverflow.com/questions/tagged/apache-beam">stackoverflow</a></li>
@@ -249,17 +248,16 @@ Apache Gearpump, Apache Hadoop MapReduce, JStorm, IBM Streams, or Apache Samza.<
   <li>improve the documentation</li>
   <li>contribute <a href="https://issues.apache.org/jira/projects/BEAM/issues">bug reports</a></li>
   <li>write new examples</li>
-  <li>add new user-facing libraries (new statistical libraries, new IO connectors,
-etc)</li>
   <li>improve your favorite language SDK (Java, Python, Go, etc)</li>
   <li>improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
 Cloud Dataflow, etc)</li>
   <li>improve or add IO connectors</li>
+  <li>add new transform libraries (statistics, ML, image processing, etc)</li>
   <li>work on the core programming model (what is a Beam pipeline and how does it
 run?)</li>
-  <li>improve the developer experience on Windows</li>
-  <li>adding answers to the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a></li>
-  <li>organize local meetups of users or contributors to the Apache Beam SDK</li>
+  <li>improve the developer experience (for example, Windows guides)</li>
+  <li>add answers to the <a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">contribution FAQ</a></li>
+  <li>organize local meetups of users or contributors to Apache Beam</li>
 </ul>
 
 <p>Most importantly, if you have an idea of how to contribute, then do it!</p>
@@ -267,6 +265,7 @@ run?)</li>
 <h2 id="prerequisites-for-contributing-code">Prerequisites for contributing code</h2>
 
 <p>To contribute code, you need</p>
+
 <ul>
   <li>a GitHub account</li>
   <li>a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed</li>
@@ -279,16 +278,29 @@ Agreement</a> (ICLA) to the Apache
 Software Foundation (ASF).</li>
 </ul>
 
-<h2 id="submitting-your-first-code-change">Submitting your first code change</h2>
+<h2 id="contributing-code">Contributing code</h2>
+
+<p>Below is a tutorial for contributing code to Beam, covering our tools and typical process in
+detail.</p>
+
+<h3 id="connect-with-the-beam-community">Connect With the Beam community</h3>
 
 <ol>
   <li>Consider subscribing to the <a href="/community/contact-us/">dev@ mailing list</a>, especially
 if you plan to make more than one change or the change will be large. All decisions happen on the
 public dev list.</li>
-  <li>Create an account on <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.</li>
   <li>(Optionally) Join the <a href="/community/contact-us/">#beam channel of the ASF slack</a>.</li>
+  <li>Create an account on <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>
+(anyone can do this).</li>
+</ol>
+
+<h3 id="share-your-intent">Share your intent</h3>
+
+<ol>
   <li>Find or create an issue in the <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.
-All changes should be tracked in an issue and referenced by the pull request. For a list of open starter tasks, check
+Tracking your work in an issue will avoid duplicated or conflicting work, and provide
+a place for notes. Later, your pull request will be linked to the issue as well.</li>
+  <li>If you want to get involved but don’t have a project in mind, check our list of open starter tasks,
 <a href="https://s.apache.org/beam-starter-tasks">https://s.apache.org/beam-starter-tasks</a>.</li>
   <li>Assign the issue to yourself. To get the permission to do so, email
 the <a href="/community/contact-us">dev@ mailing list</a>
@@ -298,10 +310,12 @@ ASF Jira Username. For example <a href="https://lists.apache.org/thread.html/e60
 <a href="/community/contact-us/">discuss it on the dev@ mailing list</a></li>
   <li>For large changes create a design doc
 (<a href="https://s.apache.org/beam-design-doc-template">template</a>,
-<a href="https://s.apache.org/beam-design-docs">examples</a>) and email it to the dev@ mailing list.
-Large contributions also require a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
-Agreement</a> (ICLA) to the Apache
-Software Foundation (ASF).</li>
+<a href="https://s.apache.org/beam-design-docs">examples</a>) and email it to the dev@ mailing list.</li>
+</ol>
+
+<h3 id="development-setup">Development Setup</h3>
+
+<ol>
   <li>If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
 <a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a></li>
   <li>
@@ -346,20 +360,27 @@ $ ./gradlew -p runners/flink check
 </code></pre>
     </div>
   </li>
-  <li>Depending on the area you are updating, review tips for
+  <li>Now you may want to set up your preferred IDE and other aspects of your development
+environment. See the Developers’ wiki for tips, guides, and FAQs on:
     <ul>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE">IntelliJ</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Java+Tips">Java</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips">Python</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Go+Tips">Go</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Website+Tips">Website</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips">Gradle</a></li>
       <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips">Jenkins</a></li>
+      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Development+Environment+FAQ">FAQ</a></li>
     </ul>
   </li>
+</ol>
+
+<h3 id="make-your-change">Make your change</h3>
+
+<ol>
   <li>Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
 have an open source license <a href="https://www.apache.org/legal/resolved.html#criteria">compatible</a> with Apache.</li>
   <li>Add unit tests for your change</li>
-  <li>Ensure tests pass locally</li>
   <li>When your change is ready to be reviewed and merged, create a pull request.
 Format the pull request title like <code class="highlighter-rouge">[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
 where you replace BEAM-XXX with the appropriate JIRA issue.
