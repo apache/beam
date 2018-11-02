@@ -1311,9 +1311,9 @@ public class StreamingDataflowWorker {
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
-      long processingTimeMicros =
-          TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - processingStartTimeNanos);
-      stageInfo.totalProcessingMsecs.addValue(processingTimeMicros);
+      long processingTimeMsecs =
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
+      stageInfo.totalProcessingMsecs.addValue(processingTimeMsecs);
 
       // Attribute all the processing to timers if the work item contains any timers.
       // Tests show that work items rarely contain both timers and message bundles. It should
@@ -1321,7 +1321,7 @@ public class StreamingDataflowWorker {
       // Another option: Derive time split between messages and timers based on recent totals.
       // either here or in DFE.
       if (work.getWorkItem().hasTimers()) {
-        stageInfo.timerProcessingMsecs.addValue(processingTimeMicros);
+        stageInfo.timerProcessingMsecs.addValue(processingTimeMsecs);
       }
 
       DataflowWorkerLoggingMDC.setWorkId(null);
