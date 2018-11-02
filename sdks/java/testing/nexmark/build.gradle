@@ -24,7 +24,7 @@ description = "Apache Beam :: SDKs :: Java :: Nexmark"
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
+ * we are attempting to reference a property from the project directly.
  */
 evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
 
