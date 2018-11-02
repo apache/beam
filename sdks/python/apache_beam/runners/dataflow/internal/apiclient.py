@@ -148,14 +148,12 @@ class Environment(object):
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
 
-    sdk_name, version_string = (names.BEAM_SDK_NAME, beam_version.__version__)
-
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(sdk_name)),
+            value=to_json_value(names.BEAM_SDK_NAME)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(version_string))])
+            key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:

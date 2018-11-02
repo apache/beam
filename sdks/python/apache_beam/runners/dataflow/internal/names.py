@@ -48,7 +48,7 @@ BEAM_CONTAINER_VERSION = 'beam-master-20181018'
 BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20181018'
 
 # Package names for different distributions
-# TODO: Deduplicate this with apache_beam/runners/portability/stager.py
+# TODO(BEAM-5939): Deduplicate with apache_beam/runners/portability/stager.py
 BEAM_PACKAGE_NAME = 'apache-beam'
 
 # SDK identifiers for different distributions
