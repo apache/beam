@@ -79,6 +79,7 @@ class VendorJavaPlugin implements Plugin<Project> {
             FileTree exposedClasses = project.zipTree(it).matching {
               include "**/*.class"
               exclude "org/apache/beam/**"
+              exclude "META-INF/**"
             }
             if (exposedClasses.files) {
               throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
