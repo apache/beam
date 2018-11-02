@@ -24,15 +24,22 @@ description = "Apache Beam :: SDKs :: Java :: Nexmark"
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the nexmark launch
 def nexmarkArgsProperty = "nexmark.args"
-def nexmarkArgs = project.hasProperty(nexmarkArgsProperty) ?
-    project.getProperty(nexmarkArgsProperty).split() : []
 
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
-def nexmarkRunnerDependency = (project.hasProperty(nexmarkRunnerProperty)
-        ? project.getProperty(nexmarkRunnerProperty)
-        : ":beam-runners-direct-java")
+def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
+        ?: ":beam-runners-direct-java"
 def shouldProvideSpark = ":beam-runners-spark".equals(nexmarkRunnerDependency)
+def isDataflowRunner = ":beam-runners-google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
+
+if (isDataflowRunner) {
+  /*
+   * We need to rely on manually specifying these evaluationDependsOn to ensure that
+   * the following projects are evaluated before we evaluate this project. This is because
+   * we are attempting to reference a property from the project directly.
+   */
+  evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+}
 
 configurations {
   // A configuration for running the Nexmark launcher directly from Gradle, which
@@ -98,7 +105,21 @@ if (shouldProvideSpark) {
 //   -Pnexmark.args
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
 task run(type: JavaExec) {
+  def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
+
+  if (isDataflowRunner) {
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+    // Provide job with a customizable worker jar.
+    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+    // More context and discussions can be found in PR#6694.
+    nexmarkArgsStr = nexmarkArgsStr +
+          " --dataflowWorkerJar=${dataflowWorkerJar} " +
+          " --workerHarnessContainerImage="
+  }
+
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
-  args nexmarkArgs
+  args nexmarkArgsStr.split()
 }
