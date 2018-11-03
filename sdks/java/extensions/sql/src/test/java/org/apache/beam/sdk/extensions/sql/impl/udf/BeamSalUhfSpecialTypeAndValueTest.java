@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import org.apache.beam.sdk.extensions.sql.BeamSqlDslBase;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -108,6 +109,34 @@ public class BeamSalUhfSpecialTypeAndValueTest extends BeamSqlDslBase {
     String sql = "SELECT TO_HEX(f_bytes) FROM PCOLLECTION WHERE f_func = 'TO_HEX'";
     PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
     PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3, resultRow4);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testLeftPad() throws Exception {
+    Schema resultType = Schema.builder().addNullableField("field", FieldType.BYTES).build();
+    Row resultRow = Row.withSchema(resultType).addValue("".getBytes(UTF_8)).build();
+    Row resultRow2 = Row.withSchema(resultType).addValue("abcdef".getBytes(UTF_8)).build();
+    Row resultRow3 = Row.withSchema(resultType).addValue("abcd".getBytes(UTF_8)).build();
+    Row resultRow4 = Row.withSchema(resultType).addValue("defgabcdef".getBytes(UTF_8)).build();
+    Row resultRow5 = Row.withSchema(resultType).addValue("defghdeabc".getBytes(UTF_8)).build();
+    Row resultRow6 = Row.withSchema(resultType).addValue("----abc".getBytes(UTF_8)).build();
+    Row resultRow7 = Row.withSchema(resultType).addValue("defdefd".getBytes(UTF_8)).build();
+    Row resultRow8 = Row.withSchema(resultType).addValue(null).build();
+
+    String sql = "SELECT LPAD(f_bytes_one, length, f_bytes_two) FROM PCOLLECTION";
+    PCollection<Row> result =
+        boundedInputBytesPaddingTest.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result)
+        .containsInAnyOrder(
+            resultRow,
+            resultRow2,
+            resultRow3,
+            resultRow4,
+            resultRow5,
+            resultRow6,
+            resultRow7,
+            resultRow8);
     pipeline.run().waitUntilFinish();
   }
 }

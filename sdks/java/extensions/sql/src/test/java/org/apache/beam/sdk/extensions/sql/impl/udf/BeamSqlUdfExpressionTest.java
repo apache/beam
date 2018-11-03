@@ -100,7 +100,7 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("LENGTH('中文')", 2L)
             .addExpr("LENGTH('\0\0')", 2L)
             .addExpr("LENGTH('абвгд')", 5L)
-            .addExprWithNullExpectedValue("LENGTH(CAST(NULL as CHAR(0)))", TypeName.INT64)
+            .addExprWithNullExpectedValue("LENGTH(CAST(NULL as VARCHAR(0)))", TypeName.INT64)
             .addExprWithNullExpectedValue("LENGTH(CAST(NULL as VARBINARY(0)))", TypeName.INT64);
 
     checker.buildRunAndCheck();
@@ -114,7 +114,7 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("REVERSE('foo')", "oof")
             .addExpr("REVERSE('中文')", "文中")
             .addExpr("REVERSE('абвгд')", "дгвба")
-            .addExprWithNullExpectedValue("REVERSE(CAST(NULL as CHAR(0)))", TypeName.STRING)
+            .addExprWithNullExpectedValue("REVERSE(CAST(NULL as VARCHAR(0)))", TypeName.STRING)
             .addExprWithNullExpectedValue("REVERSE(CAST(NULL as VARBINARY(0)))", TypeName.STRING);
 
     checker.buildRunAndCheck();
@@ -129,7 +129,7 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("FROM_HEX('616263414243')", "abcABC".getBytes(UTF_8))
             .addExpr(
                 "FROM_HEX('616263414243d0b6d189d184d096d0a9d0a4')", "abcABCжщфЖЩФ".getBytes(UTF_8))
-            .addExprWithNullExpectedValue("FROM_HEX(CAST(NULL as CHAR(0)))", TypeName.BYTES);
+            .addExprWithNullExpectedValue("FROM_HEX(CAST(NULL as VARCHAR(0)))", TypeName.BYTES);
     checker.buildRunAndCheck();
   }
 
@@ -138,6 +138,33 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExprWithNullExpectedValue("TO_HEX(CAST(NULL as VARBINARY(0)))", TypeName.STRING);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testLeftPad() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("LPAD('abcdef', CAST(0 AS BIGINT))", "")
+            .addExpr("LPAD('abcdef', CAST(0 AS BIGINT), 'defgh')", "")
+            .addExpr("LPAD('abcdef', CAST(6 AS BIGINT), 'defgh')", "abcdef")
+            .addExpr("LPAD('abcdef', CAST(5 AS BIGINT), 'defgh')", "abcde")
+            .addExpr("LPAD('abcdef', CAST(4 AS BIGINT), 'defgh')", "abcd")
+            .addExpr("LPAD('abcdef', CAST(3 AS BIGINT), 'defgh')", "abc")
+            .addExpr("LPAD('abc', CAST(4 AS BIGINT), 'defg')", "dabc")
+            .addExpr("LPAD('abc', CAST(5 AS BIGINT), 'defgh')", "deabc")
+            .addExpr("LPAD('abc', CAST(6 AS BIGINT), 'defgh')", "defabc")
+            .addExpr("LPAD('abc', CAST(7 AS BIGINT), 'defg')", "defgabc")
+            .addExpr("LPAD('abcd', CAST(10 AS BIGINT), 'defg')", "defgdeabcd")
+            .addExpr("LPAD('中文', CAST(10 AS BIGINT), 'жщфЖЩФ')", "жщфЖЩФжщ中文")
+            .addExpr("LPAD('', CAST(5 AS BIGINT), ' ')", "     ")
+            .addExpr("LPAD('', CAST(3 AS BIGINT), '-')", "---")
+            .addExprWithNullExpectedValue(
+                "LPAD(CAST(NULL AS VARCHAR(0)), CAST(3 AS BIGINT), '-')", TypeName.STRING)
+            .addExprWithNullExpectedValue("LPAD('', CAST(NULL AS BIGINT), '-')", TypeName.STRING)
+            .addExprWithNullExpectedValue(
+                "LPAD('', CAST(3 AS BIGINT), CAST(NULL AS VARCHAR(0)))", TypeName.STRING);
 
     checker.buildRunAndCheck();
   }

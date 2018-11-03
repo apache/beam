@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -55,15 +56,19 @@ public class BeamSqlDslBase {
   static Schema schemaInTableA;
   static Schema schemaFloatDouble;
   static Schema schemaBytes;
+  static Schema schemaBytesPaddingTest;
+
   static List<Row> rowsInTableA;
   static List<Row> rowsOfFloatDouble;
   static List<Row> rowsOfBytes;
+  static List<Row> rowsOfBytesPaddingTest;
 
   //bounded PCollections
   protected PCollection<Row> boundedInput1;
   protected PCollection<Row> boundedInput2;
   protected PCollection<Row> boundedInputFloatDouble;
   protected PCollection<Row> boundedInputBytes;
+  protected PCollection<Row> boundedInputBytesPaddingTest;
 
   //unbounded PCollections
   protected PCollection<Row> unboundedInput1;
@@ -174,6 +179,41 @@ public class BeamSqlDslBase {
                 "TO_HEX",
                 "abcABCжщфЖЩФ".getBytes(UTF_8))
             .getRows();
+
+    schemaBytesPaddingTest =
+        Schema.builder()
+            .addNullableField("f_bytes_one", FieldType.BYTES)
+            .addNullableField("length", FieldType.INT64)
+            .addNullableField("f_bytes_two", FieldType.BYTES)
+            .build();
+    rowsOfBytesPaddingTest =
+        TestUtils.RowsBuilder.of(schemaBytesPaddingTest)
+            .addRows(
+                "abcdef".getBytes(UTF_8),
+                0L,
+                "defgh".getBytes(UTF_8),
+                "abcdef".getBytes(UTF_8),
+                6L,
+                "defgh".getBytes(UTF_8),
+                "abcdef".getBytes(UTF_8),
+                4L,
+                "defgh".getBytes(UTF_8),
+                "abcdef".getBytes(UTF_8),
+                10L,
+                "defgh".getBytes(UTF_8),
+                "abc".getBytes(UTF_8),
+                10L,
+                "defgh".getBytes(UTF_8),
+                "abc".getBytes(UTF_8),
+                7L,
+                "-".getBytes(UTF_8),
+                "".getBytes(UTF_8),
+                7L,
+                "def".getBytes(UTF_8),
+                null,
+                null,
+                null)
+            .getRows();
   }
 
   @Before
@@ -211,6 +251,15 @@ public class BeamSqlDslBase {
             Create.of(rowsOfBytes)
                 .withSchema(
                     schemaBytes,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+
+    boundedInputBytesPaddingTest =
+        pipeline.apply(
+            "boundedInputBytesPaddingTest",
+            Create.of(rowsOfBytesPaddingTest)
+                .withSchema(
+                    schemaBytesPaddingTest,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
