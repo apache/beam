@@ -49,7 +49,7 @@ public class Query2 extends NexmarkQuery {
   private PCollection<AuctionPrice> applyTyped(PCollection<Event> events) {
     return events
         // Only want the bid events.
-        .apply(JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
 
         // Select just the bids for the auctions we care about.
         .apply(Filter.by(bid -> bid.auction % configuration.auctionSkip == 0))

@@ -58,7 +58,7 @@ public class BoundedSideInputJoin extends NexmarkQuery {
 
     return events
         // Only want the bid events; easier to fake some side input data
-        .apply(JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
 
         // Map the conversion function over all bids.
         .apply(

@@ -55,7 +55,7 @@ public class Query7 extends NexmarkQuery {
     // Window the bids.
     PCollection<Bid> slidingBids =
         events
-            .apply(JUST_BIDS)
+            .apply(NexmarkQueryUtil.JUST_BIDS)
             .apply(
                 Window.into(
                     FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
@@ -67,7 +67,7 @@ public class Query7 extends NexmarkQuery {
     // its I/O. We'll keep this implementation since it illustrates the use of side inputs.
     final PCollectionView<Long> maxPriceView =
         slidingBids
-            .apply("BidToPrice", BID_TO_PRICE)
+            .apply("BidToPrice", NexmarkQueryUtil.BID_TO_PRICE)
             .apply(Max.longsGlobally().withFanout(configuration.fanout).asSingletonView());
 
     return slidingBids

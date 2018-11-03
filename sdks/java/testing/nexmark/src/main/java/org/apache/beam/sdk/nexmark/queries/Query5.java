@@ -60,14 +60,14 @@ public class Query5 extends NexmarkQuery {
   private PCollection<AuctionCount> applyTyped(PCollection<Event> events) {
     return events
         // Only want the bid events.
-        .apply(JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
         // Window the bids into sliding windows.
         .apply(
             Window.into(
                 SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
                     .every(Duration.standardSeconds(configuration.windowPeriodSec))))
         // Project just the auction id.
-        .apply("BidToAuction", BID_TO_AUCTION)
+        .apply("BidToAuction", NexmarkQueryUtil.BID_TO_AUCTION)
 
         // Count the number of bids per auction id.
         .apply(Count.perElement())
