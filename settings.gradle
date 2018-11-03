@@ -124,6 +124,8 @@ include "beam-sdks-java-io-amqp"
 project(":beam-sdks-java-io-amqp").dir = file("sdks/java/io/amqp")
 include "beam-sdks-java-io-cassandra"
 project(":beam-sdks-java-io-cassandra").dir = file("sdks/java/io/cassandra")
+include "beam-sdks-java-io-clickhouse"
+project(":beam-sdks-java-io-clickhouse").dir = file("sdks/java/io/clickhouse")
 include "beam-sdks-java-io-common"
 project(":beam-sdks-java-io-common").dir = file("sdks/java/io/common")
 include "beam-sdks-java-io-elasticsearch"
