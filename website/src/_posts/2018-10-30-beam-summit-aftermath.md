@@ -66,11 +66,11 @@ In the aftermath of the Summit, you can check the presentations of all the sessi
 * [Day 1 - Session 4 - Lesson Learned from Migrating to Apache Beam for Geo-Data Visualisation](https://drive.google.com/open?id=1-GIUVn9QBtg6t-O8uINDkMO4PyZSU_HAEjMWuUHiYY4)
 
 ### Day 2: Beginners track
-* [Day 2 - Beginner - Session 1 - Development Environment with Apache Beam](https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI)
-* [Day 2 - Beginner - Session 2 - Towards Portability and Beyond](https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI)
-* [Day 2 - Beginner - Session 3 - Python Streaming Pipelines with Beam on Flink](https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI)
-* [Day 2 - Beginner - Session 4 - How runners execute a Beam pipeline](https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI)
-* [Day 2 - Beginner - Session 5 - IO Integration Testing framework in Apache Beam](https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI)
+* [Day 2 - Beginner - Session 1 - Development Environment with Apache Beam](https://drive.google.com/open?id=1ntQEDhb8gkxof4uFftxWTOfN39laUDZU7IDHTPKWrcQ)
+* [Day 2 - Beginner - Session 2 - Towards Portability and Beyond](https://drive.google.com/open?id=0B4bFLXEWuluSWWJBWXV3ZTdseWpJN1o5UFdpSzV4Qi1sSGU0)
+* [Day 2 - Beginner - Session 3 - Python Streaming Pipelines with Beam on Flink](https://drive.google.com/open?id=0B4bFLXEWuluSLTd6TFlYdFZZYjBTOFZQV3MxZzlPLWROWjZv)
+* [Day 2 - Beginner - Session 4 - How runners execute a Beam pipeline](https://drive.google.com/open?id=0B4bFLXEWuluSMEV1a1cwM3ozeWQ4TkxlS0tFcnNtRGNGcjJ3)
+* [Day 2 - Beginner - Session 5 - IO Integration Testing framework in Apache Beam](https://drive.google.com/open?id=1QyqO8zJ3fIWD5DTnr1JNCEbm2dS15c1c02fI8zD-zqY)
 
 ### Day 2: Advanced track
 * [Day 2 - Advanced - Session 1 -  Pre-processing for TensorFlow pipelines with Apache Beam &  tf.Transform](https://drive.google.com/open?id=1Kr1skutObtDil2CExSQUb5rCVwZQm1m2lpmuAXFCE5I)
