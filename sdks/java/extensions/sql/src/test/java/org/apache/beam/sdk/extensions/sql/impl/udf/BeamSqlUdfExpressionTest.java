@@ -132,4 +132,13 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExprWithNullExpectedValue("FROM_HEX(CAST(NULL as CHAR(0)))", TypeName.BYTES);
     checker.buildRunAndCheck();
   }
+
+  @Test
+  public void testToHex() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExprWithNullExpectedValue("TO_HEX(CAST(NULL as VARBINARY(0)))", TypeName.STRING);
+
+    checker.buildRunAndCheck();
+  }
 }

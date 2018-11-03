@@ -114,4 +114,17 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
 
     return Hex.decodeHex(str.toCharArray());
   }
+
+  @UDF(
+    funcName = "TO_HEX",
+    parameterArray = {TypeName.BYTES},
+    returnType = TypeName.STRING
+  )
+  public String toHex(byte[] bytes) throws DecoderException {
+    if (bytes == null) {
+      return null;
+    }
+
+    return Hex.encodeHexString(bytes);
+  }
 }

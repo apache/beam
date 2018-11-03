@@ -154,11 +154,25 @@ public class BeamSqlDslBase {
                 Double.NaN)
             .getRows();
 
-    schemaBytes = Schema.builder().addByteArrayField("f_bytes").build();
+    schemaBytes = Schema.builder().addStringField("f_func").addByteArrayField("f_bytes").build();
 
     rowsOfBytes =
         TestUtils.RowsBuilder.of(schemaBytes)
-            .addRows("".getBytes(UTF_8), "абвгд".getBytes(UTF_8), "\0\1".getBytes(UTF_8))
+            .addRows(
+                "LENGTH",
+                "".getBytes(UTF_8),
+                "LENGTH",
+                "абвгд".getBytes(UTF_8),
+                "LENGTH",
+                "\0\1".getBytes(UTF_8),
+                "TO_HEX",
+                "foobar".getBytes(UTF_8),
+                "TO_HEX",
+                " ".getBytes(UTF_8),
+                "TO_HEX",
+                "abcABC".getBytes(UTF_8),
+                "TO_HEX",
+                "abcABCжщфЖЩФ".getBytes(UTF_8))
             .getRows();
   }
 
