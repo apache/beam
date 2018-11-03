@@ -21,12 +21,15 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-/** Executor for Nexmark queries. Allows to decouple from NexmarkQuery and test independently. */
-public class NexmarkSqlQuery<T extends KnownSize> extends NexmarkQuery {
+/**
+ * Executor for Nexmark queries. Allows to decouple from NexmarkQueryTransform and test
+ * independently.
+ */
+public class NexmarkSqlQuery<T extends KnownSize> extends NexmarkQueryTransform {
 
   private PTransform<PCollection<Event>, PCollection<T>> queryTransform;
 

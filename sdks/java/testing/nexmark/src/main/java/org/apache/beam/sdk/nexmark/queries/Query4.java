@@ -61,7 +61,7 @@ import org.joda.time.Duration;
  *       {@code windowPeriodSec}.
  * </ul>
  */
-public class Query4 extends NexmarkQuery {
+public class Query4 extends NexmarkQueryTransform {
   private final Monitor<AuctionBid> winningBidsMonitor;
 
   public Query4(NexmarkConfiguration configuration) {

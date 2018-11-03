@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
  * size. To make it more interesting we instead choose bids for every {@code auctionSkip}'th
  * auction.
  */
-public class Query2 extends NexmarkQuery {
+public class Query2 extends NexmarkQueryTransform {
   public Query2(NexmarkConfiguration configuration) {
     super(configuration, "Query2");
   }

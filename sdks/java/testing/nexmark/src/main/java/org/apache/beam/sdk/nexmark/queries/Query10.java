@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Every windowSizeSec, save all events from the last period into 2*maxWorkers log files.
  */
-public class Query10 extends NexmarkQuery {
+public class Query10 extends NexmarkQueryTransform {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
   private static final int NUM_SHARDS_PER_WORKER = 5;
   private static final Duration LATE_BATCHING_PERIOD = Duration.standardSeconds(10);

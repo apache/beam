@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
  * Query 0: Pass events through unchanged. However, force them to do a round trip through
  * serialization so that we measure the impact of the choice of coders.
  */
-public class Query0 extends NexmarkQuery {
+public class Query0 extends NexmarkQueryTransform {
   public Query0(NexmarkConfiguration configuration) {
     super(configuration, "Query0");
   }

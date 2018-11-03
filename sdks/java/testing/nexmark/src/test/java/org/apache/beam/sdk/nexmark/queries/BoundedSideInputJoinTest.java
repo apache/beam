@@ -62,7 +62,7 @@ public class BoundedSideInputJoinTest {
   private void queryMatchesModel(
       String name,
       NexmarkConfiguration config,
-      NexmarkQuery query,
+      NexmarkQueryTransform query,
       NexmarkQueryModel model,
       boolean streamingMode)
       throws Exception {
@@ -115,7 +115,7 @@ public class BoundedSideInputJoinTest {
       PCollection<Bid> justBids = input.apply(NexmarkQueryUtil.JUST_BIDS);
       PCollection<Long> bidCount = justBids.apply("Count Bids", Count.globally());
 
-      NexmarkQuery query = new BoundedSideInputJoin(config);
+      NexmarkQueryTransform query = new BoundedSideInputJoin(config);
       query.setSideInput(sideInput);
 
       PCollection<TimestampedValue<KnownSize>> output = input.apply(query);

@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
  * Query "9", 'Winning bids'. Select just the winning bids. Not in original NEXMark suite, but handy
  * for testing. See {@link WinningBids} for the details.
  */
-public class Query9 extends NexmarkQuery {
+public class Query9 extends NexmarkQueryTransform {
   public Query9(NexmarkConfiguration configuration) {
     super(configuration, "Query9");
   }

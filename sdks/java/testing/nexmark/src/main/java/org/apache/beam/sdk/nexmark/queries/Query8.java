@@ -48,7 +48,7 @@ import org.joda.time.Duration;
  *
  * <p>To make things a bit more dynamic and easier to test we'll use a much shorter window.
  */
-public class Query8 extends NexmarkQuery {
+public class Query8 extends NexmarkQueryTransform {
   public Query8(NexmarkConfiguration configuration) {
     super(configuration, "Query8");
   }

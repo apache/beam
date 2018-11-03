@@ -30,10 +30,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-/**
- * Base class for the eight 'NEXMark' queries. Supplies some fragments common to multiple queries.
- */
-public abstract class NexmarkQuery
+/** Base class for 'NEXMark' queries. */
+public abstract class NexmarkQueryTransform
     extends PTransform<PCollection<Event>, PCollection<TimestampedValue<KnownSize>>> {
 
   final NexmarkConfiguration configuration;
@@ -43,7 +41,7 @@ public abstract class NexmarkQuery
   private final Counter fatalCounter;
   private transient PCollection<KV<Long, String>> sideInput = null;
 
-  protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
+  protected NexmarkQueryTransform(NexmarkConfiguration configuration, String name) {
     super(name);
     this.configuration = configuration;
     if (configuration.debug) {

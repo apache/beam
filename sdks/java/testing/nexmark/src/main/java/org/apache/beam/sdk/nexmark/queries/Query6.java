@@ -55,7 +55,7 @@ import org.joda.time.Duration;
  *
  * <p>We are a little more exact with selecting winning bids: see {@link WinningBids}.
  */
-public class Query6 extends NexmarkQuery {
+public class Query6 extends NexmarkQueryTransform {
   /**
    * Combiner to keep track of up to {@code maxNumBids} of the most recent wining bids and calculate
    * their average selling price.

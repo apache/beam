@@ -40,7 +40,7 @@ import org.joda.time.Duration;
  * <p>Group bids by the same user into processing time windows of windowSize. Emit the count of bids
  * per window.
  */
-public class Query12 extends NexmarkQuery {
+public class Query12 extends NexmarkQueryTransform {
   public Query12(NexmarkConfiguration configuration) {
     super(configuration, "Query12");
   }
