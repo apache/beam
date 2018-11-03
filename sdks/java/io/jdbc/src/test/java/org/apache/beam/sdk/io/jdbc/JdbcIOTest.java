@@ -243,8 +243,7 @@ public class JdbcIOTest implements Serializable {
                 .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                 .withQuery(String.format("select name,id from %s where name = ?", readTableName))
                 .withStatementPreparator(
-                    (preparedStatement) ->
-                        preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                 .withCoder(SerializableCoder.of(TestRow.class)));
 

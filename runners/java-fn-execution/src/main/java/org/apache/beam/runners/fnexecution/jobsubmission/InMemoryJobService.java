@@ -176,7 +176,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String invocationId = invocation.getId();
 
       invocation.addStateListener(
-          (state) -> {
+          state -> {
             if (!JobInvocation.isTerminated(state)) {
               return;
             }

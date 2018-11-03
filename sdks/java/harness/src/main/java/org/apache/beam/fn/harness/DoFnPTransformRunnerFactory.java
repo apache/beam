@@ -130,7 +130,7 @@ abstract class DoFnPTransformRunnerFactory<
               .getTimeDomain();
       pCollectionIdsToConsumers.put(
           pTransform.getInputsOrThrow(localName),
-          (timer) ->
+          timer ->
               runner.processTimer(localName, timeDomain, (WindowedValue<KV<Object, Timer>>) timer));
     }
 

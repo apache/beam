@@ -86,7 +86,7 @@ public abstract class ExecutionStateRegistry {
         ExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);
     return createdStates.computeIfAbsent(
         stateKey,
-        (unused) ->
+        unused ->
             createState(
                 nameContext, stateName, requestingStepName, inputIndex, container, profileScope));
   }
@@ -108,7 +108,7 @@ public abstract class ExecutionStateRegistry {
 
   public Iterable<CounterUpdate> extractUpdates(boolean isFinalUpdate) {
     return FluentIterable.from(createdStates.values())
-        .transform((state) -> state.extractUpdate(isFinalUpdate))
+        .transform(state -> state.extractUpdate(isFinalUpdate))
         .filter(notNull());
   }
 }

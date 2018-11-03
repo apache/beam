@@ -97,7 +97,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentCache =
         createEnvironmentCache(
-            (environment) -> {
+            environment -> {
               synchronized (this) {
                 checkAndInitialize(jobInfo, environmentFactoryMap, environment);
               }
@@ -125,7 +125,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.dataServer = dataServer;
     this.stateServer = stateServer;
     this.environmentCache =
-        createEnvironmentCache((env) -> environmentFactory.createEnvironment(env));
+        createEnvironmentCache(env -> environmentFactory.createEnvironment(env));
   }
 
   private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(

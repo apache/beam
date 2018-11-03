@@ -214,7 +214,7 @@ public class DocumentationExamplesTest {
     options.as(KryoOptions.class).setKryoRegistrationRequired(true);
 
     KryoCoderProvider.of(
-            (kryo) -> { //KryoRegistrar of your uwn
+            kryo -> { //KryoRegistrar of your uwn
               kryo.register(KryoSerializedElementType.class); //other may follow
             })
         .registerTo(pipeline);
