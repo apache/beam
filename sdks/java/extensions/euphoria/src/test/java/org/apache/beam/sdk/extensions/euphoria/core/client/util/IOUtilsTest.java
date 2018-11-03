@@ -33,7 +33,7 @@ public class IOUtilsTest {
   public void testOneIOException() throws IOException {
     IOUtils.forEach(
         Arrays.asList(1, 2, 3),
-        (i) -> {
+        i -> {
           if (i == 2) {
             throw new IOException("Number: " + i);
           }
@@ -45,7 +45,7 @@ public class IOUtilsTest {
     try {
       IOUtils.forEach(
           Arrays.asList(1, 2, 3),
-          (i) -> {
+          i -> {
             throw new IOException("Number: " + i);
           });
     } catch (Exception e) {
@@ -60,7 +60,7 @@ public class IOUtilsTest {
 
     IOUtils.forEach(
         Stream.of(1, 2, 3),
-        (i) -> {
+        i -> {
           if (i == 2) {
             throw new IOException("Number: " + i);
           }

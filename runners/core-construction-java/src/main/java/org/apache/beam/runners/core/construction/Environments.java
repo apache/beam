@@ -50,7 +50,7 @@ public class Environments {
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
           .build();
 
-  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
+  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = transform -> null;
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper()

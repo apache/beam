@@ -265,6 +265,6 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   private CompletableFuture<BeamFnDataGrpcMultiplexer> getClientFuture(String sdkWorkerId) {
     Preconditions.checkNotNull(sdkWorkerId);
-    return connectedClients.computeIfAbsent(sdkWorkerId, (clientId) -> new CompletableFuture<>());
+    return connectedClients.computeIfAbsent(sdkWorkerId, clientId -> new CompletableFuture<>());
   }
 }

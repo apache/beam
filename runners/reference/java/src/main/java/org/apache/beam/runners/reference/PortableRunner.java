@@ -152,7 +152,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
     try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
-        CloseableResource.of(jobService, (unused) -> jobServiceChannel.shutdown())) {
+        CloseableResource.of(jobService, unused -> jobServiceChannel.shutdown())) {
 
       PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
       LOG.info("PrepareJobResponse: {}", prepareJobResponse);
