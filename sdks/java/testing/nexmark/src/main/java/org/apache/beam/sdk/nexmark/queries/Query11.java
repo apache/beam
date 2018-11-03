@@ -48,7 +48,7 @@ public class Query11 extends NexmarkQuery {
   private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
     PCollection<Long> bidders =
         events
-            .apply(JUST_BIDS)
+            .apply(NexmarkQueryUtil.JUST_BIDS)
             .apply(
                 name + ".Rekey",
                 ParDo.of(

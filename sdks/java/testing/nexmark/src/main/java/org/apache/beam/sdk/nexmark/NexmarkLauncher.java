@@ -54,6 +54,7 @@ import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoinModel;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.nexmark.queries.Query0;
 import org.apache.beam.sdk.nexmark.queries.Query0Model;
 import org.apache.beam.sdk.nexmark.queries.Query1;
@@ -724,7 +725,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("Reading events from Avro files at %s", filename);
     return p.apply(
             queryName + ".ReadAvroEvents", AvroIO.read(Event.class).from(filename + "*.avro"))
-        .apply("OutputWithTimestamp", NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
+        .apply("OutputWithTimestamp", NexmarkQueryUtil.EVENT_TIMESTAMP_FROM_DATA);
   }
 
   /** Send {@code events} to Pubsub. */
@@ -792,17 +793,17 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         queryName + ".WriteAvroEvents",
         AvroIO.write(Event.class).to(filename + "/event").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
         .apply(
             queryName + ".WriteAvroBids",
             AvroIO.write(Bid.class).to(filename + "/bid").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_NEW_AUCTIONS)
+        .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
         .apply(
             queryName + ".WriteAvroAuctions",
             AvroIO.write(Auction.class).to(filename + "/auction").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_NEW_PERSONS)
+        .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
         .apply(
             queryName + ".WriteAvroPeople",
             AvroIO.write(Person.class).to(filename + "/person").withSuffix(".avro"));

@@ -112,7 +112,7 @@ public class BoundedSideInputJoinTest {
 
     try {
       PCollection<Event> input = p.apply(NexmarkUtils.batchEventsSource(config));
-      PCollection<Bid> justBids = input.apply(NexmarkQuery.JUST_BIDS);
+      PCollection<Bid> justBids = input.apply(NexmarkQueryUtil.JUST_BIDS);
       PCollection<Long> bidCount = justBids.apply("Count Bids", Count.globally());
 
       NexmarkQuery query = new BoundedSideInputJoin(config);

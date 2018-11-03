@@ -57,24 +57,24 @@ public class Query8 extends NexmarkQuery {
     // Window and key new people by their id.
     PCollection<KV<Long, Person>> personsById =
         events
-            .apply(JUST_NEW_PERSONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
             .apply(
                 "Query8.WindowPersons",
                 Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
-            .apply("PersonById", PERSON_BY_ID);
+            .apply("PersonById", NexmarkQueryUtil.PERSON_BY_ID);
 
     // Window and key new auctions by their id.
     PCollection<KV<Long, Auction>> auctionsBySeller =
         events
-            .apply(JUST_NEW_AUCTIONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
             .apply(
                 "Query8.WindowAuctions",
                 Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
-            .apply("AuctionBySeller", AUCTION_BY_SELLER);
+            .apply("AuctionBySeller", NexmarkQueryUtil.AUCTION_BY_SELLER);
 
     // Join people and auctions and project the person id, name and auction reserve price.
-    return KeyedPCollectionTuple.of(PERSON_TAG, personsById)
-        .and(AUCTION_TAG, auctionsBySeller)
+    return KeyedPCollectionTuple.of(NexmarkQueryUtil.PERSON_TAG, personsById)
+        .and(NexmarkQueryUtil.AUCTION_TAG, auctionsBySeller)
         .apply(CoGroupByKey.create())
         .apply(
             name + ".Select",
@@ -82,12 +82,15 @@ public class Query8 extends NexmarkQuery {
                 new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    @Nullable Person person = c.element().getValue().getOnly(PERSON_TAG, null);
+                    @Nullable
+                    Person person =
+                        c.element().getValue().getOnly(NexmarkQueryUtil.PERSON_TAG, null);
                     if (person == null) {
                       // Person was not created in last window period.
                       return;
                     }
-                    for (Auction auction : c.element().getValue().getAll(AUCTION_TAG)) {
+                    for (Auction auction :
+                        c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
                       c.output(new IdNameReserve(person.id, person.name, auction.reserve));
                     }
                   }

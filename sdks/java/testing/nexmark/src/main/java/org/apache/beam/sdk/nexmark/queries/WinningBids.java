@@ -339,18 +339,20 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     // Key auctions by their id.
     PCollection<KV<Long, Auction>> auctionsById =
         events
-            .apply(NexmarkQuery.JUST_NEW_AUCTIONS)
-            .apply("AuctionById:", NexmarkQuery.AUCTION_BY_ID);
+            .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
+            .apply("AuctionById:", NexmarkQueryUtil.AUCTION_BY_ID);
 
     // Key bids by their auction id.
     PCollection<KV<Long, Bid>> bidsByAuctionId =
-        events.apply(NexmarkQuery.JUST_BIDS).apply("BidByAuction", NexmarkQuery.BID_BY_AUCTION);
+        events
+            .apply(NexmarkQueryUtil.JUST_BIDS)
+            .apply("BidByAuction", NexmarkQueryUtil.BID_BY_AUCTION);
 
     // Find the highest price valid bid for each closed auction.
     return
     // Join auctions and bids.
-    KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
-        .and(NexmarkQuery.BID_TAG, bidsByAuctionId)
+    KeyedPCollectionTuple.of(NexmarkQueryUtil.AUCTION_TAG, auctionsById)
+        .and(NexmarkQueryUtil.BID_TAG, bidsByAuctionId)
         .apply(CoGroupByKey.create())
         // Filter and select.
         .apply(
@@ -365,7 +367,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
                   public void processElement(ProcessContext c) {
                     @Nullable
                     Auction auction =
-                        c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
+                        c.element().getValue().getOnly(NexmarkQueryUtil.AUCTION_TAG, null);
                     if (auction == null) {
                       // We have bids without a matching auction. Give up.
                       noAuctionCounter.inc();
@@ -374,7 +376,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
                     // Find the current winning bid for auction.
                     // The earliest bid with the maximum price above the reserve wins.
                     Bid bestBid = null;
-                    for (Bid bid : c.element().getValue().getAll(NexmarkQuery.BID_TAG)) {
+                    for (Bid bid : c.element().getValue().getAll(NexmarkQueryUtil.BID_TAG)) {
                       // Bids too late for their auction will have been
                       // filtered out by the window merge function.
                       checkState(bid.dateTime.compareTo(auction.expires) < 0);

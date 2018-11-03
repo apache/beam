@@ -45,7 +45,7 @@ public class Query1 extends NexmarkQuery {
   private PCollection<Bid> applyTyped(PCollection<Event> events) {
     return events
         // Only want the bid events.
-        .apply(JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
 
         // Map the conversion function over all bids.
         .apply(

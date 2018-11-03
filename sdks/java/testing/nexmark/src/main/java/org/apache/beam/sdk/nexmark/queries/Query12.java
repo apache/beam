@@ -47,7 +47,7 @@ public class Query12 extends NexmarkQuery {
 
   private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
     return events
-        .apply(JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
         .apply(
             ParDo.of(
                 new DoFn<Bid, Long>() {
