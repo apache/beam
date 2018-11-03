@@ -97,8 +97,7 @@ public class Main {
     private final NexmarkLauncher<NexmarkOptions> nexmarkLauncher;
     private final NexmarkConfiguration configuration;
 
-    private Run(String[] args, NexmarkConfiguration configuration) {
-      NexmarkOptions options = PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
+    private Run(NexmarkOptions options, NexmarkConfiguration configuration) {
       this.nexmarkLauncher = new NexmarkLauncher<>(options);
       this.configuration = configuration;
     }
@@ -112,9 +111,13 @@ public class Main {
 
   /** Entry point. */
   void runAll(String[] args) throws IOException {
-    Instant start = Instant.now();
     NexmarkOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
+    runAll(options);
+  }
+
+  void runAll(NexmarkOptions options) throws IOException {
+    Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
     Set<NexmarkConfiguration> configurations = options.getSuite().getConfigurations(options);
@@ -126,7 +129,7 @@ public class Main {
     try {
       // Schedule all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        completion.submit(new Run(args, configuration));
+        completion.submit(new Run(options, configuration));
       }
 
       // Collect all the results.
