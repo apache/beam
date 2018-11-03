@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.Monitor;
@@ -199,7 +198,6 @@ public abstract class NexmarkQuery
   public final Monitor<KnownSize> resultMonitor;
   private final Monitor<Event> endOfStreamMonitor;
   private final Counter fatalCounter;
-  private transient PCollection<KV<Long, String>> sideInput = null;
 
   protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
     super(name);
@@ -219,26 +217,6 @@ public abstract class NexmarkQuery
 
   /** Implement the actual query. All we know about the result is it has a known encoded size. */
   protected abstract PCollection<KnownSize> applyPrim(PCollection<Event> events);
-
-  /** Whether this query expects a side input to be populated. Defaults to {@code false}. */
-  public boolean needsSideInput() {
-    return false;
-  }
-
-  /**
-   * Set the side input for the query.
-   *
-   * <p>Note that due to the nature of side inputs, this instance of the query is now fixed and can
-   * only be safely applied in the pipeline where the side input was created.
-   */
-  public void setSideInput(PCollection<KV<Long, String>> sideInput) {
-    this.sideInput = sideInput;
-  }
-
-  /** Get the side input, if any. */
-  public @Nullable PCollection<KV<Long, String>> getSideInput() {
-    return sideInput;
-  }
 
   @Override
   public PCollection<TimestampedValue<KnownSize>> expand(PCollection<Event> events) {
