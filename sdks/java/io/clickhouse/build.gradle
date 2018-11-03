@@ -22,15 +22,18 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
 
+def clickhouse_jdbc_version = "0.1.47"
+def testcontainers_version = "1.10.2"
+
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
-  shadow "ru.yandex.clickhouse:clickhouse-jdbc:0.1.42"
+  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testCompile "org.testcontainers:clickhouse:$testcontainers_version"
 }
