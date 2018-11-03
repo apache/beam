@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /** BuiltinStringFunctions. */
 @AutoService(BeamBuiltinFunctionProvider.class)
@@ -126,5 +129,94 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     }
 
     return Hex.encodeHexString(bytes);
+  }
+
+  @UDF(
+    funcName = "LPAD",
+    parameterArray = {TypeName.STRING, TypeName.INT64},
+    returnType = TypeName.STRING
+  )
+  public String lpad(String originalValue, Long returnLength) {
+    return lpad(originalValue, returnLength, " ");
+  }
+
+  @UDF(
+    funcName = "LPAD",
+    parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
+    returnType = TypeName.STRING
+  )
+  public String lpad(String originalValue, Long returnLength, String pattern) {
+    if (originalValue == null || returnLength == null || pattern == null) {
+      return null;
+    }
+
+    if (returnLength < -1 || pattern.isEmpty()) {
+      throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
+    }
+
+    if (originalValue.length() == returnLength) {
+      return originalValue;
+    } else if (originalValue.length() < returnLength) { // add padding to left
+      return StringUtils.leftPad(originalValue, Math.toIntExact(returnLength), pattern);
+    } else { // truncating string by str.substring
+      // Java String can only hold a string with Integer.MAX_VALUE as longest length.
+      return originalValue.substring(0, Math.toIntExact(returnLength));
+    }
+  }
+
+  @UDF(
+    funcName = "LPAD",
+    parameterArray = {TypeName.BYTES, TypeName.INT64},
+    returnType = TypeName.BYTES
+  )
+  public byte[] lpad(byte[] originalValue, Long returnLength) {
+    return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
+  }
+
+  @UDF(
+    funcName = "LPAD",
+    parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
+    returnType = TypeName.BYTES
+  )
+  public byte[] lpad(byte[] originalValue, Long returnLength, byte[] pattern) {
+    if (originalValue == null || returnLength == null || pattern == null) {
+      return null;
+    }
+    if (returnLength < -1 || pattern.length == 0) {
+      throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
+    }
+
+    int returnLengthInt = Math.toIntExact(returnLength);
+
+    if (originalValue.length == returnLengthInt) {
+      return originalValue;
+    } else if (originalValue.length < returnLengthInt) { // add padding to left
+      byte[] ret = new byte[returnLengthInt];
+      // step one: pad #(returnLengthInt - originalValue.length) bytes to left side.
+      int paddingOff = 0;
+      int paddingLeftBytes = returnLengthInt - originalValue.length;
+      while (paddingLeftBytes > 0) {
+        if (paddingLeftBytes >= pattern.length) {
+          // pad the whole pattern
+          System.arraycopy(pattern, 0, ret, paddingOff, pattern.length);
+          paddingLeftBytes -= pattern.length;
+          paddingOff += pattern.length;
+        } else {
+          System.arraycopy(pattern, 0, ret, paddingOff, paddingLeftBytes);
+          paddingLeftBytes = 0;
+        }
+      }
+
+      // step two: copy originalValue.
+      System.arraycopy(
+          originalValue, 0, ret, returnLengthInt - originalValue.length, originalValue.length);
+
+      return ret;
+    } else { // truncating string by str.substring
+      // Java String can only hold a string with Integer.MAX_VALUE as longest length.
+      byte[] ret = new byte[returnLengthInt];
+      System.arraycopy(originalValue, 0, ret, 0, returnLengthInt);
+      return ret;
+    }
   }
 }
