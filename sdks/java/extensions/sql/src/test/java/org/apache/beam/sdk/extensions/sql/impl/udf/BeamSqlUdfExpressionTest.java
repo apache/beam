@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.junit.Test;
@@ -26,6 +28,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for UDFs. */
 @RunWith(JUnit4.class)
 public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+
   @Test
   public void testCOSH() throws Exception {
     ExpressionChecker checker =
@@ -114,6 +117,19 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExprWithNullExpectedValue("REVERSE(CAST(NULL as CHAR(0)))", TypeName.STRING)
             .addExprWithNullExpectedValue("REVERSE(CAST(NULL as VARBINARY(0)))", TypeName.STRING);
 
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testFromHex() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("FROM_HEX('666f6f626172')", "foobar".getBytes(UTF_8))
+            .addExpr("FROM_HEX('20')", " ".getBytes(UTF_8))
+            .addExpr("FROM_HEX('616263414243')", "abcABC".getBytes(UTF_8))
+            .addExpr(
+                "FROM_HEX('616263414243d0b6d189d184d096d0a9d0a4')", "abcABCжщфЖЩФ".getBytes(UTF_8))
+            .addExprWithNullExpectedValue("FROM_HEX(CAST(NULL as CHAR(0)))", TypeName.BYTES);
     checker.buildRunAndCheck();
   }
 }

@@ -73,6 +73,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .put(String.class, TypeName.STRING)
           .put(DateTime.class, TypeName.DATETIME)
           .put(Boolean.class, TypeName.BOOLEAN)
+          .put(byte[].class, TypeName.BYTES)
           .build();
 
   private static final Schema ROW_TYPE =
