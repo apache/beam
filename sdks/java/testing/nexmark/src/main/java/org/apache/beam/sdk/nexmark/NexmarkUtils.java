@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -33,7 +39,10 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -58,9 +67,12 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -121,6 +133,14 @@ public class NexmarkUtils {
     SUBSCRIBE_ONLY,
     /** Both publish and consume, but as separate jobs. */
     COMBINED
+  }
+
+  /** Possible side input sources. */
+  public enum SideInputType {
+    /** Produce the side input via {@link Create}. */
+    DIRECT,
+    /** Read side input from CSV files. */
+    CSV
   }
 
   /** Coder strategies. */
@@ -609,6 +629,107 @@ public class NexmarkUtils {
             c.output(c.element());
           }
         });
+  }
+
+  private static class GenerateSideInputData
+      extends PTransform<PBegin, PCollection<KV<Long, String>>> {
+
+    private final NexmarkConfiguration config;
+
+    private GenerateSideInputData(NexmarkConfiguration config) {
+      this.config = config;
+    }
+
+    @Override
+    public PCollection<KV<Long, String>> expand(PBegin input) {
+      return input
+          .apply(GenerateSequence.from(0).to(config.sideInputRowCount))
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<Long, KV<Long, String>>() {
+                    @Override
+                    public KV<Long, String> apply(Long input) {
+                      return KV.of(input, String.valueOf(input));
+                    }
+                  }));
+    }
+  }
+
+  /**
+   * Write data to be read as a side input.
+   *
+   * <p>Contains pairs of a number and its string representation to model lookups of some enrichment
+   * data by id.
+   *
+   * <p>Generated data covers the range {@code [0, sideInputRowCount)} so lookup joins on any
+   * desired id field can be modeled by looking up {@code id % sideInputRowCount}.
+   */
+  public static PCollection<KV<Long, String>> prepareSideInput(
+      Pipeline queryPipeline, NexmarkConfiguration config) {
+
+    checkArgument(
+        config.sideInputRowCount > 0, "Side input required but sideInputRowCount is not >0");
+
+    PTransform<PBegin, PCollection<KV<Long, String>>> generateSideInputData =
+        new GenerateSideInputData(config);
+
+    switch (config.sideInputType) {
+      case DIRECT:
+        return queryPipeline.apply(generateSideInputData);
+      case CSV:
+        checkArgument(
+            config.sideInputUrl != null,
+            "Side input type %s requires a URL but sideInputUrl not specified",
+            SideInputType.CSV.toString());
+
+        checkArgument(
+            config.sideInputNumShards > 0,
+            "Side input type %s requires explicit numShards but sideInputNumShards not specified",
+            SideInputType.CSV.toString());
+
+        Pipeline tempPipeline = Pipeline.create();
+        tempPipeline
+            .apply(generateSideInputData)
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<KV<Long, String>, String>(
+                        kv -> String.format("%s,%s", kv.getKey(), kv.getValue())) {}))
+            .apply(TextIO.write().withNumShards(config.sideInputNumShards).to(config.sideInputUrl));
+        tempPipeline.run().waitUntilFinish();
+
+        return queryPipeline
+            .apply(TextIO.read().from(config.sideInputUrl + "*"))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, KV<Long, String>>(
+                        line -> {
+                          List<String> cols = ImmutableList.copyOf(Splitter.on(",").split(line));
+                          return KV.of(Long.valueOf(cols.get(0)), cols.get(1));
+                        }) {}));
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unknown type of side input requested: %s", config.sideInputType));
+    }
+  }
+
+  /** Frees any resources used to make the side input available. */
+  public static void cleanUpSideInput(NexmarkConfiguration config) throws IOException {
+    switch (config.sideInputType) {
+      case DIRECT:
+        break;
+      case CSV:
+        FileSystems.delete(
+            FileSystems.match(config.sideInputUrl + "*")
+                .metadata()
+                .stream()
+                .map(metadata -> metadata.resourceId())
+                .collect(Collectors.toList()));
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown type of %s clean up requested", SideInputType.class.getSimpleName()));
+    }
   }
 
   /**
