@@ -18,11 +18,9 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -41,18 +39,22 @@ import org.apache.beam.sdk.values.PCollection;
  * size. To make it more interesting we instead choose bids for every {@code auctionSkip}'th
  * auction.
  */
-public class Query2 extends NexmarkQueryTransform {
+public class Query2 extends NexmarkQueryTransform<AuctionPrice> {
+  private final int auctionSkip;
+
   public Query2(NexmarkConfiguration configuration) {
-    super(configuration, "Query2");
+    super("Query2");
+    this.auctionSkip = configuration.auctionSkip;
   }
 
-  private PCollection<AuctionPrice> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<AuctionPrice> expand(PCollection<Event> events) {
     return events
         // Only want the bid events.
         .apply(NexmarkQueryUtil.JUST_BIDS)
 
         // Select just the bids for the auctions we care about.
-        .apply(Filter.by(bid -> bid.auction % configuration.auctionSkip == 0))
+        .apply(Filter.by(bid -> bid.auction % this.auctionSkip == 0))
 
         // Project just auction id and price.
         .apply(
@@ -65,10 +67,5 @@ public class Query2 extends NexmarkQueryTransform {
                     c.output(new AuctionPrice(bid.auction, bid.price));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

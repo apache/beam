@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,12 +35,13 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily slowed
  * down.
  */
-public class Query1 extends NexmarkQueryTransform {
+public class Query1 extends NexmarkQueryTransform<Bid> {
   public Query1(NexmarkConfiguration configuration) {
-    super(configuration, "Query1");
+    super("Query1");
   }
 
-  private PCollection<Bid> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<Bid> expand(PCollection<Event> events) {
     return events
         // Only want the bid events.
         .apply(NexmarkQueryUtil.JUST_BIDS)
@@ -64,10 +63,5 @@ public class Query1 extends NexmarkQueryTransform {
                             bid.extra));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

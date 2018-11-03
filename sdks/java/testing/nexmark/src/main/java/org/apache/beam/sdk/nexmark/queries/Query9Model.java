@@ -21,21 +21,22 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 /** A direct implementation of {@link Query9}. */
-public class Query9Model extends NexmarkQueryModel implements Serializable {
+public class Query9Model extends NexmarkQueryModel<AuctionBid> implements Serializable {
   public Query9Model(NexmarkConfiguration configuration) {
     super(configuration);
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, AuctionBid> simulator() {
     return new WinningBidsSimulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<AuctionBid>> itr) {
     return toValue(itr);
   }
 }

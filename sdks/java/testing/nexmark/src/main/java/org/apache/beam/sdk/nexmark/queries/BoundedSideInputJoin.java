@@ -21,10 +21,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -40,9 +38,12 @@ import org.apache.beam.sdk.values.PCollectionView;
  * WHERE bid.id = sideInput.id
  * </pre>
  */
-public class BoundedSideInputJoin extends NexmarkQueryTransform {
+public class BoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
+  private final NexmarkConfiguration configuration;
+
   public BoundedSideInputJoin(NexmarkConfiguration configuration) {
-    super(configuration, "JoinToFiles");
+    super("JoinToFiles");
+    this.configuration = configuration;
   }
 
   @Override
@@ -50,7 +51,8 @@ public class BoundedSideInputJoin extends NexmarkQueryTransform {
     return true;
   }
 
-  private PCollection<Bid> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<Bid> expand(PCollection<Event> events) {
 
     checkState(getSideInput() != null, "Configuration error: side input is null");
 
@@ -79,10 +81,5 @@ public class BoundedSideInputJoin extends NexmarkQueryTransform {
                       }
                     })
                 .withSideInputs(sideInputMap));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

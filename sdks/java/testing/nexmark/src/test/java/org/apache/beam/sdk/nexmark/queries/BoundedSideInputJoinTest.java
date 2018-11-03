@@ -59,11 +59,11 @@ public class BoundedSideInputJoinTest {
   }
 
   /** Test {@code query} matches {@code model}. */
-  private void queryMatchesModel(
+  private <T extends KnownSize> void queryMatchesModel(
       String name,
       NexmarkConfiguration config,
-      NexmarkQueryTransform query,
-      NexmarkQueryModel model,
+      NexmarkQueryTransform<T> query,
+      NexmarkQueryModel<T> model,
       boolean streamingMode)
       throws Exception {
 
@@ -79,14 +79,15 @@ public class BoundedSideInputJoinTest {
       PCollection<KV<Long, String>> sideInput = NexmarkUtils.prepareSideInput(p, config);
       query.setSideInput(sideInput);
 
-      PCollection<TimestampedValue<KnownSize>> results;
-      if (streamingMode) {
-        results =
-            p.apply(name + ".ReadUnBounded", NexmarkUtils.streamEventsSource(config)).apply(query);
-      } else {
-        results =
-            p.apply(name + ".ReadBounded", NexmarkUtils.batchEventsSource(config)).apply(query);
-      }
+      PCollection<Event> events =
+          p.apply(
+              name + ".Read",
+              streamingMode
+                  ? NexmarkUtils.streamEventsSource(config)
+                  : NexmarkUtils.batchEventsSource(config));
+
+      PCollection<TimestampedValue<T>> results =
+          (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(config, query));
       PAssert.that(results).satisfies(model.assertionFor());
       PipelineResult result = p.run();
       result.waitUntilFinish();
@@ -115,10 +116,11 @@ public class BoundedSideInputJoinTest {
       PCollection<Bid> justBids = input.apply(NexmarkQueryUtil.JUST_BIDS);
       PCollection<Long> bidCount = justBids.apply("Count Bids", Count.globally());
 
-      NexmarkQueryTransform query = new BoundedSideInputJoin(config);
+      NexmarkQueryTransform<Bid> query = new BoundedSideInputJoin(config);
       query.setSideInput(sideInput);
 
-      PCollection<TimestampedValue<KnownSize>> output = input.apply(query);
+      PCollection<TimestampedValue<Bid>> output =
+          (PCollection<TimestampedValue<Bid>>) input.apply(new NexmarkQuery(config, query));
       PCollection<Long> outputCount = output.apply("Count outputs", Count.globally());
 
       PAssert.that(PCollectionList.of(bidCount).and(outputCount).apply(Flatten.pCollections()))

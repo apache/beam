@@ -18,11 +18,9 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.BidsPerSession;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -40,12 +38,16 @@ import org.joda.time.Duration;
  * <p>Group bids by the same user into processing time windows of windowSize. Emit the count of bids
  * per window.
  */
-public class Query12 extends NexmarkQueryTransform {
+public class Query12 extends NexmarkQueryTransform<BidsPerSession> {
+  private final NexmarkConfiguration configuration;
+
   public Query12(NexmarkConfiguration configuration) {
-    super(configuration, "Query12");
+    super("Query12");
+    this.configuration = configuration;
   }
 
-  private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<BidsPerSession> expand(PCollection<Event> events) {
     return events
         .apply(NexmarkQueryUtil.JUST_BIDS)
         .apply(
@@ -74,10 +76,5 @@ public class Query12 extends NexmarkQueryTransform {
                     c.output(new BidsPerSession(c.element().getKey(), c.element().getValue()));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

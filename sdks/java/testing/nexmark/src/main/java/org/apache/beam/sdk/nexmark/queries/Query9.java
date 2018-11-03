@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -29,17 +27,16 @@ import org.apache.beam.sdk.values.PCollection;
  * Query "9", 'Winning bids'. Select just the winning bids. Not in original NEXMark suite, but handy
  * for testing. See {@link WinningBids} for the details.
  */
-public class Query9 extends NexmarkQueryTransform {
-  public Query9(NexmarkConfiguration configuration) {
-    super(configuration, "Query9");
-  }
+public class Query9 extends NexmarkQueryTransform<AuctionBid> {
+  private final NexmarkConfiguration configuration;
 
-  private PCollection<AuctionBid> applyTyped(PCollection<Event> events) {
-    return events.apply(Filter.by(new AuctionOrBid())).apply(new WinningBids(name, configuration));
+  public Query9(NexmarkConfiguration configuration) {
+    super("Query9");
+    this.configuration = configuration;
   }
 
   @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
+  public PCollection<AuctionBid> expand(PCollection<Event> events) {
+    return events.apply(Filter.by(new AuctionOrBid())).apply(new WinningBids(name, configuration));
   }
 }

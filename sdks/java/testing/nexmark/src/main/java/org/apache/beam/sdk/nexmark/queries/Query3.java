@@ -23,10 +23,8 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.state.StateSpec;
@@ -70,17 +68,18 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
-public class Query3 extends NexmarkQueryTransform {
+public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(Query3.class);
   private final JoinDoFn joinDoFn;
 
   public Query3(NexmarkConfiguration configuration) {
-    super(configuration, "Query3");
+    super("Query3");
     joinDoFn = new JoinDoFn(name, configuration.maxAuctionsWaitingTime);
   }
 
-  private PCollection<NameCityStateId> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<NameCityStateId> expand(PCollection<Event> events) {
     int numEventsInPane = 30;
 
     PCollection<Event> eventsWindowed =
@@ -140,11 +139,6 @@ public class Query3 extends NexmarkQueryTransform {
                         new NameCityStateId(person.name, person.city, person.state, auction.id));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 
   /**

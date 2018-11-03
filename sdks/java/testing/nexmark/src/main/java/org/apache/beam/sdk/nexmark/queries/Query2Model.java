@@ -28,7 +28,7 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 /** A direct implementation of {@link Query2}. */
-public class Query2Model extends NexmarkQueryModel implements Serializable {
+public class Query2Model extends NexmarkQueryModel<AuctionPrice> implements Serializable {
   /** Simulator for query 2. */
   private class Simulator extends AbstractSimulator<Event, AuctionPrice> {
     public Simulator(NexmarkConfiguration configuration) {
@@ -64,12 +64,12 @@ public class Query2Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, AuctionPrice> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<AuctionPrice>> itr) {
     return toValueTimestamp(itr);
   }
 }

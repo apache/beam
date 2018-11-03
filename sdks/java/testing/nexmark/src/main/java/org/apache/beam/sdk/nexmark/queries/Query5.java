@@ -21,10 +21,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -52,12 +50,16 @@ import org.joda.time.Duration;
  * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and we'll
  * also preserve the bid counts.
  */
-public class Query5 extends NexmarkQueryTransform {
+public class Query5 extends NexmarkQueryTransform<AuctionCount> {
+  private final NexmarkConfiguration configuration;
+
   public Query5(NexmarkConfiguration configuration) {
-    super(configuration, "Query5");
+    super("Query5");
+    this.configuration = configuration;
   }
 
-  private PCollection<AuctionCount> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<AuctionCount> expand(PCollection<Event> events) {
     return events
         // Only want the bid events.
         .apply(NexmarkQueryUtil.JUST_BIDS)
@@ -128,10 +130,5 @@ public class Query5 extends NexmarkQueryTransform {
                     }
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }
