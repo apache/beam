@@ -23,6 +23,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
@@ -46,7 +47,7 @@ import org.apache.beam.sdk.values.TupleTag;
  *
  * <p>We will use a shorter window to help make testing easier.
  */
-public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Bid>> {
+public class SqlQuery7 extends NexmarkQueryTransform<Bid> {
 
   private static final String QUERY_TEMPLATE =
       ""

@@ -19,13 +19,11 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.Monitor;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.CategoryPrice;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Mean;
@@ -61,15 +59,18 @@ import org.joda.time.Duration;
  *       {@code windowPeriodSec}.
  * </ul>
  */
-public class Query4 extends NexmarkQueryTransform {
+public class Query4 extends NexmarkQueryTransform<CategoryPrice> {
   private final Monitor<AuctionBid> winningBidsMonitor;
+  private final NexmarkConfiguration configuration;
 
   public Query4(NexmarkConfiguration configuration) {
-    super(configuration, "Query4");
+    super("Query4");
+    this.configuration = configuration;
     winningBidsMonitor = new Monitor<>(name + ".WinningBids", "winning");
   }
 
-  private PCollection<CategoryPrice> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<CategoryPrice> expand(PCollection<Event> events) {
     PCollection<AuctionBid> winningBids =
         events
             .apply(Filter.by(new AuctionOrBid()))
@@ -118,10 +119,5 @@ public class Query4 extends NexmarkQueryTransform {
                             c.pane().isLast()));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

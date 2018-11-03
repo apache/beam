@@ -19,11 +19,9 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.IdNameReserve;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,12 +46,16 @@ import org.joda.time.Duration;
  *
  * <p>To make things a bit more dynamic and easier to test we'll use a much shorter window.
  */
-public class Query8 extends NexmarkQueryTransform {
+public class Query8 extends NexmarkQueryTransform<IdNameReserve> {
+  private final NexmarkConfiguration configuration;
+
   public Query8(NexmarkConfiguration configuration) {
-    super(configuration, "Query8");
+    super("Query8");
+    this.configuration = configuration;
   }
 
-  private PCollection<IdNameReserve> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<IdNameReserve> expand(PCollection<Event> events) {
     // Window and key new people by their id.
     PCollection<KV<Long, Person>> personsById =
         events
@@ -95,10 +97,5 @@ public class Query8 extends NexmarkQueryTransform {
                     }
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

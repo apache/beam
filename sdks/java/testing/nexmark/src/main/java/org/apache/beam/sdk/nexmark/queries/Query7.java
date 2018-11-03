@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,12 +44,16 @@ import org.joda.time.Duration;
  * side-input in order to exercise that functionality. (A combiner, as used in Query 5, is a more
  * efficient approach.).
  */
-public class Query7 extends NexmarkQueryTransform {
+public class Query7 extends NexmarkQueryTransform<Bid> {
+  private final NexmarkConfiguration configuration;
+
   public Query7(NexmarkConfiguration configuration) {
-    super(configuration, "Query7");
+    super("Query7");
+    this.configuration = configuration;
   }
 
-  private PCollection<Bid> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<Bid> expand(PCollection<Event> events) {
     // Window the bids.
     PCollection<Bid> slidingBids =
         events
@@ -86,10 +88,5 @@ public class Query7 extends NexmarkQueryTransform {
                   }
                 })
             .withSideInputs(maxPriceView));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

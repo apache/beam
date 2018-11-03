@@ -28,6 +28,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,7 +48,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous with default
  * configuration.
  */
-public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> {
+public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       SqlTransform.query("SELECT * FROM PCOLLECTION");

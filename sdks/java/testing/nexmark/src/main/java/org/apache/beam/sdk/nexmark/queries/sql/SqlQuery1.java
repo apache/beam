@@ -22,6 +22,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
@@ -42,7 +43,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily slowed
  * down.
  */
-public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Bid>> {
+public class SqlQuery1 extends NexmarkQueryTransform<Bid> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       SqlTransform.query(

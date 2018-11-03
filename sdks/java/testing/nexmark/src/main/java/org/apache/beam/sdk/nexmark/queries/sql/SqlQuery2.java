@@ -22,6 +22,7 @@ import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
@@ -42,7 +43,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>As written that query will only yield a few hundred results over event streams of arbitrary
  * size. To make it more interesting we instead choose bids for every {@code skipFactor}'th auction.
  */
-public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<AuctionPrice>> {
+public class SqlQuery2 extends NexmarkQueryTransform<AuctionPrice> {
 
   private static final String QUERY_TEMPLATE =
       "SELECT auction, price FROM PCOLLECTION WHERE MOD(auction, %d) = 0";

@@ -30,10 +30,8 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Done;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -60,10 +58,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Every windowSizeSec, save all events from the last period into 2*maxWorkers log files.
  */
-public class Query10 extends NexmarkQueryTransform {
+public class Query10 extends NexmarkQueryTransform<Done> {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
   private static final int NUM_SHARDS_PER_WORKER = 5;
   private static final Duration LATE_BATCHING_PERIOD = Duration.standardSeconds(10);
+  private final NexmarkConfiguration configuration;
 
   /** Capture everything we need to know about the records in a single output file. */
   private static class OutputFile implements Serializable {
@@ -104,7 +103,8 @@ public class Query10 extends NexmarkQueryTransform {
   private int maxNumWorkers;
 
   public Query10(NexmarkConfiguration configuration) {
-    super(configuration, "Query10");
+    super("Query10");
+    this.configuration = configuration;
   }
 
   public void setOutputPath(@Nullable String outputPath) {
@@ -169,7 +169,8 @@ public class Query10 extends NexmarkQueryTransform {
     return String.format("%s/INDEX-%s", outputPath, window.maxTimestamp());
   }
 
-  private PCollection<Done> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<Done> expand(PCollection<Event> events) {
     final int numLogShards = maxNumWorkers * NUM_SHARDS_PER_WORKER;
 
     return events
@@ -367,10 +368,5 @@ public class Query10 extends NexmarkQueryTransform {
                     }
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

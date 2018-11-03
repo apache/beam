@@ -21,12 +21,10 @@ import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -55,7 +53,15 @@ import org.joda.time.Duration;
  *
  * <p>We are a little more exact with selecting winning bids: see {@link WinningBids}.
  */
-public class Query6 extends NexmarkQueryTransform {
+public class Query6 extends NexmarkQueryTransform<SellerPrice> {
+
+  private final NexmarkConfiguration configuration;
+
+  public Query6(NexmarkConfiguration configuration) {
+    super("Query6");
+    this.configuration = configuration;
+  }
+
   /**
    * Combiner to keep track of up to {@code maxNumBids} of the most recent wining bids and calculate
    * their average selling price.
@@ -108,11 +114,8 @@ public class Query6 extends NexmarkQueryTransform {
     }
   }
 
-  public Query6(NexmarkConfiguration configuration) {
-    super(configuration, "Query6");
-  }
-
-  private PCollection<SellerPrice> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<SellerPrice> expand(PCollection<Event> events) {
     return events
         .apply(Filter.by(new AuctionOrBid()))
         // Find the winning bid for each closed auction.
@@ -151,10 +154,5 @@ public class Query6 extends NexmarkQueryTransform {
                     c.output(new SellerPrice(c.element().getKey(), c.element().getValue()));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

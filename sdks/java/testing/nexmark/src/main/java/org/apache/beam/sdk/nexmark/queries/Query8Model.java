@@ -35,7 +35,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query8}. */
-public class Query8Model extends NexmarkQueryModel implements Serializable {
+public class Query8Model extends NexmarkQueryModel<IdNameReserve> implements Serializable {
   /** Simulator for query 8. */
   private class Simulator extends AbstractSimulator<Event, IdNameReserve> {
     /** New persons seen in the current window, indexed by id. */
@@ -131,12 +131,12 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, IdNameReserve> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<IdNameReserve>> itr) {
     return toValue(itr);
   }
 }
