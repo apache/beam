@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 
 /** BuiltinStringFunctions. */
@@ -98,5 +100,18 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     byte[] ret = Arrays.copyOf(bytes, bytes.length);
     ArrayUtils.reverse(ret);
     return ret;
+  }
+
+  @UDF(
+    funcName = "FROM_HEX",
+    parameterArray = {TypeName.STRING},
+    returnType = TypeName.BYTES
+  )
+  public byte[] fromHex(String str) throws DecoderException {
+    if (str == null) {
+      return null;
+    }
+
+    return Hex.decodeHex(str.toCharArray());
   }
 }
