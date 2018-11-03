@@ -1,0 +1,96 @@
+options {
+    IGNORE_CASE=true;
+}
+
+PARSER_BEGIN(ColumnTypeParser)
+
+package org.apache.beam.sdk.io.clickhouse.impl.parser;
+
+import org.apache.beam.sdk.io.clickhouse.TableSchema;
+
+import static org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+
+/**
+ * SQL parser, generated from ColumnTypeParser.jj by JavaCC.
+ *
+ * <p>The public wrapper for this parser is {@link ColumnType.parse}.
+ *
+ * <p>Used to parse output of "DESCRIBE TABLE" and get {@link TableSchema} in ClickHouse.
+ */
+@SuppressWarnings({"unchecked", "static"})
+public class ColumnTypeParser {
+
+    public ColumnType parse() throws ParseException {
+        return columnType();
+    }
+
+}
+
+
+PARSER_END(ColumnTypeParser)
+
+SKIP:
+{
+    " " |
+    "\n" |
+    "\r" |
+    "\t"
+}
+
+TOKEN :
+{
+    < ARRAY    : "ARRAY"  >
+  | < DATE     : "DATE" >
+  | < DATETIME : "DATETIME" >
+  | < FLOAT32  : "FLOAT32" >
+  | < FLOAT64  : "FLOAT64" >
+  | < STRING   : "STRING" >
+  | < INT8     : "INT8" >
+  | < INT16    : "INT16" >
+  | < INT32    : "INT32" >
+  | < INT64    : "INT64" >
+  | < UINT8    : "UINT8" >
+  | < UINT16   : "UINT16" >
+  | < UINT32   : "UINT32" >
+  | < UINT64   : "UINT64" >
+  | < LPAREN   : "(" >
+  | < RPAREN   : ")" >
+}
+
+public ColumnType columnType() :
+{
+    ColumnType ct;
+}
+{
+    (
+          <STRING>   { ct = ColumnType.STRING;   }
+        | <DATE>     { ct = ColumnType.DATE;     }
+        | <DATETIME> { ct = ColumnType.DATETIME; }
+        | <FLOAT32>  { ct = ColumnType.FLOAT32;  }
+        | <FLOAT64>  { ct = ColumnType.FLOAT64;  }
+        | <INT8>     { ct = ColumnType.INT8;     }
+        | <INT16>    { ct = ColumnType.INT16;    }
+        | <INT32>    { ct = ColumnType.INT32;    }
+        | <INT64>    { ct = ColumnType.INT64;    }
+        | <UINT8>    { ct = ColumnType.UINT8;    }
+        | <UINT16>   { ct = ColumnType.UINT16;   }
+        | <UINT32>   { ct = ColumnType.UINT32;   }
+        | <UINT64>   { ct = ColumnType.UINT64;   }
+        | ct = array()
+    )
+    {
+        return ct;
+    }
+}
+
+private ColumnType array() :
+{
+    ColumnType ct;
+    ColumnType element;
+}
+{
+    (<ARRAY> <LPAREN> (element = columnType()) <RPAREN>) {
+        return ColumnType.array(element);
+    }
+}
+
