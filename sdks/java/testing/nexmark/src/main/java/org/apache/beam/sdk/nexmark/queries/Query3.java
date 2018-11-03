@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
-public class Query3 extends NexmarkQuery {
+public class Query3 extends NexmarkQueryTransform {
 
   private static final Logger LOG = LoggerFactory.getLogger(Query3.class);
   private final JoinDoFn joinDoFn;

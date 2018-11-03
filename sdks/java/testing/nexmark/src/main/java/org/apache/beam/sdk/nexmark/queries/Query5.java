@@ -52,7 +52,7 @@ import org.joda.time.Duration;
  * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and we'll
  * also preserve the bid counts.
  */
-public class Query5 extends NexmarkQuery {
+public class Query5 extends NexmarkQueryTransform {
   public Query5(NexmarkConfiguration configuration) {
     super(configuration, "Query5");
   }

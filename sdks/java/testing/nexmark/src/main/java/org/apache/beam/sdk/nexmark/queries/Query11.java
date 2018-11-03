@@ -40,7 +40,7 @@ import org.joda.time.Duration;
  * <p>Group bids by the same user into sessions with {@code windowSizeSec} max gap. However limit
  * the session to at most {@code maxLogEvents}. Emit the number of bids per session.
  */
-public class Query11 extends NexmarkQuery {
+public class Query11 extends NexmarkQueryTransform {
   public Query11(NexmarkConfiguration configuration) {
     super(configuration, "Query11");
   }

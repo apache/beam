@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * WHERE bid.id = sideInput.id
  * </pre>
  */
-public class BoundedSideInputJoin extends NexmarkQuery {
+public class BoundedSideInputJoin extends NexmarkQueryTransform {
   public BoundedSideInputJoin(NexmarkConfiguration configuration) {
     super(configuration, "JoinToFiles");
   }

@@ -52,8 +52,8 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoinModel;
-import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.nexmark.queries.Query0;
 import org.apache.beam.sdk.nexmark.queries.Query0Model;
@@ -379,7 +379,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * measured.
    */
   @Nullable
-  private NexmarkPerf monitor(NexmarkQuery query) {
+  private NexmarkPerf monitor(NexmarkQueryTransform query) {
     if (!options.getMonitorJobs()) {
       return null;
     }
@@ -1088,7 +1088,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      NexmarkQuery query = getNexmarkQuery();
+      NexmarkQueryTransform query = getNexmarkQuery();
       if (query == null) {
         NexmarkUtils.console("skipping since configuration is not implemented");
         return null;
@@ -1181,8 +1181,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return models.get(configuration.query);
   }
 
-  private NexmarkQuery getNexmarkQuery() {
-    Map<NexmarkQueryName, NexmarkQuery> queries = createQueries();
+  private NexmarkQueryTransform getNexmarkQuery() {
+    Map<NexmarkQueryName, NexmarkQueryTransform> queries = createQueries();
     return queries.get(configuration.query);
   }
 
@@ -1210,12 +1210,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .build();
   }
 
-  private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
+  private Map<NexmarkQueryName, NexmarkQueryTransform> createQueries() {
     return isSql() ? createSqlQueries() : createJavaQueries();
   }
 
-  private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
-    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+  private Map<NexmarkQueryName, NexmarkQueryTransform> createSqlQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQueryTransform>builder()
         .put(NexmarkQueryName.PASSTHROUGH, new NexmarkSqlQuery(configuration, new SqlQuery0()))
         .put(
             NexmarkQueryName.CURRENCY_CONVERSION,
@@ -1235,8 +1235,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .build();
   }
 
-  private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {
-    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+  private Map<NexmarkQueryName, NexmarkQueryTransform> createJavaQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQueryTransform>builder()
         .put(NexmarkQueryName.PASSTHROUGH, new Query0(configuration))
         .put(NexmarkQueryName.CURRENCY_CONVERSION, new Query1(configuration))
         .put(NexmarkQueryName.SELECTION, new Query2(configuration))

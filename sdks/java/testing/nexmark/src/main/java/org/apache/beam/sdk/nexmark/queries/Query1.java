@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily slowed
  * down.
  */
-public class Query1 extends NexmarkQuery {
+public class Query1 extends NexmarkQueryTransform {
   public Query1(NexmarkConfiguration configuration) {
     super(configuration, "Query1");
   }

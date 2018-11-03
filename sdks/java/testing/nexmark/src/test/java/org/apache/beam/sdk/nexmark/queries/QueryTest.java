@@ -56,7 +56,7 @@ public class QueryTest {
 
   /** Test {@code query} matches {@code model}. */
   private void queryMatchesModel(
-      String name, NexmarkQuery query, NexmarkQueryModel model, boolean streamingMode) {
+      String name, NexmarkQueryTransform query, NexmarkQueryModel model, boolean streamingMode) {
     NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
     PCollection<TimestampedValue<KnownSize>> results;
     if (streamingMode) {
