@@ -76,7 +76,7 @@ public class BeamSalUhfSpecialTypeAndValueTest extends BeamSqlDslBase {
     Row resultRow = Row.withSchema(resultType).addValues(10L).build();
     Row resultRow2 = Row.withSchema(resultType).addValues(0L).build();
     Row resultRow3 = Row.withSchema(resultType).addValues(2L).build();
-    String sql = "SELECT LENGTH(f_bytes) FROM PCOLLECTION";
+    String sql = "SELECT LENGTH(f_bytes) FROM PCOLLECTION WHERE f_func = 'LENGTH'";
     PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
     PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3);
     pipeline.run().waitUntilFinish();
@@ -90,9 +90,24 @@ public class BeamSalUhfSpecialTypeAndValueTest extends BeamSqlDslBase {
     Row resultRow = Row.withSchema(resultType).addValues(testByets).build();
     Row resultRow2 = Row.withSchema(resultType).addValues("\1\0".getBytes(UTF_8)).build();
     Row resultRow3 = Row.withSchema(resultType).addValues("".getBytes(UTF_8)).build();
-    String sql = "SELECT REVERSE(f_bytes) FROM PCOLLECTION";
+    String sql = "SELECT REVERSE(f_bytes) FROM PCOLLECTION WHERE f_func = 'LENGTH'";
     PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
     PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testToHex() throws Exception {
+    Schema resultType = Schema.builder().addStringField("field").build();
+    Row resultRow = Row.withSchema(resultType).addValue("666f6f626172").build();
+    Row resultRow2 = Row.withSchema(resultType).addValue("20").build();
+    Row resultRow3 = Row.withSchema(resultType).addValue("616263414243").build();
+    Row resultRow4 =
+        Row.withSchema(resultType).addValue("616263414243d0b6d189d184d096d0a9d0a4").build();
+
+    String sql = "SELECT TO_HEX(f_bytes) FROM PCOLLECTION WHERE f_func = 'TO_HEX'";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow, resultRow2, resultRow3, resultRow4);
     pipeline.run().waitUntilFinish();
   }
 }
