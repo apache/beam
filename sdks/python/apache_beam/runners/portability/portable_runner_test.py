@@ -148,7 +148,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def _maybe_kill_subprocess(cls):
     if hasattr(cls, '_subprocess') and cls._subprocess.poll() is None:
       cls._subprocess.kill()
+      delattr(cls, '_subprocess')
       time.sleep(0.1)
+      logging.info('Job server terminated.')
 
   def create_options(self):
     def get_pipeline_name():
