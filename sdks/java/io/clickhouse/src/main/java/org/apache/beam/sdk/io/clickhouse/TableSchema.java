@@ -22,8 +22,10 @@ import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.Schema;
 
 /** A descriptor for ClickHouse table schema. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -32,8 +34,76 @@ public abstract class TableSchema implements Serializable {
 
   public abstract List<Column> columns();
 
-  public static TableSchema of(List<Column> columns) {
-    return new AutoValue_TableSchema(columns);
+  public static TableSchema of(Column... columns) {
+    return new AutoValue_TableSchema(Arrays.asList(columns));
+  }
+
+  /**
+   * Returns Beam equivalent of ClickHouse schema.
+   *
+   * @param tableSchema schema of ClickHouse table
+   * @return Beam schema
+   */
+  public static Schema getEquivalentSchema(TableSchema tableSchema) {
+    return tableSchema
+        .columns()
+        .stream()
+        .map(
+            x -> {
+              if (x.columnType().nullable()) {
+                return Schema.Field.nullable(x.name(), getEquivalentFieldType(x.columnType()));
+              } else {
+                return Schema.Field.of(x.name(), getEquivalentFieldType(x.columnType()));
+              }
+            })
+        .collect(Schema.toSchema());
+  }
+
+  /**
+   * Returns Beam equivalent of ClickHouse column type.
+   *
+   * @param columnType type of ClickHouse column
+   * @return Beam field type
+   */
+  public static Schema.FieldType getEquivalentFieldType(ColumnType columnType) {
+    switch (columnType.typeName()) {
+      case DATE:
+      case DATETIME:
+        return Schema.FieldType.DATETIME;
+
+      case STRING:
+        return Schema.FieldType.STRING;
+
+      case FLOAT32:
+        return Schema.FieldType.FLOAT;
+
+      case FLOAT64:
+        return Schema.FieldType.DOUBLE;
+
+      case INT8:
+        return Schema.FieldType.BYTE;
+      case INT16:
+        return Schema.FieldType.INT16;
+      case INT32:
+        return Schema.FieldType.INT32;
+      case INT64:
+        return Schema.FieldType.INT64;
+
+      case UINT8:
+        return Schema.FieldType.INT16;
+      case UINT16:
+        return Schema.FieldType.INT32;
+      case UINT32:
+        return Schema.FieldType.INT64;
+      case UINT64:
+        return Schema.FieldType.INT64;
+
+      case ARRAY:
+        return Schema.FieldType.array(getEquivalentFieldType(columnType.arrayElementType()));
+    }
+
+    // not possible, errorprone checks for exhaustive switch
+    throw new AssertionError("Unexpected type: " + columnType.typeName());
   }
 
   /** A column in ClickHouse table. */
@@ -43,8 +113,27 @@ public abstract class TableSchema implements Serializable {
 
     public abstract ColumnType columnType();
 
+    @Nullable
+    public abstract DefaultType defaultType();
+
+    @Nullable
+    public abstract Object defaultValue();
+
+    public boolean materializedOrAlias() {
+      return DefaultType.MATERIALIZED.equals(defaultType())
+          || DefaultType.ALIAS.equals(defaultType());
+    }
+
     public static Column of(String name, ColumnType columnType) {
-      return new AutoValue_TableSchema_Column(name, columnType);
+      return of(name, columnType, null, null);
+    }
+
+    public static Column of(
+        String name,
+        ColumnType columnType,
+        @Nullable DefaultType defaultType,
+        @Nullable Object defaultValue) {
+      return new AutoValue_TableSchema_Column(name, columnType, defaultType, defaultValue);
     }
   }
 
@@ -68,6 +157,26 @@ public abstract class TableSchema implements Serializable {
     ARRAY
   }
 
+  /**
+   * An enumeration of possible kinds of default values in ClickHouse.
+   *
+   * @see <a href="https://clickhouse.yandex/docs/en/single/#default-values">ClickHouse
+   *     documentation</a>
+   */
+  public enum DefaultType {
+    DEFAULT,
+    MATERIALIZED,
+    ALIAS;
+
+    public static Optional<DefaultType> parse(String str) {
+      if ("".equals(str)) {
+        return Optional.empty();
+      } else {
+        return Optional.of(valueOf(str));
+      }
+    }
+  }
+
   /** A descriptor for a column type. */
   @AutoValue
   public abstract static class ColumnType implements Serializable {
@@ -85,28 +194,85 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType UINT32 = ColumnType.of(TypeName.UINT32);
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
 
+    // ClickHouse doesn't allow nested nullables, so boolean flag is enough
+    public abstract boolean nullable();
+
     public abstract TypeName typeName();
 
     @Nullable
     public abstract ColumnType arrayElementType();
 
     public static ColumnType of(TypeName typeName) {
-      return ColumnType.builder().typeName(typeName).build();
+      return ColumnType.builder().typeName(typeName).nullable(false).build();
+    }
+
+    public static ColumnType nullable(TypeName typeName) {
+      return ColumnType.builder().typeName(typeName).nullable(true).build();
     }
 
     public static ColumnType array(ColumnType arrayElementType) {
       return ColumnType.builder()
           .typeName(TypeName.ARRAY)
+          // ClickHouse doesn't allow nullable arrays
+          .nullable(false)
           .arrayElementType(arrayElementType)
           .build();
     }
 
-    /** Parse string with ClickHouse type to {@link ColumnType}. */
+    /**
+     * Parse string with ClickHouse type to {@link ColumnType}.
+     *
+     * @param str string representation of ClickHouse type
+     * @return type of ClickHouse column
+     */
     public static ColumnType parse(String str) {
       try {
         return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
                 new StringReader(str))
             .parse();
+      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
+        throw new IllegalArgumentException("failed to parse", e);
+      }
+    }
+
+    /**
+     * Get default value of a column based on expression.
+     *
+     * <p>E.g., "CREATE TABLE hits(id Int32, count Int32 DEFAULT &lt;str&gt;)"
+     *
+     * @param columnType type of ClickHouse expression
+     * @param str ClickHouse expression
+     * @return value of ClickHouse expression
+     */
+    public static Object parseDefaultExpression(ColumnType columnType, String str) {
+      try {
+        String value =
+            new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
+                    new StringReader(str))
+                .parseDefaultExpression();
+
+        switch (columnType.typeName()) {
+          case INT8:
+            return Byte.valueOf(value);
+          case INT16:
+            return Short.valueOf(value);
+          case INT32:
+            return Integer.valueOf(value);
+          case INT64:
+            return Long.valueOf(value);
+          case STRING:
+            return value;
+          case UINT8:
+            return Short.valueOf(value);
+          case UINT16:
+            return Integer.valueOf(value);
+          case UINT32:
+            return Long.valueOf(value);
+          case UINT64:
+            return Long.valueOf(value);
+          default:
+            throw new UnsupportedOperationException("Unsupported type: " + columnType);
+        }
       } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
         throw new IllegalArgumentException("failed to parse", e);
       }
@@ -122,6 +288,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder typeName(TypeName typeName);
 
       public abstract Builder arrayElementType(ColumnType arrayElementType);
+
+      public abstract Builder nullable(boolean nullable);
 
       public abstract ColumnType build();
     }
