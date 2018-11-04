@@ -160,11 +160,42 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExpr("LPAD('中文', CAST(10 AS BIGINT), 'жщфЖЩФ')", "жщфЖЩФжщ中文")
             .addExpr("LPAD('', CAST(5 AS BIGINT), ' ')", "     ")
             .addExpr("LPAD('', CAST(3 AS BIGINT), '-')", "---")
+            .addExpr("LPAD('a', CAST(5 AS BIGINT), ' ')", "    a")
+            .addExpr("LPAD('a', CAST(3 AS BIGINT), '-')", "--a")
             .addExprWithNullExpectedValue(
                 "LPAD(CAST(NULL AS VARCHAR(0)), CAST(3 AS BIGINT), '-')", TypeName.STRING)
             .addExprWithNullExpectedValue("LPAD('', CAST(NULL AS BIGINT), '-')", TypeName.STRING)
             .addExprWithNullExpectedValue(
                 "LPAD('', CAST(3 AS BIGINT), CAST(NULL AS VARCHAR(0)))", TypeName.STRING);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testRightPad() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("RPAD('abcdef', CAST(0 AS BIGINT))", "")
+            .addExpr("RPAD('abcdef', CAST(0 AS BIGINT), 'defgh')", "")
+            .addExpr("RPAD('abcdef', CAST(6 AS BIGINT), 'defgh')", "abcdef")
+            .addExpr("RPAD('abcdef', CAST(5 AS BIGINT), 'defgh')", "abcde")
+            .addExpr("RPAD('abcdef', CAST(4 AS BIGINT), 'defgh')", "abcd")
+            .addExpr("RPAD('abcdef', CAST(3 AS BIGINT), 'defgh')", "abc")
+            .addExpr("RPAD('abc', CAST(4 AS BIGINT), 'defg')", "abcd")
+            .addExpr("RPAD('abc', CAST(5 AS BIGINT), 'defgh')", "abcde")
+            .addExpr("RPAD('abc', CAST(6 AS BIGINT), 'defgh')", "abcdef")
+            .addExpr("RPAD('abc', CAST(7 AS BIGINT), 'defg')", "abcdefg")
+            .addExpr("RPAD('abcd', CAST(10 AS BIGINT), 'defg')", "abcddefgde")
+            .addExpr("RPAD('中文', CAST(10 AS BIGINT), 'жщфЖЩФ')", "中文жщфЖЩФжщ")
+            .addExpr("RPAD('', CAST(5 AS BIGINT), ' ')", "     ")
+            .addExpr("RPAD('', CAST(3 AS BIGINT), '-')", "---")
+            .addExpr("RPAD('a', CAST(5 AS BIGINT), ' ')", "a    ")
+            .addExpr("RPAD('a', CAST(3 AS BIGINT), '-')", "a--")
+            .addExprWithNullExpectedValue(
+                "RPAD(CAST(NULL AS VARCHAR(0)), CAST(3 AS BIGINT), '-')", TypeName.STRING)
+            .addExprWithNullExpectedValue("RPAD('', CAST(NULL AS BIGINT), '-')", TypeName.STRING)
+            .addExprWithNullExpectedValue(
+                "RPAD('', CAST(3 AS BIGINT), CAST(NULL AS VARCHAR(0)))", TypeName.STRING);
 
     checker.buildRunAndCheck();
   }
