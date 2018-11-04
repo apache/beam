@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 options {
     IGNORE_CASE=true;
 }
@@ -9,6 +26,7 @@ package org.apache.beam.sdk.io.clickhouse.impl.parser;
 import org.apache.beam.sdk.io.clickhouse.TableSchema;
 
 import static org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import static org.apache.beam.sdk.io.clickhouse.TableSchema.TypeName;
 
 /**
  * SQL parser, generated from ColumnTypeParser.jj by JavaCC.
@@ -22,6 +40,10 @@ public class ColumnTypeParser {
 
     public ColumnType parse() throws ParseException {
         return columnType();
+    }
+
+    public String parseDefaultExpression() throws ParseException {
+        return defaultExpression();
     }
 
 }
@@ -39,7 +61,13 @@ SKIP:
 
 TOKEN :
 {
-    < ARRAY    : "ARRAY"  >
+      < STRING_LITERAL : "\'"  ("\\" ~[] | ~["\'","\\"])* "\'" >
+    | < INTEGER_LITERAL: (("-")? (["0"-"9"])+) >
+}
+
+TOKEN :
+{
+    < ARRAY    : "ARRAY" >
   | < DATE     : "DATE" >
   | < DATETIME : "DATETIME" >
   | < FLOAT32  : "FLOAT32" >
@@ -53,33 +81,99 @@ TOKEN :
   | < UINT16   : "UINT16" >
   | < UINT32   : "UINT32" >
   | < UINT64   : "UINT64" >
+  | < NULLABLE : "NULLABLE" >
   | < LPAREN   : "(" >
   | < RPAREN   : ")" >
+  | < CAST     : "CAST" >
+  | < AS       : "AS" >
+  | < COMMA    : "," >
 }
 
 public ColumnType columnType() :
 {
     ColumnType ct;
+    TypeName type;
 }
 {
     (
-          <STRING>   { ct = ColumnType.STRING;   }
-        | <DATE>     { ct = ColumnType.DATE;     }
-        | <DATETIME> { ct = ColumnType.DATETIME; }
-        | <FLOAT32>  { ct = ColumnType.FLOAT32;  }
-        | <FLOAT64>  { ct = ColumnType.FLOAT64;  }
-        | <INT8>     { ct = ColumnType.INT8;     }
-        | <INT16>    { ct = ColumnType.INT16;    }
-        | <INT32>    { ct = ColumnType.INT32;    }
-        | <INT64>    { ct = ColumnType.INT64;    }
-        | <UINT8>    { ct = ColumnType.UINT8;    }
-        | <UINT16>   { ct = ColumnType.UINT16;   }
-        | <UINT32>   { ct = ColumnType.UINT32;   }
-        | <UINT64>   { ct = ColumnType.UINT64;   }
+          ct = primitive()
         | ct = array()
+        | ct = nullable()
     )
     {
         return ct;
+    }
+}
+
+public String defaultExpression() :
+{
+    String value;
+}
+{
+    (
+          <CAST> <LPAREN> (value = expr()) (   <AS> columnType() <RPAREN>
+                                             | <COMMA> <STRING_LITERAL> <RPAREN> )
+    )
+    {
+        return value;
+    }
+}
+
+private String expr() :
+{
+    Token token;
+}
+{
+    (
+          ( token = <STRING_LITERAL>  )
+        | ( token = <INTEGER_LITERAL> )
+    )
+    {
+        String str = token.toString();
+        // FIXME don't know how to do proper string parsing with escaping
+        if (str.startsWith("'")) {
+            return str.substring(1, str.length() - 1);
+        }
+        return str;
+    }
+}
+
+private TypeName typeName() :
+{
+}
+{
+    (
+          <STRING>   { return TypeName.STRING;   }
+        | <DATE>     { return TypeName.DATE;     }
+        | <DATETIME> { return TypeName.DATETIME; }
+        | <FLOAT32>  { return TypeName.FLOAT32;  }
+        | <FLOAT64>  { return TypeName.FLOAT64;  }
+        | <INT8>     { return TypeName.INT8;     }
+        | <INT16>    { return TypeName.INT16;    }
+        | <INT32>    { return TypeName.INT32;    }
+        | <INT64>    { return TypeName.INT64;    }
+        | <UINT8>    { return TypeName.UINT8;    }
+        | <UINT16>   { return TypeName.UINT16;   }
+        | <UINT32>   { return TypeName.UINT32;   }
+        | <UINT64>   { return TypeName.UINT64;   }
+    )
+}
+
+private ColumnType primitive() :
+{
+    TypeName type;
+}
+{
+    (type = typeName()) { return ColumnType.of(type); }
+}
+
+private ColumnType nullable() :
+{
+    TypeName type;
+}
+{
+    (<NULLABLE> <LPAREN> (type = typeName()) <RPAREN>) {
+        return ColumnType.nullable(type);
     }
 }
 

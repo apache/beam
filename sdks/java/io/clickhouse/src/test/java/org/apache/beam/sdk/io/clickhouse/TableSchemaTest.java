@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.clickhouse;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
 /** Tests for {@link TableSchema}. */
@@ -96,9 +97,48 @@ public class TableSchemaTest {
   }
 
   @Test
+  public void testParseNullableInt32() {
+    assertEquals(
+        ColumnType.nullable(TableSchema.TypeName.INT32), ColumnType.parse("Nullable(Int32)"));
+  }
+
+  @Test
+  public void testParseArrayOfNullable() {
+    assertEquals(
+        ColumnType.array(ColumnType.nullable(TableSchema.TypeName.INT32)),
+        ColumnType.parse("Array(Nullable(Int32))"));
+  }
+
+  @Test
   public void testParseArrayOfArrays() {
     assertEquals(
         ColumnType.array(ColumnType.array(ColumnType.STRING)),
         ColumnType.parse("Array(Array(String))"));
+  }
+
+  @Test
+  public void testParseDefaultExpressionString() {
+    assertEquals(
+        "abc", ColumnType.parseDefaultExpression(ColumnType.STRING, "CAST('abc' AS String)"));
+  }
+
+  @Test
+  public void testParseDefaultExpressionInt64() {
+    assertEquals(-1L, ColumnType.parseDefaultExpression(ColumnType.INT64, "CAST(-1 AS Int64)"));
+  }
+
+  @Test
+  public void testEquivalentSchema() {
+    TableSchema tableSchema =
+        TableSchema.of(
+            TableSchema.Column.of("f0", ColumnType.INT64),
+            TableSchema.Column.of("f1", ColumnType.nullable(TableSchema.TypeName.INT64)));
+
+    Schema expected =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT64),
+            Schema.Field.nullable("f1", Schema.FieldType.INT64));
+
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
   }
 }

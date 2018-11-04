@@ -19,53 +19,33 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testcontainers.containers.ClickHouseContainer;
 
 /** Tests for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
-public class ClickHouseIOTest {
+@Category(NeedsRunner.class)
+public class ClickHouseIOTest extends BaseClickHouseTest {
 
-  @ClassRule public static ClickHouseContainer clickhouse = new ClickHouseContainer();
   @Rule public TestPipeline pipeline = TestPipeline.create();
-
-  public void executeSql(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      statement.execute(sql);
-    }
-  }
-
-  public ResultSet executeQuery(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement(); ) {
-      return statement.executeQuery(sql);
-    }
-  }
-
-  public long executeQueryAsLong(String sql) throws SQLException {
-    ResultSet rs = executeQuery(sql);
-    rs.next();
-    return rs.getLong(1);
-  }
 
   @Test
   public void testInt64() throws Exception {
@@ -77,13 +57,7 @@ public class ClickHouseIOTest {
 
     executeSql("CREATE TABLE test_int64 (f0 Int64, f1 Int64) ENGINE=Log");
 
-    pipeline
-        .apply(Create.of(row1, row2, row3).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.builder()
-                .table("test_int64")
-                .jdbcUrl(clickhouse.getJdbcUrl())
-                .build());
+    pipeline.apply(Create.of(row1, row2, row3).withRowSchema(schema)).apply(write("test_int64"));
 
     pipeline.run().waitUntilFinish();
 
@@ -92,6 +66,50 @@ public class ClickHouseIOTest {
 
     assertEquals(6L, sum0);
     assertEquals(12L, sum1);
+  }
+
+  @Test
+  public void testNullableInt64() throws Exception {
+    Schema schema = Schema.of(Schema.Field.nullable("f0", FieldType.INT64));
+    Row row1 = Row.withSchema(schema).addValue(1L).build();
+    Row row2 = Row.withSchema(schema).addValue(null).build();
+    Row row3 = Row.withSchema(schema).addValue(3L).build();
+
+    executeSql("CREATE TABLE test_nullable_int64 (f0 Nullable(Int64)) ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1, row2, row3).withRowSchema(schema))
+        .apply(write("test_nullable_int64"));
+
+    pipeline.run().waitUntilFinish();
+
+    long sum = executeQueryAsLong("SELECT SUM(f0) FROM test_nullable_int64");
+    long count0 = executeQueryAsLong("SELECT COUNT(*) FROM test_nullable_int64");
+    long count1 = executeQueryAsLong("SELECT COUNT(f0) FROM test_nullable_int64");
+
+    assertEquals(4L, sum);
+    assertEquals(3L, count0);
+    assertEquals(2L, count1);
+  }
+
+  @Test
+  public void testInt64WithDefault() throws Exception {
+    Schema schema = Schema.of(Schema.Field.nullable("f0", FieldType.INT64));
+    Row row1 = Row.withSchema(schema).addValue(1L).build();
+    Row row2 = Row.withSchema(schema).addValue(null).build();
+    Row row3 = Row.withSchema(schema).addValue(3L).build();
+
+    executeSql("CREATE TABLE test_int64_with_default (f0 Int64 DEFAULT -1) ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1, row2, row3).withRowSchema(schema))
+        .apply(write("test_int64_with_default"));
+
+    pipeline.run().waitUntilFinish();
+
+    long sum = executeQueryAsLong("SELECT SUM(f0) FROM test_int64_with_default");
+
+    assertEquals(3L, sum);
   }
 
   @Test
@@ -108,11 +126,7 @@ public class ClickHouseIOTest {
 
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.builder()
-                .table("test_array_of_array_of_int64")
-                .jdbcUrl(clickhouse.getJdbcUrl())
-                .build());
+        .apply(write("test_array_of_array_of_int64"));
 
     pipeline.run().waitUntilFinish();
 
@@ -175,13 +189,7 @@ public class ClickHouseIOTest {
             + "f12 UInt64"
             + ") ENGINE=Log");
 
-    pipeline
-        .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.builder()
-                .table("test_primitive_types")
-                .jdbcUrl(clickhouse.getJdbcUrl())
-                .build());
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
 
     pipeline.run().waitUntilFinish();
 
@@ -261,11 +269,7 @@ public class ClickHouseIOTest {
 
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.builder()
-                .table("test_array_of_primitive_types")
-                .jdbcUrl(clickhouse.getJdbcUrl())
-                .build());
+        .apply(write("test_array_of_primitive_types"));
 
     pipeline.run().waitUntilFinish();
 
@@ -290,13 +294,68 @@ public class ClickHouseIOTest {
 
   @Test
   public void testInsertSql() {
-    List<TableSchema.Column> columns =
-        Arrays.asList(
+    TableSchema tableSchema =
+        TableSchema.of(
             TableSchema.Column.of("f0", ColumnType.INT64),
             TableSchema.Column.of("f1", ColumnType.INT64));
 
     String expected = "INSERT INTO \"test_table\" (\"f0\", \"f1\")";
 
-    assertEquals(expected, ClickHouseIO.WriteFn.insertSql(TableSchema.of(columns), "test_table"));
+    assertEquals(expected, ClickHouseIO.WriteFn.insertSql(tableSchema, "test_table"));
+  }
+
+  /** POJO used to test . */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static final class POJO {
+    public int f0;
+    public long f1;
+
+    public POJO(int f0, long f1) {
+      this.f0 = f0;
+      this.f1 = f1;
+    }
+
+    public POJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final POJO pojo = (POJO) o;
+      return f0 == pojo.f0 && f1 == pojo.f1;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(f0, f1);
+    }
+  }
+
+  @Ignore
+  // FIXME java.lang.ClassNotFoundException: javax.annotation.Nullable
+  public void testPojo() throws Exception {
+    POJO pojo1 = new POJO(1, 2L);
+    POJO pojo2 = new POJO(2, 4L);
+    POJO pojo3 = new POJO(3, 6L);
+
+    executeSql("CREATE TABLE test_pojo(f0 Int32, f1 Int64) ENGINE=Log");
+
+    pipeline.apply(Create.of(pojo1, pojo2, pojo3)).apply(write("test_pojo"));
+
+    pipeline.run().waitUntilFinish();
+
+    long sum0 = executeQueryAsLong("SELECT SUM(f0) FROM test_pojo");
+    long sum1 = executeQueryAsLong("SELECT SUM(f1) FROM test_pojo");
+
+    assertEquals(6L, sum0);
+    assertEquals(12L, sum1);
+  }
+
+  private <T> ClickHouseIO.Write<T> write(String table) {
+    return ClickHouseIO.<T>write(clickHouse.getJdbcUrl(), table).withMaxRetries(0);
   }
 }
