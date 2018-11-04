@@ -195,28 +195,108 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       // step one: pad #(returnLengthInt - originalValue.length) bytes to left side.
       int paddingOff = 0;
       int paddingLeftBytes = returnLengthInt - originalValue.length;
-      while (paddingLeftBytes > 0) {
-        if (paddingLeftBytes >= pattern.length) {
-          // pad the whole pattern
-          System.arraycopy(pattern, 0, ret, paddingOff, pattern.length);
-          paddingLeftBytes -= pattern.length;
-          paddingOff += pattern.length;
-        } else {
-          System.arraycopy(pattern, 0, ret, paddingOff, paddingLeftBytes);
-          paddingLeftBytes = 0;
-        }
-      }
+      byteArrayPadding(ret, pattern, paddingOff, paddingLeftBytes);
 
       // step two: copy originalValue.
       System.arraycopy(
           originalValue, 0, ret, returnLengthInt - originalValue.length, originalValue.length);
-
       return ret;
     } else { // truncating string by str.substring
       // Java String can only hold a string with Integer.MAX_VALUE as longest length.
       byte[] ret = new byte[returnLengthInt];
       System.arraycopy(originalValue, 0, ret, 0, returnLengthInt);
       return ret;
+    }
+  }
+
+  @UDF(
+    funcName = "RPAD",
+    parameterArray = {TypeName.STRING, TypeName.INT64},
+    returnType = TypeName.STRING
+  )
+  public String rpad(String originalValue, Long returnLength) {
+    return lpad(originalValue, returnLength, " ");
+  }
+
+  @UDF(
+    funcName = "RPAD",
+    parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
+    returnType = TypeName.STRING
+  )
+  public String rpad(String originalValue, Long returnLength, String pattern) {
+    if (originalValue == null || returnLength == null || pattern == null) {
+      return null;
+    }
+
+    if (returnLength < -1 || pattern.isEmpty()) {
+      throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
+    }
+
+    if (originalValue.length() == returnLength) {
+      return originalValue;
+    } else if (originalValue.length() < returnLength) { // add padding to right
+      return StringUtils.rightPad(originalValue, Math.toIntExact(returnLength), pattern);
+    } else { // truncating string by str.substring
+      // Java String can only hold a string with Integer.MAX_VALUE as longest length.
+      return originalValue.substring(0, Math.toIntExact(returnLength));
+    }
+  }
+
+  @UDF(
+    funcName = "RPAD",
+    parameterArray = {TypeName.BYTES, TypeName.INT64},
+    returnType = TypeName.BYTES
+  )
+  public byte[] rpad(byte[] originalValue, Long returnLength) {
+    return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
+  }
+
+  @UDF(
+    funcName = "RPAD",
+    parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
+    returnType = TypeName.BYTES
+  )
+  public byte[] rpad(byte[] originalValue, Long returnLength, byte[] pattern) {
+    if (originalValue == null || returnLength == null || pattern == null) {
+      return null;
+    }
+    if (returnLength < -1 || pattern.length == 0) {
+      throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
+    }
+
+    int returnLengthInt = Math.toIntExact(returnLength);
+
+    if (originalValue.length == returnLengthInt) {
+      return originalValue;
+    } else if (originalValue.length < returnLengthInt) { // add padding to right
+      byte[] ret = new byte[returnLengthInt];
+      // step one: copy originalValue.
+      System.arraycopy(originalValue, 0, ret, 0, originalValue.length);
+
+      // step one: pad #(returnLengthInt - originalValue.length) bytes to right side.
+      int paddingOff = originalValue.length;
+      int paddingLeftBytes = returnLengthInt - originalValue.length;
+      byteArrayPadding(ret, pattern, paddingOff, paddingLeftBytes);
+      return ret;
+    } else { // truncating string by str.substring
+      // Java String can only hold a string with Integer.MAX_VALUE as longest length.
+      byte[] ret = new byte[returnLengthInt];
+      System.arraycopy(originalValue, 0, ret, 0, returnLengthInt);
+      return ret;
+    }
+  }
+
+  private void byteArrayPadding(byte[] dest, byte[] pattern, int paddingOff, int paddingLeftBytes) {
+    while (paddingLeftBytes > 0) {
+      if (paddingLeftBytes >= pattern.length) {
+        // pad the whole pattern
+        System.arraycopy(pattern, 0, dest, paddingOff, pattern.length);
+        paddingLeftBytes -= pattern.length;
+        paddingOff += pattern.length;
+      } else {
+        System.arraycopy(pattern, 0, dest, paddingOff, paddingLeftBytes);
+        paddingLeftBytes = 0;
+      }
     }
   }
 }
