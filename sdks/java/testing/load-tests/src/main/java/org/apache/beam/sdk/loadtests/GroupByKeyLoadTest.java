@@ -18,17 +18,16 @@
 package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.loadtests.GroupByKeyLoadTest.Options.fromJsonString;
 import static org.apache.beam.sdk.loadtests.GroupByKeyLoadTest.Options.readFromArgs;
+import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
+import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
-import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
 import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
@@ -98,14 +97,6 @@ public class GroupByKeyLoadTest {
     static Options readFromArgs(String[] args) {
       return PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     }
-
-    static <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type)
-        throws IOException {
-      ObjectMapper mapper = new ObjectMapper();
-      T result = mapper.readValue(json, type);
-      result.validate();
-      return result;
-    }
   }
 
   public static void main(String[] args) throws IOException {
@@ -114,7 +105,7 @@ public class GroupByKeyLoadTest {
     SyntheticSourceOptions sourceOptions =
         fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
 
-    Optional<SyntheticStep> syntheticStep = createSyntheticStep(options);
+    Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -122,7 +113,7 @@ public class GroupByKeyLoadTest {
         pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
-      applySyntheticStep(input, branch, syntheticStep)
+      SyntheticUtils.applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
           .apply(ParDo.of(new MetricsMonitor("gbk")))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(
@@ -134,25 +125,6 @@ public class GroupByKeyLoadTest {
     result.waitUntilFinish();
 
     MetricsPublisher.toConsole(result, "gbk");
-  }
-
-  private static PCollection<KV<byte[], byte[]>> applySyntheticStep(
-      PCollection<KV<byte[], byte[]>> input, int branch, Optional<SyntheticStep> syntheticStep) {
-
-    if (syntheticStep.isPresent()) {
-      return input.apply(format("Synthetic step (%s)", branch), ParDo.of(syntheticStep.get()));
-    } else {
-      return input;
-    }
-  }
-
-  private static Optional<SyntheticStep> createSyntheticStep(Options options) throws IOException {
-    if (options.getStepOptions() != null && !options.getStepOptions().isEmpty()) {
-      return Optional.of(
-          new SyntheticStep(fromJsonString(options.getStepOptions(), SyntheticStep.Options.class)));
-    } else {
-      return Optional.empty();
-    }
   }
 
   private static class UngroupAndReiterate
