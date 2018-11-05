@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.loadtests.GroupByKeyLoadTest.Options.readFromArgs;
 import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
 import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
 
@@ -31,12 +30,8 @@ import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOption
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
 import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
-import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -69,18 +64,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class GroupByKeyLoadTest {
 
   /** Pipeline options for the test. */
-  public interface Options extends PipelineOptions, ApplicationNameOptions {
-
-    @Description("Options for synthetic source")
-    @Validation.Required
-    String getSourceOptions();
-
-    void setSourceOptions(String sourceOptions);
-
-    @Description("Options for synthetic step")
-    String getStepOptions();
-
-    void setStepOptions(String stepOptions);
+  public interface Options extends LoadTestOptions {
 
     @Description("The number of GroupByKey operations to perform in parallel (fanout)")
     @Default.Integer(1)
@@ -93,14 +77,10 @@ public class GroupByKeyLoadTest {
     Integer getIterations();
 
     void setIterations(Integer iterations);
-
-    static Options readFromArgs(String[] args) {
-      return PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    }
   }
 
   public static void main(String[] args) throws IOException {
-    Options options = readFromArgs(args);
+    Options options = LoadTestOptions.readFromArgs(args, Options.class);
 
     SyntheticSourceOptions sourceOptions =
         fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
