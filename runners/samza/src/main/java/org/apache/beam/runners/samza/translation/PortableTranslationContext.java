@@ -82,10 +82,21 @@ public class PortableTranslationContext {
     messsageStreams.put(id, stream);
   }
 
-  public <T> void registerInputMessageStream(String id) {
+  /** Register an input stream, using the PCollection id as the config id. */
+  public void registerInputMessageStream(String id) {
+    registerInputMessageStreamWithStreamId(id, id);
+  }
+
+  /**
+   * Register an input stream with certain config id.
+   *
+   * @param id id of the PCollection in the input/output of PTransform
+   * @param streamId samza stream id which user can use to customize the stream level config
+   */
+  public <T> void registerInputMessageStreamWithStreamId(String id, String streamId) {
     final MessageStream<OpMessage<T>> stream =
         streamGraph
-            .<org.apache.samza.operators.KV<?, OpMessage<T>>>getInputStream(id)
+            .<org.apache.samza.operators.KV<?, OpMessage<T>>>getInputStream(streamId)
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(id, stream);
