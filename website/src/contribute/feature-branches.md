@@ -35,7 +35,7 @@ thorough and trustworthy.
 
 If your project is large enough to need a feature branch, there should
 be a discussion on the mailing list. The first step is to [engage]({{
-site.baseurl }}/contribute/contribution-guide/#engage) there to raise awareness
+site.baseurl }}/contribute/#connect-with-the-beam-community) there to raise awareness
 that you want to start a large project. Almost any project should be accepted
 -- there is no real cost to letting a feature branch exist -- but you may find
 other interested contributors or gain other advice from the community.
