@@ -53,7 +53,7 @@ Additional resources:
 
 {:.language-java}
 * [BigQueryIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery)
-* [BigQueryIO Javadoc]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html)
+* [BigQueryIO Javadoc](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
 
 
@@ -68,7 +68,7 @@ Additional resources:
 
 {:.language-py}
 * [BigQueryIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py)
-* [BigQueryIO Pydoc]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.bigquery.html)
+* [BigQueryIO Pydoc](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.bigquery.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
 
 
@@ -115,10 +115,10 @@ table name.
 You can also omit `project_id` and use the `[dataset_id].[table_id]` format. If
 you omit the project ID, Beam uses the default project ID from your
 <span class="language-java">
-  [pipeline options]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html).
+  [pipeline options](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html).
 </span>
 <span class="language-py">
-  [pipeline options]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
+  [pipeline options](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
 </span>
 
 ```java
@@ -143,7 +143,7 @@ the three parts of the BigQuery table name.
 <!-- Java specific -->
 
 {:.language-java}
-The Beam SDK for Java also provides the [`parseTableSpec`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
+The Beam SDK for Java also provides the [`parseTableSpec`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
 helper method, which constructs a `TableReference` object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -522,7 +522,7 @@ BigQueryIO uses streaming inserts in the following situations:
 
 {:.language-java}
 You can use `withMethod` to specify the desired insertion method. See
-[Write.Method]({{site.baseurl}}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html)
+[Write.Method](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html)
 for the list of the available methods and their restrictions.
 
 {:.language-java}

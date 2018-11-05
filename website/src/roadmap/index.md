@@ -61,7 +61,7 @@ This is also a great opportunity for lightweight contribution!
 
 The Java SDK is eager to add support for Java's first new LTS (Long Term Support)
 version. See details on 
-the [Java SDK's Roadmap]({{site.baseurl}}/roadmap/java-sdk/#java-11-support).
+the [Java SDK's Roadmap]({{site.baseurl}}/roadmap/java-sdk).
 
 ## SQL
 

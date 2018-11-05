@@ -3,7 +3,7 @@ require 'html-proofer'
 require 'etc'
 
 task :test do
-  HTMLProofer.check_directory("./generated-content", {
+  HTMLProofer.check_directory("./generated-local-content", {
     :typhoeus => {
       :timeout => 120,
       :connecttimeout => 90 },
