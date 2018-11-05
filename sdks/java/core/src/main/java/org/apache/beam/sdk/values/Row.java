@@ -444,11 +444,21 @@ public abstract class Row implements Serializable {
 
     private Object verify(Object value, FieldType type, String fieldName) {
       if (TypeName.ARRAY.equals(type.getTypeName())) {
-        List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
+        List<Object> arrayElements =
+            verifyArray(
+                value,
+                type.getCollectionElementType(),
+                type.getCollectionElementTypeNullable(),
+                fieldName);
         return arrayElements;
       } else if (TypeName.MAP.equals(type.getTypeName())) {
         Map<Object, Object> mapElements =
-            verifyMap(value, type.getMapKeyType().getTypeName(), type.getMapValueType(), fieldName);
+            verifyMap(
+                value,
+                type.getMapKeyType().getTypeName(),
+                type.getMapValueType(),
+                type.getMapValueTypeNullable(),
+                fieldName);
         return mapElements;
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
@@ -458,7 +468,10 @@ public abstract class Row implements Serializable {
     }
 
     private List<Object> verifyArray(
-        Object value, FieldType collectionElementType, String fieldName) {
+        Object value,
+        FieldType collectionElementType,
+        boolean collectionElementTypeNullable,
+        String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
             String.format(
@@ -469,13 +482,26 @@ public abstract class Row implements Serializable {
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        verifiedList.add(verify(listValue, collectionElementType, fieldName));
+        if (listValue == null) {
+          if (!collectionElementTypeNullable) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "%s is not nullable in Array field %s", collectionElementType, fieldName));
+          }
+          verifiedList.add(null);
+        } else {
+          verifiedList.add(verify(listValue, collectionElementType, fieldName));
+        }
       }
       return verifiedList;
     }
 
     private Map<Object, Object> verifyMap(
-        Object value, TypeName keyTypeName, FieldType valueType, String fieldName) {
+        Object value,
+        TypeName keyTypeName,
+        FieldType valueType,
+        boolean valueTypeNullable,
+        String fieldName) {
       if (!(value instanceof Map)) {
         throw new IllegalArgumentException(
             String.format(
@@ -486,9 +512,17 @@ public abstract class Row implements Serializable {
       Map<Object, Object> valueMap = (Map<Object, Object>) value;
       Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
       for (Entry<Object, Object> kv : valueMap.entrySet()) {
-        verifiedMap.put(
-            verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
-            verify(kv.getValue(), valueType, fieldName));
+        if (kv.getValue() == null) {
+          if (!valueTypeNullable) {
+            throw new IllegalArgumentException(
+                String.format("%s is not nullable in Map field %s", valueType, fieldName));
+          }
+          verifiedMap.put(verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName), null);
+        } else {
+          verifiedMap.put(
+              verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+              verify(kv.getValue(), valueType, fieldName));
+        }
       }
       return verifiedMap;
     }

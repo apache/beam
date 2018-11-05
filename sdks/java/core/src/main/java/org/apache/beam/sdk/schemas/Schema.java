@@ -395,6 +395,10 @@ public class Schema implements Serializable {
     @Nullable
     public abstract FieldType getCollectionElementType();
 
+    // For container types (e.g. ARRAY), returns nullable of the type of the contained element.
+    @Nullable
+    public abstract Boolean getCollectionElementTypeNullable();
+
     // For MAP type, returns the type of the key element, it must be a primitive type;
     @Nullable
     public abstract FieldType getMapKeyType();
@@ -402,6 +406,10 @@ public class Schema implements Serializable {
     // For MAP type, returns the type of the value element, it can be a nested type;
     @Nullable
     public abstract FieldType getMapValueType();
+
+    // For MAP type, returns nullable of the type of the value element, it can be a nested type;
+    @Nullable
+    public abstract Boolean getMapValueTypeNullable();
 
     // For ROW types, returns the schema for the row.
     @Nullable
@@ -424,9 +432,13 @@ public class Schema implements Serializable {
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
+      abstract Builder setCollectionElementTypeNullable(@Nullable Boolean nullable);
+
       abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
 
       abstract Builder setMapValueType(@Nullable FieldType mapValueType);
+
+      abstract Builder setMapValueTypeNullable(@Nullable Boolean nullable);
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
@@ -475,7 +487,17 @@ public class Schema implements Serializable {
 
     /** Create an array type for the given field type. */
     public static final FieldType array(FieldType elementType) {
-      return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
+      return FieldType.forTypeName(TypeName.ARRAY)
+          .setCollectionElementType(elementType)
+          .setCollectionElementTypeNullable(false)
+          .build();
+    }
+
+    public static final FieldType array(FieldType elementType, boolean nullable) {
+      return FieldType.forTypeName(TypeName.ARRAY)
+          .setCollectionElementType(elementType)
+          .setCollectionElementTypeNullable(nullable)
+          .build();
     }
 
     /** Create a map type for the given key and value types. */
@@ -483,6 +505,16 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType)
+          .setMapValueTypeNullable(false)
+          .build();
+    }
+
+    public static final FieldType map(
+        FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
+      return FieldType.forTypeName(TypeName.MAP)
+          .setMapKeyType(keyType)
+          .setMapValueType(valueType)
+          .setMapValueTypeNullable(valueTypeNullable)
           .build();
     }
 
