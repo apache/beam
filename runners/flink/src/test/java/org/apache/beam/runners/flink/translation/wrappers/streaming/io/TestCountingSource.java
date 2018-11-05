@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
@@ -54,6 +54,9 @@ public class TestCountingSource
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
   private final int fixedNumSplits;
+
+  /** Flag to stall processing readers' elements. */
+  private transient volatile boolean haltEmission;
 
   /**
    * We only allow an exception to be thrown from getCheckpointMark at most once. This must be
@@ -108,6 +111,16 @@ public class TestCountingSource
 
   public int getShardNumber() {
     return shardNumber;
+  }
+
+  /** Halts emission of elements until {@code continueEmission} is invoked. */
+  void haltEmission() {
+    haltEmission = true;
+  }
+
+  /** Continues processing elements after {@code haltEmission} was invoked. */
+  void continueEmission() {
+    haltEmission = false;
   }
 
   @Override
