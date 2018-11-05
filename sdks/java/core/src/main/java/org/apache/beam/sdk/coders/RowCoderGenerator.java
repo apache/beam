@@ -101,12 +101,12 @@ public abstract class RowCoderGenerator {
   private static final Map<TypeName, StackManipulation> CODER_MAP;
 
   // Cache for Coder class that are already generated.
-  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newHashMap();
+  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newConcurrentMap();
 
   static {
     // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
     // Assumes that each class contains a static of() constructor method.
-    CODER_MAP = Maps.newHashMap();
+    CODER_MAP = Maps.newConcurrentMap();
     for (Map.Entry<TypeName, Coder> entry : RowCoder.CODER_MAP.entrySet()) {
       StackManipulation stackManipulation =
           MethodInvocation.invoke(
