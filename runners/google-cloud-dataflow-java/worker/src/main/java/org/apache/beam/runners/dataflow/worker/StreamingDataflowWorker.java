@@ -1740,7 +1740,7 @@ public class StreamingDataflowWorker {
     // appear in multiple stages if a step runs in multiple stages (as with flatten-unzipped stages)
     // especially if the counter definition does not set execution_step_name.
     ListMultimap<Object, CounterUpdate> counterMultimap =
-      MultimapBuilder.hashKeys(counterUpdates.size()).linkedListValues().build();
+        MultimapBuilder.hashKeys(counterUpdates.size()).linkedListValues().build();
     boolean hasDuplicates = false;
 
     for (CounterUpdate c : counterUpdates) {
@@ -1753,20 +1753,21 @@ public class StreamingDataflowWorker {
 
     // Clears counterUpdates and enqueues unique counters from counterMultimap. If a counter
     // appears more than once, one of them is extracted leaving the remaining in the map.
-    Runnable extractUniqueCounters = () -> {
-      counterUpdates.clear();
-      for (Iterator<Object> iter = counterMultimap.keySet().iterator(); iter.hasNext();) {
-        List<CounterUpdate> counters = counterMultimap.get(iter.next());
-        counterUpdates.add(counters.get(0));
-        if (counters.size() == 1) {
-          // There is single value. Remove the entry through the iterator.
-          iter.remove();
-        } else {
-          // Otherwise remove the first value.
-          counters.remove(0);
-        }
-      }
-    };
+    Runnable extractUniqueCounters =
+        () -> {
+          counterUpdates.clear();
+          for (Iterator<Object> iter = counterMultimap.keySet().iterator(); iter.hasNext(); ) {
+            List<CounterUpdate> counters = counterMultimap.get(iter.next());
+            counterUpdates.add(counters.get(0));
+            if (counters.size() == 1) {
+              // There is single value. Remove the entry through the iterator.
+              iter.remove();
+            } else {
+              // Otherwise remove the first value.
+              counters.remove(0);
+            }
+          }
+        };
 
     if (hasDuplicates) {
       extractUniqueCounters.run();
@@ -1797,9 +1798,9 @@ public class StreamingDataflowWorker {
     while (!counterMultimap.isEmpty()) {
       extractUniqueCounters.run();
       workUnitClient.reportWorkItemStatus(
-        new WorkItemStatus()
-          .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
-          .setCounterUpdates(counterUpdates));
+          new WorkItemStatus()
+              .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
+              .setCounterUpdates(counterUpdates));
     }
   }
 
