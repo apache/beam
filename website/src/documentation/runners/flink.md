@@ -59,7 +59,7 @@ The Flink cluster version has to match the version used by the FlinkRunner. To f
   <th>Flink version</th>
 </tr>
 <tr>
-  <td>2.7.0, 2.6.0</td>
+  <td>2.8.0, 2.7.0, 2.6.0</td>
   <td>1.5.x</td>
 </tr>
 <tr>
