@@ -303,6 +303,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     @VisibleForTesting
     void updateProgress() {
       try {
+        if (bundleProcessOperation.hasFailed()) {
+          grpcWriteOperation.abortWait();
+        }
+
         BeamFnApi.Metrics metrics = MoreFutures.get(bundleProcessOperation.getMetrics());
 
         updateMetrics(metrics);
