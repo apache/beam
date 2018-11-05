@@ -58,10 +58,10 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   private CloseableFnDataReceiver<WindowedValue<T>> receiver;
   private final AtomicInteger elementsSent = new AtomicInteger();
 
-  boolean usingElementsProcessed = false;
-  AtomicInteger elementsProcessed = new AtomicInteger();
-  int elementsFlushed;
-  int targetElementsSent;
+  private boolean usingElementsProcessed = false;
+  private AtomicInteger elementsProcessed = new AtomicInteger();
+  private int elementsFlushed;
+  private int targetElementsSent;
 
   private final Supplier<Long> currentTimeMillis;
   private long firstElementSentMillis;
@@ -174,6 +174,16 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
     }
   }
 
+  public void abortWait() {
+    usingElementsProcessed = false;
+    try {
+      lock.lock();
+      condition.signal();
+    } finally {
+      lock.unlock();
+    }
+  }
+
   @Override
   public void process(Object outputElem) throws Exception {
     try (Closeable scope = context.enterProcess()) {
@@ -200,6 +210,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   @Override
   public void abort() throws Exception {
     try (Closeable scope = context.enterAbort()) {
+      abortWait();
       receiver.close();
       super.abort();
     }
