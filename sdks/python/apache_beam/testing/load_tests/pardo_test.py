@@ -15,11 +15,18 @@
 # limitations under the License.
 #
 """
-To run test on DirectRunner
+This is ParDo load test with Synthetic Source. Besides of the standard
+input options there are additional options:
+* number_of_counter_operations - number of pardo operations
+* metrics_project_id - the gcp project in case of saving metrics in big query
+* input_options - options for Synthetic Sources.
+
+Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
     --number_of_counter_operations=1000
+    --metrics_project_id=big-query-project
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -28,7 +35,7 @@ python setup.py nosetests \
     \"bundle_size_distribution_param\": 1,
     \"force_initial_num_bundles\": 0
     }'" \
-    --tests apache_beam.testing.load_tests.par_do_test
+    --tests apache_beam.testing.load_tests.pardo_test
 
 To run test on other runner (ex. Dataflow):
 
@@ -41,6 +48,7 @@ python setup.py nosetests \
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
         --output=gc
         --number_of_counter_operations=1000
+        --metrics_project_id=big-query-project
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -49,7 +57,7 @@ python setup.py nosetests \
         \"bundle_size_distribution_param\": 1,
         \"force_initial_num_bundles\": 0
         }'" \
-    --tests apache_beam.testing.load_tests.par_do_test
+    --tests apache_beam.testing.load_tests.pardo_test
 
 """
 
@@ -57,31 +65,35 @@ from __future__ import absolute_import
 
 import json
 import logging
-import time
 import unittest
 
 import apache_beam as beam
-from apache_beam.metrics import Metrics
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsCollector
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.load_tests.load_test_metrics_utils import count_metrics
 from apache_beam.testing.test_pipeline import TestPipeline
-from google.cloud import bigquery
+
+NAMESPACE = 'pardo'
+COUNTER_LABEL = "total_bytes_count"
+RUNTIME_LABEL = 'runtime'
 
 
 class ParDoTest(unittest.TestCase):
+
   def parseTestPipelineOptions(self):
-    return {'numRecords': self.inputOptions.get('num_records'),
-            'keySizeBytes': self.inputOptions.get('key_size'),
-            'valueSizeBytes': self.inputOptions.get('value_size'),
+    return {'numRecords': self.input_options.get('num_records'),
+            'keySizeBytes': self.input_options.get('key_size'),
+            'valueSizeBytes': self.input_options.get('value_size'),
             'bundleSizeDistribution': {
-                'type': self.inputOptions.get(
+                'type': self.input_options.get(
                     'bundle_size_distribution_type', 'const'
                 ),
-                'param': self.inputOptions.get(
+                'param': self.input_options.get(
                     'bundle_size_distribution_param', 0
                 )
             },
-            'forceNumInitialBundles': self.inputOptions.get(
+            'forceNumInitialBundles': self.input_options.get(
                 'force_initial_num_bundles', 0
             )
            }
@@ -90,32 +102,22 @@ class ParDoTest(unittest.TestCase):
     self.pipeline = TestPipeline(is_integration_test=True)
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
-    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
-    self.bq_client = bigquery.Client('apache-beam-io-testing')\
-    self.bq_dataset = self.bq_client.dataset('pardo_load_test')
+    self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
-  class _MeasureTime(beam.DoFn):
-    def __init__(self):
-      self.runtime_start = Metrics.distribution('pardo', 'runtime.start')
-      self.runtime_end = Metrics.distribution('pardo', 'runtime.end')
-
-    def start_bundle(self):
-      self.runtime_start.update(time.time())
-
-    def finish_bundle(self):
-      self.runtime_end.update(time.time())
-
-    def process(self, element):
-      yield element
+    metrics_project_id = self.pipeline.get_option('metrics_project_id')
+    self.bigQuery = None
+    if metrics_project_id is not None:
+      schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
+                {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}]
+      self.bigQuery = BigQueryMetricsCollector(
+          metrics_project_id,
+          NAMESPACE,
+          schema
+      )
 
   class _GetElement(beam.DoFn):
-    def __init__(self):
-      self.counter = Metrics.counter('pardo', 'total_bytes.count')
-
+    @count_metrics(namespace=NAMESPACE, counter_name=COUNTER_LABEL)
     def process(self, element):
-      _, value = element
-      for i in range(len(value)):
-        self.counter.inc(i)
       yield element
 
   def testParDo(self):
@@ -130,7 +132,7 @@ class ParDoTest(unittest.TestCase):
                 synthetic_pipeline.SyntheticSource(
                     self.parseTestPipelineOptions()
                 ))
-            | 'Measure time' >> beam.ParDo(MeasureTime())
+            | 'Measure time' >> beam.ParDo(MeasureTime(NAMESPACE))
            )
 
       for i in range(num_runs):
@@ -146,15 +148,9 @@ class ParDoTest(unittest.TestCase):
 
       result = p.run()
       result.wait_until_finish()
-      metrics = result.metrics().query()
-      for counter in metrics['counters']:
-        logging.info("Counter: %s", counter)
-        self.bq_dataset.insert()
 
-      for dist in metrics['distributions']:
-        logging.info("Distribution: %s", dist)
-
-
+      if self.bigQuery is not None:
+        self.bigQuery.save_metrics(result)
 
 
 if __name__ == '__main__':

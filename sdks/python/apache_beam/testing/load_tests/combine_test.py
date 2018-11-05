@@ -19,6 +19,7 @@ To run test on DirectRunner
 
 python setup.py nosetests \
     --test-pipeline-options="
+    --metrics_project_id=big-query-project
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -38,6 +39,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
+        --metrics_project_id=big-query-project
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -58,8 +60,12 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsCollector
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
+
+NAMESPACE = 'combine'
+RUNTIME_LABEL = 'runtime'
 
 
 class CombineTest(unittest.TestCase):
@@ -83,6 +89,16 @@ class CombineTest(unittest.TestCase):
     self.pipeline = TestPipeline(is_integration_test=True)
     self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
 
+    metrics_project_id = self.pipeline.get_option('metrics_project_id')
+    self.bigQuery = None
+    if metrics_project_id is not None:
+      schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
+      self.bigQuery = BigQueryMetricsCollector(
+          metrics_project_id,
+          NAMESPACE,
+          schema
+      )
+
   class _GetElement(beam.DoFn):
     def process(self, element):
       yield element
@@ -93,7 +109,7 @@ class CombineTest(unittest.TestCase):
       (p
        | beam.io.Read(synthetic_pipeline.SyntheticSource(
            self.parseTestPipelineOptions()))
-       | 'Measure time' >> beam.ParDo(MeasureTime())
+       | 'Measure time' >> beam.ParDo(MeasureTime(NAMESPACE))
        | 'Combine with Top' >> beam.CombineGlobally(
            beam.combiners.TopCombineFn(1000))
        | 'Consume' >> beam.ParDo(self._GetElement())
@@ -101,9 +117,8 @@ class CombineTest(unittest.TestCase):
 
       result = p.run()
       result.wait_until_finish()
-      metrics = result.metrics().query()
-      for dist in metrics['distributions']:
-        logging.info("Distribution: %s", dist)
+      if self.bigQuery is not None:
+        self.bigQuery.save_metrics(result)
 
 
 if __name__ == '__main__':
