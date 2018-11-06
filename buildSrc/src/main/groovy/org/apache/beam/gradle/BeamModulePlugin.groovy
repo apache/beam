@@ -1246,7 +1246,7 @@ artifactId=${project.name}
                 "--kubectl=${configuration.kubectl}",
                 "--beam_kubernetes_scripts=${configuration.kubernetesScripts}",
 
-                "--beam_it_options=${configuration.integrationTestPipelineOptions}",
+                "--beam_it_options=${allPipelineOptions}",
                 "--beam_options_config_file=${configuration.optionsConfigFile}",
 
                 "--beam_it_class=${configuration.integrationTest}",
