@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from builtins import object
 import codecs
 import getpass
+import httplib2
 import json
 import logging
 import os
@@ -422,14 +423,19 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       credentials = get_service_credentials()
+
+    # Use 60 second socket timeout avoid hangs during network flakiness.
+    http_client = httplib2.Http(timeout=60)
     self._client = dataflow.DataflowV1b3(
         url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client)
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client)
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
