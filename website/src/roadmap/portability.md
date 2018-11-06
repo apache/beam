@@ -142,7 +142,11 @@ their respective components.
 
 ## Status
 
-MVP in progress (near completion for Flink runner). See the
+MVP, and FeatureCompletness nearly done (missing SDF, timers) for
+SDKs, Python ULR, and shared java runners library.
+Flink is the first runner to fully leverage this, with focus moving to
+Performance.
+See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
 
@@ -159,9 +163,9 @@ To run the pipeline in streaming mode: `./gradlew :beam-sdks-python:portableWord
 
 To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
 
-1. Start local Flink cluster
+1. Start Flink cluster (e.g. locally on `localhost:8081`)
 2. Create shaded JobService jar: `./gradlew :beam-runners-flink_2.11-job-server:installShadowDist`
 3. Optional optimization step: Place the generated JobServer Jar `beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.7.0-SNAPSHOT.jar` in `flink/lib` and change class loading order for Flink by adding `classloader.resolve-order: parent-first` to `conf/flink-conf.yaml`.
 4. Start JobService with Flink web service endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081`
-5. Submit the pipeline.
+5. Submit the pipeline as above.
 
