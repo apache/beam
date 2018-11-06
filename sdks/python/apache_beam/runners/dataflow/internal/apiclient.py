@@ -430,7 +430,7 @@ class DataflowApplicationClient(object):
     else:
       credentials = get_service_credentials()
 
-    # Use 60 second timeout avoid hangs during network flakiness.
+    # Use 60 second socket timeout avoid hangs during network flakiness.
     http_client = httplib2.Http(timeout=60)
     self._client = dataflow.DataflowV1b3(
         url=self.google_cloud_options.dataflow_endpoint,
