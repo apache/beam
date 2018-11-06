@@ -59,7 +59,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public ByteKeyRange checkpoint() {
+  public synchronized ByteKeyRange checkpoint() {
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
@@ -127,7 +127,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public void checkDone() throws IllegalStateException {
+  public synchronized void checkDone() throws IllegalStateException {
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -157,7 +157,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return MoreObjects.toStringHelper(this)
         .add("range", range)
         .add("lastClaimedKey", lastClaimedKey)
