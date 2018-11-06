@@ -94,6 +94,8 @@ public enum NexmarkSuite {
   
   private static List<NexmarkConfiguration> smallLogger() {
     NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.copy();
+    configuration.numEventGenerators = 1;
+
     configuration.query = NexmarkQueryName.LOG_TO_SHARDED_FILES;
     configuration.isRateLimited = true;
     configuration.sourceType = NexmarkUtils.SourceType.PUBSUB;
