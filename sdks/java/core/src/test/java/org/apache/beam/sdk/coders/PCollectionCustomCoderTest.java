@@ -53,7 +53,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /** Tests for coder exception handling in runners. */
 @RunWith(JUnit4.class)
 public class PCollectionCustomCoderTest {
@@ -264,9 +263,11 @@ public class PCollectionCustomCoderTest {
 
     // Create input.
     PCollection<String> customCoderPC =
-        pipeline.begin()
-        .apply("ReadStrings", Create.of(pipelineContents)).setCoder(coder)
-        .apply(Reshuffle.viaRandomKey());
+        pipeline
+            .begin()
+            .apply("ReadStrings", Create.of(pipelineContents))
+            .setCoder(coder)
+            .apply(Reshuffle.viaRandomKey());
     PCollection<String> fixedCoderPC =
         customCoderPC.apply("Identity", ParDo.of(new IdentityDoFn()));
     fixedCoderPC.setCoder(StringUtf8Coder.of());
@@ -295,7 +296,7 @@ public class PCollectionCustomCoderTest {
     private ContentReader(Iterable<String> expected) {
       ArrayList<String> ret = new ArrayList<>();
       for (String t : expected) {
-          ret.add(t);
+        ret.add(t);
       }
       this.expected = ret.toArray(new String[ret.size()]);
     }
@@ -332,8 +333,7 @@ public class PCollectionCustomCoderTest {
 
     @Override
     public void describeTo(Description descr) {
-        descr.appendText("exception with text matching: " + expectedError);
+      descr.appendText("exception with text matching: " + expectedError);
     }
   }
 }
-
