@@ -20,7 +20,9 @@ package org.apache.beam.runners.samza.translation;
 
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -44,6 +46,7 @@ public class TranslationContext {
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
   private final Map<PValue, String> idMap;
+  private final Set<String> registeredInputStreams = new HashSet<>();
   private final PValue dummySource;
   private final SamzaPipelineOptions options;
 
@@ -175,6 +178,10 @@ public class TranslationContext {
   }
 
   private <OutT> void doRegisterInputMessageStream(PValue pvalue, String streamId) {
+    // we want to register it with the Samza graph only once per i/o stream
+    if (registeredInputStreams.contains(streamId)) {
+      return;
+    }
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> typedStream =
         streamGraph
@@ -182,6 +189,7 @@ public class TranslationContext {
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(pvalue, typedStream);
+    registeredInputStreams.add(streamId);
   }
 
   private String getIdForPValue(PValue pvalue) {

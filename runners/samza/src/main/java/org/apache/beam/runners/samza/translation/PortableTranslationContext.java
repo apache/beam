@@ -4,8 +4,10 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -32,6 +34,7 @@ public class PortableTranslationContext {
   private final StreamGraph streamGraph;
   private final SamzaPipelineOptions options;
   private int topologicalId;
+  private final Set<String> registeredInputStreams = new HashSet<>();
 
   public PortableTranslationContext(StreamGraph streamGraph, SamzaPipelineOptions options) {
     this.streamGraph = streamGraph;
@@ -94,12 +97,17 @@ public class PortableTranslationContext {
    * @param streamId samza stream id which user can use to customize the stream level config
    */
   public <T> void registerInputMessageStreamWithStreamId(String id, String streamId) {
+    // we want to register it with the Samza graph only once per i/o stream
+    if (registeredInputStreams.contains(streamId)) {
+      return;
+    }
     final MessageStream<OpMessage<T>> stream =
         streamGraph
             .<org.apache.samza.operators.KV<?, OpMessage<T>>>getInputStream(streamId)
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(id, stream);
+    registeredInputStreams.add(streamId);
   }
 
   public WindowedValue.WindowedValueCoder instantiateCoder(
