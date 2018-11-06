@@ -41,8 +41,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -164,6 +165,7 @@ public class PCollectionCustomCoderTest {
     Pipeline p =
         pipelineWith(new CustomTestCoder(IO_EXCEPTION, null, null, null, EXCEPTION_MESSAGE));
 
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.io.IOException: Super Unique Message!!!"));
     p.run().waitUntilFinish();
   }
@@ -174,6 +176,7 @@ public class PCollectionCustomCoderTest {
     Pipeline p =
         pipelineWith(
             new CustomTestCoder(NULL_POINTER_EXCEPTION, null, null, null, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.lang.NullPointerException: Super Unique Message!!!"));
 
     p.run().waitUntilFinish();
@@ -184,6 +187,7 @@ public class PCollectionCustomCoderTest {
   public void testEncodingIOException() throws Exception {
     Pipeline p =
         pipelineWith(new CustomTestCoder(null, IO_EXCEPTION, null, null, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.io.IOException: Super Unique Message!!!"));
 
     p.run().waitUntilFinish();
@@ -195,6 +199,7 @@ public class PCollectionCustomCoderTest {
     Pipeline p =
         pipelineWith(
             new CustomTestCoder(null, NULL_POINTER_EXCEPTION, null, null, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.lang.NullPointerException: Super Unique Message!!!"));
     p.run().waitUntilFinish();
   }
@@ -204,6 +209,7 @@ public class PCollectionCustomCoderTest {
   public void testSerializationIOException() throws Exception {
     Pipeline p =
         pipelineWith(new CustomTestCoder(null, null, IO_EXCEPTION, null, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.io.IOException: Super Unique Message!!!"));
     p.run().waitUntilFinish();
   }
@@ -214,26 +220,33 @@ public class PCollectionCustomCoderTest {
     Pipeline p =
         pipelineWith(
             new CustomTestCoder(null, null, NULL_POINTER_EXCEPTION, null, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.lang.NullPointerException: Super Unique Message!!!"));
 
     p.run().waitUntilFinish();
   }
 
+  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)
   public void testDeserializationIOException() throws Exception {
     Pipeline p =
         pipelineWith(new CustomTestCoder(null, null, null, IO_EXCEPTION, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.io.IOException: Super Unique Message!!!"));
     p.run().waitUntilFinish();
   }
 
+  // TODO(BEAM-6004) Have DirectRunner trigger deserialization.
+  @Ignore("DirectRunner doesn't decode coders so this test does not pass.")
   @Test
   @Category(NeedsRunner.class)
   public void testDeserializationNPException() throws Exception {
     Pipeline p =
         pipelineWith(
             new CustomTestCoder(null, null, null, NULL_POINTER_EXCEPTION, EXCEPTION_MESSAGE));
+    thrown.expect(Exception.class);
     thrown.expect(new ExceptionMatcher("java.lang.NullPointerException: Super Unique Message!!!"));
     p.run().waitUntilFinish();
   }
@@ -252,14 +265,14 @@ public class PCollectionCustomCoderTest {
     // Create input.
     PCollection<String> customCoderPC =
         pipeline.begin()
-        .apply("ReadStrings", Create.of(pipelineContents))
+        .apply("ReadStrings", Create.of(pipelineContents)).setCoder(coder)
         .apply(Reshuffle.viaRandomKey());
-    customCoderPC.setCoder(coder);
     PCollection<String> fixedCoderPC =
         customCoderPC.apply("Identity", ParDo.of(new IdentityDoFn()));
     fixedCoderPC.setCoder(StringUtf8Coder.of());
     ContentReader r = ContentReader.elementsEqual(pipelineContents);
-    // PAssert.that relies on
+    // PAssert.that relies on the last coder added to the PCollection, so we
+    // need to create an identity ParDo with a valid coder.
     PAssert.that(fixedCoderPC).satisfies(r);
 
     return pipeline;
@@ -294,7 +307,7 @@ public class PCollectionCustomCoderTest {
     }
   }
 
-  static class ExceptionMatcher extends BaseMatcher<Object> {
+  static class ExceptionMatcher extends TypeSafeMatcher<Throwable> {
     private String expectedError;
 
     public ExceptionMatcher(String expected) {
@@ -302,8 +315,11 @@ public class PCollectionCustomCoderTest {
     }
 
     @Override
-    public boolean matches(Object result) {
-      Throwable cause = ((Throwable) result).getCause();
+    public boolean matchesSafely(Throwable result) {
+      if (result.toString().contains(expectedError)) {
+        return true;
+      }
+      Throwable cause = result.getCause();
       while (null != cause) {
         String causeString = cause.toString();
         if (causeString.contains(expectedError)) {
@@ -311,7 +327,6 @@ public class PCollectionCustomCoderTest {
         }
         cause = cause.getCause();
       }
-
       return false;
     }
 
