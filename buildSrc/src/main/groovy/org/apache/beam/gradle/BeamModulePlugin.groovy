@@ -20,6 +20,7 @@ package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -1139,7 +1140,25 @@ artifactId=${project.name}
         outputs.upToDateWhen { false }
 
         include "**/*IT.class"
-        systemProperties.beamTestPipelineOptions = configuration.integrationTestPipelineOptions
+
+        def pipelineOptionString = configuration.integrationTestPipelineOptions
+        if(configuration.runner?.equalsIgnoreCase('dataflow')) {
+          project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+
+          def jsonSlurper = new JsonSlurper()
+          def allOptionsList = jsonSlurper.parseText(pipelineOptionString)
+          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
+                  project.project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+
+          allOptionsList.addAll([
+            '--workerHarnessContainerImage=',
+            '--dataflowWorkerJar=${dataflowWorkerJar}',
+          ])
+
+          pipelineOptionString = JsonOutput.toJson(allOptionsList)
+        }
+
+        systemProperties.beamTestPipelineOptions = pipelineOptionString
       }
     }
 
@@ -1159,6 +1178,7 @@ artifactId=${project.name}
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+          shadow it.project(path: ":beam-runners-google-cloud-dataflow-java-legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
