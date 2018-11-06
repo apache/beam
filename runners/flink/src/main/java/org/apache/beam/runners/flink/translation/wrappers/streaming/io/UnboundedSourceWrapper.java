@@ -207,10 +207,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       // parallelism is 2 and number of Kafka topic partitions is 1). In this case, we just fall
       // through to idle this executor.
       LOG.info("Number of readers is 0 for this task executor, idle");
-
-      // set this, so that the later logic will emit a final watermark and then decide whether
-      // to idle or not
-      isRunning = false;
+      // Do nothing here but still execute the rest of the source logic
     } else if (localReaders.size() == 1) {
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
@@ -281,6 +278,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
 
+    finalizeSource();
+  }
+
+  private void finalizeSource() {
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
     if (!options.isShutdownSourcesOnFinalWatermark()) {
       // do nothing, but still look busy ...
@@ -290,15 +291,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
 
       // wait until this is canceled
-      final Object waitLock = new Object();
       while (isRunning) {
         try {
           // Flink will interrupt us at some point
-          //noinspection SynchronizationOnLocalVariableOrMethodParameter
-          synchronized (waitLock) {
-            // don't wait indefinitely, in case something goes horribly wrong
-            waitLock.wait(1000);
-          }
+          Thread.sleep(1000);
         } catch (InterruptedException e) {
           if (!isRunning) {
             // restore the interrupted state, and fall through the loop
@@ -464,6 +460,12 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   @VisibleForTesting
   public List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getLocalSplitSources() {
     return localSplitSources;
+  }
+
+  /** Visible so that we can check this in tests. Must not be used for anything else. */
+  @VisibleForTesting
+  public List<UnboundedSource.UnboundedReader<OutputT>> getLocalReaders() {
+    return localReaders;
   }
 
   @Override
