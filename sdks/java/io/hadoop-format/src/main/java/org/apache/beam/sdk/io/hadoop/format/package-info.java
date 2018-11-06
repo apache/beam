@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 /**
- * Defines transforms for writing to Data sinks that implement Hadoop Output Format.
+ * Defines transforms for writing to Data sinks that implement {@link
+ * org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO} .
  *
  * @see org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO
  */

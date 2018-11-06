@@ -317,7 +317,7 @@ public class HadoopFormatIO {
        *
        * @return WriteBuilder for write transformation
        */
-      ExternalSynchronizationBuilder withoutPartitioning();
+      ExternalSynchronizationBuilder<KeyT, ValueT> withoutPartitioning();
     }
 
     /**
@@ -359,7 +359,7 @@ public class HadoopFormatIO {
        * @throws NullPointerException when the configuration is null
        * @see HadoopFormatIO for required hadoop {@link Configuration} properties
        */
-      PartitionedWriterBuilder withConfiguration(Configuration config);
+      PartitionedWriterBuilder<KeyT, ValueT> withConfiguration(Configuration config);
 
       /**
        * Writes to the sink using configuration created by provided {@code
@@ -376,7 +376,7 @@ public class HadoopFormatIO {
        * @throws NullPointerException when {@code configurationTransformation} is {@code null}
        * @see HadoopFormatIO for required hadoop {@link Configuration} properties
        */
-      ExternalSynchronizationBuilder withConfigurationTransform(
+      ExternalSynchronizationBuilder<KeyT, ValueT> withConfigurationTransform(
           PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
               configTransform);
     }
@@ -786,7 +786,6 @@ public class HadoopFormatIO {
         trySetupJob(jobId, conf, window);
 
       } catch (Exception e) {
-        //        externalSynchronization.releaseJobIdLock(conf);
         throw new IllegalStateException(e);
       }
     }

@@ -19,10 +19,13 @@ package org.apache.beam.sdk.io.hadoop.format;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Random;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -31,11 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of {@link ExternalSynchronization} which registers locks in the HDFS. Requires
+ * Implementation of {@link ExternalSynchronization} which registers locks in the HDFS.
  *
- * <p>{@code locksDir} to be specified. This directory MUST be different that directory which is
- * possibly stored under {@code "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise setup
- * of job will fail because the directory will exist before job setup.
+ * <p>Requires {@code locksDir} to be specified. This directory MUST be different that directory
+ * which is possibly stored under {@code "mapreduce.output.fileoutputformat.outputdir"} key.
+ * Otherwise setup of job will fail because the directory will exist before job setup.
  */
 public class HDFSSynchronization implements ExternalSynchronization {
 
@@ -49,6 +52,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
   private static final transient Random RANDOM_GEN = new Random();
 
   private final String locksDir;
+  private final ThrowingFunction<Configuration, FileSystem, IOException> fileSystemFactory;
 
   /**
    * Creates instance of {@link HDFSSynchronization}.
@@ -59,7 +63,22 @@ public class HDFSSynchronization implements ExternalSynchronization {
    *     because the directory will exist before job setup.
    */
   public HDFSSynchronization(String locksDir) {
+    this(locksDir, FileSystem::newInstance);
+  }
+
+  /**
+   * Creates instance of {@link HDFSSynchronization}. Exists only for easier testing.
+   *
+   * @param locksDir directory where locks will be stored. This directory MUST be different that
+   *     directory which is possibly stored under {@code
+   *     "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise setup of job will fail
+   *     because the directory will exist before job setup.
+   * @param fileSystemFactory supplier of the file system
+   */
+  HDFSSynchronization(
+      String locksDir, ThrowingFunction<Configuration, FileSystem, IOException> fileSystemFactory) {
     this.locksDir = locksDir;
+    this.fileSystemFactory = fileSystemFactory;
   }
 
   @Override
@@ -73,8 +92,8 @@ public class HDFSSynchronization implements ExternalSynchronization {
   public void releaseJobIdLock(Configuration conf) {
     Path path = new Path(locksDir, String.format(LOCKS_DIR_PATTERN, getJobJtIdentifier(conf)));
 
-    try {
-      if (FileSystem.get(conf).delete(path, true)) {
+    try (FileSystem fileSystem = fileSystemFactory.apply(conf)) {
+      if (fileSystem.delete(path, true)) {
         LOGGER.info("Delete of lock directory {} was successful", path);
       } else {
         LOGGER.warn("Delete of lock directory {} was unsuccessful", path);
@@ -127,15 +146,18 @@ public class HDFSSynchronization implements ExternalSynchronization {
   }
 
   private boolean tryCreateFile(Configuration conf, Path path) {
-    try {
-      FileSystem fileSystem = FileSystem.get(conf);
-
+    try (FileSystem fileSystem = fileSystemFactory.apply(conf)) {
       try {
         return fileSystem.createNewFile(path);
       } catch (FileAlreadyExistsException | org.apache.hadoop.fs.FileAlreadyExistsException e) {
         return false;
+      } catch (RemoteException e) {
+        //remote hdfs exception
+        if (e.getClassName().equals(AlreadyBeingCreatedException.class.getName())) {
+          return false;
+        }
+        throw e;
       }
-
     } catch (IOException e) {
       throw new IllegalStateException(String.format("Creation of file on path %s failed", path), e);
     }
@@ -148,5 +170,17 @@ public class HDFSSynchronization implements ExternalSynchronization {
             "Configuration must contain jobID under key %s.",
             HadoopFormatIO.JOB_ID);
     return job.getJtIdentifier();
+  }
+
+  /**
+   * Function which can throw exception.
+   *
+   * @param <T1> parameter type
+   * @param <T2> result type
+   * @param <X> exception type
+   */
+  @FunctionalInterface
+  public interface ThrowingFunction<T1, T2, X extends Exception> extends Serializable {
+    T2 apply(T1 value) throws X;
   }
 }
