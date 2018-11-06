@@ -25,10 +25,10 @@ import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.Query3;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -66,7 +66,7 @@ import org.joda.time.Duration;
  *
  * <p>Correct join semantics implementation is tracked in BEAM-3190, BEAM-3191
  */
-public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCityStateId>> {
+public class SqlQuery3 extends NexmarkQueryTransform<NameCityStateId> {
 
   private static final String QUERY_NAME = SqlQuery3.class.getSimpleName();
 

@@ -29,7 +29,6 @@ import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Bid;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -37,7 +36,7 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 
 /** A direct implementation of {@link Query6}. */
-public class Query6Model extends NexmarkQueryModel implements Serializable {
+public class Query6Model extends NexmarkQueryModel<SellerPrice> implements Serializable {
   /** Simulator for query 6. */
   private static class Simulator extends AbstractSimulator<AuctionBid, SellerPrice> {
     /** The last 10 winning bids ordered by age, indexed by seller id. */
@@ -111,26 +110,25 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, SellerPrice> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected Iterable<TimestampedValue<KnownSize>> relevantResults(
-      Iterable<TimestampedValue<KnownSize>> results) {
+  protected Iterable<TimestampedValue<SellerPrice>> relevantResults(
+      Iterable<TimestampedValue<SellerPrice>> results) {
     // Find the last (in processing time) reported average price for each seller.
-    Map<Long, TimestampedValue<KnownSize>> finalAverages = new TreeMap<>();
-    for (TimestampedValue<KnownSize> obj : results) {
+    Map<Long, TimestampedValue<SellerPrice>> finalAverages = new TreeMap<>();
+    for (TimestampedValue<SellerPrice> obj : results) {
       Assert.assertTrue("have SellerPrice", obj.getValue() instanceof SellerPrice);
       SellerPrice sellerPrice = (SellerPrice) obj.getValue();
-      finalAverages.put(
-          sellerPrice.seller, TimestampedValue.of((KnownSize) sellerPrice, obj.getTimestamp()));
+      finalAverages.put(sellerPrice.seller, TimestampedValue.of(sellerPrice, obj.getTimestamp()));
     }
     return finalAverages.values();
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<SellerPrice>> itr) {
     return toValue(itr);
   }
 }
