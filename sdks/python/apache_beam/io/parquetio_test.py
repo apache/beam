@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -45,7 +46,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class TestParquet(unittest.TestCase):
-  _temp_files = []
 
   @classmethod
   def setUpClass(cls):
@@ -57,15 +57,10 @@ class TestParquet(unittest.TestCase):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
+    self.temp_dir = tempfile.mkdtemp()
 
   def tearDown(self):
-    for path in self._temp_files:
-      if os.path.exists(path):
-        os.remove(path)
-        parent = os.path.dirname(path)
-        if not os.listdir(parent):
-          os.rmdir(parent)
-    self._temp_files = []
+    shutil.rmtree(self.temp_dir)
 
   RECORDS = [{'name': 'Thomas',
               'favorite_number': 1,
@@ -105,6 +100,9 @@ class TestParquet(unittest.TestCase):
                   codec='none',
                   count=len(RECORDS)):
 
+    if directory is None:
+      directory = self.temp_dir
+
     with tempfile.NamedTemporaryFile(
         delete=False, dir=directory, prefix=prefix) as f:
       len_records = len(self.RECORDS)
@@ -116,20 +114,16 @@ class TestParquet(unittest.TestCase):
       table = pa.Table.from_arrays(col_array, self.SCHEMA.names)
       pq.write_table(table, f, row_group_size=row_group_size, compression=codec)
 
-      self._temp_files.append(f.name)
       return f.name
 
   def _write_pattern(self, num_files):
     assert num_files > 0
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = tempfile.mkdtemp(dir=self.temp_dir)
 
-    file_name = None
     for _ in range(num_files):
-      file_name = self._write_data(directory=temp_dir, prefix='mytemp')
+      self._write_data(directory=temp_dir, prefix='mytemp')
 
-    assert file_name
-    file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
-    return file_name_prefix + os.path.sep + 'mytemp*'
+    return temp_dir + os.path.sep + 'mytemp*'
 
   def _run_parquet_test(self, pattern, columns, desired_bundle_size,
                         perform_splitting, expected_result):
@@ -268,6 +262,78 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_sink_transform_gzip(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, codec='gzip',
+            num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+          p \
+          | ReadFromParquet(path + '*') \
+          | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_brotli(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, codec='brotli',
+            num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+          p \
+          | ReadFromParquet(path + '*') \
+          | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_lz4(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, codec='lz4',
+            num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+          p \
+          | ReadFromParquet(path + '*') \
+          | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_zstd(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, codec='zstd',
+            num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+          p \
+          | ReadFromParquet(path + '*') \
+          | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
   def test_read_reentrant(self):
     file_name = self._write_data()
     source = _create_parquet_source(file_name)
@@ -282,6 +348,20 @@ class TestParquet(unittest.TestCase):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
+
+  def test_dynamic_work_rebalancing(self):
+    file_name = self._write_data(count=120, row_group_size=20)
+    source = _create_parquet_source(file_name)
+
+    splits = [
+        split
+        for split in source.split(desired_bundle_size=float('inf'))
+    ]
+    assert len(splits) == 1
+
+    source_test_utils.assert_split_at_fraction_exhaustive(
+        splits[0].source, splits[0].start_position, splits[0].stop_position
+    )
 
   def test_split_points(self):
     file_name = self._write_data(count=12000, row_group_size=3000)

@@ -48,12 +48,56 @@ __all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
 
 class ReadFromParquet(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
-     Parquet files."""
+     Parquet files. This `PTransform` is currently experimental. No
+     backward-compatibility guarantees."""
 
   def __init__(self, file_pattern=None, min_bundle_size=0,
                validate=True, columns=None):
-    """Initialize :class:`ReadFromParquet`.
-    """
+    """Initializes :class:`ReadFromParquet`.
+
+    Uses source :class:`~apache_beam.io._ParquetSource` to read a set of Parquet
+    files defined by a given file pattern.
+
+    If ``/mypath/myparquetfiles*`` is a file-pattern that points to a set of
+    Parquet files, a :class:`~apache_beam.pvalue.PCollection` for the records in
+    these Parquet files can be created in the following manner.
+
+    .. testcode::
+
+      with beam.Pipeline() as p:
+        records = p | 'Read' >> ReadFromParquet('/mypath/myavrofiles*')
+
+    .. NOTE: We're not actually interested in this error; but if we get here,
+       it means that the way of calling this transform hasn't changed.
+
+    .. testoutput::
+      :hide:
+
+      Traceback (most recent call last):
+       ...
+      IOError: No files found based on the file pattern
+
+    Each element of this :class:`~apache_beam.pvalue.PCollection` will contain
+    a single record read from a source. The element is a Python dictionary that
+    keys of each dictionary will contain the corresponding column names and will
+    be of type :class:`str` while the values of the dictionary will be of the
+    type defined in the corresponding Parquet schema. Records that are of simple
+    types will be mapped into corresponding Python types. Records that are of
+    complex types like list and struct will be mapped to Python list and
+    dictionary respectively. For more information on supported types and schema,
+    please see the pyarrow document.
+
+
+    Args:
+      file_pattern (str): the file glob to read
+      min_bundle_size (int): the minimum size in bytes, to be considered when
+        splitting the input into bundles.
+      validate (bool): flag to verify that the files exist during the pipeline
+        creation time.
+      columns (list of str): list of columns that will be read from files.
+        A column name may be a prefix of a nested field, e.g. 'a' will select
+        'a.b', 'a.c', and 'a.d.e'
+"""
     super(ReadFromParquet, self).__init__()
     self._source = _create_parquet_source(
         file_pattern,
@@ -73,7 +117,8 @@ class ReadAllFromParquet(PTransform):
   """A ``PTransform`` for reading ``PCollection`` of Parquet files.
 
    Uses source '_ParquetSource' to read a ``PCollection`` of Parquet files or
-   file patterns and produce a ``PCollection`` of Parquet records.
+   file patterns and produce a ``PCollection`` of Parquet records. This
+   `PTransform` is currently experimental. No backward-compatibility guarantees.
   """
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
@@ -110,7 +155,7 @@ class ReadAllFromParquet(PTransform):
 
 
 def _create_parquet_source(file_pattern=None,
-                           min_bundle_size=None,
+                           min_bundle_size=0,
                            validate=False,
                            columns=None):
   return \
@@ -176,6 +221,11 @@ class _ParquetSource(filebasedsource.FileBasedSource):
     with self.open_file(file_name) as f:
       pf = ParquetFile(f)
 
+      # find the first dictionary page (or data page if there's no dictionary
+      # page available) offset after the given start_offset. This offset is also
+      # the starting offset of any row group since the Parquet specification
+      # describes that the data pages always come first before the meta data in
+      # each row group.
       index = _ParquetUtils.find_first_row_group_index(pf, start_offset)
       if index != -1:
         next_block_start = _ParquetUtils.get_offset(pf, index)
@@ -195,14 +245,18 @@ class _ParquetSource(filebasedsource.FileBasedSource):
         num_rows = table.num_rows
         data_items = table.to_pydict().items()
         for n in range(num_rows):
-          data = {}
-          for label, d in data_items:
-            data[label] = d[n]
-          yield data
+          row = {}
+          for column, values in data_items:
+            row[column] = values[n]
+          yield row
 
 
 class WriteToParquet(PTransform):
-  """A ``PTransform`` for writing parquet files."""
+  """A ``PTransform`` for writing parquet files.
+
+    This `PTransform` is currently experimental. No backward-compatibility
+    guarantees.
+  """
 
   def __init__(self,
                file_path_prefix,
@@ -214,6 +268,24 @@ class WriteToParquet(PTransform):
                shard_name_template=None,
                mime_type='application/x-parquet'):
     """Initialize a WriteToParquet transform.
+
+    Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
+    records. Each record is a dictionary with keys of a string type that
+    represent column names. Schema must be specified like the example below.
+
+    .. code-block::
+      with beam.Pipeline() as p:
+        records = p | 'Read' >> Create(
+            [{'name': 'foo', 'age': 10}, {'name': 'bar', 'age': 20}]
+        )
+        records | 'Write' >> WriteToParquet('myoutput',
+            pyarrow.schema(
+                [('name', pyarrow.binary()), ('age', pyarrow.int64())]
+            )
+        )
+
+    For more information on supported types and schema, please see the pyarrow
+    document.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
@@ -343,7 +415,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
 
   def _write_buffer(self, writer):
     for x, y in enumerate(self._buffer):
-      self._buffer[x] = pa.array(y)
+      self._buffer[x] = pa.array(y, type=self._schema.types[x])
     table = pa.Table.from_arrays(self._buffer, self._schema.names)
     writer.write_table(table)
     self._buffer = [[] for _ in range(len(self._schema.names))]
