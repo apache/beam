@@ -22,13 +22,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 /** Tests functionality of {@link HDFSSynchronization} class. */
 public class HDFSSynchronizationTest {
@@ -120,6 +125,20 @@ public class HDFSSynchronizationTest {
       TaskAttemptID taskAttemptID = tested.acquireTaskAttemptIdLock(configuration, taskId);
       assertTrue(isFileExists(getTaskAttemptIdPath(taskId, taskAttemptID.getId())));
     }
+  }
+
+  @Test
+  public void testCatchingRemoteException() throws IOException {
+
+    FileSystem mockedFileSystem = Mockito.mock(FileSystem.class);
+    RemoteException thrownException =
+        new RemoteException(AlreadyBeingCreatedException.class.getName(), "Failed to CREATE_FILE");
+    Mockito.when(mockedFileSystem.createNewFile(Mockito.any())).thenThrow(thrownException);
+
+    HDFSSynchronization synchronization =
+        new HDFSSynchronization("someDir", (conf) -> mockedFileSystem);
+
+    assertFalse(synchronization.tryAcquireJobLock(configuration));
   }
 
   private String getTaskAttemptIdPath(int taskId, int taskAttemptId) {
