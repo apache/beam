@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -88,7 +87,7 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
         pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
-      SyntheticUtils.applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
+      applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
           .apply(ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(

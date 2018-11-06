@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.applyStepIfPresent;
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
-
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
