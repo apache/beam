@@ -291,15 +291,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
 
       // wait until this is canceled
-      final Object waitLock = new Object();
       while (isRunning) {
         try {
           // Flink will interrupt us at some point
-          //noinspection SynchronizationOnLocalVariableOrMethodParameter
-          synchronized (waitLock) {
-            // don't wait indefinitely, in case something goes horribly wrong
-            waitLock.wait(1000);
-          }
+          Thread.sleep(1000);
         } catch (InterruptedException e) {
           if (!isRunning) {
             // restore the interrupted state, and fall through the loop
