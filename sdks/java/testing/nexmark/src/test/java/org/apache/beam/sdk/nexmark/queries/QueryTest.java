@@ -20,8 +20,8 @@ package org.apache.beam.sdk.nexmark.queries;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
@@ -55,16 +55,21 @@ public class QueryTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   /** Test {@code query} matches {@code model}. */
-  private void queryMatchesModel(
-      String name, NexmarkQuery query, NexmarkQueryModel model, boolean streamingMode) {
+  private <T extends KnownSize> void queryMatchesModel(
+      String name,
+      NexmarkQueryTransform<T> query,
+      NexmarkQueryModel<T> model,
+      boolean streamingMode) {
     NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
-    PCollection<TimestampedValue<KnownSize>> results;
-    if (streamingMode) {
-      results =
-          p.apply(name + ".ReadUnBounded", NexmarkUtils.streamEventsSource(CONFIG)).apply(query);
-    } else {
-      results = p.apply(name + ".ReadBounded", NexmarkUtils.batchEventsSource(CONFIG)).apply(query);
-    }
+
+    PCollection<Event> events =
+        p.apply(
+            name + ".Read",
+            streamingMode
+                ? NexmarkUtils.streamEventsSource(CONFIG)
+                : NexmarkUtils.batchEventsSource(CONFIG));
+    PCollection<TimestampedValue<T>> results =
+        (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(CONFIG, query));
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();
     result.waitUntilFinish();
@@ -73,13 +78,13 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void query0MatchesModelBatch() {
-    queryMatchesModel("Query0TestBatch", new Query0(CONFIG), new Query0Model(CONFIG), false);
+    queryMatchesModel("Query0TestBatch", new Query0(), new Query0Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void query0MatchesModelStreaming() {
-    queryMatchesModel("Query0TestStreaming", new Query0(CONFIG), new Query0Model(CONFIG), true);
+    queryMatchesModel("Query0TestStreaming", new Query0(), new Query0Model(CONFIG), true);
   }
 
   @Test
@@ -97,21 +102,13 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery1MatchesModelBatch() {
-    queryMatchesModel(
-        "SqlQuery1TestBatch",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery1()),
-        new Query1Model(CONFIG),
-        false);
+    queryMatchesModel("SqlQuery1TestBatch", new SqlQuery1(), new Query1Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery1MatchesModelStreaming() {
-    queryMatchesModel(
-        "SqlQuery1TestStreaming",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery1()),
-        new Query1Model(CONFIG),
-        true);
+    queryMatchesModel("SqlQuery1TestStreaming", new SqlQuery1(), new Query1Model(CONFIG), true);
   }
 
   @Test
@@ -130,20 +127,14 @@ public class QueryTest {
   @Category(NeedsRunner.class)
   public void sqlQuery2MatchesModelBatch() {
     queryMatchesModel(
-        "SqlQuery2TestBatch",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery2(CONFIG.auctionSkip)),
-        new Query2Model(CONFIG),
-        false);
+        "SqlQuery2TestBatch", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery2MatchesModelStreaming() {
     queryMatchesModel(
-        "SqlQuery2TestStreaming",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery2(CONFIG.auctionSkip)),
-        new Query2Model(CONFIG),
-        true);
+        "SqlQuery2TestStreaming", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), true);
   }
 
   @Test
@@ -161,21 +152,14 @@ public class QueryTest {
   @Test
   @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
   public void sqlQuery3MatchesModelBatch() {
-    queryMatchesModel(
-        "SqlQuery3TestBatch",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery3(CONFIG)),
-        new Query3Model(CONFIG),
-        false);
+    queryMatchesModel("SqlQuery3TestBatch", new SqlQuery3(CONFIG), new Query3Model(CONFIG), false);
   }
 
   @Test
   @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
   public void sqlQuery3MatchesModelStreaming() {
     queryMatchesModel(
-        "SqlQuery3TestStreaming",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery3(CONFIG)),
-        new Query3Model(CONFIG),
-        true);
+        "SqlQuery3TestStreaming", new SqlQuery3(CONFIG), new Query3Model(CONFIG), true);
   }
 
   @Test
@@ -205,21 +189,14 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery5MatchesModelBatch() {
-    queryMatchesModel(
-        "SqlQuery5TestBatch",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery5(CONFIG)),
-        new Query5Model(CONFIG),
-        false);
+    queryMatchesModel("SqlQuery5TestBatch", new SqlQuery5(CONFIG), new Query5Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery5MatchesModelStreaming() {
     queryMatchesModel(
-        "SqlQuery5TestStreaming",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery5(CONFIG)),
-        new Query5Model(CONFIG),
-        true);
+        "SqlQuery5TestStreaming", new SqlQuery5(CONFIG), new Query5Model(CONFIG), true);
   }
 
   @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
@@ -251,21 +228,14 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery7MatchesModelBatch() {
-    queryMatchesModel(
-        "SqlQuery7TestBatch",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery7(CONFIG)),
-        new Query7Model(CONFIG),
-        false);
+    queryMatchesModel("SqlQuery7TestBatch", new SqlQuery7(CONFIG), new Query7Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void sqlQuery7MatchesModelStreaming() {
     queryMatchesModel(
-        "SqlQuery7TestStreaming",
-        new NexmarkSqlQuery(CONFIG, new SqlQuery7(CONFIG)),
-        new Query7Model(CONFIG),
-        true);
+        "SqlQuery7TestStreaming", new SqlQuery7(CONFIG), new Query7Model(CONFIG), true);
   }
 
   @Test

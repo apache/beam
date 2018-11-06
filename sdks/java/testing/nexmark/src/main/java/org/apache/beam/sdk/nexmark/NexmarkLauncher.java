@@ -54,6 +54,7 @@ import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.BoundedSideInputJoinModel;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.nexmark.queries.Query0;
 import org.apache.beam.sdk.nexmark.queries.Query0Model;
 import org.apache.beam.sdk.nexmark.queries.Query1;
@@ -77,7 +78,6 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
-import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
@@ -724,7 +724,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("Reading events from Avro files at %s", filename);
     return p.apply(
             queryName + ".ReadAvroEvents", AvroIO.read(Event.class).from(filename + "*.avro"))
-        .apply("OutputWithTimestamp", NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
+        .apply("OutputWithTimestamp", NexmarkQueryUtil.EVENT_TIMESTAMP_FROM_DATA);
   }
 
   /** Send {@code events} to Pubsub. */
@@ -792,17 +792,17 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         queryName + ".WriteAvroEvents",
         AvroIO.write(Event.class).to(filename + "/event").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_BIDS)
+        .apply(NexmarkQueryUtil.JUST_BIDS)
         .apply(
             queryName + ".WriteAvroBids",
             AvroIO.write(Bid.class).to(filename + "/bid").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_NEW_AUCTIONS)
+        .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
         .apply(
             queryName + ".WriteAvroAuctions",
             AvroIO.write(Auction.class).to(filename + "/auction").withSuffix(".avro"));
     source
-        .apply(NexmarkQuery.JUST_NEW_PERSONS)
+        .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
         .apply(
             queryName + ".WriteAvroPeople",
             AvroIO.write(Person.class).to(filename + "/person").withSuffix(".avro"));
@@ -1087,7 +1087,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      NexmarkQuery query = getNexmarkQuery();
+      NexmarkQuery<? extends KnownSize> query = getNexmarkQuery();
       if (query == null) {
         NexmarkUtils.console("skipping since configuration is not implemented");
         return null;
@@ -1112,8 +1112,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       // Generate events.
       PCollection<Event> source = createSource(p, now);
 
-      if (query.needsSideInput()) {
-        query.setSideInput(NexmarkUtils.prepareSideInput(p, configuration));
+      if (query.getTransform().needsSideInput()) {
+        query.getTransform().setSideInput(NexmarkUtils.prepareSideInput(p, configuration));
       }
 
       if (options.getLogEvents()) {
@@ -1136,12 +1136,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
             path = logsDir(now.getMillis());
           }
-          ((Query10) query).setOutputPath(path);
-          ((Query10) query).setMaxNumWorkers(maxNumWorkers());
+          ((Query10) query.getTransform()).setOutputPath(path);
+          ((Query10) query.getTransform()).setMaxNumWorkers(maxNumWorkers());
         }
 
         // Apply query.
-        PCollection<TimestampedValue<KnownSize>> results = source.apply(query);
+        PCollection<TimestampedValue<KnownSize>> results =
+            (PCollection<TimestampedValue<KnownSize>>) source.apply(query);
 
         if (options.getAssertCorrectness()) {
           if (model == null) {
@@ -1180,7 +1181,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return models.get(configuration.query);
   }
 
-  private NexmarkQuery getNexmarkQuery() {
+  private NexmarkQuery<?> getNexmarkQuery() {
     Map<NexmarkQueryName, NexmarkQuery> queries = createQueries();
     return queries.get(configuration.query);
   }
@@ -1215,41 +1216,61 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
     return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkSqlQuery(configuration, new SqlQuery0()))
-        .put(
-            NexmarkQueryName.CURRENCY_CONVERSION,
-            new NexmarkSqlQuery(configuration, new SqlQuery1()))
+        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new SqlQuery0()))
+        .put(NexmarkQueryName.CURRENCY_CONVERSION, new NexmarkQuery(configuration, new SqlQuery1()))
         .put(
             NexmarkQueryName.SELECTION,
-            new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
+            new NexmarkQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
         .put(
             NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
-            new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)))
+            new NexmarkQuery(configuration, new SqlQuery3(configuration)))
         .put(
             NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY,
-            new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)))
+            new NexmarkQuery(configuration, new SqlQuery5(configuration)))
         .put(
             NexmarkQueryName.HOT_ITEMS,
-            new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)))
+            new NexmarkQuery(configuration, new SqlQuery7(configuration)))
         .build();
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {
     return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(NexmarkQueryName.PASSTHROUGH, new Query0(configuration))
-        .put(NexmarkQueryName.CURRENCY_CONVERSION, new Query1(configuration))
-        .put(NexmarkQueryName.SELECTION, new Query2(configuration))
-        .put(NexmarkQueryName.LOCAL_ITEM_SUGGESTION, new Query3(configuration))
-        .put(NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY, new Query4(configuration))
-        .put(NexmarkQueryName.HOT_ITEMS, new Query5(configuration))
-        .put(NexmarkQueryName.AVERAGE_SELLING_PRICE_BY_SELLER, new Query6(configuration))
-        .put(NexmarkQueryName.HIGHEST_BID, new Query7(configuration))
-        .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8(configuration))
-        .put(NexmarkQueryName.WINNING_BIDS, new Query9(configuration))
-        .put(NexmarkQueryName.LOG_TO_SHARDED_FILES, new Query10(configuration))
-        .put(NexmarkQueryName.USER_SESSIONS, new Query11(configuration))
-        .put(NexmarkQueryName.PROCESSING_TIME_WINDOWS, new Query12(configuration))
-        .put(NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN, new BoundedSideInputJoin(configuration))
+        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new Query0()))
+        .put(
+            NexmarkQueryName.CURRENCY_CONVERSION,
+            new NexmarkQuery(configuration, new Query1(configuration)))
+        .put(NexmarkQueryName.SELECTION, new NexmarkQuery(configuration, new Query2(configuration)))
+        .put(
+            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
+            new NexmarkQuery(configuration, new Query3(configuration)))
+        .put(
+            NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY,
+            new NexmarkQuery(configuration, new Query4(configuration)))
+        .put(NexmarkQueryName.HOT_ITEMS, new NexmarkQuery(configuration, new Query5(configuration)))
+        .put(
+            NexmarkQueryName.AVERAGE_SELLING_PRICE_BY_SELLER,
+            new NexmarkQuery(configuration, new Query6(configuration)))
+        .put(
+            NexmarkQueryName.HIGHEST_BID,
+            new NexmarkQuery(configuration, new Query7(configuration)))
+        .put(
+            NexmarkQueryName.MONITOR_NEW_USERS,
+            new NexmarkQuery(configuration, new Query8(configuration)))
+        .put(
+            NexmarkQueryName.WINNING_BIDS,
+            new NexmarkQuery(configuration, new Query9(configuration)))
+        .put(
+            NexmarkQueryName.LOG_TO_SHARDED_FILES,
+            new NexmarkQuery(configuration, new Query10(configuration)))
+        .put(
+            NexmarkQueryName.USER_SESSIONS,
+            new NexmarkQuery(configuration, new Query11(configuration)))
+        .put(
+            NexmarkQueryName.PROCESSING_TIME_WINDOWS,
+            new NexmarkQuery(configuration, new Query12(configuration)))
+        .put(
+            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
+            new NexmarkQuery(configuration, new BoundedSideInputJoin(configuration)))
         .build();
   }
 

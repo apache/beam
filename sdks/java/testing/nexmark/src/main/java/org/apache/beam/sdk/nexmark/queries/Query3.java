@@ -23,10 +23,8 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.state.StateSpec;
@@ -70,17 +68,18 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
-public class Query3 extends NexmarkQuery {
+public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(Query3.class);
   private final JoinDoFn joinDoFn;
 
   public Query3(NexmarkConfiguration configuration) {
-    super(configuration, "Query3");
+    super("Query3");
     joinDoFn = new JoinDoFn(name, configuration.maxAuctionsWaitingTime);
   }
 
-  private PCollection<NameCityStateId> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<NameCityStateId> expand(PCollection<Event> events) {
     int numEventsInPane = 30;
 
     PCollection<Event> eventsWindowed =
@@ -92,18 +91,18 @@ public class Query3 extends NexmarkQuery {
     PCollection<KV<Long, Auction>> auctionsBySellerId =
         eventsWindowed
             // Only want the new auction events.
-            .apply(JUST_NEW_AUCTIONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
 
             // We only want auctions in category 10.
             .apply(name + ".InCategory", Filter.by(auction -> auction.category == 10))
 
             // Key auctions by their seller id.
-            .apply("AuctionBySeller", AUCTION_BY_SELLER);
+            .apply("AuctionBySeller", NexmarkQueryUtil.AUCTION_BY_SELLER);
 
     PCollection<KV<Long, Person>> personsById =
         eventsWindowed
             // Only want the new people events.
-            .apply(JUST_NEW_PERSONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
 
             // We only want people in OR, ID, CA.
             .apply(
@@ -115,13 +114,13 @@ public class Query3 extends NexmarkQuery {
                             || "CA".equals(person.state)))
 
             // Key people by their id.
-            .apply("PersonById", PERSON_BY_ID);
+            .apply("PersonById", NexmarkQueryUtil.PERSON_BY_ID);
 
     return
     // Join auctions and people.
     // concatenate KeyedPCollections
-    KeyedPCollectionTuple.of(AUCTION_TAG, auctionsBySellerId)
-        .and(PERSON_TAG, personsById)
+    KeyedPCollectionTuple.of(NexmarkQueryUtil.AUCTION_TAG, auctionsBySellerId)
+        .and(NexmarkQueryUtil.PERSON_TAG, personsById)
         // group auctions and persons by personId
         .apply(CoGroupByKey.create())
         .apply(name + ".Join", ParDo.of(joinDoFn))
@@ -140,11 +139,6 @@ public class Query3 extends NexmarkQuery {
                         new NameCityStateId(person.name, person.city, person.state, auction.id));
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 
   /**
@@ -213,7 +207,7 @@ public class Query3 extends NexmarkQuery {
         // We've already seen the new person event for this person id.
         // We can join with any new auctions on-the-fly without needing any
         // additional persistent state.
-        for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
+        for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
           newAuctionCounter.inc();
           newOldOutputCounter.inc();
           c.output(KV.of(newAuction, existingPerson));
@@ -222,7 +216,7 @@ public class Query3 extends NexmarkQuery {
       }
 
       Person theNewPerson = null;
-      for (Person newPerson : c.element().getValue().getAll(PERSON_TAG)) {
+      for (Person newPerson : c.element().getValue().getAll(NexmarkQueryUtil.PERSON_TAG)) {
         if (theNewPerson == null) {
           theNewPerson = newPerson;
         } else {
@@ -246,7 +240,7 @@ public class Query3 extends NexmarkQuery {
           auctionsState.clear();
         }
         // Also deal with any new auctions.
-        for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
+        for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
           newAuctionCounter.inc();
           newNewOutputCounter.inc();
           c.output(KV.of(newAuction, newPerson));
@@ -268,7 +262,7 @@ public class Query3 extends NexmarkQuery {
       if (pendingAuctions == null) {
         pendingAuctions = new ArrayList<>();
       }
-      for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
+      for (Auction newAuction : c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
         newAuctionCounter.inc();
         pendingAuctions.add(newAuction);
       }

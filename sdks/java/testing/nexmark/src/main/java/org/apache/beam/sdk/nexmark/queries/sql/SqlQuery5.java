@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
-
 import com.google.common.base.Joiner;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
@@ -26,6 +24,8 @@ import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
+import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -52,7 +52,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and we'll
  * also preserve the bid counts.
  */
-public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<AuctionCount>> {
+public class SqlQuery5 extends NexmarkQueryTransform<AuctionCount> {
 
   private static final String QUERY_TEMPLATE =
       Joiner.on("\n\t")
@@ -99,7 +99,7 @@ public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Auctio
   public PCollection<AuctionCount> expand(PCollection<Event> allEvents) {
     PCollection<Row> bids =
         allEvents
-            .apply(Filter.by(IS_BID))
+            .apply(Filter.by(NexmarkQueryUtil.IS_BID))
             .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
     return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
