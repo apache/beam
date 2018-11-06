@@ -17,16 +17,10 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
-
 import java.io.IOException;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
-import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -37,17 +31,15 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * Load test for {@link ParDo} operation.
  *
- * <p>The purpose of this test is to measure {@link ParDo}'s behaviour in stressful
- * conditions. It uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be
- * parametrized to generate keys and values of various size, impose delay (sleep or cpu burnout) in
- * various moments during the pipeline execution and provide some other performance challenges.
+ * <p>The purpose of this test is to measure {@link ParDo}'s behaviour in stressful conditions. It
+ * uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be parametrized to
+ * generate keys and values of various size, impose delay (sleep or cpu burnout) in various moments
+ * during the pipeline execution and provide some other performance challenges.
  *
  * @see SyntheticStep
  * @see SyntheticBoundedIO
- *
- * <p>To run it manually, use the following command:
- *
- * <pre>
+ *     <p>To run it manually, use the following command:
+ *     <pre>
  *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --numberOfCounterOperations=1
  *      --sourceOptions={"numRecords":1000,...}
@@ -55,12 +47,12 @@ import org.apache.beam.sdk.values.PCollection;
  *      -PloadTest.mainClass="org.apache.beam.sdk.loadtests.ParDoLoadTest"
  * </pre>
  */
-public class ParDoLoadTest {
+public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "pardo";
 
   /** Pipeline options specific for this test. */
-  public interface Options extends LoadTestOptions {
+  interface Options extends LoadTestOptions {
 
     @Description("Number consequent of ParDo operations (SyntheticSteps) to be performed.")
     @Default.Integer(1)
@@ -74,28 +66,23 @@ public class ParDoLoadTest {
     String getStepOptions();
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = LoadTestOptions.readFromArgs(args, Options.class);
+  private ParDoLoadTest(String[] args) throws IOException {
+    super(args, Options.class, METRICS_NAMESPACE);
+  }
 
-    SyntheticSourceOptions sourceOptions = fromJsonString(options.getSourceOptions(),
-        SyntheticSourceOptions.class);
+  @Override
+  protected void loadTest() {
+    PCollection<KV<byte[], byte[]>> input =
+        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions));
 
-    SyntheticStep.Options stepOptions = fromJsonString(options.getStepOptions(),
-        SyntheticStep.Options.class);
-
-    Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<KV<byte[], byte[]>> input = pipeline
-        .apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions));
-
-    for(int i = 0; i < options.getNumberOfCounterOperations(); i++) {
+    for (int i = 0; i < options.getNumberOfCounterOperations(); i++) {
       input = input.apply(String.format("Step: %d", i), ParDo.of(new SyntheticStep(stepOptions)));
     }
 
     input.apply("Collect metrics", ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)));
+  }
 
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-    MetricsPublisher.toConsole(result, METRICS_NAMESPACE);
+  public static void main(String[] args) throws IOException {
+    new ParDoLoadTest(args).run();
   }
 }
