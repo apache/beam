@@ -217,11 +217,16 @@ def basicTestOpts = [
         "--process-timeout=4500", // timeout of whole command execution
 ]
 
-def mapToArgString(argMap) {
+static def mapToArgString(argMap) {
   def argList = []
   argMap.each { k, v ->
     if (v in List) {
       v = "\"${v.join(' ')}\""
+    } else if (v in String && v.contains(' ')) {
+      // We should use double quote around the arg value if it contains series
+      // of flags joined with space. Otherwise, commandline parsing of the
+      // shell script will be broken.
+      v = "\"${v.replace('"', '')}\""
     }
     argList.add("--$k $v")
   }
