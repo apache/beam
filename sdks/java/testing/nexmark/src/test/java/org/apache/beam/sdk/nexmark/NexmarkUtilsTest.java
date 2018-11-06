@@ -31,7 +31,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test the various NEXMark queries yield results coherent with their models. */
+/** Test the Nexmark utils. */
 @RunWith(JUnit4.class)
 public class NexmarkUtilsTest {
 
