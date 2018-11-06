@@ -355,7 +355,11 @@ their respective components.</p>
 
 <h2 id="status">Status</h2>
 
-<p>MVP in progress (near completion for Flink runner). See the
+<p>MVP, and FeatureCompletness nearly done (missing SDF, timers) for
+SDKs, Python ULR, and shared java runners library.
+Flink is the first runner to fully leverage this, with focus moving to
+Performance.
+See the
 <a href="https://s.apache.org/apache-beam-portability-support-table">Portability support table</a>
 for details.</p>
 
@@ -375,11 +379,11 @@ To run a basic Python wordcount (in batch mode) with embedded Flink:</p>
 <p>To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html">Flink cluster</a>:</p>
 
 <ol>
-  <li>Start local Flink cluster</li>
+  <li>Start Flink cluster (e.g. locally on <code class="highlighter-rouge">localhost:8081</code>)</li>
   <li>Create shaded JobService jar: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:installShadowDist</code></li>
   <li>Optional optimization step: Place the generated JobServer Jar <code class="highlighter-rouge">beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.7.0-SNAPSHOT.jar</code> in <code class="highlighter-rouge">flink/lib</code> and change class loading order for Flink by adding <code class="highlighter-rouge">classloader.resolve-order: parent-first</code> to <code class="highlighter-rouge">conf/flink-conf.yaml</code>.</li>
   <li>Start JobService with Flink web service endpoint: <code class="highlighter-rouge">./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081</code></li>
-  <li>Submit the pipeline.</li>
+  <li>Submit the pipeline as above.</li>
 </ol>
 
 
