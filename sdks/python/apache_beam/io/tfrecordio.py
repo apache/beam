@@ -81,7 +81,7 @@ class _TFRecordUtil(object):
     if isinstance(value, bytes):
       crc = crc32c_fn(value)
     else:
-      crc = crc32c_fu(value.encode('utf-8'))
+      crc = crc32c_fn(value.encode('utf-8'))
     return (((crc >> 15) | (crc << 17)) + 0xa282ead8) & 0xffffffff
 
   @staticmethod
