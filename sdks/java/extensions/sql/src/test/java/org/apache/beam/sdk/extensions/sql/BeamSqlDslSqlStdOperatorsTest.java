@@ -1197,7 +1197,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
                 parseTimestamp("1986-01-19 01:02:03"))
             .addExpr("DATE '1984-04-19' + INTERVAL '2' DAY", parseDate("1984-04-21"))
             .addExpr("DATE '1984-04-19' + INTERVAL '1' MONTH", parseDate("1984-05-19"))
-            .addExpr("DATE '1984-04-19' + INTERVAL '3' YEAR", parseDate("1987-04-19"));
+            .addExpr("DATE '1984-04-19' + INTERVAL '3' YEAR", parseDate("1987-04-19"))
+            .addExpr("TIME '14:28:30' + INTERVAL '15' SECOND", parseTime("14:28:45"))
+            .addExpr("TIME '14:28:30.239' + INTERVAL '4' MINUTE", parseTime("14:32:30.239"))
+            .addExpr("TIME '14:28:30.2' + INTERVAL '4' HOUR", parseTime("18:28:30.2"));
 
     checker.buildRunAndCheck();
   }
@@ -1292,7 +1295,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
 
   @Test
   // More needed @SqlOperatorTest(name = "-", kind = "MINUS")
-  public void testTimestampMinusInterval() throws Exception {
+  public void testTimestampMinusInterval() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr(
@@ -1315,8 +1318,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
                 parseTimestamp("1983-01-19 01:01:58"))
             .addExpr("DATE '1984-04-19' - INTERVAL '2' DAY", parseDate("1984-04-17"))
             .addExpr("DATE '1984-04-19' - INTERVAL '1' MONTH", parseDate("1984-03-19"))
-            .addExpr("DATE '1984-04-19' - INTERVAL '3' YEAR", parseDate("1981-04-19"));
-    ;
+            .addExpr("DATE '1984-04-19' - INTERVAL '3' YEAR", parseDate("1981-04-19"))
+            .addExpr("TIME '14:28:30' - INTERVAL '15' SECOND", parseTime("14:28:15"))
+            .addExpr("TIME '14:28:30.239' - INTERVAL '4' MINUTE", parseTime("14:24:30.239"))
+            .addExpr("TIME '14:28:30.2' - INTERVAL '4' HOUR", parseTime("10:28:30.2"));
+
     checker.buildRunAndCheck();
   }
 
