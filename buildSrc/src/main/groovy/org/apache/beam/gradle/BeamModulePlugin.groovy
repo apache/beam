@@ -1471,6 +1471,9 @@ artifactId=${project.name}
         "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
         "--environmentCacheMillis=10000",
+        // TODO Create two tasks to run for both batch and streaming:
+        // https://issues.apache.org/jira/browse/BEAM-6009
+        // "--streaming"
       ]
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
