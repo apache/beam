@@ -15,12 +15,13 @@
 # limitations under the License.
 #
 
-"""Various names common to more than one runner."""
+"""Various names shared by more than one runner."""
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
 
 # Package names for different distributions
 BEAM_PACKAGE_NAME = 'apache-beam'
