@@ -63,7 +63,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
-      ByteKeyRange rval = ByteKeyRange.of(range.getStartKey(), range.getEndKey());
+      ByteKeyRange rval = range;
       // We update our current range to an interval that contains no elements.
       range = NO_KEYS;
       return rval;
@@ -87,11 +87,14 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   /**
    * Attempts to claim the given key.
    *
-   * <p>Must be larger than the last attempted key. Note that passing in {@link ByteKey#EMPTY}
-   * claims all keys to the end of range and can only be claimed once.
+   * <p>Must be larger than the last attempted key. Since this restriction tracker represents a
+   * range over a semi-open bounded interval {@code [start, end)}, the last key that was attempted
+   * may have failed but still have consumed the interval {@code [lastAttemptedKey, end)} since this
+   * range tracker processes keys in a monotonically increasing order. Note that passing in {@link
+   * ByteKey#EMPTY} claims all keys to the end of range and can only be claimed once.
    *
    * @return {@code true} if the key was successfully claimed, {@code false} if it is outside the
-   *     current {@link ByteKeyRange} of this tracker (in that case this operation is a no-op).
+   *     current {@link ByteKeyRange} of this tracker.
    */
   @Override
   protected synchronized boolean tryClaimImpl(ByteKey key) {
