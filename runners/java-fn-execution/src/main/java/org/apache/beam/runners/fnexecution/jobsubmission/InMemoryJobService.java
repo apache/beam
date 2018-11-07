@@ -258,7 +258,12 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
-          state -> responseObserver.onNext(responseFunction.apply(state));
+          state -> {
+            responseObserver.onNext(responseFunction.apply(state));
+            if (JobInvocation.isTerminated(state)) {
+              responseObserver.onCompleted();
+            }
+          };
       invocation.addStateListener(stateListener);
     } catch (Exception e) {
       String errMessage =
@@ -279,11 +284,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       StreamObserver<JobMessagesResponse> syncResponseObserver =
           SynchronizedStreamObserver.wrapping(responseObserver);
       Consumer<JobState.Enum> stateListener =
-          state ->
-              syncResponseObserver.onNext(
-                  JobMessagesResponse.newBuilder()
-                      .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
-                      .build());
+          state -> {
+            syncResponseObserver.onNext(
+                JobMessagesResponse.newBuilder()
+                    .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
+                    .build());
+            if (JobInvocation.isTerminated(state)) {
+              responseObserver.onCompleted();
+            }
+          };
       Consumer<JobMessage> messageListener =
           message ->
               syncResponseObserver.onNext(
