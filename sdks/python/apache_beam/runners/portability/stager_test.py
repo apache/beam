@@ -30,8 +30,8 @@ import mock
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE
 from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability import stager
 
 
@@ -146,12 +146,12 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).save_main_session = True
     self.update_options(options)
 
-    self.assertEqual([PICKLED_MAIN_SESSION_FILE],
+    self.assertEqual([shared_names.PICKLED_MAIN_SESSION_FILE],
                      self.stager.stage_job_resources(
                          options, staging_location=staging_dir)[1])
     self.assertTrue(
         os.path.isfile(
-            os.path.join(staging_dir, PICKLED_MAIN_SESSION_FILE)))
+            os.path.join(staging_dir, shared_names.PICKLED_MAIN_SESSION_FILE)))
 
   def test_default_resources(self):
     staging_dir = self.make_temp_dir()
