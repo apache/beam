@@ -43,7 +43,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -494,24 +493,6 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<Create.Values<T>> create() {
-    return new TransformEvaluator<Create.Values<T>>() {
-      @Override
-      public void evaluate(Create.Values<T> transform, EvaluationContext context) {
-        Iterable<T> elems = transform.getElements();
-        // Use a coder to convert the objects in the PCollection to byte arrays, so they
-        // can be transferred over the network.
-        Coder<T> coder = context.getOutput(transform).getCoder();
-        context.putBoundedDatasetFromValues(transform, elems, coder);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.parallelize(Arrays.asList(...))";
-      }
-    };
-  }
-
   private static <ReadT, WriteT>
       TransformEvaluator<View.CreatePCollectionView<ReadT, WriteT>> createPCollView() {
     return new TransformEvaluator<View.CreatePCollectionView<ReadT, WriteT>>() {
@@ -584,7 +565,6 @@ public final class TransformTranslator {
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
-    EVALUATORS.put(Create.Values.class, create());
     //    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
     //    EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());

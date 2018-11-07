@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -173,26 +172,6 @@ public class EvaluationContext {
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
-  }
-
-  <T> void putBoundedDatasetFromValues(
-      PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
-    PValue output = getOutput(transform);
-    if (shouldCache(output)) {
-      // eagerly create the RDD, as it will be reused.
-      Iterable<WindowedValue<T>> elems =
-          Iterables.transform(values, WindowingHelpers.windowValueFunction());
-      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-          WindowedValue.getValueOnlyCoder(coder);
-      JavaRDD<WindowedValue<T>> rdd =
-          getSparkContext()
-              .parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
-              .map(CoderHelpers.fromByteFunction(windowCoder));
-      putDataset(transform, new BoundedDataset<>(rdd));
-    } else {
-      // create a BoundedDataset that would create a RDD on demand
-      datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
-    }
   }
 
   public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
