@@ -51,6 +51,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.internal.names import BEAM_PACKAGE_NAME, BEAM_SDK_NAME
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
@@ -152,7 +153,7 @@ class Environment(object):
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(names.BEAM_SDK_NAME)),
+            value=to_json_value(BEAM_SDK_NAME)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
@@ -794,7 +795,7 @@ class _LegacyDataflowStager(Stager):
 
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
-    return names.BEAM_PACKAGE_NAME
+    return BEAM_PACKAGE_NAME
 
 
 def to_split_int(n):

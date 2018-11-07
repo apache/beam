@@ -34,7 +34,7 @@ from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
