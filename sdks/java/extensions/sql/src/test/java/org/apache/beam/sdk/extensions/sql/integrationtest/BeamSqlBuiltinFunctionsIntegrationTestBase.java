@@ -117,7 +117,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     try {
       return TestBoundedTable.of(ROW_TYPE)
           .addRows(
-              parseDate("1986-02-15 11:35:26"),
+              parseTimestamp("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -139,7 +139,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   protected PCollection<Row> getFloorCeilingTestPCollection() {
     try {
       return TestBoundedTable.of(ROW_TYPE_THREE)
-          .addRows(parseDate("1986-02-15 11:35:26"), 1.4)
+          .addRows(parseTimestamp("1986-02-15 11:35:26"), 1.4)
           .buildIOReader(pipeline.begin())
           .setRowSchema(ROW_TYPE_THREE);
     } catch (Exception e) {
@@ -151,7 +151,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     try {
       return TestBoundedTable.of(ROW_TYPE_TWO)
           .addRows(
-              parseDate("1986-02-15 11:35:26"),
+              parseTimestamp("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -162,7 +162,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               7.0,
               BigDecimal.valueOf(1.0))
           .addRows(
-              parseDate("1986-03-15 11:35:26"),
+              parseTimestamp("1986-03-15 11:35:26"),
               (byte) 2,
               (short) 2,
               2,
@@ -173,7 +173,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               8.0,
               BigDecimal.valueOf(2.0))
           .addRows(
-              parseDate("1986-04-15 11:35:26"),
+              parseTimestamp("1986-04-15 11:35:26"),
               (byte) 3,
               (short) 3,
               3,
@@ -191,8 +191,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     }
   }
 
-  protected static DateTime parseDate(String str) {
+  protected static DateTime parseTimestamp(String str) {
     return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
+  }
+
+  protected static DateTime parseDate(String str) {
+    return DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC().parseDateTime(str);
   }
 
   @AutoValue
