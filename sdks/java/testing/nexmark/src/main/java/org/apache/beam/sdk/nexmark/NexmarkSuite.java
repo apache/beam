@@ -40,9 +40,7 @@ public enum NexmarkSuite {
   /** As for SMOKE, but with 1b/100m events. */
   FULL_THROTTLE(fullThrottle()),
 
-  /**
-   * Query 10, but slow and small for debugging.
-   */
+  /** Query 10, but slow and small for debugging. */
   SMALL_LOGGER(smallLogger()),
 
   /** Query 10, at high volume with no autoscaling. */
@@ -91,7 +89,7 @@ public enum NexmarkSuite {
     }
     return configurations;
   }
-  
+
   private static List<NexmarkConfiguration> smallLogger() {
     NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.copy();
     configuration.numEventGenerators = 1;
