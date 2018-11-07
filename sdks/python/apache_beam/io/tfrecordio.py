@@ -78,10 +78,7 @@ class _TFRecordUtil(object):
       Masked crc32c checksum.
     """
 
-    if isinstance(value, bytes):
-      crc = crc32c_fn(value)
-    else:
-      crc = crc32c_fn(value.encode('utf-8'))
+    crc = crc32c_fn(value.encode('utf-8'))
     return (((crc >> 15) | (crc << 17)) + 0xa282ead8) & 0xffffffff
 
   @staticmethod
@@ -98,12 +95,12 @@ class _TFRecordUtil(object):
       file_handle: The file to write to.
       value: A string content of the record.
     """
-    encoded_length = struct.pack('<Q', len(value))
+    encoded_length = struct.pack(b'<Q', len(value))
     file_handle.write(b''.join([
         encoded_length,
-        struct.pack('<I', cls._masked_crc32c(encoded_length)),  #
-        value if isinstance(value, bytes) else value.encode('utf-8'),
-        struct.pack('<I', cls._masked_crc32c(value))
+        struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
+        value,
+        struct.pack(b'<I', cls._masked_crc32c(value))
     ]))
 
   @classmethod
