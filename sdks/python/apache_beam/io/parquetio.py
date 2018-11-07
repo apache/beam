@@ -16,7 +16,7 @@
 #
 """``PTransforms`` for reading from and writing to Parquet files.
 
-Provides two read ``PTransform``s, ``ReadFromParquet`` and
+Provides two read ``PTransform`` s, ``ReadFromParquet`` and
 ``ReadAllFromParquet``, that produces a ``PCollection`` of records.
 Each record of this ``PCollection`` will contain a single record read from
 a Parquet file. Records that are of simple types will be mapped into
@@ -55,8 +55,8 @@ class ReadFromParquet(PTransform):
                validate=True, columns=None):
     """Initializes :class:`ReadFromParquet`.
 
-    Uses source :class:`~apache_beam.io._ParquetSource` to read a set of Parquet
-    files defined by a given file pattern.
+    Uses source ``_ParquetSource`` to read a set of Parquet files defined by
+    a given file pattern.
 
     If ``/mypath/myparquetfiles*`` is a file-pattern that points to a set of
     Parquet files, a :class:`~apache_beam.pvalue.PCollection` for the records in
@@ -116,9 +116,10 @@ class ReadFromParquet(PTransform):
 class ReadAllFromParquet(PTransform):
   """A ``PTransform`` for reading ``PCollection`` of Parquet files.
 
-   Uses source '_ParquetSource' to read a ``PCollection`` of Parquet files or
+   Uses source ``_ParquetSource`` to read a ``PCollection`` of Parquet files or
    file patterns and produce a ``PCollection`` of Parquet records. This
-   `PTransform` is currently experimental. No backward-compatibility guarantees.
+   ``PTransform`` is currently experimental. No backward-compatibility
+   guarantees.
   """
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
@@ -254,7 +255,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
 
-    This `PTransform` is currently experimental. No backward-compatibility
+    This ``PTransform`` is currently experimental. No backward-compatibility
     guarantees.
   """
 
@@ -271,9 +272,8 @@ class WriteToParquet(PTransform):
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
     records. Each record is a dictionary with keys of a string type that
-    represent column names. Schema must be specified like the example below.
+    represent column names. Schema must be specified like the example below. ::
 
-    .. code-block::
       with beam.Pipeline() as p:
         records = p | 'Read' >> Create(
             [{'name': 'foo', 'age': 10}, {'name': 'bar', 'age': 20}]
