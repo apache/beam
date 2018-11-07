@@ -92,7 +92,14 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
         new CustomTimestampPolicyWithLimitedDelay<>(timestampFunction, maxDelay, previousWatermark);
   }
 
-  /** Used by the Read transform to support old timestamp functions API. */
+  /**
+   * Used by the Read transform to support old timestamp functions API. This exists only to support
+   * other deprecated API {@link KafkaIO.Read#withTimestampFn(SerializableFunction)}.<br>
+   * TODO(rangadi): Make this package private or remove it. It was never meant to be public.
+   *
+   * @deprecated Use @{@link CustomTimestampPolicyWithLimitedDelay}.
+   */
+  @Deprecated
   static <K, V> TimestampPolicyFactory<K, V> withTimestampFn(
       final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
     return (tp, previousWatermark) -> new TimestampFnPolicy<>(timestampFn, previousWatermark);
