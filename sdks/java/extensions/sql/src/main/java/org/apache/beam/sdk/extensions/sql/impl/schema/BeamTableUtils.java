@@ -106,7 +106,8 @@ public final class BeamTableUtils {
         return rawObj;
       }
     } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
+      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
     } else if (type.isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
