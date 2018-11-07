@@ -175,6 +175,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
 
 task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
+  finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(name: "java")
   doLast {
     exec {
@@ -182,6 +183,15 @@ task buildAndPushDockerContainer() {
     }
     exec {
       commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+    }
+  }
+}
+
+afterEvaluate {
+  // Ensure all tasks which use published docker images run before they are cleaned up
+  tasks.each { t ->
+    if (t.dependsOn.contains(buildAndPushDockerContainer)) {
+      cleanUpDockerImages.mustRunAfter t
     }
   }
 }
@@ -399,13 +409,16 @@ task postCommitPortabilityApi {
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest
-  // Clean up docker image
+}
+
+// Clean up built images
+task cleanUpDockerImages() {
   doLast {
     exec {
       commandLine "docker", "rmi", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
     }
   }
 }
