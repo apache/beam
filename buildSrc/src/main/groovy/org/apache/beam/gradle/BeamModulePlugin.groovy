@@ -1141,12 +1141,10 @@ artifactId=${project.name}
 
         include "**/*IT.class"
 
-        def pipelineOptionString = configuration.integrationTestPipelineOptions
-        if(configuration.runner?.equalsIgnoreCase('dataflow')) {
+        def pipelineOptionsString = configuration.integrationTestPipelineOptions
+        if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
-
-          def jsonSlurper = new JsonSlurper()
-          def allOptionsList = jsonSlurper.parseText(pipelineOptionString)
+          def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
@@ -1155,10 +1153,10 @@ artifactId=${project.name}
             '--dataflowWorkerJar=${dataflowWorkerJar}',
           ])
 
-          pipelineOptionString = JsonOutput.toJson(allOptionsList)
+          pipelineOptionsString = JsonOutput.toJson(allOptionsList)
         }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionString
+        systemProperties.beamTestPipelineOptions = pipelineOptionsString
       }
     }
 
