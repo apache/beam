@@ -18,18 +18,12 @@
 package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
-import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
 
 import java.io.IOException;
 import java.util.Optional;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
-import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,26 +36,28 @@ import org.apache.beam.sdk.values.PCollection;
  * Load test for {@link GroupByKey} operation.
  *
  * <p>The purpose of this test is to measure {@link GroupByKey}'s behaviour in stressful conditions.
- * it uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be parametrized to
+ * It uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be parametrized to
  * generate keys and values of various size, impose delay (sleep or cpu burnout) in various moments
- * during the pipeline execution and provide some other performance challenges (see Source's and
- * Step's documentation for more details).
+ * during the pipeline execution and provide some other performance challenges.
  *
- * <p>In addition, this test allows to: - fanout: produce one input (using Synthetic Source) and
- * process it with multiple sessions performing the same set of operations - reiterate produced
- * PCollection multiple times
- *
- * <p>To run it manually, use the following command:
- *
- * <pre>
+ * @see SyntheticStep
+ * @see SyntheticBoundedIO
+ *     <p>In addition, this test allows to: - fanout: produce one input (using Synthetic Source) and
+ *     process it with multiple sessions performing the same set of operations - reiterate produced
+ *     PCollection multiple times
+ *     <p>To run it manually, use the following command:
+ *     <pre>
  *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --stepOptions={"outputRecordsPerInputRecord":2...}'
+ *      -PloadTest.mainClass="org.apache.beam.sdk.loadtests.GroupByKeyLoadTest"
  * </pre>
  */
-public class GroupByKeyLoadTest {
+public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
+
+  private static final String METRICS_NAMESPACE = "gbk";
 
   /** Pipeline options for the test. */
   public interface Options extends LoadTestOptions {
@@ -79,32 +75,25 @@ public class GroupByKeyLoadTest {
     void setIterations(Integer iterations);
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = LoadTestOptions.readFromArgs(args, Options.class);
+  private GroupByKeyLoadTest(String[] args) throws IOException {
+    super(args, Options.class, METRICS_NAMESPACE);
+  }
 
-    SyntheticSourceOptions sourceOptions =
-        fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-
+  @Override
+  void loadTest() throws IOException {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
-
-    Pipeline pipeline = Pipeline.create(options);
 
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
-      SyntheticUtils.applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
-          .apply(ParDo.of(new MetricsMonitor("gbk")))
+      applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
+          .apply(ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(
               format("Ungroup and reiterate (%s)", branch),
               ParDo.of(new UngroupAndReiterate(options.getIterations())));
     }
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-
-    MetricsPublisher.toConsole(result, "gbk");
   }
 
   private static class UngroupAndReiterate
@@ -130,5 +119,9 @@ public class GroupByKeyLoadTest {
         }
       }
     }
+  }
+
+  public static void main(String[] args) throws IOException {
+    new GroupByKeyLoadTest(args).run();
   }
 }
