@@ -118,7 +118,7 @@ class ElasticSearchIOTestUtils {
         restClient.performRequest(
             "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
     ElasticsearchIO.checkForErrors(
-        response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
+        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
 
   /**
@@ -154,7 +154,7 @@ class ElasticSearchIOTestUtils {
 
       endPoint = String.format("/%s/%s/_search", index, type);
       Response response = restClient.performRequest("GET", endPoint);
-      JsonNode searchResult = ElasticsearchIO.parseResponse(response);
+      JsonNode searchResult = ElasticsearchIO.parseResponse(response.getEntity());
       result = searchResult.path("hits").path("total").asLong();
     } catch (IOException e) {
       // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
@@ -238,7 +238,7 @@ class ElasticSearchIOTestUtils {
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
-    JsonNode searchResult = parseResponse(response);
+    JsonNode searchResult = parseResponse(response.getEntity());
     return searchResult.path("hits").path("total").asInt();
   }
 }
