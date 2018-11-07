@@ -16,20 +16,23 @@
  * limitations under the License.
  */
 
-// contains Big query related properties for Nexmark runs
-class NexmarkBigqueryProperties {
+import CommonJobProperties as commonJobProperties
+import NexmarkBigqueryProperties as nexmark
 
-    static String nexmarkBigQueryArgs = ['--bigQueryTable=nexmark',
-                                         '--bigQueryDataset=nexmark',
-                                         '--project=apache-beam-testing',
-                                         '--resourceNameMode=QUERY_RUNNER_AND_MODE',
-                                         '--exportSummaryToBigQuery=true',
-                                         '--tempLocation=gs://temp-storage-for-perf-tests/nexmark'].join(' ')
+String jobName = "beam_conditional_phrase_triggering_test"
 
+job(jobName) {
+  // Set default Beam job properties.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    static String getBigQueryArgs() {
-        def bigQueryDataset = ('${GIT_BRANCH}' == 'master') ? 'nexmark' : 'nexmark_pull_requests'
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'phrase triggering nexmark test',
+          'Run phrase triggering nexmark test')
 
-        return nexmarkBigQueryArgs.join("--bigQueryDataset=${bigQueryDataset}")
-    }
+  def bigQueryArgs = nexmark.getBigQueryArgs()
+
+  steps {
+    shell("echo ${bigQueryArgs}")
+  }
 }
