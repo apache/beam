@@ -27,14 +27,20 @@ import com.google.common.primitives.Bytes;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
-import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * A {@link RestrictionTracker} for claiming {@link ByteKey}s in a {@link ByteKeyRange} in a
  * monotonically increasing fashion. The range is a semi-open bounded interval [startKey, endKey)
- * where the limits are both represented by ByteKey.EMPTY.
+ * where the limits are both represented by {@link ByteKey#EMPTY}.
+ *
+ * <p>Note, one can complete a range by claiming the {@link ByteKey#EMPTY} once one runs out of keys
+ * to process.
  */
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey> {
+  /* An empty range which contains no keys. */
+  @VisibleForTesting
+  static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));
+
   private ByteKeyRange range;
   @Nullable private ByteKey lastClaimedKey = null;
   @Nullable private ByteKey lastAttemptedKey = null;
@@ -54,8 +60,25 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
 
   @Override
   public synchronized ByteKeyRange checkpoint() {
-    checkState(lastClaimedKey != null, "Can't checkpoint before any key was successfully claimed");
-    ByteKey nextKey = next(lastClaimedKey);
+    // If we haven't done any work, we should return the original range we were processing
+    // as the checkpoint.
+    if (lastAttemptedKey == null) {
+      ByteKeyRange rval = ByteKeyRange.of(range.getStartKey(), range.getEndKey());
+      // We update our current range to an interval that contains no elements.
+      range = NO_KEYS;
+      return rval;
+    }
+
+    // Return an empty range if the current range is done.
+    if (lastAttemptedKey.isEmpty()
+        || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
+      return NO_KEYS;
+    }
+
+    // Otherwise we compute the "remainder" of the range from the last key.
+    assert lastAttemptedKey.equals(lastClaimedKey)
+        : "Expect both keys to be equal since the last key attempted was a valid key in the range.";
+    ByteKey nextKey = next(lastAttemptedKey);
     ByteKeyRange res = ByteKeyRange.of(nextKey, range.getEndKey());
     this.range = ByteKeyRange.of(range.getStartKey(), nextKey);
     return res;
@@ -64,16 +87,28 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   /**
    * Attempts to claim the given key.
    *
-   * <p>Must be larger than the last successfully claimed key.
+   * <p>Must be larger than the last attempted key. Note that passing in {@link ByteKey#EMPTY}
+   * claims all keys to the end of range and can only be claimed once.
    *
    * @return {@code true} if the key was successfully claimed, {@code false} if it is outside the
    *     current {@link ByteKeyRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
   protected synchronized boolean tryClaimImpl(ByteKey key) {
+    // Handle claiming the end of range EMPTY key
+    if (key.isEmpty()) {
+      checkArgument(
+          lastAttemptedKey == null || !lastAttemptedKey.isEmpty(),
+          "Trying to claim key %s while last attempted key was %s",
+          key,
+          lastAttemptedKey);
+      lastAttemptedKey = key;
+      return false;
+    }
+
     checkArgument(
         lastAttemptedKey == null || key.compareTo(lastAttemptedKey) > 0,
-        "Trying to claim key %s while last attempted was %s",
+        "Trying to claim key %s while last attempted key was %s",
         key,
         lastAttemptedKey);
     checkArgument(
@@ -81,6 +116,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
         "Trying to claim key %s before start of the range %s",
         key,
         range);
+
     lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
     if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) > -1) {
@@ -90,32 +126,38 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     return true;
   }
 
-  /**
-   * Marks that there are no more keys to be claimed in the range.
-   *
-   * <p>E.g., a {@link DoFn} reading a file and claiming the key of each record in the file might
-   * call this if it hits EOF - even though the last attempted claim was before the end of the
-   * range, there are no more keys to claim.
-   */
-  public synchronized void markDone() {
-    lastAttemptedKey = range.getEndKey();
-  }
-
   @Override
   public synchronized void checkDone() throws IllegalStateException {
-    checkState(lastAttemptedKey != null, "Can't check if done before any key claim was attempted");
-    ByteKey nextKey = next(lastAttemptedKey);
+    // Handle checking the empty range which is implicitly done.
+    // This case can occur if the range tracker is checkpointed before any keys have been claimed
+    // or if the range tracker is checkpointed once the range is done.
+    if (NO_KEYS.equals(range)) {
+      return;
+    }
+
     checkState(
-        nextKey.compareTo(range.getEndKey()) > -1,
-        "Last attempted key was %s in range %s, claiming work in [%s, %s) was not attempted",
-        lastAttemptedKey,
-        range,
-        nextKey,
-        range.getEndKey());
+        lastAttemptedKey != null,
+        "Key range is non-empty %s and no keys have been attempted.",
+        range);
+
+    // Return if the last attempted key was the empty key representing the end of range for
+    // all ranges.
+    if (lastAttemptedKey.isEmpty()) {
+      return;
+    }
+
+    // If the last attempted key was not at or beyond the end of the range then throw.
+    if (range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0) {
+      ByteKey nextKey = next(lastAttemptedKey);
+      throw new IllegalStateException(
+          String.format(
+              "Last attempted key was %s in range %s, claiming work in [%s, %s) was not attempted",
+              lastAttemptedKey, range, nextKey, range.getEndKey()));
+    }
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return MoreObjects.toStringHelper(this)
         .add("range", range)
         .add("lastClaimedKey", lastClaimedKey)
