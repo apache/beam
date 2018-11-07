@@ -100,12 +100,13 @@ class _TFRecordUtil(object):
       file_handle: The file to write to.
       value: A string content of the record.
     """
-    encoded_length = struct.pack('<Q', len(value))
-    file_handle.write('{}{}{}{}'.format(
+    encoded_length = struct.pack(b'<Q', len(value))
+    file_handle.write(b''.join([
         encoded_length,
-        struct.pack('<I', cls._masked_crc32c(encoded_length)),  #
+        struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
         value,
-        struct.pack('<I', cls._masked_crc32c(value))))
+        struct.pack(b'<I', cls._masked_crc32c(value))
+    ]))
 
   @classmethod
   def read_record(cls, file_handle):
