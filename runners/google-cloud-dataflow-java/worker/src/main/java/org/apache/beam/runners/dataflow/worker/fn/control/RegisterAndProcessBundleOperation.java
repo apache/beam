@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -291,6 +293,13 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
+  // todomigryz: Extract common metrics processing code from getProcessBundleProgress and
+  // getFinalMetrics.
+
+  public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {
+    return ptransformIdToUserStepContext;
+  }
+
   /**
    * Returns the compound metrics recorded, by issuing a request to the SDK harness.
    *
@@ -305,13 +314,16 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * @throws InterruptedException
    * @throws ExecutionException
    */
-  public CompletionStage<BeamFnApi.Metrics> getMetrics()
+  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
       throws InterruptedException, ExecutionException {
     // processBundleId may be reset if this bundle finishes asynchronously.
     String processBundleId = this.processBundleId;
+
     if (processBundleId == null) {
-      return CompletableFuture.completedFuture(BeamFnApi.Metrics.getDefaultInstance());
+      return CompletableFuture.completedFuture(
+          BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
     }
+
     InstructionRequest processBundleRequest =
         InstructionRequest.newBuilder()
             .setInstructionId(idGenerator.get())
@@ -326,7 +338,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
               if (!response.getError().isEmpty()) {
                 throw new IllegalStateException(response.getError());
               }
-              return response.getProcessBundleProgress().getMetrics();
+              return response.getProcessBundleProgress();
             });
   }
 
@@ -334,6 +346,11 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
+  }
+
+  public CompletionStage<List<MonitoringInfo>> getFinalMonitoringInfos() {
+    return getProcessBundleResponse(processBundleResponse)
+        .thenApply(response -> response.getMonitoringInfosList());
   }
 
   public boolean hasFailed() throws ExecutionException, InterruptedException {

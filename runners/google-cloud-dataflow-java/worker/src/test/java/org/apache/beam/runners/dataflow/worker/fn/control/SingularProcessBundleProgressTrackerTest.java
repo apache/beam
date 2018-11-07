@@ -78,8 +78,10 @@ public class SingularProcessBundleProgressTrackerTest {
     when(grpcWrite.getElementsSent()).thenReturn(1, 10, 20, 30);
 
     // This test ignores them, directly working on mocked getInputElementsConsumed
-    when(process.getMetrics())
-        .thenReturn(CompletableFuture.completedFuture(BeamFnApi.Metrics.getDefaultInstance()));
+    when(process.getProcessBundleProgress())
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance()));
 
     when(process.getInputElementsConsumed(any(BeamFnApi.Metrics.class)))
         .thenReturn(1.0, 4.0, 10.0)

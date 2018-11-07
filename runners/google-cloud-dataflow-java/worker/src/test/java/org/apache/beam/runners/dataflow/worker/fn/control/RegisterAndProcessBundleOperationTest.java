@@ -316,7 +316,7 @@ public class RegisterAndProcessBundleOperationTest {
 
     operation.start();
 
-    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getMetrics());
+    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getProcessBundleProgress()).getMetrics();
     assertThat(metrics.getPtransformsOrThrow(stepName).getUserCount(), equalTo(1));
 
     BeamFnApi.Metrics.User userMetric = metrics.getPtransformsOrThrow(stepName).getUser(0);
@@ -420,7 +420,7 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
 
     // Force some intermediate metrics to test crosstalk is not introduced
-    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getMetrics());
+    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getProcessBundleProgress()).getMetrics();
     BeamFnApi.Metrics.User userMetric = metrics.getPtransformsOrThrow(stepName).getUser(0);
     assertThat(userMetric.getMetricName(), equalTo(metricName));
     assertThat(userMetric.getCounterData().getValue(), not(equalTo(finalCounterValue)));
