@@ -117,6 +117,12 @@ def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 def dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
+def fnApiPipelineOptions = [
+      "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+      "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+      "--experiments=beam_fn_api",
+]
+
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
@@ -180,20 +186,28 @@ task buildAndPushDockerContainer() {
   }
 }
 
+task printFnApiPipelineOptions {
+    group = "Help"
+    description = "Prints to the console extra pipeline options needed to run a Dataflow pipeline using portability"
+
+    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+    dependsOn buildAndPushDockerContainer
+
+    doLast {
+      println "To run a Dataflow job with portability, add the following pipeline options to your command-line:"
+      println fnApiPipelineOptions.join(' ')
+    }
+}
+
 task validatesRunnerFnApiWorkerTest(type: Test) {
     group = "Verification"
     dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
     dependsOn buildAndPushDockerContainer
-
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -260,11 +274,8 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
@@ -317,11 +328,8 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
     // this postCommit integration test excludes them.
@@ -367,11 +375,8 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     include '**/*IT.class'
     maxParallelForks 4
