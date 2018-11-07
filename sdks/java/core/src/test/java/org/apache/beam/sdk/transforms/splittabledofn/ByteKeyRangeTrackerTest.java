@@ -52,8 +52,23 @@ public class ByteKeyRangeTrackerTest {
   public void testCheckpointUnstarted() throws Exception {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
-    expected.expect(IllegalStateException.class);
-    tracker.checkpoint();
+
+    ByteKeyRange checkpoint = tracker.checkpoint();
+    // We expect to get the original range back and that the current restriction
+    // is effectively made empty.
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, tracker.currentRestriction());
+  }
+
+  @Test
+  public void testCheckpointUnstartedForAllKeysRange() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+
+    ByteKeyRange checkpoint = tracker.checkpoint();
+    // We expect to get the original range back and that the current restriction
+    // is effectively made empty.
+    assertEquals(ByteKeyRange.ALL_KEYS, checkpoint);
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, tracker.currentRestriction());
   }
 
   @Test
@@ -61,8 +76,9 @@ public class ByteKeyRangeTrackerTest {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
-    expected.expect(IllegalStateException.class);
-    tracker.checkpoint();
+    ByteKeyRange checkpoint = tracker.checkpoint();
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
 
   @Test
@@ -89,20 +105,30 @@ public class ByteKeyRangeTrackerTest {
   }
 
   @Test
-  public void testCheckpointClaimedLast() throws Exception {
+  public void testCheckpointAtLast() throws Exception {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
-    assertTrue(tracker.tryClaim(ByteKey.of(0xbf)));
+    assertFalse(tracker.tryClaim(ByteKey.of(0xc0)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(
-        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xbf, 0x00)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0xbf, 0x00), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
 
   @Test
-  public void testCheckpointAfterFailedClaim() throws Exception {
+  public void testCheckpointAtLastUsingAllKeysAndEmptyKey() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+    assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
+    assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
+    assertFalse(tracker.tryClaim(ByteKey.EMPTY));
+    ByteKeyRange checkpoint = tracker.checkpoint();
+    assertEquals(ByteKeyRange.ALL_KEYS, tracker.currentRestriction());
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+  }
+
+  @Test
+  public void testCheckpointAfterLast() throws Exception {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
@@ -110,28 +136,40 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
     ByteKeyRange checkpoint = tracker.checkpoint();
-    assertEquals(
-        ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xa0, 0x00)), tracker.currentRestriction());
-    assertEquals(ByteKeyRange.of(ByteKey.of(0xa0, 0x00), ByteKey.of(0xc0)), checkpoint);
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
   }
 
   @Test
-  public void testNonMonotonicClaim() throws Exception {
-    expected.expectMessage("Trying to claim key [70] while last attempted was [90]");
+  public void testCheckpointAfterLastUsingEmptyKey() throws Exception {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
+    assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
+    assertFalse(tracker.tryClaim(ByteKey.EMPTY));
+    ByteKeyRange checkpoint = tracker.checkpoint();
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
+    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+  }
+
+  @Test
+  public void testNonMonotonicClaim() throws Exception {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
+    assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
+    expected.expectMessage("Trying to claim key [70] while last attempted key was [90]");
     tracker.tryClaim(ByteKey.of(0x70));
   }
 
   @Test
   public void testClaimBeforeStartOfRange() throws Exception {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     expected.expectMessage(
         "Trying to claim key [05] before start of the range "
             + "ByteKeyRange{startKey=[10], endKey=[c0]}");
-    ByteKeyRangeTracker tracker =
-        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0x05));
   }
 
@@ -156,6 +194,16 @@ public class ByteKeyRangeTrackerTest {
   }
 
   @Test
+  public void testCheckDoneWhenClaimingEndOfRangeForEmptyKey() {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.EMPTY));
+    assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
+    assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
+    assertFalse(tracker.tryClaim(ByteKey.EMPTY));
+    tracker.checkDone();
+  }
+
+  @Test
   public void testCheckDoneAfterTryClaimRightBeforeEndOfRange() {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
@@ -169,6 +217,12 @@ public class ByteKeyRangeTrackerTest {
   }
 
   @Test
+  public void testCheckDoneForEmptyRange() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRangeTracker.NO_KEYS);
+    tracker.checkDone();
+  }
+
+  @Test
   public void testCheckDoneWhenNotDone() {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
@@ -177,16 +231,6 @@ public class ByteKeyRangeTrackerTest {
     expected.expectMessage(
         "Last attempted key was [90] in range ByteKeyRange{startKey=[10], endKey=[c0]}, "
             + "claiming work in [[9000], [c0]) was not attempted");
-    tracker.checkDone();
-  }
-
-  @Test
-  public void testCheckDoneWhenExplicitlyMarkedDone() {
-    ByteKeyRangeTracker tracker =
-        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
-    assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
-    assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
-    tracker.markDone();
     tracker.checkDone();
   }
 
