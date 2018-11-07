@@ -199,6 +199,15 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     return DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC().parseDateTime(str);
   }
 
+  protected static DateTime parseTime(String str) {
+    // DateTimeFormat does not parse "08:10:10" for pattern "HH:mm:ss.SSS". In this case, '.' must appear.
+    if (str.indexOf('.') == -1) {
+      return DateTimeFormat.forPattern("HH:mm:ss").withZoneUTC().parseDateTime(str);
+    } else {
+      return DateTimeFormat.forPattern("HH:mm:ss.SSS").withZoneUTC().parseDateTime(str);
+    }
+  }
+
   @AutoValue
   abstract static class ExpressionTestCase {
 
