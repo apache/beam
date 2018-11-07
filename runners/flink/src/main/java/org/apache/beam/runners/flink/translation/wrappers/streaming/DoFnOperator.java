@@ -153,9 +153,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  private final Coder<?> keyCoder;
+  protected final Coder<?> keyCoder;
 
-  private final KeySelector<WindowedValue<InputT>, ?> keySelector;
+  final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
   private final TimerInternals.TimerDataCoder timerCoder;
 
@@ -443,20 +443,19 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private long getPushbackWatermarkHold() {
+  protected long getPushbackWatermarkHold() {
     return pushedBackWatermark;
   }
 
+  protected void setPushedBackWatermark(long watermark) {
+    pushedBackWatermark = watermark;
+  }
+
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord)
-      throws Exception {
+  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
-  }
-
-  private void setPushedBackWatermark(long watermark) {
-    pushedBackWatermark = watermark;
   }
 
   @Override
@@ -670,7 +669,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private void invokeFinishBundle() {
+  protected void invokeFinishBundle() {
     if (bundleStarted) {
       pushbackDoFnRunner.finishBundle();
       bundleStarted = false;
@@ -917,7 +916,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private class FlinkTimerInternals implements TimerInternals {
+  class FlinkTimerInternals implements TimerInternals {
 
     @Override
     public void setTimer(
