@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import string
@@ -68,14 +69,14 @@ class TestParquetIT(unittest.TestCase):
     data_size = 20000
     p = TestPipeline(is_integration_test=True)
     pcol = self._generate_data(
-        p, file_prefix, init_size, data_size, data_size / 10)
+        p, file_prefix, init_size, data_size, data_size // 10)
     self._verify_data(pcol, init_size, data_size)
     result = p.run()
     result.wait_until_finish()
 
   @staticmethod
   def _mean_verifier(data_size, x):
-    expected = sum(range(data_size)) / float(data_size)
+    expected = sum(range(data_size)) / data_size
     if x != expected:
       raise BeamAssertException(
           "incorrect mean: expected(%f) actual(%f)" % (expected, x)
