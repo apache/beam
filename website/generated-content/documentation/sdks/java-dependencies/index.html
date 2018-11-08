@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Java SDK dependencies</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java-dependencies/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">Languages</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/roadmap/">Roadmap</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+        <li>
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/java-dependencies.md" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Languages</span></li>
+
+<li>
+  <span class="section-nav-list-title">Java</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
+    <li><a href="https://beam.apache.org/releases/javadoc/2.8.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+    <li><a href="/documentation/sdks/java-dependencies/">Java SDK dependencies</a></li>
+    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
+    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
+    <li><a href="/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">Python</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
+    <li><a href="https://beam.apache.org/releases/pydoc/2.8.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+    <li><a href="/documentation/sdks/python-dependencies/">Python SDK dependencies</a></li>
+    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
+    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
+    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
+    <li><a href="/documentation/sdks/python-custom-io/">Creating new sources and sinks</a></li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">Go</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
+    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                   alt="External link."></a>
+    </li>
+  </ul>
+</li>
+
+<li>
+  <span class="section-nav-list-title">SQL</span>
+  <ul class="section-nav-list">
+    <li><a href="/documentation/dsls/sql/overview/">Overview</a></li>
+    <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
+    <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">SQL Reference</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/dsls/sql/data-types/">Data types</a></li>
+        <li><a href="/documentation/dsls/sql/lexical/">Lexical structure</a></li>
+        <li><a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></li>
+        <li><a href="/documentation/dsls/sql/select/">SELECT</a></li>
+        <li><a href="/documentation/dsls/sql/windowing-and-triggering/">Windowing & Triggering</a></li>
+        <li><a href="/documentation/dsls/sql/joins/">Joins</a></li>
+        <li><a href="/documentation/dsls/sql/scalar-functions/">Scalar functions</a></li>
+        <li><a href="/documentation/dsls/sql/aggregate-functions/">Aggregate functions</a></li>
+        <li><a href="/documentation/dsls/sql/user-defined-functions/">User-defined functions</a></li>
+        <li><a href="/documentation/dsls/sql/set/">SET Pipeline Options</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#280">2.8.0</a></li>
+  <li><a href="#previous-releases">Previous releases</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<h1 id="beam-sdk-for-java-dependencies">Beam SDK for Java dependencies</h1>
+
+<p>The Beam SDKs depend on common third-party components which then
+import additional dependencies. Version collisions can result in unexpected
+behavior in the service. If you are using any of these packages in your code, be
+aware that some libraries are not forward-compatible and you may need to pin to
+the listed versions that will be in scope during execution.</p>
+
+<h2 id="280">2.8.0</h2>
+
+<p>Beam SDK for Java 2.8.0 has the following compile and runtime dependencies.</p>
+<table class="table-bordered table-striped">
+  <tr><th>GroupId</th><th>ArtifactId</th><th>Version</th></tr>
+  <tr><td>activemq-amqp</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-broker</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-client</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-jaas</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-junit</td><td>org.apache.activemq.tooling</td><td>5.13.1</td></tr>
+  <tr><td>activemq-kahadb-store</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-mqtt</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>apex-common</td><td>org.apache.apex</td><td>3.7.0</td></tr>
+  <tr><td>apex-engine</td><td>org.apache.apex</td><td>3.7.0</td></tr>
+  <tr><td>api-common</td><td>com.google.api</td><td>1.6.0</td></tr>
+  <tr><td>args4j</td><td>args4j</td><td>2.33</td></tr>
+  <tr><td>avro</td><td>org.apache.avro</td><td>1.8.2</td></tr>
+  <tr><td>bigtable-client-core</td><td>com.google.cloud.bigtable</td><td>1.4.0</td></tr>
+  <tr><td>byte-buddy</td><td>net.bytebuddy</td><td>1.8.11</td></tr>
+  <tr><td>commons-compress</td><td>org.apache.commons</td><td>1.16.1</td></tr>
+  <tr><td>commons-csv</td><td>org.apache.commons</td><td>1.4</td></tr>
+  <tr><td>commons-io</td><td>commons-io</td><td>1.3.2</td></tr>
+  <tr><td>commons-io</td><td>commons-io</td><td>2.5</td></tr>
+  <tr><td>commons-lang3</td><td>org.apache.commons</td><td>3.6</td></tr>
+  <tr><td>commons-math3</td><td>org.apache.commons</td><td>3.6.1</td></tr>
+  <tr><td>datastore-v1-proto-client</td><td>com.google.cloud.datastore</td><td>1.6.0</td></tr>
+  <tr><td>error_prone_annotations</td><td>com.google.errorprone</td><td>2.0.15</td></tr>
+  <tr><td>gax-grpc</td><td>com.google.api</td><td>1.29.0</td></tr>
+  <tr><td>gcsio</td><td>com.google.cloud.bigdataoss</td><td>1.9.0</td></tr>
+  <tr><td>google-api-client-jackson2</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-client-java6</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-client</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-services-bigquery</td><td>com.google.apis</td><td>v2-rev402-1.23.0</td></tr>
+  <tr><td>google-api-services-clouddebugger</td><td>com.google.apis</td><td>v2-rev253-1.23.0</td></tr>
+  <tr><td>google-api-services-cloudresourcemanager</td><td>com.google.apis</td><td>v1-rev502-1.23.0</td></tr>
+  <tr><td>google-api-services-dataflow</td><td>com.google.apis</td><td>v1b3-rev257-1.23.0</td></tr>
+  <tr><td>google-api-services-pubsub</td><td>com.google.apis</td><td>v1-rev399-1.23.0</td></tr>
+  <tr><td>google-api-services-storage</td><td>com.google.apis</td><td>v1-rev136-1.23.0</td></tr>
+  <tr><td>google-auth-library-credentials</td><td>com.google.auth</td><td>0.10.0</td></tr>
+  <tr><td>google-auth-library-oauth2-http</td><td>com.google.auth</td><td>0.10.0</td></tr>
+  <tr><td>google-cloud-core-grpc</td><td>com.google.cloud</td><td>1.36.0</td></tr>
+  <tr><td>google-cloud-core</td><td>com.google.cloud</td><td>1.36.0</td></tr>
+  <tr><td>google-cloud-dataflow-java-proto-library-all</td><td>com.google.cloud.dataflow</td><td>0.5.160304</td></tr>
+  <tr><td>google-cloud-spanner</td><td>com.google.cloud</td><td>0.54.0-beta</td></tr>
+  <tr><td>google-http-client-jackson2</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client-jackson</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client-protobuf</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-oauth-client-java6</td><td>com.google.oauth-client</td><td>1.23.0</td></tr>
+  <tr><td>google-oauth-client</td><td>com.google.oauth-client</td><td>1.23.0</td></tr>
+  <tr><td>grpc-all</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-auth</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-core</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-google-cloud-bigtable-v2</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>grpc-google-cloud-pubsub-v1</td><td>com.google.api.grpc</td><td>1.18.0</td></tr>
+  <tr><td>grpc-netty</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-protobuf-lite</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-protobuf</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-stub</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>guava</td><td>com.google.guava</td><td>20.0</td></tr>
+  <tr><td>guava-testlib</td><td>com.google.guava</td><td>20.0</td></tr>
+  <tr><td>hadoop-client</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-common</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-hdfs</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-hdfs</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-mapreduce-client-core</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-minicluster</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hamcrest-core</td><td>org.hamcrest</td><td>1.3</td></tr>
+  <tr><td>hamcrest-library</td><td>org.hamcrest</td><td>1.3</td></tr>
+  <tr><td>jackson-annotations</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-core</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-databind</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-dataformat-cbor</td><td>com.fasterxml.jackson.dataformat</td><td>2.9.5</td></tr>
+  <tr><td>jackson-dataformat-yaml</td><td>com.fasterxml.jackson.dataformat</td><td>2.9.5</td></tr>
+  <tr><td>jackson-datatype-joda</td><td>com.fasterxml.jackson.datatype</td><td>2.9.5</td></tr>
+  <tr><td>jackson-module-scala_2.11</td><td>com.fasterxml.jackson.module</td><td>2.9.5</td></tr>
+  <tr><td>jaxb-api</td><td>javax.xml.bind</td><td>2.2.12</td></tr>
+  <tr><td>joda-time</td><td>joda-time</td><td>2.4</td></tr>
+  <tr><td>junit-quickcheck-core</td><td>com.pholser</td><td>0.8</td></tr>
+  <tr><td>junit</td><td>junit</td><td>4.12</td></tr>
+  <tr><td>kafka_2.11</td><td>org.apache.kafka</td><td>1.0.0</td></tr>
+  <tr><td>kafka-clients</td><td>org.apache.kafka</td><td>1.0.0</td></tr>
+  <tr><td>malhar-library</td><td>org.apache.apex</td><td>3.4.0</td></tr>
+  <tr><td>mockito-core</td><td>org.mockito</td><td>1.10.19</td></tr>
+  <tr><td>netty-handler</td><td>io.netty</td><td>4.1.25.Final</td></tr>
+  <tr><td>netty-tcnative-boringssl-static</td><td>io.netty</td><td>2.0.8.Final</td></tr>
+  <tr><td>netty-transport-native-epoll</td><td>io.netty</td><td>4.1.25.Final</td></tr>
+  <tr><td>postgresql</td><td>org.postgresql</td><td>42.2.2</td></tr>
+  <tr><td>powermock-mockito-release-full</td><td>org.powermock</td><td>1.6.4</td></tr>
+  <tr><td>protobuf-java</td><td>com.google.protobuf</td><td>3.6.0</td></tr>
+  <tr><td>protobuf-java-util</td><td>com.google.protobuf</td><td>3.6.0</td></tr>
+  <tr><td>proto-google-cloud-datastore-v1</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>proto-google-cloud-pubsub-v1</td><td>com.google.api.grpc</td><td>1.18.0</td></tr>
+  <tr><td>proto-google-cloud-spanner-admin-database-v1</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>proto-google-common-protos</td><td>com.google.api.grpc</td><td>1.12.0</td></tr>
+  <tr><td>slf4j-api</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-jdk14</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-log4j12</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-simple</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>snappy-java</td><td>org.xerial.snappy</td><td>1.1.4</td></tr>
+  <tr><td>spark-core_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>spark-network-common_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>spark-streaming_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>stax2-api</td><td>org.codehaus.woodstox</td><td>3.1.4</td></tr>
+  <tr><td>util</td><td>com.google.cloud.bigdataoss</td><td>1.9.0</td></tr>
+  <tr><td>woodstox-core-asl</td><td>org.codehaus.woodstox</td><td>4.4.1</td></tr>
+</table>
+
+<h2 id="previous-releases">Previous releases</h2>
+
+<details><summary>2.7.0</summary>
+<p>Beam SDK for Java 2.7.0 has the following compile and runtime dependencies.</p>
+<table class="table-bordered table-striped">
+  <tr><th>GroupId</th><th>ArtifactId</th><th>Version</th></tr>
+  <tr><td>activemq-amqp</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-broker</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-client</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-jaas</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-junit</td><td>org.apache.activemq.tooling</td><td>5.13.1</td></tr>
+  <tr><td>activemq-kahadb-store</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>activemq-mqtt</td><td>org.apache.activemq</td><td>5.13.1</td></tr>
+  <tr><td>apex-common</td><td>org.apache.apex</td><td>3.7.0</td></tr>
+  <tr><td>apex-engine</td><td>org.apache.apex</td><td>3.7.0</td></tr>
+  <tr><td>api-common</td><td>com.google.api</td><td>1.6.0</td></tr>
+  <tr><td>args4j</td><td>args4j</td><td>2.33</td></tr>
+  <tr><td>avro</td><td>org.apache.avro</td><td>1.8.2</td></tr>
+  <tr><td>bigtable-client-core</td><td>com.google.cloud.bigtable</td><td>1.4.0</td></tr>
+  <tr><td>byte-buddy</td><td>net.bytebuddy</td><td>1.8.11</td></tr>
+  <tr><td>commons-compress</td><td>org.apache.commons</td><td>1.16.1</td></tr>
+  <tr><td>commons-csv</td><td>org.apache.commons</td><td>1.4</td></tr>
+  <tr><td>commons-io</td><td>commons-io</td><td>1.3.2</td></tr>
+  <tr><td>commons-io</td><td>commons-io</td><td>2.5</td></tr>
+  <tr><td>commons-lang3</td><td>org.apache.commons</td><td>3.6</td></tr>
+  <tr><td>commons-math3</td><td>org.apache.commons</td><td>3.6.1</td></tr>
+  <tr><td>datastore-v1-proto-client</td><td>com.google.cloud.datastore</td><td>1.6.0</td></tr>
+  <tr><td>error_prone_annotations</td><td>com.google.errorprone</td><td>2.0.15</td></tr>
+  <tr><td>gax-grpc</td><td>com.google.api</td><td>1.29.0</td></tr>
+  <tr><td>gcsio</td><td>com.google.cloud.bigdataoss</td><td>1.9.0</td></tr>
+  <tr><td>google-api-client-jackson2</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-client-java6</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-client</td><td>com.google.api-client</td><td>1.23.0</td></tr>
+  <tr><td>google-api-services-bigquery</td><td>com.google.apis</td><td>v2-rev402-1.23.0</td></tr>
+  <tr><td>google-api-services-clouddebugger</td><td>com.google.apis</td><td>v2-rev253-1.23.0</td></tr>
+  <tr><td>google-api-services-cloudresourcemanager</td><td>com.google.apis</td><td>v1-rev502-1.23.0</td></tr>
+  <tr><td>google-api-services-dataflow</td><td>com.google.apis</td><td>v1b3-rev257-1.23.0</td></tr>
+  <tr><td>google-api-services-pubsub</td><td>com.google.apis</td><td>v1-rev399-1.23.0</td></tr>
+  <tr><td>google-api-services-storage</td><td>com.google.apis</td><td>v1-rev136-1.23.0</td></tr>
+  <tr><td>google-auth-library-credentials</td><td>com.google.auth</td><td>0.10.0</td></tr>
+  <tr><td>google-auth-library-oauth2-http</td><td>com.google.auth</td><td>0.10.0</td></tr>
+  <tr><td>google-cloud-core-grpc</td><td>com.google.cloud</td><td>1.36.0</td></tr>
+  <tr><td>google-cloud-core</td><td>com.google.cloud</td><td>1.36.0</td></tr>
+  <tr><td>google-cloud-dataflow-java-proto-library-all</td><td>com.google.cloud.dataflow</td><td>0.5.160304</td></tr>
+  <tr><td>google-cloud-spanner</td><td>com.google.cloud</td><td>0.54.0-beta</td></tr>
+  <tr><td>google-http-client-jackson2</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client-jackson</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client-protobuf</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-http-client</td><td>com.google.http-client</td><td>1.23.0</td></tr>
+  <tr><td>google-oauth-client-java6</td><td>com.google.oauth-client</td><td>1.23.0</td></tr>
+  <tr><td>google-oauth-client</td><td>com.google.oauth-client</td><td>1.23.0</td></tr>
+  <tr><td>grpc-all</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-auth</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-core</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-google-cloud-bigtable-v2</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>grpc-google-cloud-pubsub-v1</td><td>com.google.api.grpc</td><td>1.18.0</td></tr>
+  <tr><td>grpc-netty</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-protobuf-lite</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-protobuf</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>grpc-stub</td><td>io.grpc</td><td>1.13.1</td></tr>
+  <tr><td>guava</td><td>com.google.guava</td><td>20.0</td></tr>
+  <tr><td>guava-testlib</td><td>com.google.guava</td><td>20.0</td></tr>
+  <tr><td>hadoop-client</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-common</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-hdfs</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-hdfs</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-mapreduce-client-core</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hadoop-minicluster</td><td>org.apache.hadoop</td><td>2.7.3</td></tr>
+  <tr><td>hamcrest-core</td><td>org.hamcrest</td><td>1.3</td></tr>
+  <tr><td>hamcrest-library</td><td>org.hamcrest</td><td>1.3</td></tr>
+  <tr><td>jackson-annotations</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-core</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-databind</td><td>com.fasterxml.jackson.core</td><td>2.9.5</td></tr>
+  <tr><td>jackson-dataformat-cbor</td><td>com.fasterxml.jackson.dataformat</td><td>2.9.5</td></tr>
+  <tr><td>jackson-dataformat-yaml</td><td>com.fasterxml.jackson.dataformat</td><td>2.9.5</td></tr>
+  <tr><td>jackson-datatype-joda</td><td>com.fasterxml.jackson.datatype</td><td>2.9.5</td></tr>
+  <tr><td>jackson-module-scala_2.11</td><td>com.fasterxml.jackson.module</td><td>2.9.5</td></tr>
+  <tr><td>jaxb-api</td><td>javax.xml.bind</td><td>2.2.12</td></tr>
+  <tr><td>joda-time</td><td>joda-time</td><td>2.4</td></tr>
+  <tr><td>junit-quickcheck-core</td><td>com.pholser</td><td>0.8</td></tr>
+  <tr><td>junit</td><td>junit</td><td>4.12</td></tr>
+  <tr><td>kafka_2.11</td><td>org.apache.kafka</td><td>1.0.0</td></tr>
+  <tr><td>kafka-clients</td><td>org.apache.kafka</td><td>1.0.0</td></tr>
+  <tr><td>malhar-library</td><td>org.apache.apex</td><td>3.4.0</td></tr>
+  <tr><td>mockito-core</td><td>org.mockito</td><td>1.10.19</td></tr>
+  <tr><td>netty-handler</td><td>io.netty</td><td>4.1.25.Final</td></tr>
+  <tr><td>netty-tcnative-boringssl-static</td><td>io.netty</td><td>2.0.8.Final</td></tr>
+  <tr><td>netty-transport-native-epoll</td><td>io.netty</td><td>4.1.25.Final</td></tr>
+  <tr><td>postgresql</td><td>org.postgresql</td><td>42.2.2</td></tr>
+  <tr><td>powermock-mockito-release-full</td><td>org.powermock</td><td>1.6.4</td></tr>
+  <tr><td>protobuf-java</td><td>com.google.protobuf</td><td>3.6.0</td></tr>
+  <tr><td>protobuf-java-util</td><td>com.google.protobuf</td><td>3.6.0</td></tr>
+  <tr><td>proto-google-cloud-datastore-v1</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>proto-google-cloud-pubsub-v1</td><td>com.google.api.grpc</td><td>1.18.0</td></tr>
+  <tr><td>proto-google-cloud-spanner-admin-database-v1</td><td>com.google.api.grpc</td><td>0.19.0</td></tr>
+  <tr><td>proto-google-common-protos</td><td>com.google.api.grpc</td><td>1.12.0</td></tr>
+  <tr><td>slf4j-api</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-jdk14</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-log4j12</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>slf4j-simple</td><td>org.slf4j</td><td>1.7.25</td></tr>
+  <tr><td>snappy-java</td><td>org.xerial.snappy</td><td>1.1.4</td></tr>
+  <tr><td>spark-core_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>spark-network-common_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>spark-streaming_2.11</td><td>org.apache.spark</td><td>2.3.1</td></tr>
+  <tr><td>stax2-api</td><td>org.codehaus.woodstox</td><td>3.1.4</td></tr>
+  <tr><td>util</td><td>com.google.cloud.bigdataoss</td><td>1.9.0</td></tr>
+  <tr><td>woodstox-core-asl</td><td>org.codehaus.woodstox</td><td>4.4.1</td></tr>
+</table>
+</details>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

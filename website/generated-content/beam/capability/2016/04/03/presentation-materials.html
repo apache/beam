@@ -119,7 +119,12 @@
           </ul>
         </li>
         <li>
-          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2016-04-03-presentation-materials.md">
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2016-04-03-presentation-materials.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>

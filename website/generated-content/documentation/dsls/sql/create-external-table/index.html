@@ -120,7 +120,12 @@
           </ul>
         </li>
         <li>
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/create-external-table.md">
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/dsls/sql/create-external-table.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -155,6 +160,7 @@
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
+    <li><a href="/documentation/sdks/java-dependencies/">Java SDK dependencies</a></li>
     <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
     <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
     <li><a href="/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
@@ -169,6 +175,7 @@
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
+    <li><a href="/documentation/sdks/python-dependencies/">Python SDK dependencies</a></li>
     <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
     <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
     <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
