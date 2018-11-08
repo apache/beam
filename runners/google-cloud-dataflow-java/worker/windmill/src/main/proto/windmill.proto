@@ -446,6 +446,8 @@ message StreamingCommitWorkRequest {
 message JobHeader {
   optional string job_id = 1;
   optional string project_id = 2;
+  // Worker id is meant for logging only. Do not rely on it for other decisions.
+  optional string worker_id = 3;
 }
 
 message StreamingCommitRequestChunk {
