@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -185,6 +186,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
               keyType,
               valueType,
               setterFactory);
+    } else if (type.getTypeName().equals(TypeName.DATETIME)) {
+      if (value instanceof Instant) {
+        return (T) new org.joda.time.Instant(((Instant) value).toEpochMilli());
+      } else {
+        return value;
+      }
     } else {
       return value;
     }

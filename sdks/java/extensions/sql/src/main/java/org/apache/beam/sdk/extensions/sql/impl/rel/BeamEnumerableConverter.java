@@ -48,6 +48,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -253,7 +254,11 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      if (field.getType().getTypeName().equals(TypeName.DATETIME)) {
+        convertedColumns[i] = fieldToAvatica(field.getType(), row.getDateTime(i));
+      } else {
+        convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      }
       ++i;
     }
     return convertedColumns;

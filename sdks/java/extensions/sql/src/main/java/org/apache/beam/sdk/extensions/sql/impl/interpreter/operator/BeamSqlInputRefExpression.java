@@ -39,7 +39,11 @@ public class BeamSqlInputRefExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    return BeamSqlPrimitive.of(outputType, inputRow.getValue(inputRef));
+    if (SqlTypeName.DATETIME_TYPES.contains(outputType)) {
+      return BeamSqlPrimitive.of(outputType, inputRow.getDateTime(inputRef));
+    } else {
+      return BeamSqlPrimitive.of(outputType, inputRow.getValue(inputRef));
+    }
   }
 
   public int getInputRef() {

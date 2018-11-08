@@ -51,7 +51,7 @@ public class RowCoder extends CustomCoder<Row> {
           .put(TypeName.FLOAT, FloatCoder.of())
           .put(TypeName.DOUBLE, DoubleCoder.of())
           .put(TypeName.STRING, StringUtf8Coder.of())
-          .put(TypeName.DATETIME, InstantCoder.of())
+          .put(TypeName.DATETIME, JavaInstantCoder.of())
           .put(TypeName.BOOLEAN, BooleanCoder.of())
           .build();
 

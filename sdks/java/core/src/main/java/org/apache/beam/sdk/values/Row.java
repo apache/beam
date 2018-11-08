@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,9 +42,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
-import org.joda.time.Instant;
+import org.joda.time.DateTimeZone;
 import org.joda.time.ReadableDateTime;
-import org.joda.time.ReadableInstant;
 import org.joda.time.base.AbstractInstant;
 
 /**
@@ -171,6 +171,15 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a {@link Instant} value by field name, {@link IllegalStateException} is thrown if schema
+   * doesn't match.
+   */
+  @Nullable
+  public Instant getInstant(String fieldName) {
+    return getValue(getSchema().indexOf(fieldName));
+  }
+
+  /**
    * Get a {@link TypeName#BOOLEAN} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
@@ -283,8 +292,12 @@ public abstract class Row implements Serializable {
    */
   @Nullable
   public ReadableDateTime getDateTime(int idx) {
-    ReadableInstant instant = getValue(idx);
-    return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
+    Instant instant = getValue(idx);
+    // Row only saves an absolute value for DateTime, which is the seconds-since-epoch combined with
+    // a nanosecond-of-second adjustment. Here UTC timezone is chosen to construct Joda Datetime.
+    return (instant == null)
+        ? null
+        : new DateTime(instant.toEpochMilli()).withZone(DateTimeZone.UTC);
   }
 
   /**
@@ -611,7 +624,9 @@ public abstract class Row implements Serializable {
     private Instant verifyDateTime(Object value, String fieldName) {
       // We support the following classes for datetimes.
       if (value instanceof AbstractInstant) {
-        return ((AbstractInstant) value).toInstant();
+        return Instant.ofEpochMilli(((AbstractInstant) value).getMillis());
+      } else if (value instanceof Instant) {
+        return (Instant) value;
       } else {
         throw new IllegalArgumentException(
             String.format(

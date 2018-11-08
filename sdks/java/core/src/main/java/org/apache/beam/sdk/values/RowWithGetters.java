@@ -30,6 +30,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.joda.time.DateTime;
+import org.joda.time.ReadableDateTime;
+import org.joda.time.ReadableInstant;
 
 /**
  * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
@@ -104,6 +107,13 @@ public class RowWithGetters extends Row {
     } else {
       return (T) fieldValue;
     }
+  }
+
+  @Nullable
+  @Override
+  public ReadableDateTime getDateTime(int idx) {
+    ReadableInstant instant = getValue(idx);
+    return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
   }
 
   @Override
