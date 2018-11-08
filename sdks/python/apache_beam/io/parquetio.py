@@ -264,6 +264,7 @@ class WriteToParquet(PTransform):
                schema,
                codec='none',
                row_group_size=1000,
+               use_deprecated_int96_timestamps=False,
                file_name_suffix='',
                num_shards=0,
                shard_name_template=None,
@@ -297,6 +298,8 @@ class WriteToParquet(PTransform):
       codec: The codec to use for block-level compression. Any string supported
         by the pyarrow specification is accepted.
       row_group_size: The number of records in each row group.
+      use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
+        INT96 Parquet format. Defaults to False.
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
         service will decide on the optimal number of shards.
@@ -323,6 +326,7 @@ class WriteToParquet(PTransform):
           schema,
           codec,
           row_group_size,
+          use_deprecated_int96_timestamps,
           file_name_suffix,
           num_shards,
           shard_name_template,
@@ -340,6 +344,7 @@ def _create_parquet_sink(file_path_prefix,
                          schema,
                          codec,
                          row_group_size,
+                         use_deprecated_int96_timestamps,
                          file_name_suffix,
                          num_shards,
                          shard_name_template,
@@ -350,6 +355,7 @@ def _create_parquet_sink(file_path_prefix,
         schema,
         codec,
         row_group_size,
+        use_deprecated_int96_timestamps,
         file_name_suffix,
         num_shards,
         shard_name_template,
@@ -365,6 +371,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
                schema,
                codec,
                row_group_size,
+               use_deprecated_int96_timestamps,
                file_name_suffix,
                num_shards,
                shard_name_template,
@@ -382,13 +389,16 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     self._schema = schema
     self._codec = codec
     self._row_group_size = row_group_size
+    self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
     self._buffer = [[] for _ in range(len(schema.names))]
     self._file_handle = None
 
   def open(self, temp_path):
     self._file_handle = super(_ParquetSink, self).open(temp_path)
     return ParquetWriter(
-        self._file_handle, self._schema, compression=self._codec)
+        self._file_handle, self._schema, compression=self._codec,
+        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps
+    )
 
   def write_record(self, writer, value):
     if len(self._buffer[0]) >= self._row_group_size:

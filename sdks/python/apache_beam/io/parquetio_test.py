@@ -26,6 +26,7 @@ import unittest
 
 import hamcrest as hc
 import pyarrow as pa
+from pyarrow.lib import ArrowInvalid
 import pyarrow.parquet as pq
 
 from apache_beam import Create
@@ -84,6 +85,12 @@ class TestParquet(unittest.TestCase):
       ('favorite_color', pa.binary())
   ])
 
+  SCHEMA96 = pa.schema([
+      ('name', pa.binary()),
+      ('favorite_number', pa.timestamp('ns')),
+      ('favorite_color', pa.binary())
+  ])
+
   def _record_to_columns(self, records, schema):
     col_list = []
     for n in schema.names:
@@ -95,10 +102,13 @@ class TestParquet(unittest.TestCase):
 
   def _write_data(self,
                   directory=None,
+                  schema=None,
                   prefix=tempfile.template,
                   row_group_size=1000,
                   codec='none',
                   count=len(RECORDS)):
+    if schema is None:
+      schema = self.SCHEMA
 
     if directory is None:
       directory = self.temp_dir
@@ -109,10 +119,15 @@ class TestParquet(unittest.TestCase):
       data = []
       for i in range(count):
         data.append(self.RECORDS[i % len_records])
-      col_data = self._record_to_columns(data, self.SCHEMA)
-      col_array = [pa.array(c) for c in col_data]
-      table = pa.Table.from_arrays(col_array, self.SCHEMA.names)
-      pq.write_table(table, f, row_group_size=row_group_size, compression=codec)
+      col_data = self._record_to_columns(data, schema)
+      col_array = [
+          pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)
+      ]
+      table = pa.Table.from_arrays(col_array, schema.names)
+      pq.write_table(
+          table, f, row_group_size=row_group_size, compression=codec,
+          use_deprecated_int96_timestamps=True
+      )
 
       return f.name
 
@@ -188,6 +203,7 @@ class TestParquet(unittest.TestCase):
         self.SCHEMA,
         'none',
         1,
+        False,
         '.end',
         0,
         None,
@@ -226,6 +242,17 @@ class TestParquet(unittest.TestCase):
             'compression',
             'uncompressed')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_sink_transform_int96(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with self.assertRaises(ArrowInvalid):
+        with TestPipeline() as p:
+          # pylint: disable=expression-not-assigned
+          p \
+          | Create(self.RECORDS) \
+          | WriteToParquet(
+              path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
@@ -377,6 +404,17 @@ class TestParquet(unittest.TestCase):
         split for split in source.split(desired_bundle_size=1)
     ]
     self.assertNotEquals(len(splits), 1)
+
+  def test_failing_type_conversion(self):
+    file_name = self._write_data(
+        count=120, row_group_size=20, schema=self.SCHEMA96)
+    source = _create_parquet_source(file_name)
+    try:
+      # pylint: disable=unused-variable
+      import pandas
+    except ImportError:
+      with self.assertRaises(ValueError):
+        source_test_utils.read_from_source(source)
 
   def test_split_points(self):
     file_name = self._write_data(count=12000, row_group_size=3000)
