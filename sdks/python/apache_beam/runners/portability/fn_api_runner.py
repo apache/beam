@@ -460,12 +460,278 @@ class FnApiRunner(runner.PipelineRunner):
   def run_stages(self, stage_context, stages):
     """Run a list of topologically-sorted stages in batch mode.
 
-    Args:
-      stage_context (fn_api_runner_transforms.TransformContext)
-      stages (list[fn_api_runner_transforms.Stage])
-    """
-    worker_handler_manager = WorkerHandlerManager(
-        stage_context.components.environments, self._provision_info)
+      This representation is also amenable to simple recomputation on fusion.
+      """
+      consumers = collections.defaultdict(list)
+      all_side_inputs = set()
+      for stage in stages:
+        for transform in stage.transforms:
+          for input in transform.inputs.values():
+            consumers[input].append(stage)
+        for si in stage.side_inputs():
+          all_side_inputs.add(si)
+      all_side_inputs = frozenset(all_side_inputs)
+
+      downstream_side_inputs_by_stage = {}
+
+      def compute_downstream_side_inputs(stage):
+        if stage not in downstream_side_inputs_by_stage:
+          downstream_side_inputs = frozenset()
+          for transform in stage.transforms:
+            for output in transform.outputs.values():
+              if output in all_side_inputs:
+                downstream_side_inputs = union(
+                    downstream_side_inputs, frozenset([output]))
+              for consumer in consumers[output]:
+                downstream_side_inputs = union(
+                    downstream_side_inputs,
+                    compute_downstream_side_inputs(consumer))
+          downstream_side_inputs_by_stage[stage] = downstream_side_inputs
+        return downstream_side_inputs_by_stage[stage]
+
+      for stage in stages:
+        stage.downstream_side_inputs = compute_downstream_side_inputs(stage)
+      return stages
+
+    def fix_side_input_pcoll_coders(stages):
+      """Length prefix side input PCollection coders.
+      """
+      for stage in stages:
+        for si in stage.side_inputs():
+          length_prefix_unknown_coders(
+              pipeline_components.pcollections[si], pipeline_components)
+      return stages
+
+    def greedily_fuse(stages):
+      """Places transforms sharing an edge in the same stage, whenever possible.
+      """
+      producers_by_pcoll = {}
+      consumers_by_pcoll = collections.defaultdict(list)
+
+      # Used to always reference the correct stage as the producer and
+      # consumer maps are not updated when stages are fused away.
+      replacements = {}
+
+      def replacement(s):
+        old_ss = []
+        while s in replacements:
+          old_ss.append(s)
+          s = replacements[s]
+        for old_s in old_ss[:-1]:
+          replacements[old_s] = s
+        return s
+
+      def fuse(producer, consumer):
+        fused = producer.fuse(consumer)
+        replacements[producer] = fused
+        replacements[consumer] = fused
+
+      # First record the producers and consumers of each PCollection.
+      for stage in stages:
+        for transform in stage.transforms:
+          for input in transform.inputs.values():
+            consumers_by_pcoll[input].append(stage)
+          for output in transform.outputs.values():
+            producers_by_pcoll[output] = stage
+
+      logging.debug('consumers\n%s', consumers_by_pcoll)
+      logging.debug('producers\n%s', producers_by_pcoll)
+
+      # Now try to fuse away all pcollections.
+      for pcoll, producer in producers_by_pcoll.items():
+        write_pcoll = None
+        for consumer in consumers_by_pcoll[pcoll]:
+          producer = replacement(producer)
+          consumer = replacement(consumer)
+          # Update consumer.must_follow set, as it's used in can_fuse.
+          consumer.must_follow = frozenset(
+              replacement(s) for s in consumer.must_follow)
+          if producer.can_fuse(consumer):
+            fuse(producer, consumer)
+          else:
+            # If we can't fuse, do a read + write.
+            buffer_id = create_buffer_id(pcoll)
+            if write_pcoll is None:
+              write_pcoll = Stage(
+                  pcoll + '/Write',
+                  [beam_runner_api_pb2.PTransform(
+                      unique_name=pcoll + '/Write',
+                      inputs={'in': pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_OUTPUT_URN,
+                          payload=buffer_id))])
+              fuse(producer, write_pcoll)
+            if consumer.has_as_main_input(pcoll):
+              read_pcoll = Stage(
+                  pcoll + '/Read',
+                  [beam_runner_api_pb2.PTransform(
+                      unique_name=pcoll + '/Read',
+                      outputs={'out': pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_INPUT_URN,
+                          payload=buffer_id))],
+                  must_follow=frozenset([write_pcoll]))
+              fuse(read_pcoll, consumer)
+            else:
+              consumer.must_follow = union(
+                  consumer.must_follow, frozenset([write_pcoll]))
+
+      # Everything that was originally a stage or a replacement, but wasn't
+      # replaced, should be in the final graph.
+      final_stages = frozenset(stages).union(list(replacements.values()))\
+          .difference(list(replacements))
+
+      for stage in final_stages:
+        # Update all references to their final values before throwing
+        # the replacement data away.
+        stage.must_follow = frozenset(replacement(s) for s in stage.must_follow)
+        # Two reads of the same stage may have been fused.  This is unneeded.
+        stage.deduplicate_read()
+      return final_stages
+
+    def inject_timer_pcollections(stages):
+      for stage in stages:
+        for transform in list(stage.transforms):
+          if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+            for tag, spec in payload.timer_specs.items():
+              if len(transform.inputs) > 1:
+                raise NotImplementedError('Timers and side inputs.')
+              input_pcoll = pipeline_components.pcollections[
+                  next(iter(transform.inputs.values()))]
+              # Create the appropriate coder for the timer PCollection.
+              key_coder_id = input_pcoll.coder_id
+              if (pipeline_components.coders[key_coder_id].spec.spec.urn
+                  == common_urns.coders.WINDOWED_VALUE.urn):
+                key_coder_id = pipeline_components.coders[
+                    key_coder_id].component_coder_ids[0]
+              if (pipeline_components.coders[key_coder_id].spec.spec.urn
+                  == common_urns.coders.KV.urn):
+                key_coder_id = pipeline_components.coders[
+                    key_coder_id].component_coder_ids[0]
+              key_timer_coder_id = add_or_get_coder_id(
+                  beam_runner_api_pb2.Coder(
+                      spec=beam_runner_api_pb2.SdkFunctionSpec(
+                          spec=beam_runner_api_pb2.FunctionSpec(
+                              urn=common_urns.coders.KV.urn)),
+                      component_coder_ids=[key_coder_id, spec.timer_coder_id]))
+              timer_pcoll_coder_id = windowed_coder_id(
+                  key_timer_coder_id,
+                  pipeline_components.windowing_strategies[
+                      input_pcoll.windowing_strategy_id].window_coder_id)
+              # Inject the read and write pcollections.
+              timer_read_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_read_%s' % (transform.unique_name, tag))
+              timer_write_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_write_%s' % (transform.unique_name, tag))
+              pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
+                  beam_runner_api_pb2.PCollection(
+                      unique_name=timer_read_pcoll,
+                      coder_id=timer_pcoll_coder_id,
+                      windowing_strategy_id=input_pcoll.windowing_strategy_id,
+                      is_bounded=input_pcoll.is_bounded))
+              pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
+                  beam_runner_api_pb2.PCollection(
+                      unique_name=timer_write_pcoll,
+                      coder_id=timer_pcoll_coder_id,
+                      windowing_strategy_id=input_pcoll.windowing_strategy_id,
+                      is_bounded=input_pcoll.is_bounded))
+              stage.transforms.append(
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=timer_read_pcoll + '/Read',
+                      outputs={'out': timer_read_pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_INPUT_URN,
+                          payload=create_buffer_id(
+                              timer_read_pcoll, kind='timers'))))
+              stage.transforms.append(
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=timer_write_pcoll + '/Write',
+                      inputs={'in': timer_write_pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_OUTPUT_URN,
+                          payload=create_buffer_id(
+                              timer_write_pcoll, kind='timers'))))
+              assert tag not in transform.inputs
+              transform.inputs[tag] = timer_read_pcoll
+              assert tag not in transform.outputs
+              transform.outputs[tag] = timer_write_pcoll
+              stage.timer_pcollections.append(
+                  (timer_read_pcoll + '/Read', timer_write_pcoll))
+        yield stage
+
+    def sort_stages(stages):
+      """Order stages suitable for sequential execution.
+      """
+      seen = set()
+      ordered = []
+
+      def process(stage):
+        if stage not in seen:
+          seen.add(stage)
+          for prev in stage.must_follow:
+            process(prev)
+          ordered.append(stage)
+      for stage in stages:
+        process(stage)
+      return ordered
+
+    # Now actually apply the operations.
+
+    pipeline_components = copy.deepcopy(pipeline_proto.components)
+
+    # Some SDK workers require windowed coders for their PCollections.
+    # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
+    for pcoll in pipeline_components.pcollections.values():
+      if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
+          != common_urns.coders.WINDOWED_VALUE.urn):
+        pcoll.coder_id = windowed_coder_id(
+            pcoll.coder_id,
+            pipeline_components.windowing_strategies[
+                pcoll.windowing_strategy_id].window_coder_id)
+
+    known_composites = set(
+        [common_urns.primitives.GROUP_BY_KEY.urn,
+         common_urns.composites.COMBINE_PER_KEY.urn])
+
+    def leaf_transforms(root_ids):
+      for root_id in root_ids:
+        root = pipeline_proto.components.transforms[root_id]
+        if root.spec.urn in known_composites:
+          yield root_id
+        elif not root.subtransforms:
+          # Make sure its outputs are not a subset of its inputs.
+          if set(root.outputs.values()) - set(root.inputs.values()):
+            yield root_id
+        else:
+          for leaf in leaf_transforms(root.subtransforms):
+            yield leaf
+
+    # Initial set of stages are singleton leaf transforms.
+    stages = [
+        Stage(name, [pipeline_proto.components.transforms[name]])
+        for name in leaf_transforms(pipeline_proto.root_transform_ids)]
+
+    # Apply each phase in order.
+    for phase in [
+        annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
+        lift_combiners, expand_gbk, sink_flattens, greedily_fuse,
+        impulse_to_input, inject_timer_pcollections, sort_stages]:
+      logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
+      stages = list(phase(stages))
+      logging.debug('Stages: %s', [str(s) for s in stages])
+
+    # Return the (possibly mutated) context and ordered set of stages.
+    return pipeline_components, stages, safe_coders
+
+  def run_stages(self, pipeline_components, stages, safe_coders):
+    if self._use_grpc:
+      controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
+    else:
+      controller = FnApiRunner.DirectController()
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
