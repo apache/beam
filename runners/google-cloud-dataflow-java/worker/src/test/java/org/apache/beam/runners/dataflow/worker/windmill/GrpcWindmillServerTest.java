@@ -299,6 +299,7 @@ public class GrpcWindmillServerTest {
                             JobHeader.newBuilder()
                                 .setJobId("job")
                                 .setProjectId("project")
+                                .setWorkerId("worker")
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -522,7 +523,11 @@ public class GrpcWindmillServerTest {
                   errorCollector.checkThat(
                       request.getHeader(),
                       Matchers.equalTo(
-                          JobHeader.newBuilder().setJobId("job").setProjectId("project").build()));
+                          JobHeader.newBuilder()
+                              .setJobId("job")
+                              .setProjectId("project")
+                              .setWorkerId("worker")
+                              .build()));
                   sawHeader = true;
                   LOG.info("Received header");
                 } else {
@@ -649,6 +654,7 @@ public class GrpcWindmillServerTest {
                             JobHeader.newBuilder()
                                 .setJobId("job")
                                 .setProjectId("project")
+                                .setWorkerId("worker")
                                 .build()));
                     sawHeader = true;
                   } else {
