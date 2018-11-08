@@ -21,6 +21,10 @@ import static org.apache.beam.runners.core.construction.SyntheticComponents.uniq
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -393,12 +397,12 @@ public class ProcessBundleDescriptors {
                   timerReference.transform().getId(), timerReference.localName()),
               components.getPcollectionsMap()::containsKey);
       components.putPcollections(outputTimerPCollectionId, timerCollectionSpec);
-      OutputEncoding outputEncoding =
+      TargetEncoding targetEncoding =
           addStageOutput(
               dataEndpoint,
               components,
               PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec));
-      outputTransformCodersBuilder.put(outputEncoding.getPTransformId(), outputEncoding.getCoder());
+      outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
           // Since a transform can have more then one timer, update the transform inside components
@@ -417,8 +421,7 @@ public class ProcessBundleDescriptors {
               timerReference.transform().getId(),
               timerReference.localName(),
               inputTimerPCollectionId,
-              outputTimerPCollectionId,
-              outputEncoding.getPTransformId(),
+              targetEncoding.getTarget(),
               spec));
     }
     return idsToSpec.build().rowMap();
@@ -434,7 +437,9 @@ public class ProcessBundleDescriptors {
     components.putCoders(
         id,
         RunnerApi.Coder.newBuilder()
-            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN))
+            .setSpec(
+                RunnerApi.SdkFunctionSpec.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN)))
             .addComponentCoderIds(keyCoderId)
             .addComponentCoderIds(valueCoderId)
             .build());
