@@ -28,6 +28,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import typing
 from builtins import hex
 from builtins import object
 
@@ -111,7 +112,7 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue):
+class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
