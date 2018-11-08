@@ -36,6 +36,9 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
     returnType = Schema.TypeName.DOUBLE
   )
   public Double cosh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.cosh(o);
   }
 
@@ -51,6 +54,9 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
     returnType = Schema.TypeName.DOUBLE
   )
   public Double sinh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.sinh(o);
   }
 
@@ -65,6 +71,9 @@ public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
     returnType = Schema.TypeName.DOUBLE
   )
   public Double tanh(Double o) {
+    if (o == null) {
+      return null;
+    }
     return Math.tanh(o);
   }
 }
