@@ -414,8 +414,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     return res
 
   def _write_buffer(self, writer):
+    arrays = [[] for _ in range(len(self._schema.names))]
     for x, y in enumerate(self._buffer):
-      self._buffer[x] = pa.array(y, type=self._schema.types[x])
-    table = pa.Table.from_arrays(self._buffer, self._schema.names)
+      arrays[x] = pa.array(y, type=self._schema.types[x])
+      self._buffer[x] = []
+    table = pa.Table.from_arrays(arrays, self._schema.names)
     writer.write_table(table)
-    self._buffer = [[] for _ in range(len(self._schema.names))]
