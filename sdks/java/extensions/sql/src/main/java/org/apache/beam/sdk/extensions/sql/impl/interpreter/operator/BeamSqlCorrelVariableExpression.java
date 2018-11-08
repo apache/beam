@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -38,8 +37,7 @@ public class BeamSqlCorrelVariableExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
 
     Row correlateValue = env.getCorrelVariable(correlationId);
 

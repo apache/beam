@@ -50,9 +50,8 @@ public abstract class BeamSqlExpression implements Serializable {
     return op(idx).getOutputType();
   }
 
-  public Object opValueEvaluated(
-      int idx, Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    return op(idx).evaluate(row, window, env).getValue();
+  public Object opValueEvaluated(int idx, Row row, BeamSqlExpressionEnvironment env) {
+    return op(idx).evaluate(row, env).getValue();
   }
 
   /** assertion to make sure the input and output are supported in this expression. */
@@ -62,8 +61,7 @@ public abstract class BeamSqlExpression implements Serializable {
    * Apply input record {@link Row} with {@link BoundedWindow} to this expression, the output value
    * is wrapped with {@link BeamSqlPrimitive}.
    */
-  public abstract BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env);
+  public abstract BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;

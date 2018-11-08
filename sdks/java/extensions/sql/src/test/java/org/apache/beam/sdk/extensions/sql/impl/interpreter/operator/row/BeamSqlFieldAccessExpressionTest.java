@@ -49,9 +49,7 @@ public class BeamSqlFieldAccessExpressionTest {
 
     assertEquals(
         "bbb",
-        arrayExpression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        arrayExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -71,10 +69,7 @@ public class BeamSqlFieldAccessExpressionTest {
         new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "bb",
-        arrayExpression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        "bb", arrayExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -85,7 +80,7 @@ public class BeamSqlFieldAccessExpressionTest {
     thrown.expectMessage("unsupported type");
 
     new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+        .evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty())
         .getValue();
   }
 }

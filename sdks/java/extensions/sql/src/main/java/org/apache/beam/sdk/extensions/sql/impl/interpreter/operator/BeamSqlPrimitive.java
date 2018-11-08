@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -32,7 +31,7 @@ import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}. It holds the
- * value, and return it directly during {@link BeamSqlExpression#evaluate(Row, BoundedWindow,
+ * value, and return it directly during {@link BeamSqlExpression#evaluate(Row,
  * BeamSqlExpressionEnvironment)}.
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression {
@@ -164,8 +163,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive<T> evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
     return this;
   }
 

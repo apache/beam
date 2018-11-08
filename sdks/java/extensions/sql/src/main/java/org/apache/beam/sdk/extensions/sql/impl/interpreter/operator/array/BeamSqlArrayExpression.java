@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -38,12 +37,11 @@ public class BeamSqlArrayExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
     List<Object> elements =
         operands
             .stream()
-            .map(op -> op.evaluate(inputRow, window, env).getValue())
+            .map(op -> op.evaluate(inputRow, env).getValue())
             .collect(Collectors.toList());
 
     return BeamSqlPrimitive.of(outputType, elements);

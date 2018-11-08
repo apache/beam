@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 
 /** A generic expression form for an operator applied to arguments. */
@@ -39,12 +38,11 @@ public class BeamSqlOperatorExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
     List<BeamSqlPrimitive> arguments =
         operands
             .stream()
-            .map(operand -> operand.evaluate(inputRow, window, env))
+            .map(operand -> operand.evaluate(inputRow, env))
             .collect(Collectors.toList());
 
     return operator.apply(arguments);

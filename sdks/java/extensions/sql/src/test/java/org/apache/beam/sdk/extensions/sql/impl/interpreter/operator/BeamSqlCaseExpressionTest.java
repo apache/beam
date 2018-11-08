@@ -73,7 +73,7 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(
         "hello",
         new BeamSqlCaseExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -83,7 +83,7 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(
         "world",
         new BeamSqlCaseExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -95,7 +95,7 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(
         "hello1",
         new BeamSqlCaseExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

@@ -157,7 +157,7 @@ public class BeamSqlTimestampMinusIntervalExpressionTest {
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
 
     BeamSqlPrimitive subtractionResult =
-        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
+        minusExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty());
 
     assertEquals(SqlTypeName.TIMESTAMP, subtractionResult.getOutputType());
     assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());

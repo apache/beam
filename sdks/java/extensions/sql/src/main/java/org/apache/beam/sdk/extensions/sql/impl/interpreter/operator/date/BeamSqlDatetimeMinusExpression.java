@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -87,12 +86,11 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
     if (delegateExpression == null) {
       throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
     }
 
-    return delegateExpression.evaluate(inputRow, window, env);
+    return delegateExpression.evaluate(inputRow, env);
   }
 }

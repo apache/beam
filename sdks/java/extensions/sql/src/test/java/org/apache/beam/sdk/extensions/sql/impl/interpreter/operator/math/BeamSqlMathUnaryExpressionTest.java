@@ -63,7 +63,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         28965734597L,
         new BeamSqlAbsExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -76,7 +76,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log(2),
         new BeamSqlLnExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // test for LN function with operand type double
@@ -85,7 +85,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log(2.4),
         new BeamSqlLnExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for LN function with operand type decimal
     operands.clear();
@@ -93,7 +93,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log(2.56),
         new BeamSqlLnExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -106,7 +106,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log10(2),
         new BeamSqlLogExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for log10 function with operand type double
     operands.clear();
@@ -114,7 +114,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log10(2.4),
         new BeamSqlLogExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for log10 function with operand type decimal
     operands.clear();
@@ -122,7 +122,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.log10(2.56),
         new BeamSqlLogExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -135,7 +135,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.exp(2),
         new BeamSqlExpExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -143,7 +143,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.exp(2.4),
         new BeamSqlExpExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -151,7 +151,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.exp(2.56),
         new BeamSqlExpExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -164,7 +164,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Double.NaN,
         new BeamSqlAcosExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -172,7 +172,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.acos(0.45),
         new BeamSqlAcosExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -180,7 +180,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.acos(-0.367),
         new BeamSqlAcosExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -193,7 +193,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.asin(0.45),
         new BeamSqlAsinExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -201,7 +201,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.asin(-0.367),
         new BeamSqlAsinExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -214,7 +214,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.atan(0.45),
         new BeamSqlAtanExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -222,7 +222,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.atan(-0.367),
         new BeamSqlAtanExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -235,7 +235,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.cos(0.45),
         new BeamSqlCosExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -243,7 +243,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.cos(-0.367),
         new BeamSqlCosExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -256,7 +256,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.0d / Math.tan(0.45),
         new BeamSqlCotExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -264,7 +264,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.0d / Math.tan(-0.367),
         new BeamSqlCotExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -277,7 +277,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toDegrees(2),
         new BeamSqlDegreesExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -285,7 +285,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toDegrees(2.4),
         new BeamSqlDegreesExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -293,7 +293,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toDegrees(2.56),
         new BeamSqlDegreesExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -306,7 +306,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toRadians(2),
         new BeamSqlRadiansExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -314,7 +314,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toRadians(2.4),
         new BeamSqlRadiansExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -322,7 +322,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.toRadians(2.56),
         new BeamSqlRadiansExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -335,7 +335,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.sin(2),
         new BeamSqlSinExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -343,7 +343,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.sin(2.4),
         new BeamSqlSinExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -351,7 +351,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.sin(2.56),
         new BeamSqlSinExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -364,7 +364,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.tan(2),
         new BeamSqlTanExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -372,7 +372,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.tan(2.4),
         new BeamSqlTanExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -380,7 +380,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.tan(2.56),
         new BeamSqlTanExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -393,7 +393,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         (short) 1,
         new BeamSqlSignExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type double
     operands.clear();
@@ -401,7 +401,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.0,
         new BeamSqlSignExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // test for exp function with operand type decimal
     operands.clear();
@@ -409,7 +409,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         BigDecimal.ONE,
         new BeamSqlSignExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -417,9 +417,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testForPi() {
     Assert.assertEquals(
         Math.PI,
-        new BeamSqlPiExpression()
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        new BeamSqlPiExpression().evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -429,7 +427,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.ceil(2.68687979),
         new BeamSqlCeilExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -440,7 +438,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.floor(2.68687979),
         new BeamSqlFloorExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

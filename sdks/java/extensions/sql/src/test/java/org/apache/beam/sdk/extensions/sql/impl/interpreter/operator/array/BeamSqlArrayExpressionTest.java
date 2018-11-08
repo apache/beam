@@ -49,9 +49,7 @@ public class BeamSqlArrayExpressionTest {
 
     assertEquals(
         Arrays.asList("aaa", "bbb"),
-        arrayExpression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        arrayExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test

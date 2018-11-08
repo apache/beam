@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -39,10 +38,9 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    List<Object> array = (List) opValueEvaluated(0, inputRow, window, env);
-    Integer index = (Integer) opValueEvaluated(1, inputRow, window, env);
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
+    List<Object> array = (List) opValueEvaluated(0, inputRow, env);
+    Integer index = (Integer) opValueEvaluated(1, inputRow, env);
 
     // SQL array indexing is 1 based
     return BeamSqlPrimitive.of(outputType, array.get(index - 1));

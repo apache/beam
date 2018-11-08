@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -72,53 +71,44 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
     SqlTypeName castOutputType = getOutputType();
     switch (castOutputType) {
       case BOOLEAN:
         return BeamSqlPrimitive.of(
-            SqlTypeName.BOOLEAN,
-            SqlFunctions.toBoolean(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.BOOLEAN, SqlFunctions.toBoolean(opValueEvaluated(index, inputRow, env)));
       case INTEGER:
         return BeamSqlPrimitive.of(
-            SqlTypeName.INTEGER,
-            SqlFunctions.toInt(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.INTEGER, SqlFunctions.toInt(opValueEvaluated(index, inputRow, env)));
       case DOUBLE:
         return BeamSqlPrimitive.of(
-            SqlTypeName.DOUBLE,
-            SqlFunctions.toDouble(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.DOUBLE, SqlFunctions.toDouble(opValueEvaluated(index, inputRow, env)));
       case SMALLINT:
         return BeamSqlPrimitive.of(
-            SqlTypeName.SMALLINT,
-            SqlFunctions.toShort(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.SMALLINT, SqlFunctions.toShort(opValueEvaluated(index, inputRow, env)));
       case TINYINT:
         return BeamSqlPrimitive.of(
-            SqlTypeName.TINYINT,
-            SqlFunctions.toByte(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.TINYINT, SqlFunctions.toByte(opValueEvaluated(index, inputRow, env)));
       case BIGINT:
         return BeamSqlPrimitive.of(
-            SqlTypeName.BIGINT,
-            SqlFunctions.toLong(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.BIGINT, SqlFunctions.toLong(opValueEvaluated(index, inputRow, env)));
       case DECIMAL:
         return BeamSqlPrimitive.of(
-            SqlTypeName.DECIMAL,
-            SqlFunctions.toBigDecimal(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.DECIMAL, SqlFunctions.toBigDecimal(opValueEvaluated(index, inputRow, env)));
       case FLOAT:
         return BeamSqlPrimitive.of(
-            SqlTypeName.FLOAT,
-            SqlFunctions.toFloat(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.FLOAT, SqlFunctions.toFloat(opValueEvaluated(index, inputRow, env)));
       case CHAR:
       case VARCHAR:
         // TODO: We should do standards-compliant string conversions here.
         return BeamSqlPrimitive.of(
-            SqlTypeName.VARCHAR, opValueEvaluated(index, inputRow, window, env).toString());
+            SqlTypeName.VARCHAR, opValueEvaluated(index, inputRow, env).toString());
       case DATE:
         return BeamSqlPrimitive.of(
-            SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, env)));
       case TIMESTAMP:
         return BeamSqlPrimitive.of(
-            SqlTypeName.TIMESTAMP, toTimeStamp(opValueEvaluated(index, inputRow, window, env)));
+            SqlTypeName.TIMESTAMP, toTimeStamp(opValueEvaluated(index, inputRow, env)));
       default:
         throw new UnsupportedOperationException(
             String.format("Cast to type %s not supported", castOutputType));

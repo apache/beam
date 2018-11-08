@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -36,11 +35,10 @@ public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    Boolean value = (Boolean) opValueEvaluated(0, inputRow, window, env);
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
+    Boolean value = (Boolean) opValueEvaluated(0, inputRow, env);
     if (value == null) {
-      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, window);
+      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null);
     } else {
       return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, !value);
     }

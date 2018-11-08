@@ -52,7 +52,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         5L,
         new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getLong());
   }
 
@@ -62,7 +62,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         5L,
         new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getLong());
   }
 
@@ -73,7 +73,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -84,7 +84,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -95,7 +95,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -105,7 +105,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         SqlTypeName.TIMESTAMP,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getOutputType());
   }
 
@@ -115,7 +115,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -130,7 +130,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         expected,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -140,7 +140,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTime(23, 59, 59, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -150,7 +150,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

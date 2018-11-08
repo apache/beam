@@ -72,7 +72,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2.0,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // round(integer,integer) => integer
     operands.clear();
@@ -81,7 +81,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // round(long,long) => long
@@ -91,7 +91,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         5L,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // round(short) => short
@@ -100,7 +100,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         SqlFunctions.toShort(4),
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // round(long,long) => long
@@ -109,7 +109,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2L,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // round(double, long) => double
@@ -119,7 +119,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.1,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -128,7 +128,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2.37,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -136,7 +136,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         4.0,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -145,7 +145,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         400.0,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.clear();
@@ -154,7 +154,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         380.0,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // round(integer, double) => integer
@@ -164,7 +164,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // operand with a BeamSqlInputRefExpression
@@ -177,7 +177,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1234567L,
         new BeamSqlRoundExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -192,7 +192,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         16.0,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // power(integer,integer) => long
     operands.clear();
@@ -201,7 +201,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         4.0,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // power(integer,long) => long
     operands.clear();
@@ -210,7 +210,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         8.0,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // power(long,long) => long
@@ -220,7 +220,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         4.0,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // power(double, int) => double
@@ -230,7 +230,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.1,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // power(double, long) => double
@@ -240,7 +240,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         1.1,
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     // power(integer, double) => double
@@ -250,7 +250,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.pow(2, 2.2),
         new BeamSqlPowerExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -262,7 +262,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2.0,
         new BeamSqlTruncateExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
     // truncate(double, integer) => double
     operands.clear();
@@ -271,7 +271,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         2.8068,
         new BeamSqlTruncateExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -283,7 +283,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         Math.atan2(0.875, 0.56),
         new BeamSqlAtan2Expression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -39,4 +41,14 @@ public interface BeamSqlExpressionEnvironment {
    * replaced with the given unevaluated expressions.
    */
   BeamSqlExpressionEnvironment copyWithLocalRefExprs(List<BeamSqlExpression> localRefExprs);
+
+  /** Get {@link BoundedWindow} object related with {@link Row} record. */
+  default BoundedWindow getWindow() {
+    return null;
+  }
+
+  /** Get {@link PaneInfo} object related with {@link Row} record. */
+  default PaneInfo getPaneInfo() {
+    return null;
+  }
 }

@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
@@ -51,10 +50,9 @@ public class BeamSqlDatetimeMinusIntervalExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    DateTime date = new DateTime(opValueEvaluated(0, row, window, env));
-    Period period = intervalToPeriod(op(1).evaluate(row, window, env));
+  public BeamSqlPrimitive evaluate(Row row, BeamSqlExpressionEnvironment env) {
+    DateTime date = new DateTime(opValueEvaluated(0, row, env));
+    Period period = intervalToPeriod(op(1).evaluate(row, env));
 
     return BeamSqlPrimitive.of(outputType, date.minus(period));
   }

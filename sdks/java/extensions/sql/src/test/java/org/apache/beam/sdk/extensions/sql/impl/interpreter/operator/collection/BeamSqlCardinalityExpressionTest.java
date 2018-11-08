@@ -47,10 +47,7 @@ public class BeamSqlCardinalityExpressionTest {
         new BeamSqlCardinalityExpression(inputWith2Elements, SqlTypeName.INTEGER);
 
     assertEquals(
-        2,
-        expression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        2, expression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -62,10 +59,7 @@ public class BeamSqlCardinalityExpressionTest {
         new BeamSqlCardinalityExpression(emptyInput, SqlTypeName.INTEGER);
 
     assertEquals(
-        0,
-        expression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        0, expression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test

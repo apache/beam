@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -39,11 +38,10 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<? extends Number> evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+      Row inputRow, BeamSqlExpressionEnvironment env) {
     BeamSqlExpression leftOp = op(0);
     BeamSqlExpression rightOp = op(1);
-    return calculate(
-        leftOp.evaluate(inputRow, window, env), rightOp.evaluate(inputRow, window, env));
+    return calculate(leftOp.evaluate(inputRow, env), rightOp.evaluate(inputRow, env));
   }
 
   /**

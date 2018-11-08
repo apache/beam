@@ -43,15 +43,14 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 100L)));
     Assert.assertEquals(
-        false, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlEqualsExpression exp2 =
         new BeamSqlEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(
-        true, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -62,15 +61,14 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
     Assert.assertEquals(
-        false, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlGreaterThanExpression exp2 =
         new BeamSqlGreaterThanExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234566L)));
-    Assert.assertEquals(
-        true, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -80,8 +78,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(
-        true, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlGreaterThanOrEqualsExpression exp2 =
         new BeamSqlGreaterThanOrEqualsExpression(
@@ -89,7 +86,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234568L)));
     Assert.assertEquals(
-        false, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -99,8 +96,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
                 BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1)));
-    Assert.assertEquals(
-        true, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlLessThanExpression exp2 =
         new BeamSqlLessThanExpression(
@@ -108,7 +104,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
                 BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1)));
     Assert.assertEquals(
-        false, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -118,8 +114,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
                 BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.9)));
-    Assert.assertEquals(
-        true, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlLessThanOrEqualsExpression exp2 =
         new BeamSqlLessThanOrEqualsExpression(
@@ -127,7 +122,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
                 BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.0)));
     Assert.assertEquals(
-        false, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -138,15 +133,14 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
     Assert.assertEquals(
-        false, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlNotEqualsExpression exp2 =
         new BeamSqlNotEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 0L)));
-    Assert.assertEquals(
-        true, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -156,8 +150,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
                 BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is an order_")));
-    Assert.assertEquals(
-        true, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlLikeExpression exp2 =
         new BeamSqlLikeExpression(
@@ -165,6 +158,6 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
                 new BeamSqlInputRefExpression(SqlTypeName.VARCHAR, 4),
                 BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "This is not%")));
     Assert.assertEquals(
-        false, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 }

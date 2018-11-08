@@ -33,24 +33,22 @@ public class BeamNullExpressionTest extends BeamSqlFnExecutorTestBase {
     BeamSqlIsNullExpression exp1 =
         new BeamSqlIsNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
     Assert.assertEquals(
-        false, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlIsNullExpression exp2 =
         new BeamSqlIsNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
-    Assert.assertEquals(
-        true, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
   public void testIsNotNull() {
     BeamSqlIsNotNullExpression exp1 =
         new BeamSqlIsNotNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
-    Assert.assertEquals(
-        true, exp1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlIsNotNullExpression exp2 =
         new BeamSqlIsNotNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
     Assert.assertEquals(
-        false, exp2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        false, exp2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 }

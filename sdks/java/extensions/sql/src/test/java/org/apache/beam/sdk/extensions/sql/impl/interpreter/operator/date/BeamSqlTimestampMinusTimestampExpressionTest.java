@@ -199,9 +199,7 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
   }
 
   private long eval(BeamSqlTimestampMinusTimestampExpression minusExpression) {
-    return minusExpression
-        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-        .getLong();
+    return minusExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getLong();
   }
 
   private long applyMultiplier(long value, TimeUnit timeUnit) {

@@ -48,10 +48,7 @@ public class BeamSqlSingleElementExpressionTest {
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "aaa",
-        expression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        "aaa", expression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -62,10 +59,7 @@ public class BeamSqlSingleElementExpressionTest {
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertNull(
-        expression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+    assertNull(expression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test

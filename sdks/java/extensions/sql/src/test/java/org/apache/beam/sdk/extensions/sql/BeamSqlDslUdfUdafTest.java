@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -88,6 +89,46 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
             "testJodaUdf", SqlTransform.query(sql2).registerUdf("PRE_DAY", JodaPreviousDay.class));
     PAssert.that(result2).containsInAnyOrder(row2);
 
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** test window/pane UDFs. */
+  @Test
+  public void testWindowPaneUdf() throws Exception {
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addBooleanField("first_pane")
+            .addBooleanField("last_pane")
+            .addStringField("pane_timing")
+            .addInt64Field("pane_index")
+            .addStringField("window_type")
+            .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
+            .build();
+
+    Row row =
+        Row.withSchema(resultType)
+            .addValues(
+                0,
+                true,
+                true,
+                "ON_TIME",
+                0L,
+                "GLOBAL",
+                GlobalWindow.TIMESTAMP_MIN_VALUE,
+                GlobalWindow.TIMESTAMP_MAX_VALUE)
+            .build();
+
+    String sql =
+        "SELECT f_int2"
+            + ", FIRST_PANE() AS first_pane, LAST_PANE() AS last_pane, PANE_TIMING() AS pane_timing, PANE_INDEX() AS pane_index"
+            + ", WINDOW_TYPE() as window_type, WINDOW_START() as window_start, WINDOW_END() as window_end"
+            + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result =
+        boundedInput1.apply("testUdaf", SqlTransform.query(sql).withAutoUdfUdafLoad(true));
+
+    PAssert.that(result).containsInAnyOrder(row);
     pipeline.run().waitUntilFinish();
   }
 

@@ -30,34 +30,30 @@ public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testRefInRange() {
     BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
     Assert.assertEquals(
-        row.getInt64(0),
-        ref0.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        row.getInt64(0), ref0.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlInputRefExpression ref1 = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1);
     Assert.assertEquals(
-        row.getInt32(1),
-        ref1.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        row.getInt32(1), ref1.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlInputRefExpression ref2 = new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2);
     Assert.assertEquals(
-        row.getDouble(2),
-        ref2.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        row.getDouble(2), ref2.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
 
     BeamSqlInputRefExpression ref3 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3);
     Assert.assertEquals(
-        row.getInt64(3),
-        ref3.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+        row.getInt64(3), ref3.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testRefOutOfRange() {
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 5);
-    ref.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue();
+    ref.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testTypeUnMatch() {
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 0);
-    ref.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue();
+    ref.evaluate(row, BeamSqlExpressionEnvironments.empty()).getValue();
   }
 }

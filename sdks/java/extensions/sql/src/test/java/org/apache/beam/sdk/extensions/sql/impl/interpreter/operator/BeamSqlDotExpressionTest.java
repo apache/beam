@@ -52,9 +52,7 @@ public class BeamSqlDotExpressionTest {
 
     assertEquals(
         "aaa",
-        arrayExpression
-            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
-            .getValue());
+        arrayExpression.evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
   @Test
@@ -71,6 +69,6 @@ public class BeamSqlDotExpressionTest {
     thrown.expectMessage("Cannot find field");
 
     new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
+        .evaluate(NULL_ROW, BeamSqlExpressionEnvironments.empty());
   }
 }

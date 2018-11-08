@@ -34,7 +34,7 @@ public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpression
     assertEquals(
         SqlTypeName.TIMESTAMP,
         new BeamSqlCurrentTimestampExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getOutputType());
   }
 }

@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -47,15 +48,19 @@ public class BeamSqlExpressionEnvironments {
     return new EmptyEnvironment();
   }
 
-  /** An environment with a fixed row and window but not expressions or correlation variables. */
-  public static BeamSqlExpressionEnvironment forRow(Row row, BoundedWindow window) {
-    return new ListEnvironment(row, window, new ArrayList<>(), new ArrayList<>());
+  /**
+   * An environment with a fixed row, window and paneInfo but not expressions or correlation
+   * variables.
+   */
+  public static BeamSqlExpressionEnvironment forRow(
+      Row row, BoundedWindow window, PaneInfo paneInfo) {
+    return new ListEnvironment(row, window, paneInfo, new ArrayList<>(), new ArrayList<>());
   }
 
-  /** An environment with a fixed row and window and correlation variables. */
+  /** An environment with a fixed row, window and paneInfo and correlation variables. */
   public static BeamSqlExpressionEnvironment forRowAndCorrelVariables(
-      Row row, BoundedWindow window, List<Row> correlVariables) {
-    return new ListEnvironment(row, window, correlVariables, new ArrayList<>());
+      Row row, BoundedWindow window, PaneInfo paneInfo, List<Row> correlVariables) {
+    return new ListEnvironment(row, window, paneInfo, correlVariables, new ArrayList<>());
   }
 
   /** Basic environment implementation. */
@@ -63,6 +68,7 @@ public class BeamSqlExpressionEnvironments {
 
     private final Row inputRow;
     private final BoundedWindow window;
+    private final PaneInfo paneInfo;
 
     /** Local expressions; once evaluated they are replaced with the evaluated value in place. */
     private final List<BeamSqlExpression> localRefExprs;
@@ -72,10 +78,12 @@ public class BeamSqlExpressionEnvironments {
     public ListEnvironment(
         Row inputRow,
         BoundedWindow window,
+        PaneInfo paneInfo,
         List<Row> correlVariables,
         List<BeamSqlExpression> localRefExprs) {
       this.inputRow = inputRow;
       this.window = window;
+      this.paneInfo = paneInfo;
       this.correlVariables = correlVariables;
       this.localRefExprs = new ArrayList<>(localRefExprs);
     }
@@ -89,7 +97,7 @@ public class BeamSqlExpressionEnvironments {
           this);
 
       BeamSqlExpression expr = localRefExprs.get(localRefIndex);
-      BeamSqlPrimitive<?> value = expr.evaluate(inputRow, window, this);
+      BeamSqlPrimitive<?> value = expr.evaluate(inputRow, this);
       if (!(expr instanceof BeamSqlPrimitive)) {
         localRefExprs.set(localRefIndex, value);
       }
@@ -110,7 +118,17 @@ public class BeamSqlExpressionEnvironments {
     @Override
     public BeamSqlExpressionEnvironment copyWithLocalRefExprs(
         List<BeamSqlExpression> localRefExprs) {
-      return new ListEnvironment(inputRow, window, correlVariables, localRefExprs);
+      return new ListEnvironment(inputRow, window, paneInfo, correlVariables, localRefExprs);
+    }
+
+    @Override
+    public BoundedWindow getWindow() {
+      return window;
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      return paneInfo;
     }
 
     @Override
@@ -118,6 +136,7 @@ public class BeamSqlExpressionEnvironments {
       return MoreObjects.toStringHelper(this)
           .add("inputRow", inputRow)
           .add("window", window)
+          .add("pane", paneInfo)
           .add("correlVariables", correlVariables)
           .add("localRefExprs", localRefExprs)
           .toString();

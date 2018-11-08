@@ -22,7 +22,6 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -40,10 +39,9 @@ public class BeamSqlMapItemExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    Map<Object, Object> map = (Map) opValueEvaluated(0, inputRow, window, env);
-    Object key = opValueEvaluated(1, inputRow, window, env);
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
+    Map<Object, Object> map = (Map) opValueEvaluated(0, inputRow, env);
+    Object key = opValueEvaluated(1, inputRow, env);
     return BeamSqlPrimitive.of(outputType, map.get(key));
   }
 }

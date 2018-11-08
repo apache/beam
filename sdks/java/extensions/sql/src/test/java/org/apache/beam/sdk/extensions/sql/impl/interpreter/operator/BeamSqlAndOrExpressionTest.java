@@ -38,14 +38,14 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
 
     Assert.assertTrue(
         new BeamSqlAndExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
 
     Assert.assertFalse(
         new BeamSqlAndExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -57,14 +57,14 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
 
     Assert.assertFalse(
         new BeamSqlOrExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
     Assert.assertTrue(
         new BeamSqlOrExpression(operands)
-            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .evaluate(row, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

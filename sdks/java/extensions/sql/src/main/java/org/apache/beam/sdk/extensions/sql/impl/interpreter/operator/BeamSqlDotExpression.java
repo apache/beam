@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -41,10 +40,9 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    Row dynamicRow = (Row) opValueEvaluated(0, inputRow, window, env);
-    String fieldName = (String) opValueEvaluated(1, inputRow, window, env);
+  public BeamSqlPrimitive evaluate(Row inputRow, BeamSqlExpressionEnvironment env) {
+    Row dynamicRow = (Row) opValueEvaluated(0, inputRow, env);
+    String fieldName = (String) opValueEvaluated(1, inputRow, env);
     SqlTypeName fieldType = getFieldType(dynamicRow, fieldName);
 
     return BeamSqlPrimitive.of(fieldType, dynamicRow.getValue(fieldName));

@@ -92,7 +92,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row.BeamSqlFieldAccessExpression;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.extensions.sql.impl.udf.PaneInfoUdfs;
+import org.apache.beam.sdk.extensions.sql.impl.udf.WindowUdfs;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -499,6 +500,28 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlIsNotNullExpression(subExps.get(0));
           break;
 
+          // PaneInfo and BoundedWindow
+        case "FIRST_PANE":
+          ret = new PaneInfoUdfs.IsFirstPane();
+          break;
+        case "LAST_PANE":
+          ret = new PaneInfoUdfs.IsLastPane();
+          break;
+        case "PANE_TIMING":
+          ret = new PaneInfoUdfs.PaneTiming();
+          break;
+        case "PANE_INDEX":
+          ret = new PaneInfoUdfs.PaneIndex();
+          break;
+        case "WINDOW_TYPE":
+          ret = new WindowUdfs.WindowType();
+          break;
+        case "WINDOW_START":
+          ret = new WindowUdfs.WindowStart();
+          break;
+        case "WINDOW_END":
+          ret = new WindowUdfs.WindowEnd();
+          break;
         default:
           // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
@@ -528,17 +551,16 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   public void prepare() {}
 
   @Override
-  public @Nullable List<Object> execute(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+  public @Nullable List<Object> execute(Row inputRow, BeamSqlExpressionEnvironment env) {
 
     final BeamSqlExpressionEnvironment localEnv = env.copyWithLocalRefExprs(exprs);
 
-    boolean conditionResult = filterCondition.evaluate(inputRow, window, localEnv).getBoolean();
+    boolean conditionResult = filterCondition.evaluate(inputRow, localEnv).getBoolean();
 
     if (conditionResult) {
       return projections
           .stream()
-          .map(project -> project.evaluate(inputRow, window, localEnv).getValue())
+          .map(project -> project.evaluate(inputRow, localEnv).getValue())
           .collect(Collectors.toList());
     } else {
       return null;
