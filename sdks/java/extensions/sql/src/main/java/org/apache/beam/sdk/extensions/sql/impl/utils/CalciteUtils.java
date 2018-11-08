@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -204,6 +205,8 @@ public class CalciteUtils {
     //For Joda time types, return SQL type for java.util.Date.
     if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
       return typeFactory.createJavaType(Date.class);
+    } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {
+      return typeFactory.createJavaType(byte[].class);
     }
     return typeFactory.createJavaType((Class) rawType);
   }
