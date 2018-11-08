@@ -43,6 +43,18 @@ BEAM_CONTAINER_VERSION = 'beam-master-20181106'
 # requires changes to SDK harness container or SDK harness launcher.
 BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20181106'
 
+# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
+PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
+
+# Package names for different distributions
+BEAM_PACKAGE_NAME = 'apache-beam'
+
+# SDK identifiers for different distributions
+BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+# TODO(BEAM-5393): End duplicated constants (see above).
+
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
 
 
