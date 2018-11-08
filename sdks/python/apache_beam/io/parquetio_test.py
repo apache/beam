@@ -363,13 +363,27 @@ class TestParquet(unittest.TestCase):
         splits[0].source, splits[0].start_position, splits[0].stop_position
     )
 
+  def test_min_bundle_size(self):
+    file_name = self._write_data(count=120, row_group_size=20)
+
+    source = _create_parquet_source(file_name, min_bundle_size=100*1024*1024)
+    splits = [
+        split for split in source.split(desired_bundle_size=1)
+    ]
+    self.assertEquals(len(splits), 1)
+
+    source = _create_parquet_source(file_name, min_bundle_size=0)
+    splits = [
+        split for split in source.split(desired_bundle_size=1)
+    ]
+    self.assertNotEquals(len(splits), 1)
+
   def test_split_points(self):
     file_name = self._write_data(count=12000, row_group_size=3000)
     source = _create_parquet_source(file_name)
 
     splits = [
-        split
-        for split in source.split(desired_bundle_size=float('inf'))
+        split for split in source.split(desired_bundle_size=float('inf'))
     ]
     assert len(splits) == 1
 
