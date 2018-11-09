@@ -188,6 +188,7 @@ message ProcessBundleDescriptor {
 }
 
 // One of the applications specifying the scope of work for a bundle.
+// See https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9 for further details.
 message BundleApplication {
   // (Required) The primitive transform to which to pass the element
   string ptransform_id = 1;
@@ -198,10 +199,10 @@ message BundleApplication {
   // (Required) The encoded element to pass to the transform.
   bytes element = 3;
 
-  // Lower bound on timestamps of elements that this PTransform
-  // will produce into each of its output PCollections when invoked on this
-  // element and input. The map is keyed by the local output name of the
-  // PTransform.
+  // The map is keyed by the local output name of the PTransform. Each
+  // value represents a lower bound on the timestamps of elements that
+  // are produced by this PTransform into each of its output PCollections
+  // when invoked with this application.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
   // Represents an estimate for the amount of currently outstanding work.
@@ -242,6 +243,11 @@ message BundleApplication {
   org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 6;
 
   // Contains additional monitoring information related to this application.
+  //
+  // Each application is able to report information that some runners
+  // will use consume when providing a UI or for making scaling and performance
+  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for 
+  // details about what types of signals may be useful to report.
   repeated MonitoringInfo monitoring_infos = 7;
 }
 
@@ -614,7 +620,7 @@ message ProcessBundleSplitRequest {
   string instruction_reference = 1;
 
   // (Required) Specifies that the Runner would like the bundle to split itself
-  // such that it performs no more work then the backlog specified for each
+  // such that it performs no more work than the backlog specified for each
   // PTransform. The interpretation of how much work should be processed is up
   // to the PTransform.
   //
@@ -622,8 +628,8 @@ message ProcessBundleSplitRequest {
   // possible, effectively checkpointing when able. The remaining backlog
   // will be relative to the backlog reported during processing.
   //
-  // If the backlog is unspecified for a PTransform, it would like that
-  // PTransform to process all data received.
+  // If the backlog is unspecified for a PTransform, the runner would like 
+  // the SDK to process all data received for that PTransform.
   map<string, bytes> backlog_remaining = 2;
 }
 
