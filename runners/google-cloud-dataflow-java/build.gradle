@@ -115,7 +115,7 @@ def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: projec
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
-def dockerImageName = "${dockerImageContainer}:${dockerTag}"
+ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
       "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
