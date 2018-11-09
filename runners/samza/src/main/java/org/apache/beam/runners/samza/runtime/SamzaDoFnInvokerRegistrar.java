@@ -18,10 +18,16 @@
 
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 
 /** A registrar for Samza DoFnInvoker. */
 public interface SamzaDoFnInvokerRegistrar {
+
+  /** Returns the invoker for a {@link DoFn}. */
   <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> fn);
+
+  /** Returns the configs for a {@link DoFn}. */
+  <InputT, OutputT> Map<String, String> configFor(DoFn<InputT, OutputT> fn);
 }
