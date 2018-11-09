@@ -52,8 +52,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state) {
-    return new SingleEnvironmentInstanceJobBundleFactory(environmentFactory, data, state);
+      GrpcFnServer<GrpcStateService> state,
+      IdGenerator idGenerator) {
+    return new SingleEnvironmentInstanceJobBundleFactory(
+        environmentFactory, data, state, idGenerator);
   }
 
   private final EnvironmentFactory environmentFactory;
@@ -66,15 +68,21 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
-  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
+  private final IdGenerator idGenerator;
 
   private SingleEnvironmentInstanceJobBundleFactory(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> dataService,
-      GrpcFnServer<GrpcStateService> stateService) {
+      GrpcFnServer<GrpcStateService> stateService,
+      IdGenerator idGenerator) {
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
+    if (idGenerator != null) {
+      this.idGenerator = idGenerator;
+    } else {
+      this.idGenerator = IdGenerators.incrementingLongs();
+    }
   }
 
   @Override

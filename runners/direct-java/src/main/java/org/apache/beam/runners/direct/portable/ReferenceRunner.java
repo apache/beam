@@ -197,7 +197,7 @@ public class ReferenceRunner {
       EnvironmentFactory environmentFactory =
           createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
       JobBundleFactory jobBundleFactory =
-          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
+          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state, null);
 
       TransformEvaluatorRegistry transformRegistry =
           TransformEvaluatorRegistry.portableRegistry(

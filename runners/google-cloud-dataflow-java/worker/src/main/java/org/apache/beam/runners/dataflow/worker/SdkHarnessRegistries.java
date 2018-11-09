@@ -28,6 +28,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,7 +188,7 @@ public class SdkHarnessRegistries {
 
       @Override
       @Nullable
-      public GrpcFnServer<BeamFnDataGrpcService.DataService> getGrpcDataFnServer() {
+      public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
         return GrpcFnServer.create(
             beamFnDataGrpcService.getDataService(getWorkerId()), beamFnDataApiServiceDescriptor());
       }
@@ -229,7 +230,7 @@ public class SdkHarnessRegistries {
 
           @Nullable
           @Override
-          public GrpcFnServer<BeamFnDataGrpcService.DataService> getGrpcDataFnServer() {
+          public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
             return null;
           }
 
