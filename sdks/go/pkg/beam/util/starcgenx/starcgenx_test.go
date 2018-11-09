@@ -1,9 +1,18 @@
-// Package starcgenx is a Static Analysis Type Assertion shim and Registration Code Generator
-// which provides an extractor to extract types from a package, in order to generate
-// approprate shimsr a package so code can be generated for it.
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
 //
-// It's written for use by the starcgen tool, but separate to permit
-// alternative "go/importer" Importers for accessing types from imported packages.
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package starcgenx
 
 import (
