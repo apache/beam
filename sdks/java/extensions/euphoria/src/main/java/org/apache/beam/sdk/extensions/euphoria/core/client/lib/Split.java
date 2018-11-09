@@ -21,13 +21,13 @@ import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Composite operator using two {@link Filter} operators to split a {@link Dataset} into two subsets
- * using provided {@link UnaryPredicate}.
+ * Composite operator using two {@link Filter} operators to split a {@link PCollection} into two
+ * subsets using provided {@link UnaryPredicate}.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
@@ -41,7 +41,7 @@ public class Split {
     return new OfBuilder(name);
   }
 
-  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> UsingBuilder<InputT> of(PCollection<InputT> input) {
     return new UsingBuilder<>(DEFAULT_NAME, input);
   }
 
@@ -53,7 +53,7 @@ public class Split {
       this.name = Objects.requireNonNull(name);
     }
 
-    public <InputT> Split.UsingBuilder<InputT> of(Dataset<InputT> input) {
+    public <InputT> Split.UsingBuilder<InputT> of(PCollection<InputT> input) {
       return new Split.UsingBuilder<>(name, input);
     }
   }
@@ -61,9 +61,9 @@ public class Split {
   /** Builder adding filtering predicate. */
   public static class UsingBuilder<InputT> {
     private final String name;
-    private final Dataset<InputT> input;
+    private final PCollection<InputT> input;
 
-    UsingBuilder(String name, Dataset<InputT> input) {
+    UsingBuilder(String name, PCollection<InputT> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
@@ -76,19 +76,19 @@ public class Split {
   /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
   public static class OutputBuilder<InputT> {
     private final String name;
-    private final Dataset<InputT> input;
+    private final PCollection<InputT> input;
     private final UnaryPredicate<InputT> predicate;
 
-    OutputBuilder(String name, Dataset<InputT> input, UnaryPredicate<InputT> predicate) {
+    OutputBuilder(String name, PCollection<InputT> input, UnaryPredicate<InputT> predicate) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.predicate = Objects.requireNonNull(predicate);
     }
 
     public Output<InputT> output() {
-      Dataset<InputT> positiveOutput =
+      PCollection<InputT> positiveOutput =
           Filter.named(name + POSITIVE_FILTER_SUFFIX).of(input).by(predicate).output();
-      Dataset<InputT> negativeOutput =
+      PCollection<InputT> negativeOutput =
           Filter.named(name + NEGATIVE_FILTER_SUFFIX)
               .of(input)
               .by((UnaryPredicate<InputT>) what -> !predicate.apply(what))
@@ -99,21 +99,21 @@ public class Split {
 
   /** KV of positive and negative output as a result of the {@link Split} operator. */
   public static class Output<T> {
-    private final Dataset<T> positive;
-    private final Dataset<T> negative;
+    private final PCollection<T> positive;
+    private final PCollection<T> negative;
 
-    private Output(Dataset<T> positive, Dataset<T> negative) {
+    private Output(PCollection<T> positive, PCollection<T> negative) {
       this.positive = Objects.requireNonNull(positive);
       this.negative = Objects.requireNonNull(negative);
     }
 
     /** @return positive split result */
-    public Dataset<T> positive() {
+    public PCollection<T> positive() {
       return positive;
     }
 
     /** @return negative split result */
-    public Dataset<T> negative() {
+    public PCollection<T> negative() {
       return negative;
     }
   }

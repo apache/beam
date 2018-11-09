@@ -19,16 +19,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -36,6 +32,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,6 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -94,9 +93,9 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -114,7 +113,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'keyBy' step. */
@@ -220,7 +219,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     private UnaryFunction<InputT, ValueT> valueExtractor;
@@ -234,8 +233,8 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> KeyByBuilder<T> of(Dataset<T> input) {
-      this.input = (Dataset<InputT>) requireNonNull(input);
+    public <T> KeyByBuilder<T> of(PCollection<T> input) {
+      this.input = (PCollection<InputT>) requireNonNull(input);
       return (KeyByBuilder) this;
     }
 
@@ -318,7 +317,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
 
     @Override
-    public Dataset<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
+    public PCollection<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
       final TopPerKey<InputT, KeyT, ValueT, ScoreT> sbk =
           new TopPerKey<>(
               name,
@@ -330,7 +329,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
               scoreType,
               windowBuilder.getWindow().orElse(null),
               TypeUtils.triplets(keyType, valueType, scoreType));
-      return OperatorTransform.apply(sbk, Collections.singletonList(input));
+      return OperatorTransform.apply(sbk, PCollectionList.of(input));
     }
   }
 
@@ -375,10 +374,10 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
   }
 
   @Override
-  public Dataset<Triple<KeyT, ValueT, ScoreT>> expand(List<Dataset<InputT>> inputs) {
-    final Dataset<Triple<KeyT, ValueT, ScoreT>> extracted =
+  public PCollection<Triple<KeyT, ValueT, ScoreT>> expand(PCollectionList<InputT> inputs) {
+    final PCollection<Triple<KeyT, ValueT, ScoreT>> extracted =
         MapElements.named("extract-key-value-score")
-            .of(Iterables.getOnlyElement(inputs))
+            .of(PCollectionLists.getOnlyElement(inputs))
             .using(
                 elem ->
                     Triple.of(

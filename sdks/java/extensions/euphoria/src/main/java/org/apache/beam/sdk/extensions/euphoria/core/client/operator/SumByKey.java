@@ -19,15 +19,11 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -35,6 +31,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,6 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -55,7 +54,7 @@ import org.joda.time.Duration;
  * <p>Example:
  *
  * <pre>{@code
- * Dataset<KV<String, Long>> summed = SumByKey.of(elements)
+ * PCollection<KV<String, Long>> summed = SumByKey.of(elements)
  *     .keyBy(KV::getKey)
  *     .valueBy(KV::getValue)
  *     .output();
@@ -88,9 +87,9 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -108,7 +107,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> KeyByBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> KeyByBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'keyBy' step. */
@@ -133,15 +132,15 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
   /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<KeyT>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT>>,
-          OptionalMethodBuilder<WindowByBuilder<KeyT>, OutputBuilder<KeyT>>,
-          OutputBuilder<KeyT> {
+          OptionalMethodBuilder<WindowByBuilder<KeyT>, Builders.Output<KV<KeyT, Long>>>,
+          Builders.Output<KV<KeyT, Long>> {
 
     @Override
     <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default OutputBuilder<KeyT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<KeyT>, OutputBuilder<KeyT>> fn) {
+    default Builders.Output<KV<KeyT, Long>> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<KeyT>, Builders.Output<KV<KeyT, Long>>> fn) {
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
@@ -165,10 +164,8 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>, OutputBuilder<KeyT> {}
-
-  /** Builder for 'output' step. */
-  public interface OutputBuilder<KeyT> extends Builders.Output<KV<KeyT, Long>> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>,
+          Builders.Output<KV<KeyT, Long>> {}
 
   /**
    * Builder for SumByKey operator.
@@ -184,12 +181,12 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
           TriggeredByBuilder<KeyT>,
           AccumulationModeBuilder<KeyT>,
           WindowedOutputBuilder<KeyT>,
-          OutputBuilder<KeyT> {
+          Builders.Output<KV<KeyT, Long>> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
     @Nullable private TypeDescriptor<KeyT> keyType;
     private UnaryFunction<InputT, Long> valueExtractor;
@@ -200,8 +197,8 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> KeyByBuilder<T> of(Dataset<T> input) {
-      this.input = (Dataset<InputT>) requireNonNull(input);
+    public <T> KeyByBuilder<T> of(PCollection<T> input) {
+      this.input = (PCollection<InputT>) requireNonNull(input);
       return (KeyByBuilder) this;
     }
 
@@ -267,7 +264,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     }
 
     @Override
-    public Dataset<KV<KeyT, Long>> output(OutputHint... outputHints) {
+    public PCollection<KV<KeyT, Long>> output(OutputHint... outputHints) {
       if (valueExtractor == null) {
         valueExtractor = e -> 1L;
       }
@@ -280,7 +277,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
               windowBuilder.getWindow().orElse(null),
               TypeUtils.keyValues(
                   TypeAwareness.orObjects(Optional.ofNullable(keyType)), TypeDescriptors.longs()));
-      return OperatorTransform.apply(sbk, Collections.singletonList(input));
+      return OperatorTransform.apply(sbk, PCollectionList.of(input));
     }
   }
 
@@ -302,9 +299,9 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
   }
 
   @Override
-  public Dataset<KV<KeyT, Long>> expand(List<Dataset<InputT>> inputs) {
+  public PCollection<KV<KeyT, Long>> expand(PCollectionList<InputT> inputs) {
     return ReduceByKey.named(getName().orElse(null))
-        .of(Iterables.getOnlyElement(inputs))
+        .of(PCollectionLists.getOnlyElement(inputs))
         .keyBy(getKeyExtractor())
         .valueBy(getValueExtractor(), TypeDescriptors.longs())
         .combineBy(Sums.ofLongs())

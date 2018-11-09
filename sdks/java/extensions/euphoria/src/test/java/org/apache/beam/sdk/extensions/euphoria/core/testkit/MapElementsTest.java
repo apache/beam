@@ -22,11 +22,11 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -40,7 +40,7 @@ public class MapElementsTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, String>() {
 
           @Override
-          protected Dataset<String> getOutput(Dataset<Integer> input) {
+          protected PCollection<String> getOutput(PCollection<Integer> input) {
             return MapElements.of(input)
                 .using((UnaryFunction<Integer, String>) String::valueOf)
                 .output();
@@ -69,7 +69,7 @@ public class MapElementsTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Integer>() {
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
             return MapElements.named("test")
                 .of(input)
                 .using(

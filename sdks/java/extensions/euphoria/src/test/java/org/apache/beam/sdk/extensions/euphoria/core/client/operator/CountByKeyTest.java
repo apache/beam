@@ -22,12 +22,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
@@ -39,10 +39,10 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -51,8 +51,7 @@ public class CountByKeyTest {
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(1000))
             .output();
-    assertTrue(counted.getProducer().isPresent());
-    final CountByKey count = (CountByKey) counted.getProducer().get();
+    final CountByKey count = (CountByKey) TestUtils.getProducer(counted);
     assertTrue(count.getName().isPresent());
     assertEquals("CountByKey1", count.getName().get());
     assertNotNull(count.getKeyExtractor());
@@ -66,17 +65,16 @@ public class CountByKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted = CountByKey.of(dataset).keyBy(s -> s).output();
-    assertTrue(counted.getProducer().isPresent());
-    final CountByKey count = (CountByKey) counted.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted = CountByKey.of(dataset).keyBy(s -> s).output();
+    final CountByKey count = (CountByKey) TestUtils.getProducer(counted);
     assertFalse(count.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -84,8 +82,7 @@ public class CountByKeyTest {
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-    assertTrue(counted.getProducer().isPresent());
-    final CountByKey count = (CountByKey) counted.getProducer().get();
+    final CountByKey count = (CountByKey) TestUtils.getProducer(counted);
     assertTrue(count.getWindow().isPresent());
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), desc.getWindowFn());
@@ -95,17 +92,16 @@ public class CountByKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<KV<String, Long>> counted =
         CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .applyIf(true, b -> b.windowBy(windowing).triggeredBy(trigger).discardingFiredPanes())
             .output();
-    assertTrue(counted.getProducer().isPresent());
-    final CountByKey count = (CountByKey) counted.getProducer().get();
+    final CountByKey count = (CountByKey) TestUtils.getProducer(counted);
     assertTrue(count.getWindow().isPresent());
     final WindowDesc<?> desc = WindowDesc.of((Window<?>) count.getWindow().get());
     assertEquals(windowing, desc.getWindowFn());
@@ -115,12 +111,11 @@ public class CountByKeyTest {
 
   @Test
   public void testBuildTypePropagation() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
     final TypeDescriptor<String> keyType = TypeDescriptors.strings();
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<KV<String, Long>> counted =
         CountByKey.named("CountByKey1").of(dataset).keyBy(s -> s, keyType).output();
-    assertTrue(counted.getProducer().isPresent());
-    final CountByKey count = (CountByKey) counted.getProducer().get();
+    final CountByKey count = (CountByKey) TestUtils.getProducer(counted);
     assertTrue(count.getKeyType().isPresent());
     assertEquals(count.getKeyType().get(), keyType);
     assertTrue(count.getOutputType().isPresent());

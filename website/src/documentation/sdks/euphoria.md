@@ -32,7 +32,7 @@ For each of the assigned windows the extracted value is accumulated using a user
 -->
 
 ## What is Euphoria
-Easy to use Java 8 API build on top of the Beam's Java SDK. API provides a [high-level abstraction](#operator-reference) of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) [Kryo](https://github.com/EsotericSoftware/kryo) based coders, lambdas and high level operators and can be [seamlessly integrated](#integration-of-euphoria-into-existing-pipelines) into existing Beam `Pipelines`.
+Easy to use Java 8 API build on top of the Beam's Java SDK. API provides a [high-level abstraction](#operator-reference) of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) [Kryo](https://github.com/EsotericSoftware/kryo) based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam `Pipelines`.
 
 [Euphoria API](https://github.com/seznam/euphoria) project has been started in 2014, with a clear goal of providing the main building block for [Seznam.cz's](https://www.seznam.cz/) data infrastructure.
 In 2015, [DataFlow whitepaper](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf) inspired original authors to go one step further and also provide the unified API for both stream and batch processing.
@@ -56,12 +56,8 @@ PCollection<String> input =
         .apply(Create.of(textLineByLine))
         .setTypeDescriptor(TypeDescriptor.of(String.class));
 
-// Transform PCollection to euphoria's Dataset.
-Dataset<String> lines =  Dataset.of(input);
-
-// FlatMap processes one input element at a time and allows user code to emit
 // zero, one, or more output elements. From input lines we will get data set of words.
-Dataset<String> words =
+PCollection<String> words =
     FlatMap.named("TOKENIZER")
         .of(lines)
         .using(
@@ -74,26 +70,23 @@ Dataset<String> words =
 
 // Now we can count input words - the operator ensures that all values for the same
 // key (word in this case) end up being processed together. Then it counts number of appearances
-// of the same key in 'words' dataset and emits it to output.
-Dataset<KV<String, Long>> counted =
+// of the same key in 'words' PCollection and emits it to output.
+PCollection<KV<String, Long>> counted =
     CountByKey.named("COUNT")
         .of(words)
         .keyBy(w -> w)
         .output();
 
 // Format output.
-Dataset<String> output =
+PCollection<String> output =
     MapElements.named("FORMAT")
         .of(counted)
         .using(p -> p.getKey() + ": " + p.getValue())
         .output();
 
-// Transform Dataset back to PCollection. It can be done anytime.
-PCollection<String> outputCollection = output.getPCollection();
-
 // Now we can again use Beam transformation. In this case we save words and their count
 // into the text file.
-outputCollection
+output
     .apply(TextIO.write()
     .to("counted_words"));
 
@@ -104,46 +97,31 @@ pipeline.run();
 
 Euphoria API is composed from a set of operators, which allows you to construct `Pipeline` according to your application needs.
 
-### Datasets
-Euphoria uses the concept of 'Datasets' to describe data pipeline between `Operators`. This concept is similar to Beam's `PCollection` and can be converted back and forth through:
-```java
-PCollection<T> someCollection = ...
-
-// PCollection -> Dataset
-Dataset<T> dataset = Dataset.of(someCollection);
-
-//And now back: Dataset -> PCollection
-PCollection<T> collection = dataset.getPCollection();
-```
-
 ### Inputs and Outputs
-Input data can be supplied through Beams IO into `PCollection`, the same way as in Beam, and wrapped by `Dataset.of(PCollection<T> pCollection)` into `Dataset` later on.
+Input data can be supplied through Beams IO into `PCollection`, the same way as in Beam.
 
 ```java
 PCollection<String> input =
   pipeline
     .apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
     .setTypeDescriptor(TypeDescriptor.of(String.class));
-
-Dataset<String> dataset =  Dataset.of(input);
 ```
-Outputs can be treated the same way as inputs, last `Dataset` is converted to `PCollection` and dumped into appropriate IO.
 
 ### Adding Operators
-Real power of Euphoria API is in its [operators suite](#operator-reference). Once we get our hands on `Dataset` we are able to create and connect operators. Each Operator consumes one or more input and produces one output
-`Dataset`. Lets take a look at simple `MapElements` example.
+Real power of Euphoria API is in its [operators suite](#operator-reference). Each Operator consumes one or more input and produces one output
+`PCollection`. Lets take a look at simple `MapElements` example.
 
 ```java
-Dataset<Integer> input = ...
+PCollection<Integer> input = ...
 
-Dataset<String> mappedElements =
+PCollection<String> mappedElements =
   MapElements
     .named("Int2Str")
     .of(input)
     .using(String::valueOf)
     .output();
 ```
-The operator consumes `input`, it applies given lambda expression (`String::valueOf`) on each element of `input` and returns mapped `Dataset`. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and '.' (dot). Your IDE will give you hints.
+The operator consumes `input`, it applies given lambda expression (`String::valueOf`) on each element of `input` and returns mapped `PCollection`. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and '.' (dot). Your IDE will give you hints.
 
 First step to build any operator is to give it a name through `named()` method. The name is propagated through system and can latter be used when debugging.
 
@@ -192,7 +170,7 @@ KryoCoderProvider.of(
 ```
 Beam resolves coders using types of elements. Type information is not available at runtime when element type is described by lambda implementation. It is due to type erasure and dynamic nature of lambda expressions. So there is an optional way of supplying `TypeDescriptor` every time new type is introduced during Operator construction.
 ```java
-Dataset<Integer> input = ...
+PCollection<Integer> input = ...
 
 MapElements
   .named("Int2Str")
@@ -200,15 +178,15 @@ MapElements
   .using(String::valueOf, TypeDescriptors.strings())
   .output();
 ```
-Euphoria operator's will use `TypeDescriptor<Object>`, when `TypeDescriptors` is not supplied by user. So `KryoCoderProvider` may return `KryoCOder<Object>` for every element with unknown type, if allowed by `KryoOptions`. Supplying `TypeDescriptors` becomes mandatory when using `.setKryoRegistrationRequired(true)`.
+Euphoria operator's will use `TypeDescriptor<Object>`, when `TypeDescriptors` is not supplied by user. So `KryoCoderProvider` may return `KryoCoder<Object>` for every element with unknown type, if allowed by `KryoOptions`. Supplying `TypeDescriptors` becomes mandatory when using `.setKryoRegistrationRequired(true)`.
 
 ### Metrics and Accumulators
 Statistics about job's internals are very helpful during development of distributed jobs. Euphoria calls them accumulators. They are accessible through environment `Context`, which can be obtained from `Collector`, whenever working with it. It is usually present when zero-to-many output elements are expected from operator. For example in case of `FlatMap`.
 ```java
 Pipeline pipeline = ...
-Dataset<String> dataset = ..
+PCollection<String> dataset = ..
 
-Dataset<String> mapped =
+PCollection<String> mapped =
 FlatMap
   .named("FlatMap1")
   .of(dataset)
@@ -222,9 +200,9 @@ FlatMap
 `MapElements` also allows for `Context` to be accessed by supplying implementations of `UnaryFunctionEnv` (add second context argument) instead of `UnaryFunctor`.
 ```java
 Pipeline pipeline = ...
-Dataset<String> dataset = ...
+PCollection<String> dataset = ...
 
-Dataset<String> mapped =
+PCollection<String> mapped =
   MapElements
     .named("MapThem")
     .of(dataset)
@@ -232,7 +210,6 @@ Dataset<String> mapped =
       (input, context) -> {
         // use simple counter
         context.getCounter("my-counter").increment();
-
         return input.toLowerCase();
         })
       .output();
@@ -242,38 +219,21 @@ Accumulators are translated into Beam Metrics in background so they can be viewe
 ### Windowing
 Euphoria follows the same [windowing principles]({{ site.baseurl }}/documentation/programming-guide/#windowing) as Beam Java SDK. Every shuffle operator (operator which needs to shuffle data over the network) allows you to set it. The same parameters as in Beam are required. `WindowFn`, `Trigger`, `WindowingStrategy` and other. Users are guided to either set all mandatory and several optional parameters  or none when building an operator. Windowing is propagated down through the `Pipeline`.
 ```java
-Dtaset<KV<Integer, Long>> countedElements =
-CountByKey.of(input)
-    .keyBy(e -> e)
-    .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
-    .triggeredBy(DefaultTrigger.of())
-    .discardingFiredPanes()
-    .withAllowedLateness(Duration.standardSeconds(5))
-    .withOnTimeBehavior(OnTimeBehavior.FIRE_IF_NON_EMPTY)
-    .withTimestampCombiner(TimestampCombiner.EARLIEST)
-    .output();
-```
-
-### Integration of Euphoria into existing pipelines
-`Euphoria` allows to define composite `PTransform` so Euphoria can be seamlessly integrated to already existing Beam `Pipelines`. User only need to provide implementation of function which takes input `Dataset`  and outputs another `Datatset`. The input dataset is nothing else than mirror of a input `PCollection`. Output `Dataset` is transformed to `Pcollection` automatically.
-```java
-//suppose inputs PCollection contains: [ "a", "b", "c", "A", "a", "C", "x"]
-PCollection<KV<String, Long>> lettersWithCounts =
-  inputs.apply("count-uppercase-letters-in-Euphoria",
-    Euphoria.of(
-      (Dataset<String> input) -> {
-        Dataset<String> upperCase =
-          MapElements.of(input)
-            .using((UnaryFunction<String, String>) String::toUpperCase)
-            .output();
-
-        return CountByKey.of(upperCase).keyBy(e -> e).output();
-    }));
-//now the 'lettersWithCounts' will conntain [ KV("A", 3L), KV("B", 1L), KV("C", 2L), KV("X", 1L) ]
+PCollection<KV<Integer, Long>> countedElements =
+  CountByKey.of(input)
+      .keyBy(e -> e)
+      .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+      .triggeredBy(DefaultTrigger.of())
+      .discardingFiredPanes()
+      .withAllowedLateness(Duration.standardSeconds(5))
+      .withOnTimeBehavior(OnTimeBehavior.FIRE_IF_NON_EMPTY)
+      .withTimestampCombiner(TimestampCombiner.EARLIEST)
+      .output();
 ```
 
 ## How to get Euphoria
 Euphoria is located in `dsl-euphoria` branch, `beam-sdks-java-extensions-euphoria` module of The Apache Beam project. To build `euphoria` subproject call:
+
 ```
 ./gradlew beam-sdks-java-extensions-euphoria:build
 ```
@@ -285,7 +245,7 @@ Operators are basically higher level data transformations, which allows you to b
 Counting elements with the same key. Requires input dataset to be mapped by given key extractor (`UnaryFunction`) to keys which are then counted. Output is emitted as `KV<K, Long>` (`K` is key type) where each `KV` contains key and number of element in input dataset for the key.
 ```java
 // suppose input: [1, 2, 4, 1, 1, 3]
-Dataset<KV<Integer, Long>> output =
+PCollection<KV<Integer, Long>> output =
   CountByKey.of(input)
     .keyBy(e -> e)
     .output();
@@ -316,7 +276,7 @@ Represents inner join of two (left and right) datasets on given key producing a 
 ```java
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, String>> joined =
+PCollection<KV<Integer, String>> joined =
   Join.named("join-length-to-words")
     .of(left, right)
     .by(le -> le, String::length) // key extractors
@@ -331,26 +291,26 @@ Represents left join of two (left and right) datasets on given key producing sin
 ```java
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, String>> joined =
-        LeftJoin.named("left-join-length-to-words")
-            .of(left, right)
-            .by(le -> le, String::length) // key extractors
-            .using(
-                (Integer l, Optional<String> r, Collector<String> c) ->
-                    c.collect(l + "+" + r.orElse(null)))
-            .output();
+PCollection<KV<Integer, String>> joined =
+  LeftJoin.named("left-join-length-to-words")
+      .of(left, right)
+      .by(le -> le, String::length) // key extractors
+      .using(
+          (Integer l, Optional<String> r, Collector<String> c) ->
+              c.collect(l + "+" + r.orElse(null)))
+      .output();
 // joined will contain: [KV(1, "1+X"), KV(2, "2+null"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(1, "1+X")]
 ```
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `Dataset` of that operator fits in executors memory. And when the `Dataset` is used as right input, Euphoria will automatically translated `LeftJoin` as 'BroadcastHashJoin'. Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `PCollection` of that operator fits in executors memory. And when the `PCollection` is used as right input, Euphoria will automatically translated `LeftJoin` as 'BroadcastHashJoin'. Broadcast join can be very efficient when joining between skewed datasets.
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
 ```java
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, String>> joined =
+PCollection<KV<Integer, String>> joined =
   RightJoin.named("right-join-length-to-words")
     .of(left, right)
     .by(le -> le, String::length) // key extractors
@@ -362,14 +322,14 @@ Dataset<KV<Integer, String>> joined =
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 ```
-Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `Dataset` of that operator fits in executors memory. And when the `Dataset` is used as left input, Euphoria will automatically translated `RightJoin` as 'Broadcast Hash Join'. Broadcast join can be very efficient when joining between skewed datasets.
+Euphoria support performance optimization called 'Broadcast Hash Join' for the `RightJoin`. User can indicate through previous operator's output hint `.output(SizeHint.FITS_IN_MEMORY)` that output `PCollection` of that operator fits in executors memory. And when the `PCollection` is used as left input, Euphoria will automatically translated `RightJoin` as 'Broadcast Hash Join'. Broadcast join can be very efficient when joining between skewed datasets.
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
 ```java
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, String>> joined =
+PCollection<KV<Integer, String>> joined =
   FullJoin.named("join-length-to-words")
     .of(left, right)
     .by(le -> le, String::length) // key extractors
@@ -386,7 +346,7 @@ Dataset<KV<Integer, String>> joined =
 Transforms one input element of input type `InputT` to one output element of another (potentially the same) `OutputT` type. Transformation is done through user specified `UnaryFunction`.
 ```java
 // suppose inputs contains: [ 0, 1, 2, 3, 4, 5]
-Dataset<String> strings =
+PCollection<String> strings =
   MapElements.named("int2str")
     .of(input)
     .using(i -> "#" + i)
@@ -398,7 +358,7 @@ Dataset<String> strings =
 Transforms one input element of input type `InputT` to zero or more output elements of another (potentially the same) `OutputT` type. Transformation is done through user specified `UnaryFunctor`, where `Collector<OutputT>` is utilized to emit output elements. Notice similarity with `MapElements` which can always emit only one element.
 ```java
 // suppose words contain: ["Brown", "fox", ".", ""]
-Dataset<String> letters =
+PCollection<String> letters =
   FlatMap.named("str2char")
     .of(words)
     .using(
@@ -414,7 +374,7 @@ Dataset<String> letters =
 `FlatMap` may be used to determine time-stamp of elements. It is done by supplying implementation of `ExtractEventTime` time extractor when building it. There is specialized `AssignEventTime` operator to assign time-stamp to elements. Consider using it, you code may be more readable.
 ```java
 // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
-Dataset<SomeEventObject> timeStampedEvents =
+PCollection<SomeEventObject> timeStampedEvents =
   FlatMap.named("extract-event-time")
     .of(events)
     .using( (SomeEventObject e, Collector<SomeEventObject> c) -> c.collect(e))
@@ -427,7 +387,7 @@ Dataset<SomeEventObject> timeStampedEvents =
 `Filter` throws away all the elements which do not pass given condition. The condition is supplied by the user as implementation of `UnaryPredicate`. Input and output elements are of the same type.
 ```java
 // suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]
-Dataset<Integer> divisibleBythree =
+PCollection<Integer> divisibleBythree =
   Filter.named("divisibleByThree").of(nums).by(e -> e % 3 == 0).output();
 //divisibleBythree will contain: [ 0, 3, 6, 9]
 ```
@@ -440,7 +400,7 @@ Finally, elements with the same key are aggregated by user-defined `ReduceFuncto
 Following example shows basic usage of `ReduceByKey` operator including value extraction.
 ```java
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, Long>> countOfAnimalNamesByLength =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will be used as groupping key
@@ -454,7 +414,7 @@ Dataset<KV<Integer, Long>> countOfAnimalNamesByLength =
 Now suppose that we want to track our `ReduceByKey` internals using counter.
 ```java
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will be used as grouping key
@@ -472,7 +432,7 @@ Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
 Again the same example with optimized combinable output.
 ```java
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will e used as grouping key
@@ -487,7 +447,7 @@ Note that the provided `CombinableReduceFunction` has to be associative and comm
 Euphoria aims to make code easy to write and read. Therefore some support to write combinable reduce functions in form of `Fold` or folding function is already there. It allows user to supply only the reduction logic (`BinaryFunction`) and creates `CombinableReduceFunction` out of it. Supplied `BinaryFunction` still have to be associative.
 ```java
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
     .of(animals)
     .keyBy(String::length) // length of animal name will be used as grouping key
@@ -503,9 +463,9 @@ Reduces all elements in a [window](#windowing). The operator corresponds to `Red
 ```java
 //suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
 //lets assign time-stamp to each input element
-Dataset<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
+PCollection<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-Dataset<Integer> output =
+PCollection<Integer> output =
   ReduceWindow.of(withEventTime)
     .combineBy(Fold.of((i1, i2) -> i1 + i2))
     .windowBy(FixedWindows.of(Duration.millis(5000)))
@@ -519,7 +479,7 @@ Dataset<Integer> output =
 Summing elements with same key. Requires input dataset to be mapped by given key extractor (`UnaryFunction`) to keys. By value extractor, also `UnaryFunction` which outputs to `Long`, to values. Those values are then grouped by key and summed. Output is emitted as `KV<K, Long>` (`K` is key type) where each `KV` contains key and number of element in input dataset for the key.
 ```java
 //suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-Dataset<KV<Integer, Long>> output =
+PCollection<KV<Integer, Long>> output =
   SumByKey.named("sum-odd-and-even")
     .of(input)
     .keyBy(e -> e % 2)
@@ -533,7 +493,7 @@ Merge of at least two datasets of the same type without any guarantee about elem
 ```java
 //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
 //suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
-Dataset<String> animals =
+PCollection<String> animals =
   Union.named("to-animals")
     .of(cats, rodents)
     .output();
@@ -544,7 +504,7 @@ Dataset<String> animals =
 Emits one top-rated element per key. Key of type `K` is extracted by given `UnaryFunction`. Another `UnaryFunction` extractor allows for conversion input elements to values of type `V`. Selection of top element is based on _score_, which is obtained from each element by user supplied `UnaryFunction` called score calculator. Score type is denoted as `ScoreT` and it is required to extend `Comparable<ScoreT>` so scores of two elements can be compared directly. Output dataset elements are of type `Triple<K, V, ScoreT>`.
 ```java
 // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
-Dataset<Triple<Character, String, Integer>> longestNamesByLetter =
+PCollection<Triple<Character, String, Integer>> longestNamesByLetter =
   TopPerKey.named("longest-animal-names")
     .of(animals)
     .keyBy(name -> name.charAt(0)) // first character is the key
@@ -559,7 +519,7 @@ Dataset<Triple<Character, String, Integer>> longestNamesByLetter =
 Euphoria needs to know how to extract time-stamp from elements when [windowing](#windowing) is applied. `AssignEventTime` tells Euphoria how to do that through given implementation of `ExtractEventTime` function.
 ```java
 // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
-Dataset<SomeEventObject> timeStampedEvents =
+PCollection<SomeEventObject> timeStampedEvents =
   AssignEventTime.named("extract-event-tyme")
     .of(events)
     .using(SomeEventObject::getEventTimeInMillis)

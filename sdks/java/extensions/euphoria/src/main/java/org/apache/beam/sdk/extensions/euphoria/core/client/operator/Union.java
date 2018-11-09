@@ -25,11 +25,12 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -44,9 +45,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>Example:
  *
  * <pre>{@code
- * Dataset<String> xs = ...;
- * Dataset<String> ys = ...;
- * Dataset<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
+ * PCollection<String> xs = ...;
+ * PCollection<String> ys = ...;
+ * PCollection<String> both = Union.named("XS-AND-YS").of(xs, ys).output();
  * }</pre>
  *
  * <p>The "both" dataset from the above example can now be processed with an operator expecting only
@@ -72,27 +73,27 @@ public class Union<InputT> extends Operator<InputT> {
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
    * @param <InputT> the type of elements in the data sets
-   * @param dataSets at least the two data sets
+   * @param pCollections at least the two data sets
    * @return the next builder to complete the setup of the {@link Union} operator
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
   @SafeVarargs
-  public static <InputT> OutputBuilder<InputT> of(Dataset<InputT>... dataSets) {
-    return of(Arrays.asList(dataSets));
+  public static <InputT> Builders.Output<InputT> of(PCollection<InputT>... pCollections) {
+    return of(Arrays.asList(pCollections));
   }
 
   /**
    * Starts building a nameless Union operator to view at least two datasets as one.
    *
    * @param <InputT> the type of elements in the data sets
-   * @param dataSets at least the two data sets
+   * @param pCollections at least the two data sets
    * @return the next builder to complete the setup of the {@link Union} operator
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
-  public static <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets) {
-    return named(null).of(dataSets);
+  public static <InputT> Builders.Output<InputT> of(List<PCollection<InputT>> pCollections) {
+    return named(null).of(pCollections);
   }
 
   /**
@@ -112,52 +113,47 @@ public class Union<InputT> extends Operator<InputT> {
      * Specifies the two data sets to be "unioned".
      *
      * @param <InputT> the type of elements in the two datasets
-     * @param dataSets at least two datSets
+     * @param pCollections at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
     @SafeVarargs
-    public final <InputT> OutputBuilder<InputT> of(Dataset<InputT>... dataSets) {
-      return of(Arrays.asList(dataSets));
+    public final <InputT> Builders.Output<InputT> of(PCollection<InputT>... pCollections) {
+      return of(Arrays.asList(pCollections));
     }
 
     /**
      * Specifies the two data sets to be "unioned".
      *
      * @param <InputT> the type of elements in the two datasets
-     * @param dataSets at least two datSets
+     * @param pCollections at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
-    public abstract <InputT> OutputBuilder<InputT> of(List<Dataset<InputT>> dataSets);
+    public abstract <InputT> Builders.Output<InputT> of(List<PCollection<InputT>> pCollections);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
-
-  private static class Builder<InputT> extends OfBuilder implements OutputBuilder<InputT> {
+  private static class Builder<InputT> extends OfBuilder implements Builders.Output<InputT> {
 
     @Nullable private final String name;
-    private List<Dataset<InputT>> dataSets;
+    private List<PCollection<InputT>> pCollections;
 
     Builder(@Nullable String name) {
       this.name = name;
     }
 
     @Override
-    public <T> OutputBuilder<T> of(List<Dataset<T>> dataSets) {
+    public <T> Builders.Output<T> of(List<PCollection<T>> pCollections) {
       @SuppressWarnings("unchecked")
       final Builder<T> casted = (Builder) this;
-      casted.dataSets = dataSets;
+      casted.pCollections = pCollections;
       return casted;
     }
 
     @Override
-    public Dataset<InputT> output(OutputHint... outputHints) {
-      checkArgument(dataSets.size() > 1, "Union needs at least two data sets.");
+    public PCollection<InputT> output(OutputHint... outputHints) {
+      checkArgument(pCollections.size() > 1, "Union needs at least two data sets.");
       return OperatorTransform.apply(
-          new Union<>(name, dataSets.get(0).getTypeDescriptor()), dataSets);
+          new Union<>(name, pCollections.get(0).getTypeDescriptor()),
+          PCollectionList.of(pCollections));
     }
   }
 
