@@ -153,21 +153,15 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
      * @param eventTimeFn the event time extraction function
      * @return the next builder to complete the setup of the {@link FlatMap} operator
      */
-    OutputBuilder<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn);
+    Builders.Output<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn);
   }
-
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
 
   /** Builder of {@link FlatMap}. */
   public static class Builder<InputT, OutputT>
       implements OfBuilder,
           UsingBuilder<InputT>,
           EventTimeBuilder<InputT, OutputT>,
-          OutputBuilder<OutputT> {
+          Builders.Output<OutputT> {
 
     @Nullable private final String name;
     private PCollection<InputT> input;
@@ -204,7 +198,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public OutputBuilder<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
+    public Builders.Output<OutputT> eventTimeBy(ExtractEventTime<InputT> eventTimeFn) {
       this.evtTimeFn = requireNonNull(eventTimeFn);
       return this;
     }

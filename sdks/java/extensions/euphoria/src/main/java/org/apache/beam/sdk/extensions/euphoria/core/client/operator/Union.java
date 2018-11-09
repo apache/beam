@@ -79,7 +79,7 @@ public class Union<InputT> extends Operator<InputT> {
    * @see OfBuilder#of(List)
    */
   @SafeVarargs
-  public static <InputT> OutputBuilder<InputT> of(PCollection<InputT>... pCollections) {
+  public static <InputT> Builders.Output<InputT> of(PCollection<InputT>... pCollections) {
     return of(Arrays.asList(pCollections));
   }
 
@@ -92,7 +92,7 @@ public class Union<InputT> extends Operator<InputT> {
    * @see #named(String)
    * @see OfBuilder#of(List)
    */
-  public static <InputT> OutputBuilder<InputT> of(List<PCollection<InputT>> pCollections) {
+  public static <InputT> Builders.Output<InputT> of(List<PCollection<InputT>> pCollections) {
     return named(null).of(pCollections);
   }
 
@@ -117,7 +117,7 @@ public class Union<InputT> extends Operator<InputT> {
      * @return the next builder to complete the setup of the {@link Union} operator
      */
     @SafeVarargs
-    public final <InputT> OutputBuilder<InputT> of(PCollection<InputT>... pCollections) {
+    public final <InputT> Builders.Output<InputT> of(PCollection<InputT>... pCollections) {
       return of(Arrays.asList(pCollections));
     }
 
@@ -128,16 +128,10 @@ public class Union<InputT> extends Operator<InputT> {
      * @param pCollections at least two datSets
      * @return the next builder to complete the setup of the {@link Union} operator
      */
-    public abstract <InputT> OutputBuilder<InputT> of(List<PCollection<InputT>> pCollections);
+    public abstract <InputT> Builders.Output<InputT> of(List<PCollection<InputT>> pCollections);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
-
-  private static class Builder<InputT> extends OfBuilder implements OutputBuilder<InputT> {
+  private static class Builder<InputT> extends OfBuilder implements Builders.Output<InputT> {
 
     @Nullable private final String name;
     private List<PCollection<InputT>> pCollections;
@@ -147,7 +141,7 @@ public class Union<InputT> extends Operator<InputT> {
     }
 
     @Override
-    public <T> OutputBuilder<T> of(List<PCollection<T>> pCollections) {
+    public <T> Builders.Output<T> of(List<PCollection<T>> pCollections) {
       @SuppressWarnings("unchecked")
       final Builder<T> casted = (Builder) this;
       casted.pCollections = pCollections;

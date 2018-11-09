@@ -207,15 +207,15 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
   /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggeredByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
-          OutputBuilder<OutputT> {
+          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
+          Builders.Output<OutputT> {
 
     @Override
     <W extends BoundedWindow> TriggeredByBuilder<OutputT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default OutputBuilder<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, OutputBuilder<OutputT>> fn) {
+    default Builders.Output<OutputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
       requireNonNull(fn);
       return cond ? fn.apply(this) : this;
     }
@@ -240,10 +240,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
-
-  /** Last 'output' builder. */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
 
   /**
    * Builder for ReduceByKey operator.
@@ -260,7 +257,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
           TriggeredByBuilder<OutputT>,
           AccumulationModeBuilder<OutputT>,
           WindowedOutputBuilder<OutputT>,
-          OutputBuilder<OutputT> {
+          Builders.Output<OutputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
