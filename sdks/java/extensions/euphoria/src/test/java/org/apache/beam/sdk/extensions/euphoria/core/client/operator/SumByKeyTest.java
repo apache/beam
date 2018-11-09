@@ -22,12 +22,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
@@ -38,11 +38,10 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted =
         SumByKey.named("SumByKey1").of(dataset).keyBy(s -> s).output();
-    assertTrue(counted.getProducer().isPresent());
-    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    final SumByKey sum = (SumByKey) TestUtils.getProducer(counted);
     assertTrue(sum.getName().isPresent());
     assertEquals("SumByKey1", sum.getName().get());
     assertNotNull(sum.getKeyExtractor());
@@ -51,17 +50,16 @@ public class SumByKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted = SumByKey.of(dataset).keyBy(s -> s).output();
-    assertTrue(counted.getProducer().isPresent());
-    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted = SumByKey.of(dataset).keyBy(s -> s).output();
+    final SumByKey sum = (SumByKey) TestUtils.getProducer(counted);
     assertFalse(sum.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted =
         SumByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
@@ -70,8 +68,7 @@ public class SumByKeyTest {
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(1000))
             .output();
-    assertTrue(counted.getProducer().isPresent());
-    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    final SumByKey sum = (SumByKey) TestUtils.getProducer(counted);
     assertTrue(sum.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) sum.getWindow().get());
@@ -84,8 +81,8 @@ public class SumByKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<KV<String, Long>> counted =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<KV<String, Long>> counted =
         SumByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
@@ -96,8 +93,7 @@ public class SumByKeyTest {
                         .triggeredBy(DefaultTrigger.of())
                         .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES))
             .output();
-    assertTrue(counted.getProducer().isPresent());
-    final SumByKey sum = (SumByKey) counted.getProducer().get();
+    final SumByKey sum = (SumByKey) TestUtils.getProducer(counted);
     assertTrue(sum.getWindow().isPresent());
     final Window<?> window = (Window) sum.getWindow().get();
     assertEquals(FixedWindows.of(org.joda.time.Duration.standardHours(1)), window.getWindowFn());
