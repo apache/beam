@@ -57,6 +57,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -176,6 +177,7 @@ public class ReferenceRunnerTest implements Serializable {
   }
 
   @Test
+  @Ignore("TODO: BEAM-3743")
   public void testSDF() throws Exception {
     Pipeline p = Pipeline.create();
 
