@@ -220,24 +220,30 @@ class TestParquet(unittest.TestCase):
             'codec',
             'none'),
         DisplayDataItemMatcher(
+            'row_group_size',
+            '1'),
+        DisplayDataItemMatcher(
             'compression',
             'uncompressed')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_display_data(self):
     file_name = 'some_parquet_sink'
-    write = WriteToParquet(file_name, self.SCHEMA)
+    write = WriteToParquet(file_name, self.SCHEMA, 1000)
     dd = DisplayData.create_from(write)
     expected_items = [
+        DisplayDataItemMatcher(
+            'codec',
+            'none'),
         DisplayDataItemMatcher(
             'schema',
             str(self.SCHEMA)),
         DisplayDataItemMatcher(
+            'row_group_size',
+            '1000'),
+        DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
-        DisplayDataItemMatcher(
-            'codec',
-            'none'),
         DisplayDataItemMatcher(
             'compression',
             'uncompressed')]
@@ -252,7 +258,7 @@ class TestParquet(unittest.TestCase):
           p \
           | Create(self.RECORDS) \
           | WriteToParquet(
-              path, self.SCHEMA96, num_shards=1, shard_name_template='')
+              path, self.SCHEMA96, 1000, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
@@ -262,7 +268,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, num_shards=1, shard_name_template='')
+            path, self.SCHEMA, 1000, num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
@@ -279,7 +285,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='snappy',
+            path, self.SCHEMA, 1000, codec='snappy',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -297,7 +303,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='gzip',
+            path, self.SCHEMA, 1000, codec='gzip',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -315,7 +321,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='brotli',
+            path, self.SCHEMA, 1000, codec='brotli',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -333,7 +339,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='lz4',
+            path, self.SCHEMA, 1000, codec='lz4',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -351,7 +357,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='zstd',
+            path, self.SCHEMA, 1000, codec='zstd',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability

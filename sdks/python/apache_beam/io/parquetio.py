@@ -262,8 +262,8 @@ class WriteToParquet(PTransform):
   def __init__(self,
                file_path_prefix,
                schema,
+               row_group_size,
                codec='none',
-               row_group_size=1000,
                use_deprecated_int96_timestamps=False,
                file_name_suffix='',
                num_shards=0,
@@ -282,7 +282,8 @@ class WriteToParquet(PTransform):
         records | 'Write' >> WriteToParquet('myoutput',
             pyarrow.schema(
                 [('name', pyarrow.binary()), ('age', pyarrow.int64())]
-            )
+            ),
+            10000
         )
 
     For more information on supported types and schema, please see the pyarrow
@@ -294,10 +295,10 @@ class WriteToParquet(PTransform):
         end in a common extension, if given by file_name_suffix. In most cases,
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
-      schema: The schema to use, as type of pyarrow.Schema
+      schema: The schema to use, as type of ``pyarrow.Schema``.
+      row_group_size: The number of records in each row group.
       codec: The codec to use for block-level compression. Any string supported
         by the pyarrow specification is accepted.
-      row_group_size: The number of records in each row group.
       use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
         INT96 Parquet format. Defaults to False.
       file_name_suffix: Suffix for the files written.
@@ -421,6 +422,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     res = super(_ParquetSink, self).display_data()
     res['codec'] = str(self._codec)
     res['schema'] = str(self._schema)
+    res['row_group_size'] = str(self._row_group_size)
     return res
 
   def _write_buffer(self, writer):

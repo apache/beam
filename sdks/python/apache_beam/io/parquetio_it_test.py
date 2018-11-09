@@ -137,8 +137,8 @@ class TestParquetIT(unittest.TestCase):
     files = lines | 'write' >> WriteToParquet(
         output_prefix,
         schema,
+        row_group_size,
         codec='snappy',
-        row_group_size=row_group_size,
         file_name_suffix='.parquet'
     )
 
