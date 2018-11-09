@@ -151,7 +151,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     stateRequestHandler = getStateRequestHandler(executableStage);
-    progressHandler = BundleProgressHandler.unsupported();
+    progressHandler = BundleProgressHandler.ignored();
     outputQueue = new LinkedBlockingQueue<>();
   }
 
