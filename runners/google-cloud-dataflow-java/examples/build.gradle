@@ -38,11 +38,7 @@ dependencies {
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
-def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject}/java-examples-it"
-def dockerImageContainer = "${dockerImageRoot}/java"
-def dockerTag = new Date().format('yyyyMMddHHmmss')
-def dockerImageName = "${dockerImageContainer}:${dockerTag}"
-def defaultDockerImageName = containerImageName(name: "java")
+def dockerImageName = project(':beam-runners-google-cloud-dataflow-java').ext.dockerImageName
 
 task preCommitLegacyWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
