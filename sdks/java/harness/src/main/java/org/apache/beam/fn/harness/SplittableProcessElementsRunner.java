@@ -53,7 +53,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.Timestamps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -245,8 +245,10 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
           ImmutableList.of(
               DelayedBundleApplication.newBuilder()
                   .setApplication(residualApplication)
-                  .setDelay(
-                      Durations.fromMillis(result.getContinuation().resumeDelay().getMillis()))
+                  .setRequestedExecutionTime(
+                      Timestamps.fromMillis(
+                          System.currentTimeMillis()
+                              + result.getContinuation().resumeDelay().getMillis()))
                   .build()));
     }
   }

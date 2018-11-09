@@ -41,7 +41,6 @@ option java_outer_classname = "BeamFnApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -253,9 +252,9 @@ message BundleApplication {
 
 // An Application should be scheduled for execution after a delay.
 message DelayedBundleApplication {
-  // Recommended amount of delay before the application should be executed
-  // by the runner.
-  google.protobuf.Duration delay = 1;
+  // Recommended time at which the application should be scheduled to execute
+  // by the runner. Times in the past may be scheduled to execute immediately.
+  google.protobuf.Timestamp requested_execution_time = 1;
 
   // (Required) The application that should be scheduled.
   BundleApplication application = 2;
