@@ -127,15 +127,15 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   /** Builder for the 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
-          OutputBuilder<OutputT> {
+          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
+          Builders.Output<OutputT> {
 
     @Override
     <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(WindowFn<Object, T> windowing);
 
     @Override
-    default OutputBuilder<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, OutputBuilder<OutputT>> fn) {
+    default Builders.Output<OutputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
@@ -159,10 +159,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
-
-  /** Builder for the 'output' step. */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
 
   private static class Builder<InputT, OutputT>
       implements OfBuilder,
@@ -171,7 +168,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
           TriggerByBuilder<OutputT>,
           AccumulationModeBuilder<OutputT>,
           WindowedOutputBuilder<OutputT>,
-          OutputBuilder<OutputT> {
+          Builders.Output<OutputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 

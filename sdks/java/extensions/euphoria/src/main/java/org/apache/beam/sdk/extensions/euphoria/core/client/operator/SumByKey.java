@@ -132,15 +132,15 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
   /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<KeyT>
       extends Builders.WindowBy<TriggeredByBuilder<KeyT>>,
-          OptionalMethodBuilder<WindowByBuilder<KeyT>, OutputBuilder<KeyT>>,
-          OutputBuilder<KeyT> {
+          OptionalMethodBuilder<WindowByBuilder<KeyT>, Builders.Output<KV<KeyT, Long>>>,
+          Builders.Output<KV<KeyT, Long>> {
 
     @Override
     <W extends BoundedWindow> TriggeredByBuilder<KeyT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default OutputBuilder<KeyT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<KeyT>, OutputBuilder<KeyT>> fn) {
+    default Builders.Output<KV<KeyT, Long>> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<KeyT>, Builders.Output<KV<KeyT, Long>>> fn) {
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
@@ -164,10 +164,8 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<KeyT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>, OutputBuilder<KeyT> {}
-
-  /** Builder for 'output' step. */
-  public interface OutputBuilder<KeyT> extends Builders.Output<KV<KeyT, Long>> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<KeyT>>,
+          Builders.Output<KV<KeyT, Long>> {}
 
   /**
    * Builder for SumByKey operator.
@@ -183,7 +181,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
           TriggeredByBuilder<KeyT>,
           AccumulationModeBuilder<KeyT>,
           WindowedOutputBuilder<KeyT>,
-          OutputBuilder<KeyT> {
+          Builders.Output<KV<KeyT, Long>> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 

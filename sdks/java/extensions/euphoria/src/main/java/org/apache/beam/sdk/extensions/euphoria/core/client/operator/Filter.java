@@ -95,11 +95,8 @@ public class Filter<InputT> extends Operator<InputT> implements CompositeOperato
     Builders.Output<InputT> by(UnaryPredicate<InputT> predicate);
   }
 
-  /** Builder for 'output' step. */
-  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
-
   private static class Builder<InputT>
-      implements OfBuilder, ByBuilder<InputT>, OutputBuilder<InputT> {
+      implements OfBuilder, ByBuilder<InputT>, Builders.Output<InputT> {
 
     @Nullable private final String name;
     private PCollection<InputT> input;

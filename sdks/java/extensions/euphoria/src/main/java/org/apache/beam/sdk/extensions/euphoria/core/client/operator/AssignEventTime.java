@@ -89,18 +89,15 @@ public class AssignEventTime<InputT> extends Operator<InputT>
      * @return the next builder to complete the setup
      * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
-    OutputBuilder<InputT> using(ExtractEventTime<InputT> fn);
+    Builders.Output<InputT> using(ExtractEventTime<InputT> fn);
   }
-
-  /** Builder for the 'output' step from the builder chain. */
-  public interface OutputBuilder<InputT> extends Builders.Output<InputT> {}
 
   /**
    * Last builder in a chain. It concludes this operators creation by calling {@link
    * #output(OutputHint...)}.
    */
   public static class Builder<InputT>
-      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<InputT> {
+      implements OfBuilder, UsingBuilder<InputT>, Builders.Output<InputT> {
 
     @Nullable private final String name;
     private PCollection<InputT> input;
@@ -119,7 +116,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     }
 
     @Override
-    public OutputBuilder<InputT> using(ExtractEventTime<InputT> eventTimeExtractor) {
+    public Builders.Output<InputT> using(ExtractEventTime<InputT> eventTimeExtractor) {
       this.eventTimeExtractor = eventTimeExtractor;
       return this;
     }

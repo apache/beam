@@ -95,11 +95,11 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    default <OutputT> OutputBuilder<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
+    default <OutputT> Builders.Output<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    default <OutputT> OutputBuilder<OutputT> using(
+    default <OutputT> Builders.Output<OutputT> using(
         UnaryFunction<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType) {
       return using((el, ctx) -> mapper.apply(el), outputType);
     }
@@ -111,22 +111,16 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    default <OutputT> OutputBuilder<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
+    default <OutputT> Builders.Output<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    <OutputT> OutputBuilder<OutputT> using(
+    <OutputT> Builders.Output<OutputT> using(
         UnaryFunctionEnv<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
-
   private static class Builder<InputT, OutputT>
-      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<OutputT> {
+      implements OfBuilder, UsingBuilder<InputT>, Builders.Output<OutputT> {
 
     @Nullable private final String name;
     private PCollection<InputT> input;
@@ -146,7 +140,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public <T> OutputBuilder<T> using(
+    public <T> Builders.Output<T> using(
         UnaryFunctionEnv<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
       @SuppressWarnings("unchecked")
       final Builder<InputT, T> casted = (Builder) this;
