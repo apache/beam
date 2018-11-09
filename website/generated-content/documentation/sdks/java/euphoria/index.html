@@ -243,13 +243,11 @@
   <li><a href="#wordcount-example">WordCount Example</a></li>
   <li><a href="#euphoria-guide">Euphoria Guide</a>
     <ul>
-      <li><a href="#datasets">Datasets</a></li>
       <li><a href="#inputs-and-outputs">Inputs and Outputs</a></li>
       <li><a href="#adding-operators">Adding Operators</a></li>
       <li><a href="#coders-and-types">Coders and Types</a></li>
       <li><a href="#metrics-and-accumulators">Metrics and Accumulators</a></li>
       <li><a href="#windowing">Windowing</a></li>
-      <li><a href="#integration-of-euphoria-into-existing-pipelines">Integration of Euphoria into existing pipelines</a></li>
     </ul>
   </li>
   <li><a href="#how-to-get-euphoria">How to get Euphoria</a></li>
@@ -311,7 +309,7 @@ For each of the assigned windows the extracted value is accumulated using a user
 -->
 
 <h2 id="what-is-euphoria">What is Euphoria</h2>
-<p>Easy to use Java 8 API build on top of the Beam’s Java SDK. API provides a <a href="#operator-reference">high-level abstraction</a> of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> based coders, lambdas and high level operators and can be <a href="#integration-of-euphoria-into-existing-pipelines">seamlessly integrated</a> into existing Beam <code class="highlighter-rouge">Pipelines</code>.</p>
+<p>Easy to use Java 8 API build on top of the Beam’s Java SDK. API provides a <a href="#operator-reference">high-level abstraction</a> of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam <code class="highlighter-rouge">Pipelines</code>.</p>
 
 <p><a href="https://github.com/seznam/euphoria">Euphoria API</a> project has been started in 2014, with a clear goal of providing the main building block for <a href="https://www.seznam.cz/">Seznam.cz’s</a> data infrastructure.
 In 2015, <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">DataFlow whitepaper</a> inspired original authors to go one step further and also provide the unified API for both stream and batch processing.
@@ -334,12 +332,8 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">textLineByLine</span><span class="o">))</span>
         <span class="o">.</span><span class="na">setTypeDescriptor</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
 
-<span class="c1">// Transform PCollection to euphoria's Dataset.</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span>  <span class="n">Dataset</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">);</span>
-
-<span class="c1">// FlatMap processes one input element at a time and allows user code to emit</span>
 <span class="c1">// zero, one, or more output elements. From input lines we will get data set of words.</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span>
     <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"TOKENIZER"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">lines</span><span class="o">)</span>
         <span class="o">.</span><span class="na">using</span><span class="o">(</span>
@@ -352,26 +346,23 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <span class="c1">// Now we can count input words - the operator ensures that all values for the same</span>
 <span class="c1">// key (word in this case) end up being processed together. Then it counts number of appearances</span>
-<span class="c1">// of the same key in 'words' dataset and emits it to output.</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">counted</span> <span class="o">=</span>
+<span class="c1">// of the same key in 'words' PCollection and emits it to output.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">counted</span> <span class="o">=</span>
     <span class="n">CountByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"COUNT"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">words</span><span class="o">)</span>
         <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">w</span> <span class="o">-&gt;</span> <span class="n">w</span><span class="o">)</span>
         <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 
 <span class="c1">// Format output.</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
     <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"FORMAT"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">counted</span><span class="o">)</span>
         <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">p</span> <span class="o">-&gt;</span> <span class="n">p</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">p</span><span class="o">.</span><span class="na">getValue</span><span class="o">())</span>
         <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 
-<span class="c1">// Transform Dataset back to PCollection. It can be done anytime.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">outputCollection</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="na">getPCollection</span><span class="o">();</span>
-
 <span class="c1">// Now we can again use Beam transformation. In this case we save words and their count</span>
 <span class="c1">// into the text file.</span>
-<span class="n">outputCollection</span>
+<span class="n">output</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">()</span>
     <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"counted_words"</span><span class="o">));</span>
 
@@ -383,38 +374,23 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <p>Euphoria API is composed from a set of operators, which allows you to construct <code class="highlighter-rouge">Pipeline</code> according to your application needs.</p>
 
-<h3 id="datasets">Datasets</h3>
-<p>Euphoria uses the concept of ‘Datasets’ to describe data pipeline between <code class="highlighter-rouge">Operators</code>. This concept is similar to Beam’s <code class="highlighter-rouge">PCollection</code> and can be converted back and forth through:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">someCollection</span> <span class="o">=</span> <span class="o">...</span>
-
-<span class="c1">// PCollection -&gt; Dataset</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">someCollection</span><span class="o">);</span>
-
-<span class="c1">//And now back: Dataset -&gt; PCollection</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">collection</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="na">getPCollection</span><span class="o">();</span>
-</code></pre>
-</div>
-
 <h3 id="inputs-and-outputs">Inputs and Outputs</h3>
-<p>Input data can be supplied through Beams IO into <code class="highlighter-rouge">PCollection</code>, the same way as in Beam, and wrapped by <code class="highlighter-rouge">Dataset.of(PCollection&lt;T&gt; pCollection)</code> into <code class="highlighter-rouge">Dataset</code> later on.</p>
+<p>Input data can be supplied through Beams IO into <code class="highlighter-rouge">PCollection</code>, the same way as in Beam.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span>
   <span class="n">pipeline</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"mouse"</span><span class="o">,</span> <span class="s">"rat"</span><span class="o">,</span> <span class="s">"elephant"</span><span class="o">,</span> <span class="s">"cat"</span><span class="o">,</span> <span class="s">"X"</span><span class="o">,</span> <span class="s">"duck"</span><span class="o">))</span>
     <span class="o">.</span><span class="na">setTypeDescriptor</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
-
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span>  <span class="n">Dataset</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">);</span>
 </code></pre>
 </div>
-<p>Outputs can be treated the same way as inputs, last <code class="highlighter-rouge">Dataset</code> is converted to <code class="highlighter-rouge">PCollection</code> and dumped into appropriate IO.</p>
 
 <h3 id="adding-operators">Adding Operators</h3>
-<p>Real power of Euphoria API is in its <a href="#operator-reference">operators suite</a>. Once we get our hands on <code class="highlighter-rouge">Dataset</code> we are able to create and connect operators. Each Operator consumes one or more input and produces one output
-<code class="highlighter-rouge">Dataset</code>. Lets take a look at simple <code class="highlighter-rouge">MapElements</code> example.</p>
+<p>Real power of Euphoria API is in its <a href="#operator-reference">operators suite</a>. Each Operator consumes one or more input and produces one output
+<code class="highlighter-rouge">PCollection</code>. Lets take a look at simple <code class="highlighter-rouge">MapElements</code> example.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
 
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mappedElements</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mappedElements</span> <span class="o">=</span>
   <span class="n">MapElements</span>
     <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"Int2Str"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
@@ -422,7 +398,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 </code></pre>
 </div>
-<p>The operator consumes <code class="highlighter-rouge">input</code>, it applies given lambda expression (<code class="highlighter-rouge">String::valueOf</code>) on each element of <code class="highlighter-rouge">input</code> and returns mapped <code class="highlighter-rouge">Dataset</code>. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and ‘.’ (dot). Your IDE will give you hints.</p>
+<p>The operator consumes <code class="highlighter-rouge">input</code>, it applies given lambda expression (<code class="highlighter-rouge">String::valueOf</code>) on each element of <code class="highlighter-rouge">input</code> and returns mapped <code class="highlighter-rouge">PCollection</code>. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and ‘.’ (dot). Your IDE will give you hints.</p>
 
 <p>First step to build any operator is to give it a name through <code class="highlighter-rouge">named()</code> method. The name is propagated through system and can latter be used when debugging.</p>
 
@@ -470,7 +446,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 </code></pre>
 </div>
 <p>Beam resolves coders using types of elements. Type information is not available at runtime when element type is described by lambda implementation. It is due to type erasure and dynamic nature of lambda expressions. So there is an optional way of supplying <code class="highlighter-rouge">TypeDescriptor</code> every time new type is introduced during Operator construction.</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="n">MapElements</span>
   <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"Int2Str"</span><span class="o">)</span>
@@ -479,14 +455,14 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
   <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 </code></pre>
 </div>
-<p>Euphoria operator’s will use <code class="highlighter-rouge">TypeDescriptor&lt;Object&gt;</code>, when <code class="highlighter-rouge">TypeDescriptors</code> is not supplied by user. So <code class="highlighter-rouge">KryoCoderProvider</code> may return <code class="highlighter-rouge">KryoCOder&lt;Object&gt;</code> for every element with unknown type, if allowed by <code class="highlighter-rouge">KryoOptions</code>. Supplying <code class="highlighter-rouge">TypeDescriptors</code> becomes mandatory when using <code class="highlighter-rouge">.setKryoRegistrationRequired(true)</code>.</p>
+<p>Euphoria operator’s will use <code class="highlighter-rouge">TypeDescriptor&lt;Object&gt;</code>, when <code class="highlighter-rouge">TypeDescriptors</code> is not supplied by user. So <code class="highlighter-rouge">KryoCoderProvider</code> may return <code class="highlighter-rouge">KryoCoder&lt;Object&gt;</code> for every element with unknown type, if allowed by <code class="highlighter-rouge">KryoOptions</code>. Supplying <code class="highlighter-rouge">TypeDescriptors</code> becomes mandatory when using <code class="highlighter-rouge">.setKryoRegistrationRequired(true)</code>.</p>
 
 <h3 id="metrics-and-accumulators">Metrics and Accumulators</h3>
 <p>Statistics about job’s internals are very helpful during development of distributed jobs. Euphoria calls them accumulators. They are accessible through environment <code class="highlighter-rouge">Context</code>, which can be obtained from <code class="highlighter-rouge">Collector</code>, whenever working with it. It is usually present when zero-to-many output elements are expected from operator. For example in case of <code class="highlighter-rouge">FlatMap</code>.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">..</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">..</span>
 
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
 <span class="n">FlatMap</span>
   <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"FlatMap1"</span><span class="o">)</span>
   <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">dataset</span><span class="o">)</span>
@@ -500,9 +476,9 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 </div>
 <p><code class="highlighter-rouge">MapElements</code> also allows for <code class="highlighter-rouge">Context</code> to be accessed by supplying implementations of <code class="highlighter-rouge">UnaryFunctionEnv</code> (add second context argument) instead of <code class="highlighter-rouge">UnaryFunctor</code>.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">...</span>
 
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
   <span class="n">MapElements</span>
     <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"MapThem"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">dataset</span><span class="o">)</span>
@@ -510,7 +486,6 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
       <span class="o">(</span><span class="n">input</span><span class="o">,</span> <span class="n">context</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
         <span class="c1">// use simple counter</span>
         <span class="n">context</span><span class="o">.</span><span class="na">getCounter</span><span class="o">(</span><span class="s">"my-counter"</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
-
         <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">();</span>
         <span class="o">})</span>
       <span class="o">.</span><span class="na">output</span><span class="o">();</span>
@@ -520,39 +495,22 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <h3 id="windowing">Windowing</h3>
 <p>Euphoria follows the same <a href="/documentation/programming-guide/#windowing">windowing principles</a> as Beam Java SDK. Every shuffle operator (operator which needs to shuffle data over the network) allows you to set it. The same parameters as in Beam are required. <code class="highlighter-rouge">WindowFn</code>, <code class="highlighter-rouge">Trigger</code>, <code class="highlighter-rouge">WindowingStrategy</code> and other. Users are guided to either set all mandatory and several optional parameters  or none when building an operator. Windowing is propagated down through the <code class="highlighter-rouge">Pipeline</code>.</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Dtaset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countedElements</span> <span class="o">=</span>
-<span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
-    <span class="o">.</span><span class="na">triggeredBy</span><span class="o">(</span><span class="n">DefaultTrigger</span><span class="o">.</span><span class="na">of</span><span class="o">())</span>
-    <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">()</span>
-    <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span>
-    <span class="o">.</span><span class="na">withOnTimeBehavior</span><span class="o">(</span><span class="n">OnTimeBehavior</span><span class="o">.</span><span class="na">FIRE_IF_NON_EMPTY</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">withTimestampCombiner</span><span class="o">(</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="na">EARLIEST</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre>
-</div>
-
-<h3 id="integration-of-euphoria-into-existing-pipelines">Integration of Euphoria into existing pipelines</h3>
-<p><code class="highlighter-rouge">Euphoria</code> allows to define composite <code class="highlighter-rouge">PTransform</code> so Euphoria can be seamlessly integrated to already existing Beam <code class="highlighter-rouge">Pipelines</code>. User only need to provide implementation of function which takes input <code class="highlighter-rouge">Dataset</code>  and outputs another <code class="highlighter-rouge">Datatset</code>. The input dataset is nothing else than mirror of a input <code class="highlighter-rouge">PCollection</code>. Output <code class="highlighter-rouge">Dataset</code> is transformed to <code class="highlighter-rouge">Pcollection</code> automatically.</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose inputs PCollection contains: [ "a", "b", "c", "A", "a", "C", "x"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">lettersWithCounts</span> <span class="o">=</span>
-  <span class="n">inputs</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"count-uppercase-letters-in-Euphoria"</span><span class="o">,</span>
-    <span class="n">Euphoria</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-      <span class="o">(</span><span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-        <span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">upperCase</span> <span class="o">=</span>
-          <span class="n">MapElements</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-            <span class="o">.</span><span class="na">using</span><span class="o">((</span><span class="n">UnaryFunction</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;)</span> <span class="nl">String:</span><span class="o">:</span><span class="n">toUpperCase</span><span class="o">)</span>
-            <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-
-        <span class="k">return</span> <span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">upperCase</span><span class="o">).</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
-    <span class="o">}));</span>
-<span class="c1">//now the 'lettersWithCounts' will conntain [ KV("A", 3L), KV("B", 1L), KV("C", 2L), KV("X", 1L) ]</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countedElements</span> <span class="o">=</span>
+  <span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">triggeredBy</span><span class="o">(</span><span class="n">DefaultTrigger</span><span class="o">.</span><span class="na">of</span><span class="o">())</span>
+      <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">()</span>
+      <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span>
+      <span class="o">.</span><span class="na">withOnTimeBehavior</span><span class="o">(</span><span class="n">OnTimeBehavior</span><span class="o">.</span><span class="na">FIRE_IF_NON_EMPTY</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">withTimestampCombiner</span><span class="o">(</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="na">EARLIEST</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 </code></pre>
 </div>
 
 <h2 id="how-to-get-euphoria">How to get Euphoria</h2>
 <p>Euphoria is located in <code class="highlighter-rouge">dsl-euphoria</code> branch, <code class="highlighter-rouge">beam-sdks-java-extensions-euphoria</code> module of The Apache Beam project. To build <code class="highlighter-rouge">euphoria</code> subproject call:</p>
+
 <div class="highlighter-rouge"><pre class="highlight"><code>./gradlew beam-sdks-java-extensions-euphoria:build
 </code></pre>
 </div>
@@ -563,7 +521,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="countbykey"><code class="highlighter-rouge">CountByKey</code></h3>
 <p>Counting elements with the same key. Requires input dataset to be mapped by given key extractor (<code class="highlighter-rouge">UnaryFunction</code>) to keys which are then counted. Output is emitted as <code class="highlighter-rouge">KV&lt;K, Long&gt;</code> (<code class="highlighter-rouge">K</code> is key type) where each <code class="highlighter-rouge">KV</code> contains key and number of element in input dataset for the key.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose input: [1, 2, 4, 1, 1, 3]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
   <span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
@@ -594,7 +552,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <p>Represents inner join of two (left and right) datasets on given key producing a new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes elements from both dataset sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
 <span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
   <span class="n">Join</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"join-length-to-words"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
     <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
@@ -609,26 +567,26 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <p>Represents left join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where right is present optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
 <span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-    <span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
-        <span class="n">LeftJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"left-join-length-to-words"</span><span class="o">)</span>
-            <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
-            <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
-            <span class="o">.</span><span class="na">using</span><span class="o">(</span>
-                <span class="o">(</span><span class="n">Integer</span> <span class="n">l</span><span class="o">,</span> <span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span>
-                    <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
-            <span class="o">.</span><span class="na">output</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+  <span class="n">LeftJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"left-join-length-to-words"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
+      <span class="o">.</span><span class="na">using</span><span class="o">(</span>
+          <span class="o">(</span><span class="n">Integer</span> <span class="n">l</span><span class="o">,</span> <span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span>
+              <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 <span class="c1">// joined will contain: [KV(1, "1+X"), KV(2, "2+null"), KV(3, "3+cat"),</span>
 <span class="c1">// KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),</span>
 <span class="c1">// KV(3, "3+rat"), KV(1, "1+X")]</span>
 </code></pre>
 </div>
-<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">LeftJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">Dataset</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">Dataset</code> is used as right input, Euphoria will automatically translated <code class="highlighter-rouge">LeftJoin</code> as ‘BroadcastHashJoin’. Broadcast join can be very efficient when joining between skewed datasets.</p>
+<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">LeftJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">PCollection</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">PCollection</code> is used as right input, Euphoria will automatically translated <code class="highlighter-rouge">LeftJoin</code> as ‘BroadcastHashJoin’. Broadcast join can be very efficient when joining between skewed datasets.</p>
 
 <h3 id="rightjoin"><code class="highlighter-rouge">RightJoin</code></h3>
 <p>Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
 <span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
   <span class="n">RightJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"right-join-length-to-words"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
     <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
@@ -641,13 +599,13 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
     <span class="c1">// KV(8, "null+elephant"), KV(5, "null+mouse")]</span>
 </code></pre>
 </div>
-<p>Euphoria support performance optimization called ‘Broadcast Hash Join’ for the <code class="highlighter-rouge">RightJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">Dataset</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">Dataset</code> is used as left input, Euphoria will automatically translated <code class="highlighter-rouge">RightJoin</code> as ‘Broadcast Hash Join’. Broadcast join can be very efficient when joining between skewed datasets.</p>
+<p>Euphoria support performance optimization called ‘Broadcast Hash Join’ for the <code class="highlighter-rouge">RightJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">PCollection</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">PCollection</code> is used as left input, Euphoria will automatically translated <code class="highlighter-rouge">RightJoin</code> as ‘Broadcast Hash Join’. Broadcast join can be very efficient when joining between skewed datasets.</p>
 
 <h3 id="fulljoin"><code class="highlighter-rouge">FullJoin</code></h3>
 <p>Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
 <span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
   <span class="n">FullJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"join-length-to-words"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
     <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
@@ -664,7 +622,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="mapelements"><code class="highlighter-rouge">MapElements</code></h3>
 <p>Transforms one input element of input type <code class="highlighter-rouge">InputT</code> to one output element of another (potentially the same) <code class="highlighter-rouge">OutputT</code> type. Transformation is done through user specified <code class="highlighter-rouge">UnaryFunction</code>.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose inputs contains: [ 0, 1, 2, 3, 4, 5]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">strings</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">strings</span> <span class="o">=</span>
   <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"int2str"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="s">"#"</span> <span class="o">+</span> <span class="n">i</span><span class="o">)</span>
@@ -676,7 +634,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="flatmap"><code class="highlighter-rouge">FlatMap</code></h3>
 <p>Transforms one input element of input type <code class="highlighter-rouge">InputT</code> to zero or more output elements of another (potentially the same) <code class="highlighter-rouge">OutputT</code> type. Transformation is done through user specified <code class="highlighter-rouge">UnaryFunctor</code>, where <code class="highlighter-rouge">Collector&lt;OutputT&gt;</code> is utilized to emit output elements. Notice similarity with <code class="highlighter-rouge">MapElements</code> which can always emit only one element.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose words contain: ["Brown", "fox", ".", ""]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">letters</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">letters</span> <span class="o">=</span>
   <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"str2char"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">words</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span>
@@ -692,7 +650,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 </div>
 <p><code class="highlighter-rouge">FlatMap</code> may be used to determine time-stamp of elements. It is done by supplying implementation of <code class="highlighter-rouge">ExtractEventTime</code> time extractor when building it. There is specialized <code class="highlighter-rouge">AssignEventTime</code> operator to assign time-stamp to elements. Consider using it, you code may be more readable.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
   <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"extract-event-time"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">events</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span> <span class="o">(</span><span class="n">SomeEventObject</span> <span class="n">e</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">e</span><span class="o">))</span>
@@ -705,7 +663,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="filter"><code class="highlighter-rouge">Filter</code></h3>
 <p><code class="highlighter-rouge">Filter</code> throws away all the elements which do not pass given condition. The condition is supplied by the user as implementation of <code class="highlighter-rouge">UnaryPredicate</code>. Input and output elements are of the same type.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">divisibleBythree</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">divisibleBythree</span> <span class="o">=</span>
   <span class="n">Filter</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"divisibleByThree"</span><span class="o">).</span><span class="na">of</span><span class="o">(</span><span class="n">nums</span><span class="o">).</span><span class="na">by</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="mi">3</span> <span class="o">==</span> <span class="mi">0</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
 <span class="c1">//divisibleBythree will contain: [ 0, 3, 6, 9]</span>
 </code></pre>
@@ -718,7 +676,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <p>Following example shows basic usage of <code class="highlighter-rouge">ReduceByKey</code> operator including value extraction.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLength</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLength</span> <span class="o">=</span>
   <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as groupping key</span>
@@ -732,7 +690,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <p>Now suppose that we want to track our <code class="highlighter-rouge">ReduceByKey</code> internals using counter.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
   <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key</span>
@@ -750,7 +708,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <p>Again the same example with optimized combinable output.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
   <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will e used as grouping key</span>
@@ -765,7 +723,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 
 <p>Euphoria aims to make code easy to write and read. Therefore some support to write combinable reduce functions in form of <code class="highlighter-rouge">Fold</code> or folding function is already there. It allows user to supply only the reduction logic (<code class="highlighter-rouge">BinaryFunction</code>) and creates <code class="highlighter-rouge">CombinableReduceFunction</code> out of it. Supplied <code class="highlighter-rouge">BinaryFunction</code> still have to be associative.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
   <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key</span>
@@ -781,9 +739,9 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <p>Reduces all elements in a <a href="#windowing">window</a>. The operator corresponds to <code class="highlighter-rouge">ReduceByKey</code> with the same key for all elements, so the actual key is defined only by window.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]</span>
 <span class="c1">//lets assign time-stamp to each input element</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">withEventTime</span> <span class="o">=</span> <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="mi">1000L</span> <span class="o">*</span> <span class="n">i</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">withEventTime</span> <span class="o">=</span> <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="mi">1000L</span> <span class="o">*</span> <span class="n">i</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
 
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
   <span class="n">ReduceWindow</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">withEventTime</span><span class="o">)</span>
     <span class="o">.</span><span class="na">combineBy</span><span class="o">(</span><span class="n">Fold</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">i1</span> <span class="o">+</span> <span class="n">i2</span><span class="o">))</span>
     <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">millis</span><span class="o">(</span><span class="mi">5000</span><span class="o">)))</span>
@@ -797,7 +755,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="sumbykey"><code class="highlighter-rouge">SumByKey</code></h3>
 <p>Summing elements with same key. Requires input dataset to be mapped by given key extractor (<code class="highlighter-rouge">UnaryFunction</code>) to keys. By value extractor, also <code class="highlighter-rouge">UnaryFunction</code> which outputs to <code class="highlighter-rouge">Long</code>, to values. Those values are then grouped by key and summed. Output is emitted as <code class="highlighter-rouge">KV&lt;K, Long&gt;</code> (<code class="highlighter-rouge">K</code> is key type) where each <code class="highlighter-rouge">KV</code> contains key and number of element in input dataset for the key.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
   <span class="n">SumByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"sum-odd-and-even"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="mi">2</span><span class="o">)</span>
@@ -811,7 +769,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <p>Merge of at least two datasets of the same type without any guarantee about elements ordering.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]</span>
 <span class="c1">//suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">animals</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">animals</span> <span class="o">=</span>
   <span class="n">Union</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-animals"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">cats</span><span class="o">,</span> <span class="n">rodents</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
@@ -822,7 +780,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="topperkey"><code class="highlighter-rouge">TopPerKey</code></h3>
 <p>Emits one top-rated element per key. Key of type <code class="highlighter-rouge">K</code> is extracted by given <code class="highlighter-rouge">UnaryFunction</code>. Another <code class="highlighter-rouge">UnaryFunction</code> extractor allows for conversion input elements to values of type <code class="highlighter-rouge">V</code>. Selection of top element is based on <em>score</em>, which is obtained from each element by user supplied <code class="highlighter-rouge">UnaryFunction</code> called score calculator. Score type is denoted as <code class="highlighter-rouge">ScoreT</code> and it is required to extend <code class="highlighter-rouge">Comparable&lt;ScoreT&gt;</code> so scores of two elements can be compared directly. Output dataset elements are of type <code class="highlighter-rouge">Triple&lt;K, V, ScoreT&gt;</code>.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">&lt;</span><span class="n">Character</span><span class="o">,</span> <span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">longestNamesByLetter</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">&lt;</span><span class="n">Character</span><span class="o">,</span> <span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">longestNamesByLetter</span> <span class="o">=</span>
   <span class="n">TopPerKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"longest-animal-names"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">name</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">.</span><span class="na">charAt</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span> <span class="c1">// first character is the key</span>
@@ -837,7 +795,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <h3 id="assigneventtime"><code class="highlighter-rouge">AssignEventTime</code></h3>
 <p>Euphoria needs to know how to extract time-stamp from elements when <a href="#windowing">windowing</a> is applied. <code class="highlighter-rouge">AssignEventTime</code> tells Euphoria how to do that through given implementation of <code class="highlighter-rouge">ExtractEventTime</code> function.</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp</span>
-<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
   <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"extract-event-tyme"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">events</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="nl">SomeEventObject:</span><span class="o">:</span><span class="n">getEventTimeInMillis</span><span class="o">)</span>
