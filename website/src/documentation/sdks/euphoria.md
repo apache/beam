@@ -32,7 +32,7 @@ For each of the assigned windows the extracted value is accumulated using a user
 -->
 
 ## What is Euphoria
-Easy to use Java 8 API build on top of the Beam's Java SDK. API provides a [high-level abstraction](#operator-reference) of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) [Kryo](https://github.com/EsotericSoftware/kryo) based coders, lambdas and high level operators and can be [seamlessly integrated](#integration-of-euphoria-into-existing-pipelines) into existing Beam `Pipelines`.
+Easy to use Java 8 API build on top of the Beam's Java SDK. API provides a [high-level abstraction](#operator-reference) of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) [Kryo](https://github.com/EsotericSoftware/kryo) based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam `Pipelines`.
 
 [Euphoria API](https://github.com/seznam/euphoria) project has been started in 2014, with a clear goal of providing the main building block for [Seznam.cz's](https://www.seznam.cz/) data infrastructure.
 In 2015, [DataFlow whitepaper](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf) inspired original authors to go one step further and also provide the unified API for both stream and batch processing.
