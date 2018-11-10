@@ -18,13 +18,10 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -45,30 +42,18 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.runners.dataflow.util.CloudObject;
-import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -89,12 +74,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -103,8 +83,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.hamcrest.Matchers;
-import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -676,119 +654,33 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         not(equalTo("true")));
   }
 
-  /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
+  /** Smoke test to fail fast if translation of a splittable ParDo breaks. */
   @Test
-  public void testStreamingSplittableParDoTranslation() throws Exception {
+  public void testSplittableParDoTranslation() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    options.setStreaming(true);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Create.of("a"))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
-    windowedInput.apply(ParDo.of(new TestSplittableFn()));
+    pipeline.apply(Create.of("a")).apply(ParDo.of(new TestSplittableFn()));
 
     runner.replaceTransforms(pipeline);
 
     Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
 
-    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
-    // "SplittableProcessKeyed".
+    // The job should look like:
+    // 0. ParallelRead (Create)
+    // 1. ParallelDo
 
     List<Step> steps = job.getSteps();
-    Step processKeyedStep = null;
-    for (Step step : steps) {
-      if ("SplittableProcessKeyed".equals(step.getKind())) {
-        assertNull(processKeyedStep);
-        processKeyedStep = step;
-      }
-    }
-    assertNotNull(processKeyedStep);
+    assertEquals(2, steps.size());
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    DoFnInfo<String, Integer> fnInfo =
-        (DoFnInfo<String, Integer>)
-            SerializableUtils.deserializeFromByteArray(
-                jsonStringToByteArray(
-                    getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN)),
-                "DoFnInfo");
-    assertThat(fnInfo.getDoFn(), instanceOf(TestSplittableFn.class));
-    assertThat(
-        fnInfo.getWindowingStrategy().getWindowFn(),
-        Matchers.<WindowFn>equalTo(FixedWindows.of(Duration.standardMinutes(1))));
-    assertThat(fnInfo.getInputCoder(), instanceOf(StringUtf8Coder.class));
-    Coder<?> restrictionCoder =
-        CloudObjects.coderFromCloudObject(
-            (CloudObject)
-                Structs.getObject(
-                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
+    Step createStep = steps.get(0);
+    assertEquals("ParallelRead", createStep.getKind());
 
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
-  }
-
-  /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
-  @Test
-  public void testStreamingSplittableParDoTranslationFnApi() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    options.setStreaming(true);
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Create.of("a"))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
-    windowedInput.apply(ParDo.of(new TestSplittableFn()));
-
-    runner.replaceTransforms(pipeline);
-
-    JobSpecification result = translator.translate(pipeline, runner, Collections.emptyList());
-
-    Job job = result.getJob();
-
-    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
-    // "SplittableProcessKeyed".
-
-    List<Step> steps = job.getSteps();
-    Step processKeyedStep = null;
-    for (Step step : steps) {
-      if ("SplittableProcessKeyed".equals(step.getKind())) {
-        assertNull(processKeyedStep);
-        processKeyedStep = step;
-      }
-    }
-    assertNotNull(processKeyedStep);
-
-    String fn = Structs.getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN);
-
-    Components componentsProto = result.getPipelineProto().getComponents();
-    RehydratedComponents components = RehydratedComponents.forComponents(componentsProto);
-    RunnerApi.PTransform spkTransform = componentsProto.getTransformsOrThrow(fn);
-    assertEquals(
-        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, spkTransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(spkTransform.getSpec().getPayload());
-    assertThat(
-        ParDoTranslation.doFnAndMainOutputTagFromProto(payload.getDoFn()).getDoFn(),
-        instanceOf(TestSplittableFn.class));
-    assertThat(
-        components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));
-
-    // In the Fn API case, we still translate the restriction coder into the RESTRICTION_CODER
-    // property as a CloudObject, and it gets passed through the Dataflow backend, but in the end
-    // the Dataflow worker will end up fetching it from the SPK transform payload instead.
-    Coder<?> restrictionCoder =
-        CloudObjects.coderFromCloudObject(
-            (CloudObject)
-                Structs.getObject(
-                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    Step parDoStep = steps.get(1);
+    assertEquals("ParallelDo", parDoStep.getKind());
   }
 
   @Test

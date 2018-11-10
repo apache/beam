@@ -17,18 +17,11 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -52,25 +45,6 @@ class SplittableParDoOverrides {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       TupleTag<OutputT> mainOutput = new TupleTag<>();
       return input.apply(original.withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
-    }
-  }
-
-  static class SplittableParDoOverrideFactory<InputT, OutputT, RestrictionT>
-      implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
-    @Override
-    public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
-            appliedTransform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(appliedTransform),
-          SplittableParDo.forAppliedParDo(appliedTransform));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
-      return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
 }
