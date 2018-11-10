@@ -69,7 +69,7 @@ class TestParquetIT(unittest.TestCase):
     data_size = 20000
     p = TestPipeline(is_integration_test=True)
     pcol = self._generate_data(
-        p, file_prefix, init_size, data_size, data_size // 10)
+        p, file_prefix, init_size, data_size)
     self._verify_data(pcol, init_size, data_size)
     result = p.run()
     result.wait_until_finish()
@@ -121,7 +121,7 @@ class TestParquetIT(unittest.TestCase):
         )
 
   def _generate_data(
-      self, p, output_prefix, init_size, data_size, row_group_size):
+      self, p, output_prefix, init_size, data_size):
     init_data = [x for x in range(init_size)]
 
     lines = (p
@@ -137,7 +137,6 @@ class TestParquetIT(unittest.TestCase):
     files = lines | 'write' >> WriteToParquet(
         output_prefix,
         schema,
-        row_group_size,
         codec='snappy',
         file_name_suffix='.parquet'
     )

@@ -262,7 +262,8 @@ class WriteToParquet(PTransform):
   def __init__(self,
                file_path_prefix,
                schema,
-               row_group_size,
+               row_group_size=64*1024*1024,
+               record_batch_size=1000,
                codec='none',
                use_deprecated_int96_timestamps=False,
                file_name_suffix='',
@@ -296,7 +297,12 @@ class WriteToParquet(PTransform):
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
       schema: The schema to use, as type of ``pyarrow.Schema``.
-      row_group_size: The number of records in each row group.
+      row_group_size: The byte size of each row group. Note that this size is
+        approximate and for uncompressed data on the memory.
+      record_batch_size: The number of records in each record batch. Record
+        batch is a basic unit used for generating row groups. A row group
+        consists of record batches. A record batch consists of data records.
+        A higher record batch size implies low granularity on a row group size.
       codec: The codec to use for block-level compression. Any string supported
         by the pyarrow specification is accepted.
       use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
@@ -327,6 +333,7 @@ class WriteToParquet(PTransform):
           schema,
           codec,
           row_group_size,
+          record_batch_size,
           use_deprecated_int96_timestamps,
           file_name_suffix,
           num_shards,
@@ -345,6 +352,7 @@ def _create_parquet_sink(file_path_prefix,
                          schema,
                          codec,
                          row_group_size,
+                         record_batch_size,
                          use_deprecated_int96_timestamps,
                          file_name_suffix,
                          num_shards,
@@ -356,6 +364,7 @@ def _create_parquet_sink(file_path_prefix,
         schema,
         codec,
         row_group_size,
+        record_batch_size,
         use_deprecated_int96_timestamps,
         file_name_suffix,
         num_shards,
@@ -372,6 +381,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
                schema,
                codec,
                row_group_size,
+               record_batch_size,
                use_deprecated_int96_timestamps,
                file_name_suffix,
                num_shards,
@@ -392,6 +402,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     self._row_group_size = row_group_size
     self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
     self._buffer = [[] for _ in range(len(schema.names))]
+    self._buffer_size = record_batch_size
+    self._record_batches = []
+    self._record_batches_byte_size = 0
     self._file_handle = None
 
   def open(self, temp_path):
@@ -402,8 +415,11 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     )
 
   def write_record(self, writer, value):
-    if len(self._buffer[0]) >= self._row_group_size:
-      self._write_buffer(writer)
+    if len(self._buffer[0]) >= self._buffer_size:
+      self._flush_buffer()
+
+    if self._record_batches_byte_size >= self._row_group_size:
+      self._write_batches(writer)
 
     # reorder the data in columnar format.
     for i, n in enumerate(self._schema.names):
@@ -411,7 +427,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
 
   def close(self, writer):
     if len(self._buffer[0]) > 0:
-      self._write_buffer(writer)
+      self._flush_buffer()
+    if self._record_batches_byte_size > 0:
+      self._write_batches(writer)
 
     writer.close()
     if self._file_handle:
@@ -425,10 +443,21 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     res['row_group_size'] = str(self._row_group_size)
     return res
 
-  def _write_buffer(self, writer):
+  def _write_batches(self, writer):
+    table = pa.Table.from_batches(self._record_batches)
+    self._record_batches = []
+    self._record_batches_byte_size = 0
+    writer.write_table(table)
+
+  def _flush_buffer(self):
     arrays = [[] for _ in range(len(self._schema.names))]
     for x, y in enumerate(self._buffer):
       arrays[x] = pa.array(y, type=self._schema.types[x])
       self._buffer[x] = []
-    table = pa.Table.from_arrays(arrays, self._schema.names)
-    writer.write_table(table)
+    rb = pa.RecordBatch.from_arrays(arrays, self._schema.names)
+    self._record_batches.append(rb)
+    size = 0
+    for x in arrays:
+      for b in x.buffers():
+        size = size + b.size
+    self._record_batches_byte_size = self._record_batches_byte_size + size

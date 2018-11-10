@@ -202,7 +202,8 @@ class TestParquet(unittest.TestCase):
         file_name,
         self.SCHEMA,
         'none',
-        1,
+        1024*1024,
+        1000,
         False,
         '.end',
         0,
@@ -221,7 +222,7 @@ class TestParquet(unittest.TestCase):
             'none'),
         DisplayDataItemMatcher(
             'row_group_size',
-            '1'),
+            str(1024*1024)),
         DisplayDataItemMatcher(
             'compression',
             'uncompressed')]
@@ -229,7 +230,7 @@ class TestParquet(unittest.TestCase):
 
   def test_write_display_data(self):
     file_name = 'some_parquet_sink'
-    write = WriteToParquet(file_name, self.SCHEMA, 1000)
+    write = WriteToParquet(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher(
@@ -240,7 +241,7 @@ class TestParquet(unittest.TestCase):
             str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'row_group_size',
-            '1000'),
+            str(64*1024*1024)),
         DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
@@ -258,7 +259,7 @@ class TestParquet(unittest.TestCase):
           p \
           | Create(self.RECORDS) \
           | WriteToParquet(
-              path, self.SCHEMA96, 1000, num_shards=1, shard_name_template='')
+              path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
@@ -268,7 +269,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, num_shards=1, shard_name_template='')
+            path, self.SCHEMA, num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
@@ -285,7 +286,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, codec='snappy',
+            path, self.SCHEMA, codec='snappy',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -303,7 +304,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, codec='gzip',
+            path, self.SCHEMA, codec='gzip',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -321,7 +322,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, codec='brotli',
+            path, self.SCHEMA, codec='brotli',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -339,7 +340,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, codec='lz4',
+            path, self.SCHEMA, codec='lz4',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -357,7 +358,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, 1000, codec='zstd',
+            path, self.SCHEMA, codec='zstd',
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -460,13 +461,14 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
+        # writing 623200 bytes of data
         # pylint: disable=expression-not-assigned
         p \
-        | Create(self.RECORDS * 2000) \
+        | Create(self.RECORDS * 4000) \
         | WriteToParquet(
-            path, self.SCHEMA, num_shards=1, codec='snappy',
-            shard_name_template='', row_group_size=3000)
-      self.assertEqual(pq.read_metadata(path).num_row_groups, 4)
+            path, self.SCHEMA, num_shards=1, codec='none',
+            shard_name_template='', row_group_size=250000)
+      self.assertEqual(pq.read_metadata(path).num_row_groups, 3)
 
   def test_read_all_from_parquet_single_file(self):
     path = self._write_data()
