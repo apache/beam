@@ -28,6 +28,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/util/starcgenx"
@@ -63,20 +64,37 @@ func Generate(w io.Writer, filename, pkg string, ids []string, fset *token.FileS
 	return err
 }
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %v [options] --inputs=<comma separated of go files>\n", filepath.Base(os.Args[0]))
+	flag.PrintDefaults()
+}
+
 func main() {
+	flag.Usage = usage
 	flag.Parse()
 
-	if *output == "" {
-		log.Fatalf("must supply --output argument")
-	}
+	log.SetFlags(log.Lshortfile)
+	log.SetPrefix("starcgen: ")
 
+	ipts := strings.Split(*inputs, ",")
 	fset := token.NewFileSet()
 	var fs []*ast.File
 	var pkg string
-	for _, i := range strings.Split(*inputs, ",") {
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, i := range ipts {
 		f, err := parser.ParseFile(fset, i, nil, 0)
 		if err != nil {
-			log.Fatal(err) // parse error
+			err1 := err
+			f, err = parser.ParseFile(fset, filepath.Join(dir, i), nil, 0)
+			if err != nil {
+				log.Print(err1)
+				log.Fatal(err) // parse error
+			}
 		}
 
 		if pkg == "" {
@@ -88,6 +106,17 @@ func main() {
 	}
 	if pkg == "" {
 		log.Fatalf("No package detected in input files: %v", inputs)
+	}
+
+	if *output == "" {
+		name := pkg
+		if len(ipts) == 1 {
+			name = filepath.Base(ipts[0])
+			if index := strings.Index(name, "."); index > 0 {
+				name = name[:index]
+			}
+		}
+		*output = filepath.Join(filepath.Dir(ipts[0]), name+".shims.go")
 	}
 
 	f, err := os.OpenFile(*output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
