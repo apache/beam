@@ -43,10 +43,10 @@ import (
 
 // Beam imports that the generated code requires.
 var (
-	ExecImport     = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec/exec"
+	ExecImport     = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	TypexImport    = "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	ReflectxImport = "github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	RuntimeImport  = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/runtime"
+	RuntimeImport  = "github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 )
 
 func validateBeamImports() {
