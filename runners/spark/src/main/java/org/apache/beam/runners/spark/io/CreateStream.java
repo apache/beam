@@ -87,6 +87,7 @@ import org.joda.time.Instant;
  */
 //TODO: write a proper Builder enforcing all those rules mentioned.
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
+  public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";
 
   private final Duration batchDuration;
   private final Queue<Iterable<TimestampedValue<T>>> batches = new ArrayDeque<>();

@@ -24,10 +24,12 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRd
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -554,48 +556,51 @@ public final class TransformTranslator {
     };
   }
 
-  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS =
-      Maps.newHashMap();
+  private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
 
   static {
-    EVALUATORS.put(Read.Bounded.class, readBounded());
-    EVALUATORS.put(ParDo.MultiOutput.class, parDo());
-    EVALUATORS.put(GroupByKey.class, groupByKey());
-    EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(Combine.Globally.class, combineGlobally());
-    EVALUATORS.put(Combine.PerKey.class, combinePerKey());
-    EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
-    //    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
-    //    EVALUATORS.put(View.AsIterable.class, viewAsIter());
-    EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
-    EVALUATORS.put(Window.Assign.class, window());
-    EVALUATORS.put(Reshuffle.class, reshuffle());
+    EVALUATORS.put(PTransformTranslation.READ_TRANSFORM_URN, readBounded());
+    EVALUATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDo());
+    EVALUATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, groupByKey());
+    EVALUATORS.put(PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN, combineGrouped());
+    EVALUATORS.put(PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN, combineGlobally());
+    EVALUATORS.put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, combinePerKey());
+    EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
+    EVALUATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, createPCollView());
+    EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
+    EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+  }
+
+  @Nullable
+  private static TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
+    @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    return urn == null ? null : EVALUATORS.get(urn);
   }
 
   /** Translator matches Beam transformation with the appropriate evaluator. */
   public static class Translator implements SparkPipelineTranslator {
 
     @Override
-    public boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz) {
-      return EVALUATORS.containsKey(clazz);
+    public boolean hasTranslation(PTransform<?, ?> transform) {
+      return EVALUATORS.containsKey(PTransformTranslation.urnForTransformOrNull(transform));
     }
 
     @Override
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateBounded(
-        Class<TransformT> clazz) {
+        PTransform<?, ?> transform) {
       @SuppressWarnings("unchecked")
       TransformEvaluator<TransformT> transformEvaluator =
-          (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
+          (TransformEvaluator<TransformT>) getTranslator(transform);
       checkState(
           transformEvaluator != null,
           "No TransformEvaluator registered for BOUNDED transform %s",
-          clazz);
+          transform);
       return transformEvaluator;
     }
 
     @Override
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateUnbounded(
-        Class<TransformT> clazz) {
+        PTransform<?, ?> transform) {
       throw new IllegalStateException(
           "TransformTranslator used in a batch pipeline only " + "supports BOUNDED transforms.");
     }
