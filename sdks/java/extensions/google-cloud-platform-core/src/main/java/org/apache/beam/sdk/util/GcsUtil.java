@@ -136,6 +136,8 @@ public class GcsUtil {
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
+  // Unbounded thread pool for codependent pipeline operations that will deadlock the pipeline if
+  // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
 
@@ -548,13 +550,12 @@ public class GcsUtil {
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
     ExecutorService executor =
         MoreExecutors.listeningDecorator(
-            MoreExecutors.getExitingExecutorService(
-                new ThreadPoolExecutor(
-                    MAX_CONCURRENT_BATCHES,
-                    MAX_CONCURRENT_BATCHES,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>())));
+            new ThreadPoolExecutor(
+                MAX_CONCURRENT_BATCHES,
+                MAX_CONCURRENT_BATCHES,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>()));
 
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {
