@@ -57,7 +57,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
@@ -87,6 +86,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -904,6 +904,17 @@ public class DataflowPipelineTranslator {
                 context,
                 transform.getMainOutputTag(),
                 outputCoders);
+
+            boolean isSplittable =
+                DoFnSignatures.signatureForDoFn(transform.getFn()).getInitialRestriction() != null;
+            if (isSplittable) {
+              Coder<?> restrictionCoder =
+                  DoFnInvokers.invokerFor(transform.getFn())
+                      .invokeGetRestrictionCoder(
+                          context.getInput(transform).getPipeline().getCoderRegistry());
+              stepContext.addInput(
+                  PropertyNames.RESTRICTION_CODER, CloudObjects.asCloudObject(restrictionCoder));
+            }
           }
         });
 
@@ -972,53 +983,6 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Splittable DoFn translation.
-
-    registerTransformTranslator(
-        SplittableParDo.ProcessKeyedElements.class,
-        new TransformTranslator<SplittableParDo.ProcessKeyedElements>() {
-          @Override
-          public void translate(
-              SplittableParDo.ProcessKeyedElements transform, TranslationContext context) {
-            translateTyped(transform, context);
-          }
-
-          private <InputT, OutputT, RestrictionT> void translateTyped(
-              SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
-              TranslationContext context) {
-            StepTranslationContext stepContext =
-                context.addStep(transform, "SplittableProcessKeyed");
-            Map<TupleTag<?>, Coder<?>> outputCoders =
-                context
-                    .getOutputs(transform)
-                    .entrySet()
-                    .stream()
-                    .collect(
-                        Collectors.toMap(
-                            Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
-            translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
-            translateOutputs(context.getOutputs(transform), stepContext);
-            String ptransformId =
-                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
-            translateFn(
-                stepContext,
-                ptransformId,
-                transform.getFn(),
-                transform.getInputWindowingStrategy(),
-                transform.getSideInputs(),
-                transform.getElementCoder(),
-                context,
-                transform.getMainOutputTag(),
-                outputCoders);
-
-            stepContext.addInput(
-                PropertyNames.RESTRICTION_CODER,
-                CloudObjects.asCloudObject(transform.getRestrictionCoder()));
-          }
-        });
   }
 
   private static void translateInputs(

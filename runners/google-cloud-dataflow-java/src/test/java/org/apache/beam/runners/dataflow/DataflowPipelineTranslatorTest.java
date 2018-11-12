@@ -18,8 +18,10 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -51,9 +53,14 @@ import java.util.Set;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.CloudObject;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -74,7 +81,9 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -681,6 +690,21 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Step parDoStep = steps.get(1);
     assertEquals("ParallelDo", parDoStep.getKind());
+
+    @SuppressWarnings("unchecked")
+    DoFnInfo<String, Integer> fnInfo =
+        (DoFnInfo<String, Integer>)
+            SerializableUtils.deserializeFromByteArray(
+                jsonStringToByteArray(
+                    getString(parDoStep.getProperties(), PropertyNames.SERIALIZED_FN)),
+                "DoFnInfo");
+    assertThat(fnInfo.getDoFn(), instanceOf(TestSplittableFn.class));
+    assertThat(fnInfo.getInputCoder(), instanceOf(StringUtf8Coder.class));
+    Coder<?> restrictionCoder =
+        CloudObjects.coderFromCloudObject(
+            (CloudObject)
+                Structs.getObject(parDoStep.getProperties(), PropertyNames.RESTRICTION_CODER));
+    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 
   @Test
