@@ -35,8 +35,17 @@ cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
 
 cd ${CONTEXT_DIR}
-# Clean up leftover unused networks. BEAM-4051
+# Clean up leftover unused networks from previous runs. BEAM-4051
+# This might mess with leftover containers that still reference pruned networks,
+# so --force-recreate is passed to 'docker up' below.
+# https://github.com/docker/compose/issues/5745#issuecomment-370031631
 docker network prune --force
+
+function finally {
+  time docker-compose -p ${PROJECT_NAME} down
+}
+trap finally EXIT
+
 time docker-compose -p ${PROJECT_NAME} build
 time docker-compose -p ${PROJECT_NAME} up --exit-code-from test \
-    --abort-on-container-exit
+    --abort-on-container-exit --force-recreate
