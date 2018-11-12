@@ -91,9 +91,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
     @SuppressWarnings("unchecked")
     TransformT transform = (TransformT) node.getTransform();
     @SuppressWarnings("unchecked")
-    Class<TransformT> transformClass = (Class<TransformT>) transform.getClass();
-    @SuppressWarnings("unchecked")
-    TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
+    TransformEvaluator<TransformT> evaluator = translate(node, transform);
     if (shouldDebug(node)) {
       transforms.add(new NativeTransform(node, evaluator, transform, false));
     }
