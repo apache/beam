@@ -25,6 +25,5 @@ Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction 
 
 This roadmap is in progress. In the meantime, here are some resources:
 
-- Feature branch: [dsl-euphoria](https://github.com/apache/beam/tree/dsl-euphoria)
 - JIRA: [dsl-euphoria](https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900)
 - Contact: [David Moravek](mailto:david.moravek@gmail.com)
