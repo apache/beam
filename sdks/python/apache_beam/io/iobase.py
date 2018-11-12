@@ -51,7 +51,6 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -1053,7 +1052,7 @@ class _WriteKeyedBundleDoFn(core.DoFn):
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     for e in bundle[1]:  # values
       writer.write(e)
-    return [window.TimestampedValue(writer.close(), timestamp.MAX_TIMESTAMP)]
+    return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 
 def _pre_finalize(unused_element, sink, init_result, write_results):
@@ -1073,8 +1072,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
   outputs = sink.finalize_write(init_result, write_results + extra_shards,
                                 pre_finalize_results)
   if outputs:
-    return (
-        window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
+    return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
 
 class _RoundRobinKeyFn(core.DoFn):

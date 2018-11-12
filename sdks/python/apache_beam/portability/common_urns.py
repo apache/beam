@@ -30,9 +30,6 @@ class PropertiesFromEnumValue(object):
   def __init__(self, value_descriptor):
     self.urn = (
         value_descriptor.GetOptions().Extensions[beam_runner_api_pb2.beam_urn])
-    self.constant = (
-        value_descriptor.GetOptions().Extensions[
-            beam_runner_api_pb2.beam_constant])
 
 
 class PropertiesFromEnumType(object):
@@ -54,9 +51,6 @@ side_inputs = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardSideInputTypes.Enum)
 
 coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
-
-constants = PropertiesFromEnumType(
-    beam_runner_api_pb2.BeamConstants.Constants)
 
 environments = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardEnvironments.Environments)
