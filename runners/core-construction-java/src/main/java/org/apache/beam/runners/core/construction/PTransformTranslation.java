@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
@@ -88,6 +89,8 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY);
+  public static final String COMBINE_GROUPED_VALUES_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_GROUPED_VALUES);
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);
