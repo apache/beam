@@ -94,7 +94,7 @@ class ReadFromParquet(PTransform):
         splitting the input into bundles.
       validate (bool): flag to verify that the files exist during the pipeline
         creation time.
-      columns (list of str): list of columns that will be read from files.
+      columns (List[str]): list of columns that will be read from files.
         A column name may be a prefix of a nested field, e.g. 'a' will select
         'a.b', 'a.c', and 'a.d.e'
 """
@@ -262,7 +262,7 @@ class WriteToParquet(PTransform):
   def __init__(self,
                file_path_prefix,
                schema,
-               row_group_size=64*1024*1024,
+               row_group_buffer_size=64*1024*1024,
                record_batch_size=1000,
                codec='none',
                use_deprecated_int96_timestamps=False,
@@ -283,8 +283,7 @@ class WriteToParquet(PTransform):
         records | 'Write' >> WriteToParquet('myoutput',
             pyarrow.schema(
                 [('name', pyarrow.binary()), ('age', pyarrow.int64())]
-            ),
-            10000
+            )
         )
 
     For more information on supported types and schema, please see the pyarrow
@@ -297,12 +296,15 @@ class WriteToParquet(PTransform):
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
       schema: The schema to use, as type of ``pyarrow.Schema``.
-      row_group_size: The byte size of each row group. Note that this size is
-        approximate and for uncompressed data on the memory.
+      row_group_buffer_size: The byte size of the row group buffer. Note that
+        this size is for uncompressed data on the memory and normally much
+        bigger than the actual row group size written to a file.
       record_batch_size: The number of records in each record batch. Record
-        batch is a basic unit used for generating row groups. A row group
-        consists of record batches. A record batch consists of data records.
-        A higher record batch size implies low granularity on a row group size.
+        batch is a basic unit used for storing data in the row group buffer.
+        A higher record batch size implies low granularity on a row group buffer
+        size. For configuring a row group size based on the number of records,
+        set ``row_group_buffer_size`` to 1 and use ``record_batch_size`` to
+        adjust the value.
       codec: The codec to use for block-level compression. Any string supported
         by the pyarrow specification is accepted.
       use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
@@ -332,7 +334,7 @@ class WriteToParquet(PTransform):
           file_path_prefix,
           schema,
           codec,
-          row_group_size,
+          row_group_buffer_size,
           record_batch_size,
           use_deprecated_int96_timestamps,
           file_name_suffix,
@@ -351,7 +353,7 @@ class WriteToParquet(PTransform):
 def _create_parquet_sink(file_path_prefix,
                          schema,
                          codec,
-                         row_group_size,
+                         row_group_buffer_size,
                          record_batch_size,
                          use_deprecated_int96_timestamps,
                          file_name_suffix,
@@ -363,7 +365,7 @@ def _create_parquet_sink(file_path_prefix,
         file_path_prefix,
         schema,
         codec,
-        row_group_size,
+        row_group_buffer_size,
         record_batch_size,
         use_deprecated_int96_timestamps,
         file_name_suffix,
@@ -380,7 +382,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
                file_path_prefix,
                schema,
                codec,
-               row_group_size,
+               row_group_buffer_size,
                record_batch_size,
                use_deprecated_int96_timestamps,
                file_name_suffix,
@@ -399,7 +401,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         compression_type=CompressionTypes.UNCOMPRESSED)
     self._schema = schema
     self._codec = codec
-    self._row_group_size = row_group_size
+    self._row_group_buffer_size = row_group_buffer_size
     self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
     self._buffer = [[] for _ in range(len(schema.names))]
     self._buffer_size = record_batch_size
@@ -418,7 +420,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     if len(self._buffer[0]) >= self._buffer_size:
       self._flush_buffer()
 
-    if self._record_batches_byte_size >= self._row_group_size:
+    if self._record_batches_byte_size >= self._row_group_buffer_size:
       self._write_batches(writer)
 
     # reorder the data in columnar format.
@@ -440,7 +442,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     res = super(_ParquetSink, self).display_data()
     res['codec'] = str(self._codec)
     res['schema'] = str(self._schema)
-    res['row_group_size'] = str(self._row_group_size)
+    res['row_group_buffer_size'] = str(self._row_group_buffer_size)
     return res
 
   def _write_batches(self, writer):

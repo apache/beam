@@ -26,8 +26,8 @@ import unittest
 
 import hamcrest as hc
 import pyarrow as pa
-from pyarrow.lib import ArrowInvalid
 import pyarrow.parquet as pq
+from pyarrow.lib import ArrowInvalid
 
 from apache_beam import Create
 from apache_beam import Map
@@ -221,7 +221,7 @@ class TestParquet(unittest.TestCase):
             'codec',
             'none'),
         DisplayDataItemMatcher(
-            'row_group_size',
+            'row_group_buffer_size',
             str(1024*1024)),
         DisplayDataItemMatcher(
             'compression',
@@ -240,7 +240,7 @@ class TestParquet(unittest.TestCase):
             'schema',
             str(self.SCHEMA)),
         DisplayDataItemMatcher(
-            'row_group_size',
+            'row_group_buffer_size',
             str(64*1024*1024)),
         DisplayDataItemMatcher(
             'file_pattern',
@@ -467,7 +467,7 @@ class TestParquet(unittest.TestCase):
         | Create(self.RECORDS * 4000) \
         | WriteToParquet(
             path, self.SCHEMA, num_shards=1, codec='none',
-            shard_name_template='', row_group_size=250000)
+            shard_name_template='', row_group_buffer_size=250000)
       self.assertEqual(pq.read_metadata(path).num_row_groups, 3)
 
   def test_read_all_from_parquet_single_file(self):
