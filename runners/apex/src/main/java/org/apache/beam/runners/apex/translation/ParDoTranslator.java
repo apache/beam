@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -126,13 +125,12 @@ class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  static class SplittableProcessElementsTranslator<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
+  static class SplittableProcessElementsTranslator<InputT, OutputT, RestrictionT, PositionT>
+      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, PositionT>> {
 
     @Override
     public void translate(
-        ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
+        ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform,
         TranslationContext context) {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();
