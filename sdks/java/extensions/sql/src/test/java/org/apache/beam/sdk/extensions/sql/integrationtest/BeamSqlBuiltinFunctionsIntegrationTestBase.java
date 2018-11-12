@@ -73,6 +73,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .put(String.class, TypeName.STRING)
           .put(DateTime.class, TypeName.DATETIME)
           .put(Boolean.class, TypeName.BOOLEAN)
+          .put(byte[].class, TypeName.BYTES)
           .build();
 
   private static final Schema ROW_TYPE =
@@ -253,6 +254,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
                   + "FieldType type)' instead and provide the type of the expected object",
               expectedValue));
       addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      return this;
+    }
+
+    public ExpressionChecker addExprWithNullExpectedValue(
+        String expression, TypeName resultTypeName) {
+      addExpr(expression, null, FieldType.of(resultTypeName));
       return this;
     }
 

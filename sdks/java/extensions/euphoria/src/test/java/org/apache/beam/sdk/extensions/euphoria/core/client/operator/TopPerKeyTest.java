@@ -22,12 +22,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowDesc;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
@@ -38,10 +38,10 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
     final FixedWindows windowing = FixedWindows.of(org.joda.time.Duration.standardHours(1));
     final DefaultTrigger trigger = DefaultTrigger.of();
-    final Dataset<Triple<String, Long, Long>> result =
+    final PCollection<Triple<String, Long, Long>> result =
         TopPerKey.named("TopPerKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -52,8 +52,7 @@ public class TopPerKeyTest {
             .discardingFiredPanes()
             .withAllowedLateness(Duration.millis(1000))
             .output();
-    assertTrue(result.getProducer().isPresent());
-    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    final TopPerKey tpk = (TopPerKey) TestUtils.getProducer(result);
     assertTrue(tpk.getName().isPresent());
     assertEquals("TopPerKey1", tpk.getName().get());
     assertNotNull(tpk.getKeyExtractor());
@@ -71,18 +70,17 @@ public class TopPerKeyTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Triple<String, Long, Long>> result =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset).keyBy(s -> s).valueBy(s -> 1L).scoreBy(s -> 1L).output();
-    assertTrue(result.getProducer().isPresent());
-    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    final TopPerKey tpk = (TopPerKey) TestUtils.getProducer(result);
     assertFalse(tpk.getName().isPresent());
   }
 
   @Test
   public void testBuild_Windowing() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Triple<String, Long, Long>> result =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
@@ -91,8 +89,7 @@ public class TopPerKeyTest {
             .triggeredBy(DefaultTrigger.of())
             .accumulationMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .output();
-    assertTrue(result.getProducer().isPresent());
-    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    final TopPerKey tpk = (TopPerKey) TestUtils.getProducer(result);
     assertTrue(tpk.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());
@@ -104,8 +101,8 @@ public class TopPerKeyTest {
 
   @Test
   public void testWindow_applyIf() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<Triple<String, Long, Long>> result =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<Triple<String, Long, Long>> result =
         TopPerKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
@@ -117,8 +114,7 @@ public class TopPerKeyTest {
                         .triggeredBy(DefaultTrigger.of())
                         .accumulatingFiredPanes())
             .output();
-    assertTrue(result.getProducer().isPresent());
-    final TopPerKey tpk = (TopPerKey) result.getProducer().get();
+    final TopPerKey tpk = (TopPerKey) TestUtils.getProducer(result);
     assertTrue(tpk.getWindow().isPresent());
     @SuppressWarnings("unchecked")
     final WindowDesc<?> windowDesc = WindowDesc.of((Window) tpk.getWindow().get());

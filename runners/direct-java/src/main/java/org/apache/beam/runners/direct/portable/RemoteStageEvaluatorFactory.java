@@ -76,7 +76,7 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
               BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
               StateRequestHandler.unsupported(),
-              BundleProgressHandler.unsupported());
+              BundleProgressHandler.ignored());
       // TODO(BEAM-4680): Add support for timers as inputs to the ULR
       this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
     }

@@ -19,19 +19,16 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -39,6 +36,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -80,9 +79,9 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input) {
+  public static <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -100,7 +99,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> MappedBuilder<InputT, InputT> of(Dataset<InputT> input);
+    <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for the 'mapped' step. */
@@ -128,15 +127,15 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   /** Builder for the 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
-          OutputBuilder<OutputT> {
+          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
+          Builders.Output<OutputT> {
 
     @Override
     <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(WindowFn<Object, T> windowing);
 
     @Override
-    default OutputBuilder<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, OutputBuilder<OutputT>> fn) {
+    default Builders.Output<OutputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
@@ -160,10 +159,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
-
-  /** Builder for the 'output' step. */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
 
   private static class Builder<InputT, OutputT>
       implements OfBuilder,
@@ -172,12 +168,12 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
           TriggerByBuilder<OutputT>,
           AccumulationModeBuilder<OutputT>,
           WindowedOutputBuilder<OutputT>,
-          OutputBuilder<OutputT> {
+          Builders.Output<OutputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     @Nullable private UnaryFunction<InputT, OutputT> mapper;
     @Nullable private TypeDescriptor<OutputT> outputType;
 
@@ -186,7 +182,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     }
 
     @Override
-    public <T> MappedBuilder<T, T> of(Dataset<T> input) {
+    public <T> MappedBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       final Builder<T, T> casted = (Builder) this;
       casted.input = requireNonNull(input);
@@ -251,13 +247,13 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
 
     @Override
     @SuppressWarnings("unchecked")
-    public Dataset<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output(OutputHint... outputHints) {
       if (mapper == null) {
         this.mapper = (UnaryFunction) UnaryFunction.identity();
       }
       final Distinct<InputT, OutputT> distinct =
           new Distinct<>(name, mapper, outputType, windowBuilder.getWindow().orElse(null));
-      return OperatorTransform.apply(distinct, Collections.singletonList(input));
+      return OperatorTransform.apply(distinct, PCollectionList.of(input));
     }
   }
 
@@ -270,10 +266,10 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   }
 
   @Override
-  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
-    final Dataset<KV<OutputT, Void>> distinct =
+  public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
+    final PCollection<KV<OutputT, Void>> distinct =
         ReduceByKey.named(getName().orElse(null))
-            .of(Iterables.getOnlyElement(inputs))
+            .of(PCollectionLists.getOnlyElement(inputs))
             .keyBy(getKeyExtractor())
             .valueBy(e -> null, TypeDescriptors.nulls())
             .combineBy(e -> null)

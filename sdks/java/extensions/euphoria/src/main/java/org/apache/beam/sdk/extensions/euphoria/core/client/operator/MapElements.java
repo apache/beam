@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -32,7 +28,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builder
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -62,9 +61,9 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> UsingBuilder<InputT> of(Dataset<InputT> input) {
+  public static <InputT> UsingBuilder<InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -82,7 +81,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> UsingBuilder<InputT> of(Dataset<InputT> input);
+    <InputT> UsingBuilder<InputT> of(PCollection<InputT> input);
   }
 
   /** MapElements builder which adds mapper to operator under build. */
@@ -96,11 +95,11 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    default <OutputT> OutputBuilder<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
+    default <OutputT> Builders.Output<OutputT> using(UnaryFunction<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    default <OutputT> OutputBuilder<OutputT> using(
+    default <OutputT> Builders.Output<OutputT> using(
         UnaryFunction<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType) {
       return using((el, ctx) -> mapper.apply(el), outputType);
     }
@@ -112,25 +111,19 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the {@link MapElements} operator
      */
-    default <OutputT> OutputBuilder<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
+    default <OutputT> Builders.Output<OutputT> using(UnaryFunctionEnv<InputT, OutputT> mapper) {
       return using(mapper, null);
     }
 
-    <OutputT> OutputBuilder<OutputT> using(
+    <OutputT> Builders.Output<OutputT> using(
         UnaryFunctionEnv<InputT, OutputT> mapper, @Nullable TypeDescriptor<OutputT> outputType);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
-
   private static class Builder<InputT, OutputT>
-      implements OfBuilder, UsingBuilder<InputT>, OutputBuilder<OutputT> {
+      implements OfBuilder, UsingBuilder<InputT>, Builders.Output<OutputT> {
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     private UnaryFunctionEnv<InputT, OutputT> mapper;
     @Nullable private TypeDescriptor<OutputT> outputType;
 
@@ -139,7 +132,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public <T> UsingBuilder<T> of(Dataset<T> input) {
+    public <T> UsingBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       final Builder<T, ?> casted = (Builder) this;
       casted.input = input;
@@ -147,7 +140,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public <T> OutputBuilder<T> using(
+    public <T> Builders.Output<T> using(
         UnaryFunctionEnv<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
       @SuppressWarnings("unchecked")
       final Builder<InputT, T> casted = (Builder) this;
@@ -157,9 +150,9 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public Dataset<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output(OutputHint... outputHints) {
       final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
-      return OperatorTransform.apply(operator, Collections.singletonList(input));
+      return OperatorTransform.apply(operator, PCollectionList.of(input));
     }
   }
 
@@ -174,9 +167,9 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
   }
 
   @Override
-  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
+  public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
     return FlatMap.named(getName().orElse(null))
-        .of(Iterables.getOnlyElement(inputs))
+        .of(PCollectionLists.getOnlyElement(inputs))
         .using(
             (InputT elem, Collector<OutputT> coll) ->
                 coll.collect(getMapper().apply(elem, coll.asContext())),

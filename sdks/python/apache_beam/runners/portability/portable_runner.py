@@ -24,9 +24,7 @@ import threading
 
 import grpc
 
-from apache_beam import coders
 from apache_beam import metrics
-from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
@@ -58,10 +56,6 @@ class PortableRunner(runner.PipelineRunner):
     This runner schedules the job on a job service. The responsibility of
     running and managing the job lies with the job service used.
   """
-
-  def __init__(self, is_embedded_fnapi_runner=False):
-    self.is_embedded_fnapi_runner = is_embedded_fnapi_runner
-
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
@@ -119,19 +113,6 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
-
-    if not self.is_embedded_fnapi_runner:
-      # Java has different expectations about coders
-      # (windowed in Fn API, but *un*windowed in runner API), whereas the
-      # embedded FnApiRunner treats them consistently, so we must guard this
-      # for now, until FnApiRunner is fixed.
-      # See also BEAM-2717.
-      for pcoll in proto_pipeline.components.pcollections.values():
-        if pcoll.coder_id not in proto_context.coders:
-          # This is not really a coder id, but a pickled coder.
-          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-          pcoll.coder_id = proto_context.coders.get_id(coder)
-      proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.

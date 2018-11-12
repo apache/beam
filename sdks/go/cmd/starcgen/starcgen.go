@@ -40,7 +40,8 @@ var (
 	ids    = flag.String("identifiers", "", "comma separated list of package local identifiers for which to generate code")
 )
 
-// Generate takes in the ASTs of files and
+// Generate takes the typechecked inputs, and generates the shim file for the relevant
+// identifiers.
 func Generate(w io.Writer, filename, pkg string, ids []string, fset *token.FileSet, files []*ast.File) error {
 	e := starcgenx.NewExtractor(pkg)
 	e.Ids = ids

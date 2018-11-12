@@ -30,8 +30,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.fn.harness.DoFnPTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableProcessElementInvoker;
@@ -53,6 +53,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.Timestamps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -227,14 +228,14 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      Application primaryApplication =
-          Application.newBuilder()
+      BundleApplication primaryApplication =
+          BundleApplication.newBuilder()
               .setPtransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(primaryBytes.toByteString())
               .build();
-      Application residualApplication =
-          Application.newBuilder()
+      BundleApplication residualApplication =
+          BundleApplication.newBuilder()
               .setPtransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString())
@@ -242,9 +243,12 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
       context.splitListener.split(
           ImmutableList.of(primaryApplication),
           ImmutableList.of(
-              DelayedApplication.newBuilder()
+              DelayedBundleApplication.newBuilder()
                   .setApplication(residualApplication)
-                  .setDelaySec(0.001 * result.getContinuation().resumeDelay().getMillis())
+                  .setRequestedExecutionTime(
+                      Timestamps.fromMillis(
+                          System.currentTimeMillis()
+                              + result.getContinuation().resumeDelay().getMillis()))
                   .build()));
     }
   }

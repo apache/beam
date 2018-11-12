@@ -18,11 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.google.common.base.Preconditions;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,29 +34,21 @@ import org.apache.beam.sdk.values.PCollectionList;
 public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<OutputT>>
     extends PTransform<PCollectionList<InputT>, PCollection<OutputT>> {
 
-  public static <InputT, OutputT, OperatorT extends Operator<OutputT>> Dataset<OutputT> apply(
-      OperatorT operator, List<Dataset<InputT>> inputs) {
+  public static <InputT, OutputT, OperatorT extends Operator<OutputT>> PCollection<OutputT> apply(
+      OperatorT operator, PCollectionList<InputT> inputs) {
 
     final Optional<OperatorTranslator<InputT, OutputT, OperatorT>> maybeTranslator =
-        TranslatorProvider.of(inputs.get(0).getPipeline()).findTranslator(operator);
+        TranslatorProvider.of(inputs.getPipeline()).findTranslator(operator);
 
     if (maybeTranslator.isPresent()) {
-      final PCollectionList<InputT> inputList =
-          PCollectionList.of(
-              inputs.stream().map(Dataset::getPCollection).collect(Collectors.toList()));
       final PCollection<OutputT> output =
-          inputList.apply(
+          inputs.apply(
               operator.getName().orElseGet(() -> operator.getClass().getName()),
-              new OperatorTransform<>(operator, maybeTranslator.get()));
+              new OperatorTransform<>(operator, maybeTranslator.orElse(null)));
       Preconditions.checkState(
-          output.getTypeDescriptor() != null, "Translator should always return typed PCollection.");
-      return Dataset.of(output, operator);
-    }
-
-    if (operator instanceof CompositeOperator) {
-      @SuppressWarnings("unchecked")
-      final CompositeOperator<InputT, OutputT> castedOperator = (CompositeOperator) operator;
-      return Dataset.of(castedOperator.expand(inputs).getPCollection(), operator);
+          output.getTypeDescriptor() != null,
+          "Translator should always return a typed PCollection.");
+      return output;
     }
 
     throw new IllegalStateException(
@@ -83,5 +71,9 @@ public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<Outpu
   @Override
   public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
     return translator.translate(operator, inputs);
+  }
+
+  public OperatorT getOperator() {
+    return operator;
   }
 }

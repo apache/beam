@@ -157,9 +157,6 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 			idsRequired[id] = true
 		}
 	}
-	// TODO(rebo): Need to sort out struct types and their methods, so we only
-	// register structs that are used as function parameters, or that are clearly
-	// DoFns or CombineFns.
 	e.Print("CHECKING DEFS\n")
 	for id, obj := range info.Defs {
 		e.fromObj(fset, id, obj, idsRequired, idsFound)

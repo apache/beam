@@ -22,11 +22,11 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SnapshotProvider;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -40,7 +40,7 @@ public class FlatMapTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Integer>() {
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
             return FlatMap.of(input)
                 .using(
                     (Integer e, Collector<Integer> c) -> {
@@ -84,7 +84,7 @@ public class FlatMapTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
             return FlatMap.named("test")
                 .of(input)
                 .using(

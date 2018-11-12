@@ -19,7 +19,9 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 
@@ -67,14 +69,20 @@ public class SimpleTranslatorProvider implements TranslatorProvider {
   public <InputT, OutputT, OperatorT extends Operator<OutputT>>
       Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
     @SuppressWarnings("unchecked")
-    final Collection<OperatorTranslator<InputT, OutputT, OperatorT>> candidates =
-        (Collection) translators.get(operator.getClass());
+    final List<OperatorTranslator<InputT, OutputT, OperatorT>> candidates =
+        new ArrayList<>((Collection) translators.get(operator.getClass()));
     if (!candidates.isEmpty()) {
       for (OperatorTranslator<InputT, OutputT, OperatorT> candidate : candidates) {
         if (candidate.canTranslate(operator)) {
           return Optional.of(candidate);
         }
       }
+    }
+    // try to fallback to composite translator
+    final OperatorTranslator<InputT, OutputT, OperatorT> fallbackTranslator =
+        new CompositeOperatorTranslator<>();
+    if (fallbackTranslator.canTranslate(operator)) {
+      return Optional.of(fallbackTranslator);
     }
     return Optional.empty();
   }

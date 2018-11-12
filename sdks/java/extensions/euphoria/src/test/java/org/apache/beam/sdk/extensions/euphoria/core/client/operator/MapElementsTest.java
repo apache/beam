@@ -22,8 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypePropagationAssert;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -33,10 +33,9 @@ public class MapElementsTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
-    assertTrue(mapped.getProducer().isPresent());
-    final MapElements map = (MapElements) mapped.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> mapped = MapElements.named("Map1").of(dataset).using(s -> s).output();
+    final MapElements map = (MapElements) TestUtils.getProducer(mapped);
     assertTrue(map.getName().isPresent());
     assertEquals("Map1", map.getName().get());
     assertNotNull(map.getMapper());
@@ -44,8 +43,8 @@ public class MapElementsTest {
 
   @Test
   public void testBuild_WithCounters() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> mapped =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> mapped =
         MapElements.named("Map1")
             .of(dataset)
             .using(
@@ -57,8 +56,7 @@ public class MapElementsTest {
                 })
             .output();
 
-    assertTrue(mapped.getProducer().isPresent());
-    final MapElements map = (MapElements) mapped.getProducer().get();
+    final MapElements map = (MapElements) TestUtils.getProducer(mapped);
     assertTrue(map.getName().isPresent());
     assertEquals("Map1", map.getName().get());
     assertNotNull(map.getMapper());
@@ -66,22 +64,20 @@ public class MapElementsTest {
 
   @Test
   public void testBuild_ImplicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> mapped = MapElements.of(dataset).using(s -> s).output();
-    assertTrue(mapped.getProducer().isPresent());
-    final MapElements map = (MapElements) mapped.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> mapped = MapElements.of(dataset).using(s -> s).output();
+    final MapElements map = (MapElements) TestUtils.getProducer(mapped);
     assertFalse(map.getName().isPresent());
   }
 
   @SuppressWarnings("unchecked")
   @Test
   public void testTypePropagation() {
-    final Dataset<Integer> input = OperatorTestUtils.createMockDataset(TypeDescriptors.integers());
+    final PCollection<Integer> input = TestUtils.createMockDataset(TypeDescriptors.integers());
     final TypeDescriptor<String> outputType = TypeDescriptors.strings();
-    final Dataset<String> mapped =
+    final PCollection<String> mapped =
         MapElements.named("Int2Str").of(input).using(String::valueOf, outputType).output();
-    assertTrue(mapped.getProducer().isPresent());
-    final MapElements map = (MapElements) mapped.getProducer().get();
+    final MapElements map = (MapElements) TestUtils.getProducer(mapped);
     TypePropagationAssert.assertOperatorTypeAwareness(map, outputType);
   }
 }
