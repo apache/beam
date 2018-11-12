@@ -990,7 +990,7 @@ public class Watch {
     }
 
     @Override
-    protected synchronized boolean tryClaimImpl(HashCode hash) {
+    public synchronized boolean tryClaim(HashCode hash) {
       if (shouldStop) {
         return false;
       }
