@@ -175,7 +175,7 @@ class DataflowRunner(PipelineRunner):
         for m in messages:
           message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
 
-          if m.time > last_message_time:
+          if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
             current_seen_messages = set()
 
@@ -522,7 +522,7 @@ class DataflowRunner(PipelineRunner):
       encoded_impulse_element = coders.WindowedValueCoder(
           coders.BytesCoder(),
           coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
-              window.GlobalWindows.windowed_value(''))
+              window.GlobalWindows.windowed_value(b''))
       step.add_property(PropertyNames.IMPULSE_ELEMENT,
                         self.byte_array_to_json_string(encoded_impulse_element))
 
