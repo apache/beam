@@ -108,7 +108,7 @@ The following simple bash script feeds lines of an input text file to your input
 topic:
 
 ```
-cat <YOUR_LOCAL_TEXT_FILE> | while read line; do gcloud pubsub topics publish <YOUR_INPUT_TOPIC_NAME> “ $line”; done
+cat <YOUR_LOCAL_TEXT_FILE> | while read line; do gcloud pubsub topics publish <YOUR_INPUT_TOPIC_NAME> --message "$line"; done
 ```
 
 Alternately, you can read from a publicly available Cloud Pub/Sub stream, such
