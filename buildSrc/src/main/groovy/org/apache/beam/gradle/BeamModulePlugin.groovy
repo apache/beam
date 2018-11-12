@@ -271,34 +271,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.version += '-SNAPSHOT'
     }
 
-    project.repositories {
-      maven { url project.offlineRepositoryRoot }
-
-      // To run gradle in offline mode, one must first invoke
-      // 'updateOfflineRepository' to create an offline repo
-      // inside the root project directory. See the application
-      // of the offline repo plugin within build_rules.gradle
-      // for further details.
-      if (project.gradle.startParameter.isOffline()) {
-        return
-      }
-
-      mavenCentral()
-      mavenLocal()
-      jcenter()
-
-      // Spring for resolving pentaho dependency.
-      maven { url "https://repo.spring.io/plugins-release/" }
-
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
-
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-    }
+    // Register all Beam repositories and configuration tweaks
+    Repositories.register(project)
 
     // Apply a plugin which enables configuring projects imported into Intellij.
     project.apply plugin: "idea"
@@ -613,28 +587,6 @@ class BeamModulePlugin implements Plugin<Project> {
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
-
-      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-      // repository. This offline repository satisfies all Gradle build dependencies and Java
-      // project dependencies. The offline repository is placed within $rootDir/offline-repo
-      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
-      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-      // by specifying '--no-parallel', see
-      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-      project.apply plugin: "io.pry.gradle.offline_dependencies"
-      project.offlineDependencies {
-        repositories {
-          mavenLocal()
-          mavenCentral()
-          jcenter()
-          maven { url "https://plugins.gradle.org/m2/" }
-          maven { url "http://repo.spring.io/plugins-release" }
-          maven { url project.offlineRepositoryRoot }
-        }
-        includeSources = false
-        includeJavadocs = false
-        includeIvyXmls = false
-      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
