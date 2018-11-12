@@ -66,9 +66,8 @@ import org.junit.runners.Parameterized.Parameters;
 public class PortableTimersExecutionTest implements Serializable {
 
   @Parameters
-  // TODO(mxm) enable tor batch
   public static Object[] testModes() {
-    return new Object[] {true};
+    return new Object[] {true, false};
   }
 
   @Parameter public boolean isStreaming;
