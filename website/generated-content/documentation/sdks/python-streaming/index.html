@@ -357,7 +357,7 @@ testing purposes, you can use the commands in the <a href="https://cloud.google.
 <p>The following simple bash script feeds lines of an input text file to your input
 topic:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cat &lt;YOUR_LOCAL_TEXT_FILE&gt; | while read line; do gcloud pubsub topics publish &lt;YOUR_INPUT_TOPIC_NAME&gt; “ $line”; done
+<div class="highlighter-rouge"><pre class="highlight"><code>cat &lt;YOUR_LOCAL_TEXT_FILE&gt; | while read line; do gcloud pubsub topics publish &lt;YOUR_INPUT_TOPIC_NAME&gt; --message "$line"; done
 </code></pre>
 </div>
 
