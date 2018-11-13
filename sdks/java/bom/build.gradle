@@ -1,0 +1,160 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+
+apply plugin: "java"
+apply plugin: "maven-publish"
+
+def isRelease(Project project) {
+  return project.hasProperty('isRelease')
+}
+
+ext {
+  mavenJavaDir = "$project.buildDir/publications/mavenJava"
+  mavenJavaBomOutputFile = file(mavenJavaDir + "/pom-default.xml")
+}
+
+for (String projName : rootProject.ext.allProjectNames) {
+  if (!projName.equals(':' + project.name)) {
+    evaluationDependsOn(projName)
+  }
+}
+
+// Copy our pom.xml to the location where a generated POM would go
+task copyPom() {
+  doLast {
+    def moduleNames = new ArrayList<>()
+    for (String projName : rootProject.ext.allProjectNames) {
+      def subproject = project(projName)
+      if (subproject.ext.properties.containsKey('includeInJavaBom') &&
+          subproject.ext.properties.includeInJavaBom) {
+        moduleNames.add(subproject.name)
+      }
+    }
+
+    new File(mavenJavaDir).mkdirs()
+    copy {
+      from 'pom.xml.template'
+      into mavenJavaDir
+      rename 'pom.xml.template', 'pom-default.xml'
+      expand(version: project.version, modules: moduleNames)
+    }
+  }
+}
+
+assemble.dependsOn copyPom
+
+// We want to use our own pom.xml instead of the generated one, so we disable
+// the pom.xml generation and have the publish tasks depend on `copyPom` instead.
+tasks.whenTaskAdded { task ->
+  if (task.name == 'generatePomFileForMavenJavaPublication') {
+    task.enabled = false
+  } else if (task.name == 'publishMavenJavaPublicationToMavenLocal') {
+    task.dependsOn copyPom
+  } else if (task.name == 'publishMavenJavaPublicationToMavenRepository') {
+    task.dependsOn copyPom
+  }
+}
+
+jar.enabled = false
+
+// Remove the default jar archive which is added by the 'java' plugin.
+configurations.archives.artifacts.with { archives ->
+  def artifacts = []
+  archives.each {
+    if (it.file =~ 'jar') {
+      // We can't just call `archives.remove(it)` here because it triggers
+      // a `ConcurrentModificationException`, so we add matching artifacts
+      // to another list, then remove those elements outside of this iteration.
+      artifacts.add(it)
+    }
+  }
+  artifacts.each {
+    archives.remove(it)
+  }
+}
+
+artifacts {
+  archives(mavenJavaBomOutputFile) {
+    builtBy copyPom
+  }
+}
+
+afterEvaluate {
+  // We can't use the `publishing` section from applyJavaNature because
+  // we don't want all the Java artifacts, and we want to use our own pom.xml
+  // instead of the generated one.
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        version = project.version
+        artifact mavenJavaBomOutputFile
+      }
+    }
+    repositories {
+      maven {
+        name "testPublicationLocal"
+        url "file://${project.rootProject.projectDir}/testPublication/"
+      }
+      maven {
+        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+                ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                : 'https://repository.apache.org/content/repositories/snapshots')
+
+        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
+        // has configured with the Apache release and snapshot staging credentials.
+        // <settings>
+        //   <servers>
+        //     <server>
+        //       <id>apache.releases.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //     <server>
+        //       <id>apache.snapshots.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //   </servers>
+        // </settings>
+        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+        if (settingsXml.exists()) {
+          def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
+                  ? 'apache.releases.https' : 'apache.snapshots.https')
+          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
+          if (m2SettingCreds) {
+            credentials {
+              username m2SettingCreds.username.text()
+              password m2SettingCreds.password.text()
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Only sign artifacts if we are performing a release
+  if (isRelease(project) && !project.hasProperty('noSigning')) {
+    apply plugin: "signing"
+    signing {
+      useGpgCmd()
+      sign publishing.publications
+    }
+  }
+}

@@ -26,17 +26,23 @@ def DATAFLOW_VERSION = "dataflow.version"
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
-applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */, validateShadowJar: false, shadowClosure: {
-  // In the case of the Fn API worker jar we are creating an application so we rely on
-  // the shadow plugin to include all transitive dependencies to create an uber jar.
+applyJavaNature(
+  publish: false,
+  exportJavadoc: false,
+  enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
+  validateShadowJar: false,
+  shadowClosure: {
+    // In the case of the Fn API worker jar we are creating an application so we rely on
+    // the shadow plugin to include all transitive dependencies to create an uber jar.
 
-  // Include original source files extracted under
-  // '$buildDir/original_sources_to_package' to jar
-  from "$buildDir/original_sources_to_package"
+    // Include original source files extracted under
+    // '$buildDir/original_sources_to_package' to jar
+    from "$buildDir/original_sources_to_package"
 
-  exclude "META-INF/LICENSE.txt"
-  exclude "about.html"
-})
+    exclude "META-INF/LICENSE.txt"
+    exclude "about.html"
+  },
+)
 
 /******************************************************************************/
 // Configure the worker root project

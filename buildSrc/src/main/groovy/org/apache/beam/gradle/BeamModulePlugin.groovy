@@ -123,6 +123,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+
+    /** Controls whether javadoc is exported for this project. */
+    boolean exportJavadoc = true
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -789,6 +792,9 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
       }
 
+      project.ext.includeInJavaBom = configuration.publish
+      project.ext.exportJavadoc = configuration.exportJavadoc
+
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
@@ -1368,6 +1374,7 @@ artifactId=${project.name}
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
       project.ext.applyJavaNature(
+              exportJavadoc: false,
               enableFindbugs: false,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
               shadowClosure: GrpcVendoring.shadowClosure() << {

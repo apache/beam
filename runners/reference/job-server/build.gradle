@@ -19,6 +19,7 @@ import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
+  exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {
   }
