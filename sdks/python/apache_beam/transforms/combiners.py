@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import heapq
 import operator
 import random
 from builtins import object
@@ -31,10 +32,12 @@ from past.builtins import long
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import KV
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
+from apache_beam.typehints import Iterable
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
@@ -182,8 +185,22 @@ class Top(object):
     """
     key = kwargs.pop('key', None)
     reverse = kwargs.pop('reverse', False)
-    return pcoll | core.CombineGlobally(
-        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
+    if not args and not kwargs and not key and pcoll.windowing.is_default():
+      if reverse:
+        if compare is None or compare is operator.lt:
+          compare = operator.gt
+        else:
+          original_compare = compare
+          compare = lambda a, b: original_compare(b, a)
+      # This is a more efficient global algorithm.
+      return (
+          pcoll
+          | core.ParDo(_TopPerBundle(n, compare))
+          | core.GroupByKey()
+          | core.ParDo(_MergeTopPerBundle(n, compare)))
+    else:
+      return pcoll | core.CombineGlobally(
+          TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
   @staticmethod
   @ptransform.ptransform_fn
@@ -242,6 +259,92 @@ class Top(object):
   def SmallestPerKey(pcoll, n, reverse=True):
     """Identifies the N least elements associated with each key."""
     return pcoll | Top.PerKey(n, reverse=True)
+
+
+class _ComparableValue(object):
+
+  __slots__ = ('value', 'less_than')
+
+  def __init__(self, value, less_than):
+    self.value = value
+    self.less_than = less_than
+
+  def __lt__(self, other):
+    return self.less_than(self.value, other.value)
+
+  def __repr__(self):
+    return "_ComparableValue[%s]" % self.value
+
+
+@with_input_types(T)
+@with_output_types(KV[None, List[T]])
+class _TopPerBundle(core.DoFn):
+  def __init__(self, n, less_than):
+    self._n = n
+    self._less_than = None if less_than is operator.le else less_than
+
+  def start_bundle(self):
+    self._heap = []
+
+  def process(self, element):
+    if self._less_than is not None:
+      element = _ComparableValue(element, self._less_than)
+    if len(self._heap) < self._n:
+      heapq.heappush(self._heap, element)
+    else:
+      heapq.heappushpop(self._heap, element)
+
+  def finish_bundle(self):
+    # Though sorting here results in more total work, this allows us to
+    # skip most elements in the reducer.
+    # Essentially, given s map bundles, we are trading about O(sn) compares in
+    # the (single) reducer for O(sn log n) compares across all mappers.
+    self._heap.sort()
+
+    # Unwrap to avoid serialization via pickle.
+    if self._less_than:
+      yield window.GlobalWindows.windowed_value(
+          (None, [wrapper.value for wrapper in self._heap]))
+    else:
+      yield window.GlobalWindows.windowed_value(
+          (None, self._heap))
+
+
+@with_input_types(KV[None, Iterable[List[T]]])
+@with_output_types(List[T])
+class _MergeTopPerBundle(core.DoFn):
+  def __init__(self, n, less_than):
+    self._n = n
+    self._less_than = None if less_than is operator.le else less_than
+
+  def process(self, key_and_bundles):
+    _, bundles = key_and_bundles
+    heap = []
+    for bundle in bundles:
+      if not heap:
+        if self._less_than:
+          heap = [
+              _ComparableValue(element, self._less_than) for element in bundle]
+        else:
+          heap = bundle
+        continue
+      for element in reversed(bundle):
+        if self._less_than is not None:
+          element = _ComparableValue(element, self._less_than)
+        if len(heap) < self._n:
+          heapq.heappush(heap, element)
+        elif element <= heap[0]:
+          # Because _TopPerBundle returns sorted lists, all other elements
+          # will also be smaller.
+          break
+        else:
+          heapq.heappushpop(heap, element)
+
+    heap.sort()
+    if self._less_than:
+      yield [wrapper.value for wrapper in reversed(heap)]
+    else:
+      yield heap[::-1]
 
 
 @with_input_types(T)
