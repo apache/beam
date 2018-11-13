@@ -27,5 +27,9 @@ public interface BigtableTestOptions extends TestPipelineOptions {
   @Default.String("beam-test")
   String getInstanceId();
 
+  @Description("Project for Bigtable")
+  @Default.String(null)
+  String getBigtableProject();
+
   void setInstanceId(String value);
 }
