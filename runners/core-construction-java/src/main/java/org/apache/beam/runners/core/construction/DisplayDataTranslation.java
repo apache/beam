@@ -19,8 +19,8 @@ package org.apache.beam.runners.core.construction;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Any;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.BoolValue;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Any;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.BoolValue;
 
 /** Utilities for going to/from DisplayData protos. */
 public class DisplayDataTranslation {

@@ -41,10 +41,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 
 /** Tests for {@link ServerFactory}. */
