@@ -33,7 +33,7 @@ public class TestShuffleReadCounterFactory extends ShuffleReadCounterFactory {
   private TreeMap<String, ShuffleReadCounter> originalShuffleStepToCounter;
 
   public TestShuffleReadCounterFactory() {
-    this.originalShuffleStepToCounter = new TreeMap<String, ShuffleReadCounter>();
+    this.originalShuffleStepToCounter = new TreeMap<>();
   }
 
   @Override

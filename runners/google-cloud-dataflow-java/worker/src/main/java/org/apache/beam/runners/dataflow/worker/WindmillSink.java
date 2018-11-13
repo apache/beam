@@ -127,7 +127,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
-      productionMap = new HashMap<ByteString, Windmill.KeyedMessageBundle.Builder>();
+      productionMap = new HashMap<>();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {

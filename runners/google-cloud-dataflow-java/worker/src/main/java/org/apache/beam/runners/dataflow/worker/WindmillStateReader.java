@@ -222,7 +222,7 @@ class WindmillStateReader {
   private <ElemT, FutureT> Future<FutureT> stateFuture(
       StateTag stateTag, @Nullable Coder<ElemT> coder) {
     CoderAndFuture<ElemT, FutureT> coderAndFuture =
-        new CoderAndFuture<ElemT, FutureT>(coder, SettableFuture.<FutureT>create());
+        new CoderAndFuture<>(coder, SettableFuture.<FutureT>create());
     CoderAndFuture<?, ?> existingCoderAndFutureWildcard =
         waiting.putIfAbsent(stateTag, coderAndFuture);
     if (existingCoderAndFutureWildcard == null) {

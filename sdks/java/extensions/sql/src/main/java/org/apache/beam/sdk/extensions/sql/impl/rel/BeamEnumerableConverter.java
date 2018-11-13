@@ -176,7 +176,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<Object>();
+    Queue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -200,7 +200,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<Object>();
+    Queue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -226,8 +226,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static class Collector extends DoFn<Row, Void> {
 
     // This will only work on the direct runner.
-    private static final Map<Long, Queue<Object>> globalValues =
-        new ConcurrentHashMap<Long, Queue<Object>>();
+    private static final Map<Long, Queue<Object>> globalValues = new ConcurrentHashMap<>();
 
     @Nullable private volatile Queue<Object> values;
 

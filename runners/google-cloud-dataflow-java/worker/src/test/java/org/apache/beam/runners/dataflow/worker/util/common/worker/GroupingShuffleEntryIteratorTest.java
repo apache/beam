@@ -190,7 +190,7 @@ public class GroupingShuffleEntryIteratorTest {
 
     assertEquals(expectedEntry, values1Copy2.next());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 15L);
 
     // Verify that each executing step used when reading from the GroupingShuffleReader

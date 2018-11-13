@@ -543,7 +543,7 @@ public class GroupAlsoByWindowProperties {
           Collection<WindowedValue<InputT>> values)
           throws Exception {
 
-    final StateInternalsFactory<K> stateInternalsCache = new CachingStateInternalsFactory<K>();
+    final StateInternalsFactory<K> stateInternalsCache = new CachingStateInternalsFactory<>();
 
     List<WindowedValue<KV<K, OutputT>>> output =
         processElement(
