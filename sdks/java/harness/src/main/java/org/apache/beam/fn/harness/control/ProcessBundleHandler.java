@@ -64,8 +64,8 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

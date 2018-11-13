@@ -48,17 +48,17 @@ import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.Epoll;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollDomainSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.Epoll;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollSocketChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.unix.DomainSocketAddress;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -194,7 +194,7 @@ public class ServerFactoryTest {
     public static ManagedChannelFactory from(PipelineOptions options) {
       List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
       if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
-        org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.Epoll.ensureAvailability();
+        org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.Epoll.ensureAvailability();
         return new Epoll();
       }
       return new Default();

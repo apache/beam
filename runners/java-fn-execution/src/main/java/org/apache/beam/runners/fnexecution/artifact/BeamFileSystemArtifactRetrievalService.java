@@ -41,11 +41,11 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -27,10 +27,10 @@ import java.net.SocketAddress;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
-import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.NettyServerBuilder;
 
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
