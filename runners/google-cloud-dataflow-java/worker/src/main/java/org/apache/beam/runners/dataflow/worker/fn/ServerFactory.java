@@ -31,16 +31,16 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyServerBuilder;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.netty.v4.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.util.internal.ThreadLocalRandom;
 
 /**
  * A {@link Server gRPC Server} factory that returns a server based upon {@link PipelineOptions}

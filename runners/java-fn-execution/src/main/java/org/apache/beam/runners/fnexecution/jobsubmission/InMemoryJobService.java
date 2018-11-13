@@ -40,11 +40,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

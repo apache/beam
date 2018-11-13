@@ -156,7 +156,7 @@ def common_compile_project_dependencies = [
         ":beam-runners-java-fn-execution",
         ":beam-sdks-java-fn-execution",
         ":beam-runners-google-cloud-dataflow-java-windmill",
-        ":beam-vendor-java-grpc-v1",
+        ":beam-vendor-grpc-v1_13_1",
 ]
 
 def common_test_compile_project_dependencies = [

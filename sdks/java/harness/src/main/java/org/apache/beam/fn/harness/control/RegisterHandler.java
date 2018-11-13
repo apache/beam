@@ -25,7 +25,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
