@@ -108,19 +108,23 @@ def equal_to_per_window(expected_window_to_elements):
   return matcher
 
 
-# Note that equal_to always sorts the expected and actual since what we
-# compare are PCollections for which there is no guaranteed order.
-# However the sorting does not go beyond top level therefore [1,2] and [2,1]
-# are considered equal and [[1,2]] and [[2,1]] are not.
+# Note that equal_to checks if expected and actual are permutations of each
+# other. However, only permutations of the top level are checked. Therefore
+# [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected):
-  expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
+    expected_list = list(expected)
+    for element in actual:
+      try:
+        expected_list.remove(element)
+      except ValueError:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (expected, actual))
+    if expected_list:
       raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+          'Failed assert: %r == %r' % (expected, actual))
+
   return _equal
 
 
