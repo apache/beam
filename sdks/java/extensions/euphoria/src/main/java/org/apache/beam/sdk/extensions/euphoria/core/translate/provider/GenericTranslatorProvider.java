@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -46,13 +47,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.UnionTranslator;
  * GenericTranslatorProvider.Builder#register(Class, OperatorTranslator) register} method during
  * build. Order of registration is important. Building is started by {@link #newBuilder()}.
  */
+@Experimental
 public class GenericTranslatorProvider implements TranslatorProvider {
-
-  private final List<TranslationDescriptor> possibleTranslators;
-
-  private GenericTranslatorProvider(List<TranslationDescriptor> possibleTranslators) {
-    this.possibleTranslators = possibleTranslators;
-  }
 
   public static GenericTranslatorProvider createWithDefaultTranslators() {
     return GenericTranslatorProvider.newBuilder()
@@ -63,24 +59,6 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         // register fallback operator translator to decompose composit operators
         .register(op -> op instanceof CompositeOperator, new CompositeOperatorTranslator<>())
         .build();
-  }
-
-  @Override
-  public <InputT, OutputT, OperatorT extends Operator<OutputT>>
-      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
-
-    for (TranslationDescriptor descriptor : possibleTranslators) {
-
-      @SuppressWarnings("unchecked")
-      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> maybeTranslator =
-          descriptor.getTranslatorWhenSuitable(operator);
-
-      if (maybeTranslator.isPresent()) {
-        return maybeTranslator;
-      }
-    }
-
-    return Optional.empty();
   }
 
   /**
@@ -208,9 +186,7 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         Predicate<OperatorT> userDefinedPredicate,
         OperatorTranslator<?, ?, ? extends OperatorT> translator) {
       return new TranslationDescriptor<>(
-          Optional.empty(),
-          Optional.of(requireNonNull(userDefinedPredicate)),
-          requireNonNull(translator));
+          Optional.empty(), Optional.of(userDefinedPredicate), requireNonNull(translator));
     }
 
     static <OperatorT extends Operator<?>> TranslationDescriptor<OperatorT> of(
@@ -242,5 +218,29 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         return Optional.empty();
       }
     }
+  }
+
+  private final List<TranslationDescriptor> possibleTranslators;
+
+  private GenericTranslatorProvider(List<TranslationDescriptor> possibleTranslators) {
+    this.possibleTranslators = possibleTranslators;
+  }
+
+  @Override
+  public <InputT, OutputT, OperatorT extends Operator<OutputT>>
+      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
+
+    for (TranslationDescriptor descriptor : possibleTranslators) {
+
+      @SuppressWarnings("unchecked")
+      Optional<OperatorTranslator<InputT, OutputT, OperatorT>> maybeTranslator =
+          descriptor.getTranslatorWhenSuitable(operator);
+
+      if (maybeTranslator.isPresent()) {
+        return maybeTranslator;
+      }
+    }
+
+    return Optional.empty();
   }
 }
