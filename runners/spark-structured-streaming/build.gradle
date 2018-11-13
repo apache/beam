@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
+
+description = "Apache Beam :: Runners :: Spark-Structured-Streaming"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":sdks:java:core")
+
+configurations {
+  validatesRunner
+}
+
+test {
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    //TODO add test excludes
+  }
+}
+
+dependencies {
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:core-java")
+  compile library.java.guava
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile "io.dropwizard.metrics:metrics-core:3.1.2"
+  compile library.java.jackson_module_scala
+  provided library.java.spark_sql
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.commons_compress
+  provided library.java.commons_lang3
+  provided library.java.commons_io_2x
+  provided library.java.hamcrest_core
+  provided library.java.hamcrest_library
+  provided "org.apache.zookeeper:zookeeper:3.4.11"
+  provided "org.scala-lang:scala-library:2.11.8"
+  provided "com.esotericsoftware.kryo:kryo:2.21"
+  testCompile project(":sdks:java:io:kafka")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.avro
+  testCompile library.java.kafka_clients
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
+  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(project.path)
+  validatesRunner project(path: project.path, configuration: "provided")
+}
+
+configurations.testRuntimeClasspath {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+configurations.validatesRunner {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
