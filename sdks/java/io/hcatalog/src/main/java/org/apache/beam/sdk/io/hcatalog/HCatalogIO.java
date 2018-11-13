@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * optional parameters are database &amp; filter For instance:
  *
  * <pre>{@code
- * Map<String, String> configProperties = new HashMap<String, String>();
+ * Map<String, String> configProperties = new HashMap<>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
  * beforehand, the transform does not create a new table if it does not exist For instance:
  *
  * <pre>{@code
- * Map<String, String> configProperties = new HashMap<String, String>();
+ * Map<String, String> configProperties = new HashMap<>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline

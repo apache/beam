@@ -867,7 +867,7 @@ public class BigtableIO {
         return new ArrayList<>(splits);
       }
       List<BigtableSource> reducedSplits = new ArrayList<>();
-      List<ByteKeyRange> previousSourceRanges = new ArrayList<ByteKeyRange>();
+      List<ByteKeyRange> previousSourceRanges = new ArrayList<>();
       int counter = 0;
       long size = 0;
       for (BigtableSource source : splits) {
@@ -876,7 +876,7 @@ public class BigtableIO {
           reducedSplits.add(new BigtableSource(config, filter, previousSourceRanges, size));
           counter = 0;
           size = 0;
-          previousSourceRanges = new ArrayList<ByteKeyRange>();
+          previousSourceRanges = new ArrayList<>();
         }
         previousSourceRanges.addAll(source.getRanges());
         previousSourceRanges = mergeRanges(previousSourceRanges);
@@ -932,7 +932,7 @@ public class BigtableIO {
      * adjacency see {@link #checkRangeAdjacency(List)}
      */
     private static List<ByteKeyRange> mergeRanges(List<ByteKeyRange> ranges) {
-      List<ByteKeyRange> response = new ArrayList<ByteKeyRange>();
+      List<ByteKeyRange> response = new ArrayList<>();
       if (ranges.size() < 2) {
         response.add(ranges.get(0));
       } else {

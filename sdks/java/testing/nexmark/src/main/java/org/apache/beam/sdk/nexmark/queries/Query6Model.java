@@ -59,7 +59,7 @@ public class Query6Model extends NexmarkQueryModel<SellerPrice> implements Seria
       NexmarkUtils.info("winning auction, bid: %s, %s", auction, bid);
       Queue<Bid> queue = winningBidsPerSeller.get(auction.seller);
       if (queue == null) {
-        queue = new PriorityQueue<Bid>(10, (Bid b1, Bid b2) -> b1.dateTime.compareTo(b2.dateTime));
+        queue = new PriorityQueue<>(10, (Bid b1, Bid b2) -> b1.dateTime.compareTo(b2.dateTime));
       }
       Long total = totalWinningBidPricesPerSeller.get(auction.seller);
       if (total == null) {

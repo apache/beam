@@ -37,7 +37,7 @@ public class ExperimentContextTest {
 
   @Test
   public void testAllExperiments() {
-    Set<String> experimentNames = new HashSet<String>();
+    Set<String> experimentNames = new HashSet<>();
     ExperimentContext ec = ExperimentContext.parseFrom(experimentNames);
     // So far nothing is enabled.
     for (Experiment experiment : Experiment.values()) {

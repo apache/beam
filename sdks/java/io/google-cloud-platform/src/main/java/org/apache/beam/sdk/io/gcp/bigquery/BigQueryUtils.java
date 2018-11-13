@@ -123,7 +123,7 @@ public class BigQueryUtils {
   }
 
   private static List<TableFieldSchema> toTableFieldSchema(Schema schema) {
-    List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>(schema.getFieldCount());
+    List<TableFieldSchema> fields = new ArrayList<>(schema.getFieldCount());
     for (Field schemaField : schema.getFields()) {
       FieldType type = schemaField.getType();
 
@@ -222,7 +222,7 @@ public class BigQueryUtils {
           type = schemaField.getType().getCollectionElementType().getTypeName();
           if (TypeName.ROW == type) {
             List<Row> rows = (List<Row>) value;
-            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            List<TableRow> tableRows = new ArrayList<>(rows.size());
             for (int j = 0; j < rows.size(); j++) {
               tableRows.add(toTableRow(rows.get(j)));
             }

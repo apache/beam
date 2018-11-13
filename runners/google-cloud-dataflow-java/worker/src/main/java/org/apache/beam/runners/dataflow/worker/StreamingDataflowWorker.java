@@ -1521,7 +1521,7 @@ public class StreamingDataflowWorker {
       if (config.getWindmillServicePort() != null && config.getWindmillServicePort() != 0) {
         port = config.getWindmillServicePort().intValue();
       }
-      HashSet<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      HashSet<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(config.getWindmillServiceEndpoint())) {
         endpoints.add(HostAndPort.fromString(endpoint).withDefaultPort(port));
       }

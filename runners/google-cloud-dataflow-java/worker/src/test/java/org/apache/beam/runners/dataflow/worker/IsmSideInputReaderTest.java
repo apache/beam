@@ -1495,7 +1495,7 @@ public class IsmSideInputReaderTest {
   private <T> void verifyList(List<T> expected, List<T> actual) {
     assertEquals(expected.size(), actual.size());
 
-    List<Integer> iterationOrder = new ArrayList<Integer>();
+    List<Integer> iterationOrder = new ArrayList<>();
     Random random = new Random(1892389023490L);
     for (int i = 0; i < expected.size(); ++i) {
       iterationOrder.add(i);
