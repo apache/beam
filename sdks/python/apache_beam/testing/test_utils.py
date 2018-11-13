@@ -79,7 +79,7 @@ def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
-    m.update(str(elem).encode('utf-8'))
+    m.update(elem)
   return m.hexdigest()
 
 
