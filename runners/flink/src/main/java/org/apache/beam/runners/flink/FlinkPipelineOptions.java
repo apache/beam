@@ -190,6 +190,11 @@ public interface FlinkPipelineOptions
 
   void setLatencyTrackingInterval(Long interval);
 
+  @Description("The interval in milliseconds for automatic watermark emission.")
+  Long getAutoWatermarkInterval();
+
+  void setAutoWatermarkInterval(Long interval);
+
   @Description(
       "Flink mode for data exchange of batch pipelines. "
           + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
