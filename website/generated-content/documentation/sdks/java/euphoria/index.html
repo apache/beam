@@ -270,11 +270,14 @@
       <li><a href="#assigneventtime"><code class="highlighter-rouge">AssignEventTime</code></a></li>
     </ul>
   </li>
-  <li><a href="#euphoria-to-beam-translation-advanced-user-section">Euphoria To Beam Translation (advanced user section)</a>
+  <li><a href="#translation">Translation</a>
     <ul>
-      <li><a href="#unsupported-features">Unsupported Features</a></li>
+      <li><a href="#translationproviders">TranslationProviders</a></li>
+      <li><a href="#operator-translators">Operator Translators</a></li>
+      <li><a href="#details">Details</a></li>
     </ul>
   </li>
+  <li><a href="#unsupported-features">Unsupported Features</a></li>
 </ul>
 
 
@@ -580,7 +583,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 <span class="c1">// KV(3, "3+rat"), KV(1, "1+X")]</span>
 </code></pre>
 </div>
-<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">LeftJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">PCollection</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">PCollection</code> is used as right input, Euphoria will automatically translated <code class="highlighter-rouge">LeftJoin</code> as ‘BroadcastHashJoin’. Broadcast join can be very efficient when joining between skewed datasets.</p>
+<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">LeftJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code class="highlighter-rouge">LeftJoin</code> right dataset has to fit in memory). How to use ‘Broadcast Hash Join’ is described in <a href="#Translation">Translation</a> section.</p>
 
 <h3 id="rightjoin"><code class="highlighter-rouge">RightJoin</code></h3>
 <p>Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
@@ -599,7 +602,7 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
     <span class="c1">// KV(8, "null+elephant"), KV(5, "null+mouse")]</span>
 </code></pre>
 </div>
-<p>Euphoria support performance optimization called ‘Broadcast Hash Join’ for the <code class="highlighter-rouge">RightJoin</code>. User can indicate through previous operator’s output hint <code class="highlighter-rouge">.output(SizeHint.FITS_IN_MEMORY)</code> that output <code class="highlighter-rouge">PCollection</code> of that operator fits in executors memory. And when the <code class="highlighter-rouge">PCollection</code> is used as left input, Euphoria will automatically translated <code class="highlighter-rouge">RightJoin</code> as ‘Broadcast Hash Join’. Broadcast join can be very efficient when joining between skewed datasets.</p>
+<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">RightJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code class="highlighter-rouge">RightJoin</code> left dataset has to fit in memory). How to use ‘Broadcast Hash Join’ is described in <a href="#Translation">Translation</a> section.</p>
 
 <h3 id="fulljoin"><code class="highlighter-rouge">FullJoin</code></h3>
 <p>Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
@@ -804,20 +807,74 @@ the API as a high level DSL over Beam Java SDK and share our effort with the com
 </code></pre>
 </div>
 
-<h2 id="euphoria-to-beam-translation-advanced-user-section">Euphoria To Beam Translation (advanced user section)</h2>
-<p>Euphoria API is build on top of Beam Java SDK. The API is transparently translated into Beam’s <code class="highlighter-rouge">PTransforms</code> in background. Most of the translation happens in <code class="highlighter-rouge">org.apache.beam.sdk.extensions.euphoria.core.translate</code> package. Where the most interesting classes are:</p>
+<h2 id="translation">Translation</h2>
+<p>Euphoria API is build on top of Beam Java SDK. The API is transparently translated into Beam’s <code class="highlighter-rouge">PTransforms</code> in background.</p>
+
+<p>The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an <code class="highlighter-rouge">Operator</code> is realized through implementations of <code class="highlighter-rouge">OperatorTranslator</code>.
+Euphoria uses <code class="highlighter-rouge">TranslationProvider</code> to decide which translator should be used. User of Euphoria API can supply its own <code class="highlighter-rouge">OperatorTranslator</code> through <code class="highlighter-rouge">TranslationProvider</code> by extending <code class="highlighter-rouge">EuphoriaOptions</code>. 
+Euphoria already contains some useful implementations.</p>
+
+<h3 id="translationproviders">TranslationProviders</h3>
+<h4 id="generictranslatorprovider"><code class="highlighter-rouge">GenericTranslatorProvider</code></h4>
+<p>General <code class="highlighter-rouge">TranslationProvider</code>. Allows for registration of <code class="highlighter-rouge">OperatorTranslator</code> three different ways:</p>
+<ul>
+  <li>Registration of operator specific translator by operator class.</li>
+  <li>Registration operator specific translator by operator class and additional user defined predicate.</li>
+  <li>Registration of general (not specific to one operator type) translator with user defined predicate. 
+Order of registration is important since <code class="highlighter-rouge">GenericTranslatorProvider</code> returns first suitable translator.</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">newBuilder</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">FlatMap</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="n">FlatMapTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by operator class</span>
+  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
+    <span class="n">Join</span><span class="o">.</span><span class="na">class</span><span class="o">,</span>
+    <span class="o">(</span><span class="n">Join</span> <span class="n">op</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
+      <span class="n">String</span> <span class="n">name</span> <span class="o">=</span> <span class="o">((</span><span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;)</span> <span class="n">op</span><span class="o">.</span><span class="na">getName</span><span class="o">()).</span><span class="na">orElse</span><span class="o">(</span><span class="s">""</span><span class="o">);</span>
+      <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"broadcast"</span><span class="o">);</span>
+    <span class="o">},</span>
+    <span class="k">new</span> <span class="n">BroadcastHashJoinTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by class and predicate</span>
+  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
+    <span class="n">op</span> <span class="o">-&gt;</span> <span class="n">op</span> <span class="k">instanceof</span> <span class="n">CompositeOperator</span><span class="o">,</span>
+    <span class="k">new</span> <span class="n">CompositeOperatorTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by predicate only</span>
+  <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">GenericTranslatorProvider</code> is default provider, see <code class="highlighter-rouge">GenericTranslatorProvider.createWithDefaultTranslators()</code>.</p>
+
+<h4 id="compositeprovider"><code class="highlighter-rouge">CompositeProvider</code></h4>
+<p>Implements chaining of <code class="highlighter-rouge">TranslationProvider</code>s in given order. That in turn allows for composing user defined <code class="highlighter-rouge">TranslationProvider</code> with already supplied by Euphoria API.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">CompositeProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+  <span class="n">CustomTranslatorProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(),</span> <span class="c1">// first ask CustomTranslatorProvider for translator</span>
+  <span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">createWithDefaultTranslators</span><span class="o">());</span> <span class="c1">// then ask default provider if needed</span>
+</code></pre>
+</div>
+
+<h3 id="operator-translators">Operator Translators</h3>
+<p>Each <code class="highlighter-rouge">Operator</code> needs to be translated to Java Beam SDK. That is done by implementations of <code class="highlighter-rouge">OperatorTranslator</code>. Euphoria API contains translator for every <code class="highlighter-rouge">Operator</code> implementation supplied with it. 
+Some operators may have an alternative translations suitable in some cases. <code class="highlighter-rouge">Join</code> typically may have many implementations. We are describing only the most interesting here.</p>
+
+<h4 id="broadcasthashjointranslator"><code class="highlighter-rouge">BroadcastHashJoinTranslator</code></h4>
+<p>Is able to translate <code class="highlighter-rouge">LeftJoin</code> and <code class="highlighter-rouge">RightJoin</code> when whole dataset of one side fits in memory of target executor. So it can be distributed using Beam’s side inputs. Resulting in better performance.</p>
+
+<h4 id="compositeoperatortranslator"><code class="highlighter-rouge">CompositeOperatorTranslator</code></h4>
+<p>Some operators are composite. Meaning that they are in fact wrapped chain of other operators. <code class="highlighter-rouge">CompositeOperatorTranslator</code> ensures that they are decomposed to elemental operators during translation process.</p>
+
+<h3 id="details">Details</h3>
+<p>Most of the translation happens in <code class="highlighter-rouge">org.apache.beam.sdk.extensions.euphoria.core.translate</code> package. Where the most interesting classes are:</p>
 <ul>
   <li><code class="highlighter-rouge">OperatorTranslator</code> - Interface which defining inner API of Euphoria to Beam translation.</li>
   <li><code class="highlighter-rouge">TranslatorProvider</code> - Way of supplying custom translators.</li>
-  <li><code class="highlighter-rouge">OperatorTransform</code> - Which is governing actual translation and/or expansion Euphoria’s operators to Beam’s <code class="highlighter-rouge">PTransform</code></li>
+  <li><code class="highlighter-rouge">OperatorTransform</code> - Is governing actual translation and/or expansion Euphoria’s operators to Beam’s <code class="highlighter-rouge">PTransform</code></li>
   <li><code class="highlighter-rouge">EuphoriaOptions</code> - A <code class="highlighter-rouge">PipelineOptions</code>, allows for setting custom <code class="highlighter-rouge">TranslatorProvider</code>.</li>
 </ul>
 
-<p>The package also contains implementation of <code class="highlighter-rouge">OperatorTranslator</code> for each supported operator type (<code class="highlighter-rouge">JoinTranslator</code>, <code class="highlighter-rouge">FlatMapTranslator</code>, <code class="highlighter-rouge">ReduceByKeyTranslator</code>). Not every operator needs to have translator of its own. Some of them can be composed from other operators. That is why operators may implement <code class="highlighter-rouge">CompositeOperator</code> which give them option to be exanded to set of other Euphoria operators.</p>
+<p>The package also contains implementation of <code class="highlighter-rouge">OperatorTranslator</code> for each supported operator type (<code class="highlighter-rouge">JoinTranslator</code>, <code class="highlighter-rouge">FlatMapTranslator</code>, <code class="highlighter-rouge">ReduceByKeyTranslator</code>). Not every operator needs to have translator of its own. Some of them can be composed from other operators. That is why operators may implement <code class="highlighter-rouge">CompositeOperator</code> which give them option to be expanded to set of other Euphoria operators.</p>
 
 <p>The translation process was designed with flexibility in mind. We wanted to allow different ways of translating higher-level Euphoria operators to Beam’s SDK’s primitives. It allows for further performance optimizations based on user choices or some knowledge about data obtained automatically.</p>
 
-<h3 id="unsupported-features">Unsupported Features</h3>
+<h2 id="unsupported-features">Unsupported Features</h2>
 <p><a href="https://github.com/seznam/euphoria">Original Euphoria</a> contained some features and operators not jet supported in Beam port. List of not yet supported features follows:</p>
 <ul>
   <li><code class="highlighter-rouge">ReduceByKey</code> in original Euphoria was allowed to sort output values (per key). This is also not yet translatable into Beam, therefore not supported.</li>
