@@ -790,8 +790,7 @@ public class SplittableDoFnTest implements Serializable {
                   new DoFn<String, String>() {
                     @ProcessElement
                     public ProcessContinuation process(
-                        @Element String element,
-                        RestrictionTracker<OffsetRange, Long> tracker) {
+                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
                       return stop();
                     }
 
