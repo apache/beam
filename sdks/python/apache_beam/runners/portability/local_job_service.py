@@ -208,6 +208,7 @@ class BeamJob(threading.Thread):
 
   def add_state_change_callback(self, f):
     self._state_change_callbacks.append(f)
+    f(self.state)
 
   @property
   def log_queue(self):
