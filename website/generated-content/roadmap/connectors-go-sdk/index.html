@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Euphoria API Roadmap</title>
+  <title>Connectors - Go SDK</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/roadmap/euphoria/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/roadmap/connectors-go-sdk/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/roadmap/euphoria.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/roadmap/connectors-go-sdk.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -225,15 +225,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="euphoria-api">Euphoria API</h1>
-
-<p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at <a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example</a>.</p>
-
-<p>This roadmap is in progress. In the meantime, here are some resources:</p>
+<p>Roadmap for connectors developed using Go SDK.</p>
 
 <ul>
-  <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria">dsl-euphoria</a> / <a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900</a></li>
-  <li>Contact: <a href="mailto:david.moravek@gmail.com">David Moravek</a></li>
+  <li>
+    <p>We hope to add a Splittable DoFn implementation to Go SDK to support developing new sources. In the
+meantime bounded sources can be developed in the form of ParDos. See
+<a href="https://beam.apache.org/documentation/io/authoring-overview/">Authoring I/O Transforms</a> for more details.</p>
+  </li>
+  <li>
+    <p>Go SDK plans to utilize currently available Java and Python connectors
+through cross-language transforms feature.</p>
+  </li>
 </ul>
 
       </div>
