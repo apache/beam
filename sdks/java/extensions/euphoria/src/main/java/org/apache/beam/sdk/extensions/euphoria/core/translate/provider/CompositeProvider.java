@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.provider;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
@@ -36,11 +37,6 @@ public class CompositeProvider implements TranslatorProvider {
 
   private final List<TranslatorProvider> orderedTranslatorsChain;
 
-  private CompositeProvider(List<TranslatorProvider> orderedTranslatorsChain) {
-    requireNonNull(orderedTranslatorsChain);
-    this.orderedTranslatorsChain = orderedTranslatorsChain;
-  }
-
   public static CompositeProvider of(List<TranslatorProvider> orderedTranslatorsChain) {
     return new CompositeProvider(orderedTranslatorsChain);
   }
@@ -48,6 +44,11 @@ public class CompositeProvider implements TranslatorProvider {
   public static CompositeProvider of(TranslatorProvider... orderedTranslatorsChain) {
     requireNonNull(orderedTranslatorsChain);
     return new CompositeProvider(Arrays.asList(orderedTranslatorsChain));
+  }
+
+  private CompositeProvider(List<TranslatorProvider> orderedTranslatorsChain) {
+    requireNonNull(orderedTranslatorsChain);
+    this.orderedTranslatorsChain = Collections.unmodifiableList(orderedTranslatorsChain);
   }
 
   /**
@@ -69,9 +70,9 @@ public class CompositeProvider implements TranslatorProvider {
   public <InputT, OutputT, OperatorT extends Operator<OutputT>>
       Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(OperatorT operator) {
 
-    for (int i = 0; i < orderedTranslatorsChain.size(); i++) {
+    for (TranslatorProvider provider : orderedTranslatorsChain) {
       Optional<OperatorTranslator<InputT, OutputT, OperatorT>> maybeTranslator =
-          orderedTranslatorsChain.get(i).findTranslator(operator);
+          provider.findTranslator(operator);
 
       if (maybeTranslator.isPresent() && maybeTranslator.get().canTranslate(operator)) {
         return maybeTranslator;
