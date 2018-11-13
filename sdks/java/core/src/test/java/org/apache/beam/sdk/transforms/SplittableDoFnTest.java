@@ -77,8 +77,8 @@ public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
           tracker.tryClaim(i);
           ++i, ++numIterations) {
@@ -236,8 +236,8 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation processElement(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -448,8 +448,8 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation processElement(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -711,8 +711,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c,
-        RestrictionTracker<OffsetRange, Long> tracker) {
+    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
       assertTrue(tracker.tryClaim(0L));
       c.output(c.element());
@@ -772,8 +771,8 @@ public class SplittableDoFnTest implements Serializable {
               ParDo.of(
                   new DoFn<String, String>() {
                     @ProcessElement
-                    public void process(@Element String element,
-                        RestrictionTracker<OffsetRange, Long> tracker) {
+                    public void process(
+                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
                       // Doesn't matter
                     }
 
