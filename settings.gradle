@@ -83,6 +83,8 @@ include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
 include "beam-runners-spark-job-server"
 project(":beam-runners-spark-job-server").dir = file("runners/spark/job-server")
+include "beam-runners-spark-structured-streaming"
+project(":beam-runners-spark-structured-streaming").dir = file("runners/spark-structured-streaming")
 include "beam-runners-samza"
 project(":beam-runners-samza").dir = file("runners/samza")
 include "beam-runners-samza-job-server"
