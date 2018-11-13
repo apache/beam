@@ -21,6 +21,7 @@ job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
               ' on Jenkins DSL groovy files checked into the code repository.')
 
+
   properties {
     githubProjectUrl('https://github.com/apache/beam/')
   }
