@@ -60,9 +60,9 @@ from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
-from apache_beam.runners.internal import names
 # TODO(angoenka): Remove reference to dataflow internal names
 from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
+from apache_beam.runners.internal import names
 from apache_beam.utils import processes
 
 # All constants are for internal use only; no backwards-compatibility
