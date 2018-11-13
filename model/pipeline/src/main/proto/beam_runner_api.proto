@@ -528,6 +528,7 @@ message SetStateSpec {
 
 message TimerSpec {
   TimeDomain.Enum time_domain = 1;
+  string timer_coder_id = 2;
 }
 
 message IsBounded {
