@@ -516,6 +516,21 @@ class _PickleCoderBase(FastCoder):
     # GroupByKey operations.
     return False
 
+  def as_cloud_object(self, is_pair_like=True):
+    value = super(_PickleCoderBase, self).as_cloud_object()
+    # We currently use this coder in places where we cannot infer the coder to
+    # use for the value type in a more granular way.  In places where the
+    # service expects a pair, it checks for the "is_pair_like" key, in which
+    # case we would fail without the hack below.
+    if is_pair_like:
+      value['is_pair_like'] = True
+      value['component_encodings'] = [
+          self.as_cloud_object(is_pair_like=False),
+          self.as_cloud_object(is_pair_like=False)
+      ]
+
+    return value
+
   # We allow .key_coder() and .value_coder() to be called on PickleCoder since
   # we can't always infer the return values of lambdas in ParDo operations, the
   # result of which may be used in a GroupBykey.
@@ -599,6 +614,21 @@ class FastPrimitivesCoder(FastCoder):
       return self
     else:
       return DeterministicFastPrimitivesCoder(self, step_label)
+
+  def as_cloud_object(self, is_pair_like=True):
+    value = super(FastCoder, self).as_cloud_object()
+    # We currently use this coder in places where we cannot infer the coder to
+    # use for the value type in a more granular way.  In places where the
+    # service expects a pair, it checks for the "is_pair_like" key, in which
+    # case we would fail without the hack below.
+    if is_pair_like:
+      value['is_pair_like'] = True
+      value['component_encodings'] = [
+          self.as_cloud_object(is_pair_like=False),
+          self.as_cloud_object(is_pair_like=False)
+      ]
+
+    return value
 
   # We allow .key_coder() and .value_coder() to be called on FastPrimitivesCoder
   # since we can't always infer the return values of lambdas in ParDo
