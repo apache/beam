@@ -813,7 +813,10 @@ artifactId=${project.name}
           }
 
           dependsOn 'generatePomFileForMavenJavaPublication'
-          into("META-INF/maven/${project.group}/${project.name}") { from "${pomFile}" }
+          into("META-INF/maven/${project.group}/${project.name}") {
+            from "${pomFile}"
+            rename('.*', 'pom.xml')
+          }
 
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
           into("META-INF/maven/${project.group}/${project.name}") { from "${pomPropertiesFile}" }
@@ -1352,10 +1355,10 @@ artifactId=${project.name}
 
     project.ext.applyPortabilityNature = {
       println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure(project) << {
+      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure() << {
         // We perform all the code relocations but don't include
         // any of the actual dependencies since they will be supplied
-        // by beam-vendor-java-grpc-v1
+        // by beam-vendor-grpc-v1_13_1
         dependencies {
           exclude(dependency(".*:.*"))
         }
@@ -1392,7 +1395,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure(project) << {
+      project.dependencies GrpcVendoring.dependenciesClosure() << {
         shadow it.project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
       }
 
