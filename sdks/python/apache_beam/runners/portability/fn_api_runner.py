@@ -862,20 +862,12 @@ class FnApiRunner(runner.PipelineRunner):
           if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
             payload = proto_utils.parse_Bytes(
                 transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-            for tag in payload.timer_specs.keys():
+            for tag, spec in payload.timer_specs.items():
               if len(transform.inputs) > 1:
                 raise NotImplementedError('Timers and side inputs.')
               input_pcoll = pipeline_components.pcollections[
                   next(iter(transform.inputs.values()))]
               # Create the appropriate coder for the timer PCollection.
-              void_coder_id = add_or_get_coder_id(
-                  beam.coders.SingletonCoder(None).to_runner_api(None))
-              timer_coder_id = add_or_get_coder_id(
-                  beam_runner_api_pb2.Coder(
-                      spec=beam_runner_api_pb2.SdkFunctionSpec(
-                          spec=beam_runner_api_pb2.FunctionSpec(
-                              urn=common_urns.coders.TIMER.urn)),
-                      component_coder_ids=[void_coder_id]))
               key_coder_id = input_pcoll.coder_id
               if (pipeline_components.coders[key_coder_id].spec.spec.urn
                   == common_urns.coders.WINDOWED_VALUE.urn):
@@ -890,7 +882,7 @@ class FnApiRunner(runner.PipelineRunner):
                       spec=beam_runner_api_pb2.SdkFunctionSpec(
                           spec=beam_runner_api_pb2.FunctionSpec(
                               urn=common_urns.coders.KV.urn)),
-                      component_coder_ids=[key_coder_id, timer_coder_id]))
+                      component_coder_ids=[key_coder_id, spec.timer_coder_id]))
               timer_pcoll_coder_id = windowed_coder_id(
                   key_timer_coder_id,
                   pipeline_components.windowing_strategies[
