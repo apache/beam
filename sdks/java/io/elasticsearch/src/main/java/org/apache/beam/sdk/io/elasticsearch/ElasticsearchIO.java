@@ -176,21 +176,27 @@ public class ElasticsearchIO {
     return mapper.readValue(responseEntity.getContent(), JsonNode.class);
   }
 
-  static void checkForErrors(HttpEntity responseEntity, int backendVersion) throws IOException {
+  static void checkForErrors(HttpEntity responseEntity, int backendVersion, boolean partialUpdate)
+      throws IOException {
     JsonNode searchResult = parseResponse(responseEntity);
     boolean errors = searchResult.path("errors").asBoolean();
     if (errors) {
       StringBuilder errorMessages =
           new StringBuilder("Error writing to Elasticsearch, some elements could not be inserted:");
       JsonNode items = searchResult.path("items");
-      //some items present in bulk might have errors, concatenate error messages
+      // some items present in bulk might have errors, concatenate error messages
       for (JsonNode item : items) {
 
         String errorRootName = "";
-        if (backendVersion == 2) {
-          errorRootName = "create";
-        } else if (backendVersion == 5 || backendVersion == 6) {
-          errorRootName = "index";
+        // when use partial update, the response items includes all is update.
+        if (partialUpdate) {
+          errorRootName = "update";
+        } else {
+          if (backendVersion == 2) {
+            errorRootName = "create";
+          } else if (backendVersion == 5 || backendVersion == 6) {
+            errorRootName = "index";
+          }
         }
         JsonNode errorRoot = item.path(errorRootName);
         JsonNode error = errorRoot.get("error");
@@ -512,7 +518,7 @@ public class ElasticsearchIO {
     @Nullable private final Integer numSlices;
     @Nullable private final Integer sliceId;
 
-    //constructor used in split() when we know the backend version
+    // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
         Read spec,
         @Nullable String shardPreference,
@@ -667,7 +673,7 @@ public class ElasticsearchIO {
       if ((source.backendVersion == 5 || source.backendVersion == 6)
           && source.numSlices != null
           && source.numSlices > 1) {
-        //if there is more than one slice, add the slice to the user query
+        // if there is more than one slice, add the slice to the user query
         String sliceQuery =
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
@@ -717,7 +723,7 @@ public class ElasticsearchIO {
     }
 
     private boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
-      //stop if no more data
+      // stop if no more data
       JsonNode hits = searchResult.path("hits").path("hits");
       if (hits.size() == 0) {
         current = null;
@@ -1228,7 +1234,7 @@ public class ElasticsearchIO {
             && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
           responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
         }
-        checkForErrors(responseEntity, backendVersion);
+        checkForErrors(responseEntity, backendVersion, spec.getUsePartialUpdate());
       }
 
       /** retry request based on retry configuration policy. */
@@ -1240,12 +1246,12 @@ public class ElasticsearchIO {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
         int attempt = 0;
-        //while retry policy exists
+        // while retry policy exists
         while (BackOffUtils.next(sleeper, backoff)) {
           LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
           response = restClient.performRequest(method, endpoint, params, requestBody);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-          //if response has no 429 errors
+          // if response has no 429 errors
           if (!spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
             return responseEntity;
           }
