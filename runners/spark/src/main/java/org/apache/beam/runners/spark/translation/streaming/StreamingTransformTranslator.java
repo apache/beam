@@ -447,8 +447,7 @@ public final class StreamingTransformTranslator {
                   (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
           context.putDataset(
               output.getValue(),
-              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()),
-              false);
+              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
         }
       }
 

@@ -409,7 +409,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(output.getValue(), new BoundedDataset<>(values), false);
+          context.putDataset(output.getValue(), new BoundedDataset<>(values));
         }
       }
 
@@ -458,8 +458,8 @@ public final class TransformTranslator {
             new SourceRDD.Bounded<>(
                     jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
                 .toJavaRDD();
-        // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        context.putDataset(transform, new BoundedDataset<>(input), true);
+
+        context.putDataset(transform, new BoundedDataset<>(input));
       }
 
       @Override
