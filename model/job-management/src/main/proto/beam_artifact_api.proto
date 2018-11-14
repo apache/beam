@@ -62,7 +62,11 @@ message ArtifactMetadata {
 
   // (Optional) The base64-encoded md5 checksum of the artifact. Used, among other things, by
   // harness boot code to validate the integrity of the artifact.
-  string md5 = 3;
+  string md5X = 3;
+
+  // (Optional) The hex-encoded sha256 checksum of the artifact. Used, among other things, by
+  // harness boot code to validate the integrity of the artifact.
+  string sha256 = 4;
 }
 
 // A collection of artifacts.
@@ -147,4 +151,3 @@ message CommitManifestResponse {
   // ArtifactRetrievalService.
   string retrieval_token = 1;
 }
-
