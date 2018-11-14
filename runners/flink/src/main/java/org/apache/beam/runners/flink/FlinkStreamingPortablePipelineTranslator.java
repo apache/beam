@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -562,8 +563,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
     Coder keyCoder = null;
     KeySelector<WindowedValue<InputT>, ?> keySelector = null;
-    final boolean stateful = stagePayload.getUserStatesCount() > 0;
-    if (stateful) {
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
       // Stateful stages are only allowed of KV input
       Coder valueCoder =
           ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
@@ -601,6 +601,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getJobInfo(),
             FlinkExecutableStageContext.factory(context.getPipelineOptions()),
             collectionIdToTupleTag,
+            getWindowingStrategy(inputPCollectionId, components),
             keyCoder,
             keySelector);
 

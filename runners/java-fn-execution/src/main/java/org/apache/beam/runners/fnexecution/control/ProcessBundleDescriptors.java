@@ -403,6 +403,7 @@ public class ProcessBundleDescriptors {
               timerReference.transform().getId(),
               timerReference.localName(),
               inputTimerPCollectionId,
+              outputTimerPCollectionId,
               targetEncoding.getTarget(),
               spec));
     }
@@ -498,18 +499,21 @@ public class ProcessBundleDescriptors {
     static <K, V, W extends BoundedWindow> TimerSpec<K, V, W> of(
         String transformId,
         String timerId,
-        String collectionId,
+        String inputCollectionId,
+        String outputCollectionId,
         Target outputTarget,
         org.apache.beam.sdk.state.TimerSpec timerSpec) {
       return new AutoValue_ProcessBundleDescriptors_TimerSpec(
-          transformId, timerId, collectionId, outputTarget, timerSpec);
+          transformId, timerId, inputCollectionId, outputCollectionId, outputTarget, timerSpec);
     }
 
     public abstract String transformId();
 
     public abstract String timerId();
 
-    public abstract String collectionId();
+    public abstract String inputCollectionId();
+
+    public abstract String outputCollectionId();
 
     public abstract Target outputTarget();
 
