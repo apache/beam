@@ -118,9 +118,8 @@ class ElasticSearchIOTestUtils {
         restClient.performRequest(
             "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
     ElasticsearchIO.checkForErrors(
-        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration));
+        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration), false);
   }
-
   /**
    * Forces a refresh of the given index to make recently inserted documents available for search
    * using the index and type named in the connectionConfiguration.
