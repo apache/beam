@@ -353,12 +353,8 @@ public class ProcessBundleDescriptors {
                   .getComponentCoderIds(0),
               payload.getTimerSpecsOrThrow(timerReference.localName()).getTimerCoderId(),
               components);
-      RunnerApi.PCollection timerCollectionSpec =
-          components
-              .getPcollectionsOrThrow(mainInputName)
-              .toBuilder()
-              .setCoderId(timerCoderId)
-              .build();
+      RunnerApi.PCollection.Builder timerCollectionSpec =
+          components.getPcollectionsOrThrow(mainInputName).toBuilder().setCoderId(timerCoderId);
 
       // "Unroll" the timers into PCollections.
       String inputTimerPCollectionId =
@@ -366,12 +362,14 @@ public class ProcessBundleDescriptors {
               String.format(
                   "%s.timer.%s.in", timerReference.transform().getId(), timerReference.localName()),
               components.getPcollectionsMap()::containsKey);
-      components.putPcollections(inputTimerPCollectionId, timerCollectionSpec);
+      RunnerApi.PCollection inputTimerPCollection =
+          timerCollectionSpec.setUniqueName(inputTimerPCollectionId).build();
+      components.putPcollections(inputTimerPCollectionId, inputTimerPCollection);
       remoteInputsBuilder.put(
           inputTimerPCollectionId,
           addStageInput(
               dataEndpoint,
-              PipelineNode.pCollection(inputTimerPCollectionId, timerCollectionSpec),
+              PipelineNode.pCollection(inputTimerPCollectionId, inputTimerPCollection),
               components));
       String outputTimerPCollectionId =
           SyntheticComponents.uniqueId(
@@ -379,12 +377,14 @@ public class ProcessBundleDescriptors {
                   "%s.timer.%s.out",
                   timerReference.transform().getId(), timerReference.localName()),
               components.getPcollectionsMap()::containsKey);
-      components.putPcollections(outputTimerPCollectionId, timerCollectionSpec);
+      RunnerApi.PCollection outputTimerPCollection =
+          timerCollectionSpec.setUniqueName(outputTimerPCollectionId).build();
+      components.putPcollections(outputTimerPCollectionId, outputTimerPCollection);
       TargetEncoding targetEncoding =
           addStageOutput(
               dataEndpoint,
               components,
-              PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec));
+              PipelineNode.pCollection(outputTimerPCollectionId, outputTimerPCollection));
       outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
