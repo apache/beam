@@ -655,10 +655,10 @@ public class RemoteExecutionTest implements Serializable {
         descriptor.getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : timerSpecs.values()) {
         if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          eventTimeInputPCollectionId = timerSpec.collectionId();
+          eventTimeInputPCollectionId = timerSpec.inputCollectionId();
           eventTimeOutputTarget = timerSpec.outputTarget();
         } else if (TimeDomain.PROCESSING_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          processingTimeInputPCollectionId = timerSpec.collectionId();
+          processingTimeInputPCollectionId = timerSpec.inputCollectionId();
           processingTimeOutputTarget = timerSpec.outputTarget();
         } else {
           fail(String.format("Unknown timer specification %s", timerSpec));
