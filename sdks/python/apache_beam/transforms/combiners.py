@@ -205,9 +205,13 @@ class Top(object):
             original_compare = compare
             compare = lambda a, b: original_compare(b, a)
         # This is a more efficient global algorithm.
+        top_per_bundle = pcoll | core.ParDo(_TopPerBundle(self._n, compare))
+        # If pcoll is empty, we can't guerentee that top_per_bundle
+        # won't be empty, so inject at least one empty accumulator
+        # so that downstream is guerenteed to produce non-empty output.
+        empty_bundle = pcoll.pipeline | core.Create([(None, [])])
         return (
-            pcoll
-            | core.ParDo(_TopPerBundle(self._n, compare))
+            (top_per_bundle, empty_bundle) | core.Flatten()
             | core.GroupByKey()
             | core.ParDo(_MergeTopPerBundle(self._n, compare)))
       else:
