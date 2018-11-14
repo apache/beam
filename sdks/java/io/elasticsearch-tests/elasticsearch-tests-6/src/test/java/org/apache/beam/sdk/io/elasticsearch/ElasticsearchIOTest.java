@@ -183,6 +183,17 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.setIndexMapping(fillAddresses());
+    elasticsearchIOTestCommon.testWritePartialUpdateWithErrors(
+        ConnectionConfiguration.create(
+            fillAddresses(),
+            ElasticsearchIOTestCommon.UPDATE_INDEX,
+            ElasticsearchIOTestCommon.UPDATE_TYPE));
+  }
+
+  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
