@@ -26,8 +26,8 @@ import itertools
 import types
 from builtins import object
 
-from apache_beam.coders import coders
 from apache_beam.coders import Coder
+from apache_beam.coders import coders
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
 
