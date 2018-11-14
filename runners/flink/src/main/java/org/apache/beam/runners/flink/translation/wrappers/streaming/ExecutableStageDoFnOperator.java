@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,6 +56,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -300,14 +301,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
     @SuppressWarnings("ByteBufferBackingArray")
     byte[] bytes = encodedKey.array();
-    ByteArrayInputStream byteStream = new ByteArrayInputStream(bytes);
     final Object decodedKey;
     try {
-      decodedKey = keyCoder.decode(byteStream);
-    } catch (IOException e) {
+      decodedKey = CoderUtils.decodeFromByteArray(keyCoder, bytes);
+    } catch (CoderException e) {
       throw new RuntimeException(
-          String.format(
-              Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(bytes)));
+          String.format(Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(bytes)),
+          e);
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setTimerKeyForFire(decodedKey);
