@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -100,7 +101,7 @@ import org.apache.flink.api.java.operators.SingleInputUdfOperator;
  *   FlinkBatchPortablePipelineTranslator translator =
  *       FlinkBatchPortablePipelineTranslator.createTranslator();
  *   BatchTranslationContext context =
- *       FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo);
+ *       FlinkBatchPortablePipelineTranslator.createTranslationContext(jobInfo, confDir, filesToStage);
  *   translator.translate(context, pipeline);
  *   ExecutionEnvironment executionEnvironment = context.getExecutionEnvironment();
  *   // Do something with executionEnvironment...
@@ -118,9 +119,13 @@ public class FlinkBatchPortablePipelineTranslator
    * {@link ExecutionEnvironment}.
    */
   public static BatchTranslationContext createTranslationContext(
-      JobInfo jobInfo, FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      @Nullable String confDir,
+      List<String> filesToStage) {
     ExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(pipelineOptions, filesToStage);
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            pipelineOptions, filesToStage, confDir);
     return new BatchTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 

@@ -65,6 +65,8 @@ runShadow {
     args += ["--clean-artifacts-per-job"]
   if (project.hasProperty('flinkMasterUrl'))
     args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
+  if (project.hasProperty('flinkConfDir'))
+    args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
 
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]

@@ -84,7 +84,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldInferParallelismFromEnvironmentStreaming() throws IOException {
-    String flinkConfDir = extractFlinkConfig();
+    String confDir = extractFlinkConfig();
 
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setRunner(TestFlinkRunner.class);
@@ -92,7 +92,7 @@ public class FlinkExecutionEnvironmentsTest {
 
     StreamExecutionEnvironment sev =
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList(), flinkConfDir);
+            options, Collections.emptyList(), confDir);
 
     assertThat(options.getParallelism(), is(23));
     assertThat(sev.getParallelism(), is(23));
