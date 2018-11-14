@@ -66,7 +66,8 @@ class ElasticSearchIOTestUtils {
   private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
       closeIndex(restClient, index);
-      restClient.performRequest("DELETE", String.format("/%s", index));
+      restClient.performRequest(
+          "DELETE", String.format("/%s", index), Collections.singletonMap("refresh", "wait_for"));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
@@ -88,7 +89,8 @@ class ElasticSearchIOTestUtils {
                 "{\"source\" : { \"index\" : \"%s\" }, \"dest\" : { \"index\" : \"%s\" } }",
                 source, target),
             ContentType.APPLICATION_JSON);
-    restClient.performRequest("POST", "/_reindex", Collections.EMPTY_MAP, entity);
+    restClient.performRequest(
+        "POST", "/_reindex", Collections.singletonMap("refresh", "wait_for"), entity);
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -116,7 +118,7 @@ class ElasticSearchIOTestUtils {
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest(
-            "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
+            "POST", endPoint, Collections.singletonMap("refresh", "wait_for"), requestBody);
     ElasticsearchIO.checkForErrors(
         response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
