@@ -159,82 +159,112 @@ class Top(object):
   """Combiners for obtaining extremal elements."""
   # pylint: disable=no-self-argument
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def Of(pcoll, n, compare=None, *args, **kwargs):
+  class Of(ptransform.PTransform):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
     to which it is applied, where "greatest" is determined by the comparator
     function supplied as the compare argument.
-
-    compare should be an implementation of "a < b" taking at least two arguments
-    (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.  Defaults to the natural
-    ordering of the elements.
-
-    The arguments 'key' and 'reverse' may instead be passed as keyword
-    arguments, and have the same meaning as for Python's sort functions.
-
-    Args:
-      pcoll: PCollection to process.
-      n: number of elements to extract from pcoll.
-      compare: as described above.
-      *args: as described above.
-      **kwargs: as described above.
     """
-    key = kwargs.pop('key', None)
-    reverse = kwargs.pop('reverse', False)
-    if not args and not kwargs and not key and pcoll.windowing.is_default():
-      if reverse:
-        if compare is None or compare is operator.lt:
-          compare = operator.gt
-        else:
-          original_compare = compare
-          compare = lambda a, b: original_compare(b, a)
-      # This is a more efficient global algorithm.
-      return (
-          pcoll
-          | core.ParDo(_TopPerBundle(n, compare))
-          | core.GroupByKey()
-          | core.ParDo(_MergeTopPerBundle(n, compare)))
-    else:
-      return pcoll | core.CombineGlobally(
-          TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def PerKey(pcoll, n, compare=None, *args, **kwargs):
+    def __init__(self, n, compare=None, *args, **kwargs):
+      """Initializer.
+
+      compare should be an implementation of "a < b" taking at least two
+      arguments (a and b). Additional arguments and side inputs specified in
+      the apply call become additional arguments to the comparator. Defaults to
+      the natural ordering of the elements.
+      The arguments 'key' and 'reverse' may instead be passed as keyword
+      arguments, and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        compare: as described above.
+        *args: as described above.
+        **kwargs: as described above.
+      """
+      self._n = n
+      self._compare = compare
+      self._key = kwargs.pop('key', None)
+      self._reverse = kwargs.pop('reverse', False)
+      self._args = args
+      self._kwargs = kwargs
+
+    def default_label(self):
+      return 'Top(%d)' % self._n
+
+    def expand(self, pcoll):
+      compare = self._compare
+      if (not self._args and not self._kwargs and
+          not self._key and pcoll.windowing.is_default()):
+        if self._reverse:
+          if compare is None or compare is operator.lt:
+            compare = operator.gt
+          else:
+            original_compare = compare
+            compare = lambda a, b: original_compare(b, a)
+        # This is a more efficient global algorithm.
+        return (
+            pcoll
+            | core.ParDo(_TopPerBundle(self._n, compare))
+            | core.GroupByKey()
+            | core.ParDo(_MergeTopPerBundle(self._n, compare)))
+      else:
+        return pcoll | core.CombineGlobally(
+            TopCombineFn(self._n, compare, self._key, self._reverse),
+            *self._args, **self._kwargs)
+
+  class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
     PCollection to the n greatest elements with which they are associated, where
     "greatest" is determined by the comparator function supplied as the compare
-    argument.
-
-    compare should be an implementation of "a < b" taking at least two arguments
-    (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.  Defaults to the natural
-    ordering of the elements.
-
-    The arguments 'key' and 'reverse' may instead be passed as keyword
-    arguments, and have the same meaning as for Python's sort functions.
-
-    Args:
-      pcoll: PCollection to process.
-      n: number of elements to extract from pcoll.
-      compare: as described above.
-      *args: as described above.
-      **kwargs: as described above.
-
-    Raises:
-      TypeCheckError: If the output type of the input PCollection is not
-        compatible with KV[A, B].
+    argument in the initializer.
     """
-    key = kwargs.pop('key', None)
-    reverse = kwargs.pop('reverse', False)
-    return pcoll | core.CombinePerKey(
-        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
+    def __init__(self, n, compare=None, *args, **kwargs):
+      """Initializer.
+
+      compare should be an implementation of "a < b" taking at least two
+      arguments (a and b). Additional arguments and side inputs specified in
+      the apply call become additional arguments to the comparator.  Defaults to
+      the natural ordering of the elements.
+
+      The arguments 'key' and 'reverse' may instead be passed as keyword
+      arguments, and have the same meaning as for Python's sort functions.
+
+      Args:
+        n: number of elements to extract from input.
+        compare: as described above.
+        *args: as described above.
+        **kwargs: as described above.
+      """
+      self._n = n
+      self._compare = compare
+      self._key = kwargs.pop('key', None)
+      self._reverse = kwargs.pop('reverse', False)
+      self._args = args
+      self._kwargs = kwargs
+
+    def default_label(self):
+      return 'TopPerKey(%d)' % self._n
+
+    def expand(self, pcoll):
+      """Expands the transform.
+
+      Raises TypeCheckError: If the output type of the input PCollection is not
+      compatible with KV[A, B].
+
+      Args:
+        pcoll: PCollection to process
+
+      Returns:
+        the PCollection containing the result.
+      """
+      return pcoll | core.CombinePerKey(
+          TopCombineFn(self._n, self._compare, self._key, self._reverse),
+          *self._args, **self._kwargs)
 
   @staticmethod
   @ptransform.ptransform_fn
