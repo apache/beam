@@ -29,10 +29,13 @@ import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,7 +69,9 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   private enum CombinerType {
     TOP_LARGEST,
-    MEAN
+    MEAN,
+    SUM,
+    COUNT
   }
 
   /** Pipeline options specific for this test. */
@@ -102,7 +107,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   @Override
   protected void loadTest() throws IOException {
-    Combine.PerKey combiner = createPerKeyCombiner(options.getPerKeyCombinerType());
+    PTransform combiner = createPerKeyCombiner(options.getPerKeyCombinerType());
 
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
@@ -113,13 +118,12 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
-          .apply(
-              format("Convert to BigInteger: %d", i), MapElements.via(new ByteValueToBigInteger()))
+          .apply(format("Convert to BigInteger: %d", i), MapElements.via(new ByteValueToLong()))
           .apply(format("Combine: %d", i), combiner);
     }
   }
 
-  private Combine.PerKey createPerKeyCombiner(CombinerType combinerType) {
+  private PTransform createPerKeyCombiner(CombinerType combinerType) {
     switch (combinerType) {
       case MEAN:
         return Mean.perKey();
@@ -128,17 +132,21 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
             options.getTopCount() != null,
             "You should set \"--topCount\" option to use TOP combiners.");
         return Top.largestPerKey(options.getTopCount());
+      case SUM:
+        return Sum.longsPerKey();
+      case COUNT:
+        return Count.perKey();
       default:
         throw new IllegalArgumentException("No such combiner!");
     }
   }
 
-  private static class ByteValueToBigInteger
-      extends SimpleFunction<KV<byte[], byte[]>, KV<byte[], BigInteger>> {
+  private static class ByteValueToLong
+      extends SimpleFunction<KV<byte[], byte[]>, KV<byte[], Long>> {
 
     @Override
-    public KV<byte[], BigInteger> apply(KV<byte[], byte[]> input) {
-      return KV.of(input.getKey(), new BigInteger(input.getValue()));
+    public KV<byte[], Long> apply(KV<byte[], byte[]> input) {
+      return KV.of(input.getKey(), new BigInteger(input.getValue()).longValue());
     }
   }
 
