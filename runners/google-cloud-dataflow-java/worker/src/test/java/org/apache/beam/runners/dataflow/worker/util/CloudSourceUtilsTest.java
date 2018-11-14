@@ -62,7 +62,7 @@ public class CloudSourceUtilsTest {
     source.getBaseSpecs().add(grandparent);
     source.getBaseSpecs().add(parent);
     source.setSpec(child);
-    source.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of()));
+    source.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
 
     Source flat = CloudSourceUtils.flattenBaseSpecs(source);
     assertNull(flat.getBaseSpecs());

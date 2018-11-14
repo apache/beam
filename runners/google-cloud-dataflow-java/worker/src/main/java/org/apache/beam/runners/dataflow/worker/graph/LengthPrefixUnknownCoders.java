@@ -229,7 +229,8 @@ public class LengthPrefixUnknownCoders {
     // Handle well known coders.
     if (LENGTH_PREFIX_CODER_TYPE.equals(coderType)) {
       if (replaceWithByteArrayCoder) {
-        return CloudObjects.asCloudObject(LENGTH_PREFIXED_BYTE_ARRAY_CODER);
+        return CloudObjects.asCloudObject(
+            LENGTH_PREFIXED_BYTE_ARRAY_CODER, /*sdkComponents=*/ null);
       }
       return codec;
     } else if (WELL_KNOWN_CODER_TYPES.contains(coderType)) {
@@ -251,7 +252,7 @@ public class LengthPrefixUnknownCoders {
 
     // Wrap unknown coders with length prefix coder.
     if (replaceWithByteArrayCoder) {
-      return CloudObjects.asCloudObject(LENGTH_PREFIXED_BYTE_ARRAY_CODER);
+      return CloudObjects.asCloudObject(LENGTH_PREFIXED_BYTE_ARRAY_CODER, /*sdkComponents=*/ null);
     } else {
       Map<String, Object> prefixedCodec = new HashMap<>();
       prefixedCodec.put(PropertyNames.OBJECT_TYPE_NAME, LENGTH_PREFIX_CODER_TYPE);

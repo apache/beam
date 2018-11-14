@@ -73,7 +73,8 @@ public class AvroByteReaderFactoryTest {
     Coder<?> coder =
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     NativeReader<?> reader =
-        runTestCreateAvroReader(pathToAvroFile, null, null, CloudObjects.asCloudObject(coder));
+        runTestCreateAvroReader(
+            pathToAvroFile, null, null, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
@@ -88,7 +89,8 @@ public class AvroByteReaderFactoryTest {
     Coder<?> coder =
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     NativeReader<?> reader =
-        runTestCreateAvroReader(pathToAvroFile, 200L, 500L, CloudObjects.asCloudObject(coder));
+        runTestCreateAvroReader(
+            pathToAvroFile, 200L, 500L, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;

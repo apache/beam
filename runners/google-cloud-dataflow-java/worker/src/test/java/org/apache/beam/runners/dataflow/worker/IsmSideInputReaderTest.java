@@ -1495,7 +1495,7 @@ public class IsmSideInputReaderTest {
   private <T> void verifyList(List<T> expected, List<T> actual) {
     assertEquals(expected.size(), actual.size());
 
-    List<Integer> iterationOrder = new ArrayList<>();
+    List<Integer> iterationOrder = new ArrayList<Integer>();
     Random random = new Random(1892389023490L);
     for (int i = 0; i < expected.size(); ++i) {
       iterationOrder.add(i);
@@ -1770,7 +1770,8 @@ public class IsmSideInputReaderTest {
   private <K, V> Source newIsmSource(IsmRecordCoder<WindowedValue<V>> coder, String tmpFilePath) {
     Source source = new Source();
     source.setCodec(
-        CloudObjects.asCloudObject(WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER)));
+        CloudObjects.asCloudObject(
+            WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
     source.setSpec(new HashMap<String, Object>());
     source.getSpec().put(PropertyNames.OBJECT_TYPE_NAME, "IsmSource");
     source.getSpec().put(WorkerPropertyNames.FILENAME, tmpFilePath);
