@@ -108,6 +108,7 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-4781")
 
     def test_pardo_timers(self):
+      # TODO Enable once BEAM-5999 is fixed.
       raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
 
     def test_assert_that(self):

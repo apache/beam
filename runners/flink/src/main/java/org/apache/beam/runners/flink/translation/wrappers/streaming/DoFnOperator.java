@@ -153,9 +153,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  private final Coder<?> keyCoder;
+  protected final Coder<?> keyCoder;
 
-  private final KeySelector<WindowedValue<InputT>, ?> keySelector;
+  final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
   private final TimerInternals.TimerDataCoder timerCoder;
 
@@ -289,7 +289,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     setCurrentSideInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
     setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
     sideInputReader = NullSideInputReader.of(sideInputs);
 
     // maybe init by initializeState
@@ -333,16 +332,18 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
       timerInternals = new FlinkTimerInternals();
     }
+  }
 
+  @Override
+  public void open() throws Exception {
     // WindowDoFnOperator need use state and timer to get DoFn.
     // So must wait StateInternals and TimerInternals ready.
+    // This will be called after initializeState()
     this.doFn = getDoFn();
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
-
     doFnInvoker.invokeSetup();
 
-    StepContext stepContext = new FlinkStepContext();
-
+    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
     doFnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -351,7 +352,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            stepContext,
+            new FlinkStepContext(),
             inputCoder,
             outputCoders,
             windowingStrategy);
@@ -442,20 +443,19 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private long getPushbackWatermarkHold() {
+  protected long getPushbackWatermarkHold() {
     return pushedBackWatermark;
   }
 
+  protected void setPushedBackWatermark(long watermark) {
+    pushedBackWatermark = watermark;
+  }
+
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord)
-      throws Exception {
+  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
-  }
-
-  private void setPushedBackWatermark(long watermark) {
-    pushedBackWatermark = watermark;
   }
 
   @Override
@@ -669,7 +669,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private void invokeFinishBundle() {
+  protected void invokeFinishBundle() {
     if (bundleStarted) {
       pushbackDoFnRunner.finishBundle();
       bundleStarted = false;
@@ -916,7 +916,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  private class FlinkTimerInternals implements TimerInternals {
+  class FlinkTimerInternals implements TimerInternals {
 
     @Override
     public void setTimer(
