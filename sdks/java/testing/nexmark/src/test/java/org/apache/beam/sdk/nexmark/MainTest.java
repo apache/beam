@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
 /**
@@ -27,11 +26,8 @@ import org.junit.Test;
 public class MainTest {
   @Test
   public void testSmokeSuiteOnDirectRunner() throws Exception {
-    NexmarkOptions options = PipelineOptionsFactory.create().as(NexmarkOptions.class);
     // Default for SMOKE is 100k or 10k for heavier queries - way overkill for "smoke" test
-    options.setNumEvents(500L);
-    options.setSuite(NexmarkSuite.SMOKE);
-    options.setManageResources(false);
-    new Main().runAll(options);
+    final String[] pipelineArgs = {"--numEvents=500", "--suite=SMOKE", "--manageResources=false"};
+    new Main().runAll(pipelineArgs);
   }
 }

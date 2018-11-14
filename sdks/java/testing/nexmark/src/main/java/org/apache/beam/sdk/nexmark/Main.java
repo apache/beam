@@ -80,13 +80,13 @@ public class Main {
     private final NexmarkConfiguration configuration;
 
     private Run(NexmarkOptions options, NexmarkConfiguration configuration) {
-      this.nexmarkLauncher = new NexmarkLauncher<>(options);
+      this.nexmarkLauncher = new NexmarkLauncher<>(options, configuration);
       this.configuration = configuration;
     }
 
     @Override
     public Result call() throws IOException {
-      NexmarkPerf perf = nexmarkLauncher.run(configuration);
+      NexmarkPerf perf = nexmarkLauncher.run();
       return new Result(configuration, perf);
     }
   }
@@ -95,10 +95,7 @@ public class Main {
   void runAll(String[] args) throws IOException {
     NexmarkOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
-    runAll(options);
-  }
 
-  void runAll(NexmarkOptions options) throws IOException {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
@@ -111,7 +108,8 @@ public class Main {
     try {
       // Schedule all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        completion.submit(new Run(options, configuration));
+        NexmarkOptions optionsCopy = PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
+        completion.submit(new Run(optionsCopy, configuration));
       }
 
       // Collect all the results.
