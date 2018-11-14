@@ -32,9 +32,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.samza.operators.KV;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.OutputStream;
 import org.apache.samza.operators.StreamGraph;
+import org.apache.samza.operators.TableDescriptor;
+import org.apache.samza.table.Table;
 
 /**
  * Helper that keeps the mapping from BEAM {@link PValue}/{@link PCollectionView} to Samza {@link
@@ -47,6 +50,7 @@ public class TranslationContext {
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
   private final Map<PValue, String> idMap;
   private final Set<String> registeredInputStreams = new HashSet<>();
+  private final Map<String, Table> registeredTables = new HashMap<>();
   private final PValue dummySource;
   private final SamzaPipelineOptions options;
 
@@ -175,6 +179,12 @@ public class TranslationContext {
 
   public <OutT> OutputStream<OutT> getOutputStreamById(String outputStreamId) {
     return streamGraph.getOutputStream(outputStreamId);
+  }
+
+  @SuppressWarnings("unchecked")
+  public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
+    return registeredTables.computeIfAbsent(
+        tableDesc.getTableId(), id -> streamGraph.getTable(tableDesc));
   }
 
   private <OutT> void doRegisterInputMessageStream(PValue pvalue, String streamId) {
