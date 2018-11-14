@@ -76,10 +76,9 @@ public class CacheTest {
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
     ctxt.getCacheCandidates().put(pCollection, 2L);
 
-    assertFalse(ctxt.shouldCache(pCollection, false));
-    assertFalse(ctxt.shouldCache(pCollection, true));
+    assertFalse(ctxt.shouldCache(pCollection));
 
     options.setCacheDisabled(false);
-    assertTrue(ctxt.shouldCache(pCollection, false));
+    assertTrue(ctxt.shouldCache(pCollection));
   }
 }

@@ -141,42 +141,29 @@ public class EvaluationContext {
 
   /**
    * Cache PCollection if {@link #isCacheDisabled()} flag is false and PCollection is used more then
-   * once in Pipeline or forceCache flag is true.
+   * once in Pipeline.
    *
    * @param pvalue
-   * @param forceCache if PCollection is not used more than once
    * @return if PCollection will be cached
    */
-  public boolean shouldCache(PValue pvalue, boolean forceCache) {
+  public boolean shouldCache(PValue pvalue) {
     if (isCacheDisabled()) {
       return false;
     }
-    if (pvalue instanceof PCollection) {
-      if (forceCache) {
-        return true;
-      } else {
-        return cacheCandidates.getOrDefault(pvalue, 0L) > 1;
-      }
-    }
-    return false;
-  }
-
-  public void putDataset(
-      PTransform<?, ? extends PValue> transform, Dataset dataset, boolean forceCache) {
-    putDataset(getOutput(transform), dataset, forceCache);
+    return pvalue instanceof PCollection && cacheCandidates.getOrDefault(pvalue, 0L) > 1;
   }
 
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(transform, dataset, false);
+    putDataset(getOutput(transform), dataset);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
+  public void putDataset(PValue pvalue, Dataset dataset) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (shouldCache(pvalue, forceCache)) {
+    if (shouldCache(pvalue)) {
       // we cache only PCollection
       Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
       Coder<? extends BoundedWindow> wCoder =
