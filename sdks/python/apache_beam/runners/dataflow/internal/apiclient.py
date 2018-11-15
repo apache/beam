@@ -51,6 +51,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
@@ -152,7 +153,7 @@ class Environment(object):
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(names.BEAM_SDK_NAME)),
+            value=to_json_value(shared_names.BEAM_SDK_NAME)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
@@ -521,7 +522,7 @@ class DataflowApplicationClient(object):
 
     # Stage the pipeline for the runner harness
     self.stage_file(job.google_cloud_options.staging_location,
-                    names.STAGED_PIPELINE_FILENAME,
+                    shared_names.STAGED_PIPELINE_FILENAME,
                     io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
@@ -529,7 +530,7 @@ class DataflowApplicationClient(object):
 
     job.proto.environment = Environment(
         pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
-                                      names.STAGED_PIPELINE_FILENAME),
+                                      shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     logging.debug('JOB: %s', job)
@@ -794,7 +795,7 @@ class _LegacyDataflowStager(Stager):
 
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
-    return names.BEAM_PACKAGE_NAME
+    return shared_names.BEAM_PACKAGE_NAME
 
 
 def to_split_int(n):
