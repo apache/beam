@@ -32,6 +32,7 @@ check.dependsOn test
 evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
 def envdir = "${project.buildDir}/gradleenv"
+def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
@@ -111,7 +112,7 @@ def toxTask = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && ./scripts/run_tox.sh $tox_env"
+        args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e $tox_env"
       }
     }
     inputs.files pythonSdkDeps
