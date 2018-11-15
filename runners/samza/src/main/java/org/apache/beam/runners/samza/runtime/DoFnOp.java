@@ -199,7 +199,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       // use the default invoker here
       doFnInvoker = DoFnInvokers.invokerFor(doFn);
     } else {
-      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn);
+      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
     }
 
     doFnInvoker.invokeSetup();
