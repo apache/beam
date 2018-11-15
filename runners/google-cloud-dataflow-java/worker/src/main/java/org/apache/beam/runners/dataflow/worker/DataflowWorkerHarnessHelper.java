@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.security.Security;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import javax.annotation.Nullable;
@@ -30,7 +29,6 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
-import org.conscrypt.OpenSSLProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +43,6 @@ public final class DataflowWorkerHarnessHelper {
 
   public static DataflowWorkerHarnessOptions initializeGlobalStateAndPipelineOptions(
       Class<?> workerHarnessClass) throws Exception {
-    /* Enable fast SSL provider. */
-    Security.insertProviderAt(new OpenSSLProvider(), 1);
 
     /* Extract pipeline options. */
     DataflowWorkerHarnessOptions pipelineOptions =
