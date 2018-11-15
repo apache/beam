@@ -17,7 +17,7 @@ package artifact
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -118,20 +118,20 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 }
 
 // Stage stages a local file as an artifact with the given key. It computes
-// the MD5 and returns the full artifact metadata.
+// the SHA256 and returns the full artifact metadata.
 func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := computeMD5(filename)
+	hash, err := computeSHA256(filename)
 	if err != nil {
 		return nil, err
 	}
 	md := &pb.ArtifactMetadata{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
-		Md5:         hash,
+		Sha256:         hash,
 	}
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,
@@ -167,18 +167,18 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		return nil, fmt.Errorf("failed to close stream for %v: %v", filename, err)
 	}
 	if hash != stagedHash {
-		return nil, fmt.Errorf("unexpected MD5 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
+		return nil, fmt.Errorf("unexpected SHA256 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
 	}
 	return md, nil
 }
 
 func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
-	md5W := md5.New()
+	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {
 		n, err := r.Read(data)
 		if n > 0 {
-			if _, err := md5W.Write(data[:n]); err != nil {
+			if _, err := sha256W.Write(data[:n]); err != nil {
 				panic(err) // cannot fail
 			}
 
@@ -200,7 +200,7 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil)), nil
+	return base64.StdEncoding.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 // KeyedFile is a key and filename pair.
