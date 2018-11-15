@@ -49,7 +49,8 @@ public class StreamingPCollectionViewWriterDoFnFactoryTest {
 
     CloudObject coder =
         CloudObjects.asCloudObject(
-            WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE),
+            /*sdkComponents=*/ null);
     ParDoFn parDoFn =
         new StreamingPCollectionViewWriterDoFnFactory()
             .create(
