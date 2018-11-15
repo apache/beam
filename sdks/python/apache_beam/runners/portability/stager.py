@@ -61,7 +61,8 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
+from apache_beam.runners.internal import names
 from apache_beam.utils import processes
 
 # All constants are for internal use only; no backwards-compatibility
@@ -71,9 +72,6 @@ from apache_beam.utils import processes
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
-
-# Package names for distributions
-BEAM_PACKAGE_NAME = 'apache-beam'
 
 
 class Stager(object):
@@ -96,7 +94,7 @@ class Stager(object):
   def get_sdk_package_name():
     """For internal use only; no backwards-compatibility guarantees.
         Returns the PyPI package name to be staged."""
-    return BEAM_PACKAGE_NAME
+    return names.BEAM_PACKAGE_NAME
 
   def stage_job_resources(self,
                           options,
@@ -231,7 +229,7 @@ class Stager(object):
         if os.path.isdir(setup_options.sdk_location):
           # TODO(angoenka): remove reference to Dataflow
           sdk_path = os.path.join(setup_options.sdk_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+                                  DATAFLOW_SDK_TARBALL_FILE)
         else:
           sdk_path = setup_options.sdk_location
 
@@ -451,7 +449,7 @@ class Stager(object):
       else:
         raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
     else:
-      return names.DATAFLOW_SDK_TARBALL_FILE
+      return DATAFLOW_SDK_TARBALL_FILE
 
   def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
     """Stages a Beam SDK file with the appropriate version.
