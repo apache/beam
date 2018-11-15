@@ -55,7 +55,7 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.17.0"
+def calcite_version = "1.18.0"
 def avatica_version = "1.12.0"
 
 dependencies {
@@ -73,8 +73,10 @@ dependencies {
   shadow library.java.commons_csv
   shadow library.java.commons_lang3
   shadow library.java.jackson_databind
+  shadow library.java.jackson_dataformat_yaml
   shadow library.java.joda_time
   shadow "com.alibaba:fastjson:1.2.49"
+  shadow "com.jayway.jsonpath:json-path:2.4.0"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
