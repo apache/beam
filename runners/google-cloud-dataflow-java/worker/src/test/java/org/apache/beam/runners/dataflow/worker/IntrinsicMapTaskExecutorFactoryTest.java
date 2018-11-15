@@ -120,7 +120,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
           .andThen(new MapTaskToNetworkFunction());
 
   private static final CloudObject windowedStringCoder =
-      CloudObjects.asCloudObject(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
+      CloudObjects.asCloudObject(
+          WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
 
   private IntrinsicMapTaskExecutorFactory mapTaskExecutorFactory;
   private PipelineOptions options;
@@ -560,13 +561,15 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         CloudObjects.asCloudObject(
             FullWindowedValueCoder.of(
                 KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()),
-                IntervalWindowCoder.of())));
+                IntervalWindowCoder.of()),
+            /*sdkComponents=*/ null));
 
     InstructionOutput output = new InstructionOutput();
     output.setName("pgbk_output_name");
     output.setCodec(
         CloudObjects.asCloudObject(
-            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of()))));
+            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+            /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -691,7 +694,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     InstructionOutput output = new InstructionOutput();
     output.setName("flatten_output_name");
-    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of()));
+    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 

@@ -64,4 +64,5 @@ public class PropertyNames {
   public static final String DISPLAY_DATA = "display_data";
   public static final String RESTRICTION_CODER = "restriction_coder";
   public static final String IMPULSE_ELEMENT = "impulse_element";
+  public static final String PIPELINE_PROTO_CODER_ID = "pipeline_proto_coder_id";
 }

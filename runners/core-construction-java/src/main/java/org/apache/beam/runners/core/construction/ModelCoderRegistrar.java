@@ -86,6 +86,10 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         Coder.class.getSimpleName());
   }
 
+  public static boolean isKnownCoder(Coder<?> coder) {
+    return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
+  }
+
   @Override
   public Map<Class<? extends Coder>, String> getCoderURNs() {
     return BEAM_MODEL_CODER_URNS;
