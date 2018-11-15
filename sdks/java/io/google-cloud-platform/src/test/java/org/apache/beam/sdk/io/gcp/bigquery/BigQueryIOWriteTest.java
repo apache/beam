@@ -34,6 +34,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
@@ -355,6 +356,52 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
     assertEquals(schema, table.getSchema());
     assertEquals(timePartitioning, table.getTimePartitioning());
+  }
+
+  @Test
+  public void testClusteringStreamingInserts() throws Exception {
+    testTimePartitioning(BigQueryIO.Write.Method.STREAMING_INSERTS);
+  }
+
+  @Test
+  public void testClusteringBatchLoads() throws Exception {
+    testTimePartitioning(BigQueryIO.Write.Method.FILE_LOADS);
+  }
+
+  public void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+
+    TimePartitioning timePartitioning = new TimePartitioning().setType("DAY").setField("date");
+    ArrayList<String> clusteringFields = new ArrayList<>();
+    clusteringFields.add("date");
+    Clustering clustering = new Clustering().setFields(clusteringFields);
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
+    p.apply(Create.of(row1, row2))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withTestServices(fakeBqServices)
+                .withMethod(insertMethod)
+                .withSchema(schema)
+                .withTimePartitioning(timePartitioning)
+                .withClustering(clustering)
+                .withoutValidation());
+    p.run();
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    assertEquals(schema, table.getSchema());
+    assertEquals(timePartitioning, table.getTimePartitioning());
+    assertEquals(clustering, table.getClustering());
   }
 
   @Test

@@ -177,6 +177,9 @@ public class CreateTables<DestinationT>
                   .setDescription(tableDestination.getTableDescription());
           if (tableDestination.getTimePartitioning() != null) {
             table.setTimePartitioning(tableDestination.getTimePartitioning());
+            if (tableDestination.getClustering() != null) {
+              table.setClustering(tableDestination.getClustering());
+            }
           }
           datasetService.createTable(table);
         }

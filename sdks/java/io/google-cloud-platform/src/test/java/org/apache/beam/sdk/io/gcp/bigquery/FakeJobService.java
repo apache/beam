@@ -24,6 +24,7 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -354,6 +355,9 @@ public class FakeJobService implements JobService, Serializable {
       if (load.getTimePartitioning() != null) {
         existingTable = existingTable.setTimePartitioning(load.getTimePartitioning());
       }
+      if (load.getClustering() != null) {
+        existingTable = existingTable.setClustering(load.getClustering());
+      }
       datasetService.createTable(existingTable);
     }
 
@@ -377,6 +381,7 @@ public class FakeJobService implements JobService, Serializable {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
     TimePartitioning partitioning = null;
+    Clustering clustering = null;
     TableSchema schema = null;
     boolean first = true;
     List<TableRow> allRows = Lists.newArrayList();
@@ -386,11 +391,15 @@ public class FakeJobService implements JobService, Serializable {
         if (!Objects.equals(partitioning, table.getTimePartitioning())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
+        if (!Objects.equals(clustering, table.getClustering())) {
+          return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
+        }
         if (!Objects.equals(schema, table.getSchema())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
       }
       partitioning = table.getTimePartitioning();
+      clustering = table.getClustering();
       schema = table.getSchema();
       first = false;
       allRows.addAll(
@@ -401,7 +410,8 @@ public class FakeJobService implements JobService, Serializable {
         new Table()
             .setTableReference(destination)
             .setSchema(schema)
-            .setTimePartitioning(partitioning));
+            .setTimePartitioning(partitioning)
+            .setClustering(clustering));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");
   }

@@ -111,7 +111,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      return TableDestinationCoderV3.of();
     }
   }
 
@@ -186,16 +186,19 @@ class DynamicDestinationsHelpers {
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
     @Nullable private final ValueProvider<String> jsonTimePartitioning;
+    @Nullable private final ValueProvider<String> jsonClustering;
 
     ConstantTimePartitioningDestinations(
         DynamicDestinations<T, TableDestination> inner,
-        ValueProvider<String> jsonTimePartitioning) {
+        ValueProvider<String> jsonTimePartitioning,
+        ValueProvider<String> jsonClustering) {
       super(inner);
       checkArgument(jsonTimePartitioning != null, "jsonTimePartitioning provider can not be null");
       if (jsonTimePartitioning.isAccessible()) {
         checkArgument(jsonTimePartitioning.get() != null, "jsonTimePartitioning can not be null");
       }
       this.jsonTimePartitioning = jsonTimePartitioning;
+      this.jsonClustering = jsonClustering;
     }
 
     @Override
@@ -203,21 +206,32 @@ class DynamicDestinationsHelpers {
       TableDestination destination = super.getDestination(element);
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
+      if (jsonClustering != null) {
+        return new TableDestination(
+            destination.getTableSpec(),
+            destination.getTableDescription(),
+            partitioning,
+            jsonClustering.get());
+      }
       return new TableDestination(
           destination.getTableSpec(), destination.getTableDescription(), partitioning);
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      return TableDestinationCoderV3.of();
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("inner", inner)
-          .add("jsonTimePartitioning", jsonTimePartitioning)
-          .toString();
+      MoreObjects.ToStringHelper helper =
+          MoreObjects.toStringHelper(this)
+              .add("inner", inner)
+              .add("jsonTimePartitioning", jsonTimePartitioning);
+      if (jsonClustering != null) {
+        helper.add("jsonClustering", jsonClustering);
+      }
+      return helper.toString();
     }
   }
 
