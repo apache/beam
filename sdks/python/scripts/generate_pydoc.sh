@@ -170,6 +170,9 @@ ignore_identifiers = [
   # DoFn param inner classes, due to a Sphinx misparsing of inner classes
   '_StateDoFnParam',
   '_TimerDoFnParam',
+
+  # Sphinx cannot find this py:class reference target
+  'typing.Generic',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function
