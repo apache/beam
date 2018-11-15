@@ -61,7 +61,7 @@ public class MetricsAccumulator {
           Accumulator<MetricsContainerStepMap> accumulator =
               jsc.sc()
                   .accumulator(
-                      new MetricsContainerStepMap(),
+                      new SparkMetricsContainerStepMap(),
                       ACCUMULATOR_NAME,
                       new MetricsAccumulatorParam());
           if (maybeCheckpointDir.isPresent()) {
