@@ -32,7 +32,7 @@ import org.gradle.api.publish.maven.MavenPublication
  *   <li>The package relocation prefix should be 'org.apache.beam.vendor.canonical_library_name.version_identifier.'.
  *   <li>Upgrading the version of a vendored library should trigger a change in the artifact name.
  *   <li>Vendored artifact versioning starts at 0.1 and is decoupled from Apache Beam releases and version numbers.
- *   <li>Increment the vendored artifact version version only if we need to release a new version.
+ *   <li>Increment the vendored artifact version only if we need to release a new version.
  * </ul>
  *
  * <p>Example for com.google.guava:guava:20.0:
