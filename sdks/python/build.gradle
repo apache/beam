@@ -257,6 +257,8 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
     // Build pipeline options that configures pipeline job
     if (project.hasProperty('pipelineOptions'))
       argMap["pipeline_opts"] = project.property('pipelineOptions')
+    if (project.hasProperty('kmsKeyName'))
+      argMap["kms_key_name"] = project.property('kmsKeyName')
 
     def cmdArgs = mapToArgString(argMap)
     exec {
