@@ -24,7 +24,6 @@ from __future__ import absolute_import
 from builtins import object
 import codecs
 import getpass
-import httplib2
 import json
 import logging
 import os
@@ -33,6 +32,7 @@ import tempfile
 import time
 from datetime import datetime
 import io
+import httplib2
 
 from past.builtins import unicode
 
@@ -56,6 +56,15 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+
+# Protect against environments where google storage library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import storage as gcloud_storage
+  from google.cloud.exceptions import GoogleCloudError
+except ImportError:
+  gcloud_storage = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
@@ -461,8 +470,7 @@ class DataflowApplicationClient(object):
         staging_location=google_cloud_options.staging_location)
     return resources
 
-  def stage_file(self, gcs_or_local_path, file_name, stream,
-                 mime_type='application/octet-stream'):
+  def stage_file(self, gcs_or_local_path, file_name, stream):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
@@ -471,27 +479,25 @@ class DataflowApplicationClient(object):
         f.write(stream.read())
       return
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
-    bucket, name = gcs_location[5:].split('/', 1)
+    bucket_name, file_name = gcs_location[5:].split('/', 1)
 
-    request = storage.StorageObjectsInsertRequest(
-        bucket=bucket, name=name)
+    client = gcloud_storage.Client(project=self.google_cloud_options.project)
+    blob = client.get_bucket(bucket_name).blob(file_name)
     logging.info('Starting GCS upload to %s...', gcs_location)
-    upload = storage.Upload(stream, mime_type)
     try:
-      response = self._storage_client.objects.Insert(request, upload=upload)
-    except exceptions.HttpError as e:
+      blob.upload_from_file(stream)
+    except GoogleCloudError as e:
       reportable_errors = {
           403: 'access denied',
           404: 'bucket not found',
       }
-      if e.status_code in reportable_errors:
+      if e.code in reportable_errors:
         raise IOError(('Could not upload to GCS path %s: %s. Please verify '
                        'that credentials are valid and that you have write '
                        'access to the specified path.') %
-                      (gcs_or_local_path, reportable_errors[e.status_code]))
+                      (gcs_or_local_path, reportable_errors[e.code]))
       raise
     logging.info('Completed GCS upload to %s', gcs_location)
-    return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
