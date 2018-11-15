@@ -18,7 +18,7 @@ package artifact
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -200,7 +200,7 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(sha256W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 // KeyedFile is a key and filename pair.

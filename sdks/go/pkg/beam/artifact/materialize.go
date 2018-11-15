@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -193,7 +193,7 @@ func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.W
 			return "", fmt.Errorf("chunk write failed: %v", err)
 		}
 	}
-	return base64.StdEncoding.EncodeToString(sha256W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 func computeSHA256(filename string) (string, error) {
@@ -219,7 +219,7 @@ func computeSHA256(filename string) (string, error) {
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(sha256W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 func slice2queue(list []*pb.ArtifactMetadata) chan *pb.ArtifactMetadata {

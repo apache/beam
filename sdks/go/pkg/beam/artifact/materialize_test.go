@@ -18,7 +18,7 @@ package artifact
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -105,7 +105,7 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 
 	sha256W := sha256.New()
 	sha256W.Write(data)
-	hash := base64.StdEncoding.EncodeToString(sha256W.Sum(nil))
+	hash := hex.EncodeToString(sha256W.Sum(nil))
 	md := makeArtifact(key, hash)
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,
@@ -191,7 +191,7 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 
 	sha256W := sha256.New()
 	sha256W.Write(data)
-	return base64.StdEncoding.EncodeToString(sha256W.Sum(nil))
+	return hex.EncodeToString(sha256W.Sum(nil))
 }
 
 func makeArtifact(key, hash string) *pb.ArtifactMetadata {

@@ -19,7 +19,7 @@ package gcsproxy
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
@@ -196,5 +196,5 @@ func (r *reader) Read(buf []byte) (int, error) {
 }
 
 func (r *reader) SHA256() string {
-	return base64.StdEncoding.EncodeToString(r.sha256W.Sum(nil))
+	return hex.EncodeToString(r.sha256W.Sum(nil))
 }
