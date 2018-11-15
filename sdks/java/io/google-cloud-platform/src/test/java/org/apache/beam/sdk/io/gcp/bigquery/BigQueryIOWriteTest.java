@@ -34,6 +34,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
@@ -61,6 +62,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -354,6 +356,62 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
+  void testTimePartitioningClustering(
+      BigQueryIO.Write.Method insertMethod, boolean enablePartitioning, boolean enableClustering)
+      throws Exception {
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+
+    TimePartitioning timePartitioning = new TimePartitioning().setType("DAY").setField("date");
+    Clustering clustering = new Clustering().setFields(ImmutableList.of("date"));
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
+
+    Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withTestServices(fakeBqServices)
+            .withMethod(insertMethod)
+            .withSchema(schema)
+            .withoutValidation();
+
+    if (enablePartitioning) {
+      writeTransform = writeTransform.withTimePartitioning(timePartitioning);
+    }
+    if (enableClustering) {
+      writeTransform = writeTransform.withClustering(clustering);
+    }
+
+    p.apply(Create.of(row1, row2)).apply(writeTransform);
+    p.run();
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+
+    assertEquals(schema, table.getSchema());
+    if (enablePartitioning) {
+      assertEquals(timePartitioning, table.getTimePartitioning());
+    }
+    if (enableClustering) {
+      assertEquals(clustering, table.getClustering());
+    }
+  }
+
+  void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
+    testTimePartitioningClustering(insertMethod, true, false);
+  }
+
+  void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
+    testTimePartitioningClustering(insertMethod, true, true);
+  }
+
   @Test
   public void testTimePartitioningStreamingInserts() throws Exception {
     testTimePartitioning(BigQueryIO.Write.Method.STREAMING_INSERTS);
@@ -364,31 +422,63 @@ public class BigQueryIOWriteTest implements Serializable {
     testTimePartitioning(BigQueryIO.Write.Method.FILE_LOADS);
   }
 
-  public void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
-    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+  @Test
+  public void testClusteringStreamingInserts() throws Exception {
+    testClustering(BigQueryIO.Write.Method.STREAMING_INSERTS);
+  }
 
-    TimePartitioning timePartitioning =
-        new TimePartitioning().setType("DAY").setExpirationMs(1000L);
+  @Test
+  public void testClusteringBatchLoads() throws Exception {
+    testClustering(BigQueryIO.Write.Method.FILE_LOADS);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testClusteringThrowsWithoutPartitioning() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+    testTimePartitioningClustering(Method.STREAMING_INSERTS, false, true);
+  }
+
+  @Test
+  public void testClusteringTableFunction() throws Exception {
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+
+    TimePartitioning timePartitioning = new TimePartitioning().setType("DAY").setField("date");
+    Clustering clustering = new Clustering().setFields(ImmutableList.of("date"));
     TableSchema schema =
         new TableSchema()
             .setFields(
-                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) -> {
+                      String tableSpec =
+                          "project-id:dataset-id.table-" + vsw.getValue().get("number");
+                      return new TableDestination(
+                          tableSpec,
+                          null,
+                          new TimePartitioning().setType("DAY").setField("date"),
+                          new Clustering().setFields(ImmutableList.of("date")));
+                    })
                 .withTestServices(fakeBqServices)
-                .withMethod(insertMethod)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withSchema(schema)
-                .withTimePartitioning(timePartitioning)
+                .withClustering()
                 .withoutValidation());
     p.run();
     Table table =
         fakeDatasetService.getTable(
-            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-1"));
     assertEquals(schema, table.getSchema());
     assertEquals(timePartitioning, table.getTimePartitioning());
+    assertEquals(clustering, table.getClustering());
   }
 
   @Test
