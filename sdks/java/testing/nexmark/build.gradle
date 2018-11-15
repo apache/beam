@@ -71,6 +71,7 @@ dependencies {
   provided library.java.hamcrest_core
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-test-utils", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
 
