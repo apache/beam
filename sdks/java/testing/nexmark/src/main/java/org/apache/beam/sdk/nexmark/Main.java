@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,24 +36,11 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.testutils.publishing.BigQueryClient;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -162,7 +144,8 @@ public class Main {
       }
 
       if (options.getExportSummaryToBigQuery()) {
-        savePerfsToBigQuery(options, actual, null, start);
+        BigQueryClient publisher = BigQueryClient.create(options.getBigQueryDataset());
+        savePerfsToBigQuery(publisher, options, actual, start);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -180,77 +163,37 @@ public class Main {
 
   @VisibleForTesting
   static void savePerfsToBigQuery(
+      BigQueryClient bigQueryClient,
       NexmarkOptions options,
       Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      @Nullable BigQueryServices testBigQueryServices,
       Instant start) {
-    Pipeline pipeline = Pipeline.create(options);
-    PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
-        pipeline.apply(
-            Create.of(perfs)
-                .withCoder(
-                    KvCoder.of(
-                        SerializableCoder.of(NexmarkConfiguration.class),
-                        new CustomCoder<NexmarkPerf>() {
 
-                          @Override
-                          public void encode(NexmarkPerf value, OutputStream outStream)
-                              throws CoderException, IOException {
-                            StringUtf8Coder.of().encode(value.toString(), outStream);
-                          }
+    for (Map.Entry<NexmarkConfiguration, NexmarkPerf> entry : perfs.entrySet()) {
+      String queryName =
+          NexmarkUtils.fullQueryName(
+              options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
+      String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
 
-                          @Override
-                          public NexmarkPerf decode(InputStream inStream)
-                              throws CoderException, IOException {
-                            String perf = StringUtf8Coder.of().decode(inStream);
-                            return NexmarkPerf.fromString(perf);
-                          }
-                        })));
+      ImmutableMap<String, String> schema =
+          ImmutableMap.<String, String>builder()
+              .put("timestamp", "timestamp")
+              .put("runtimeSec", "float")
+              .put("eventsPerSec", "float")
+              .put("numResults", "integer")
+              .build();
+      bigQueryClient.createTableIfNotExists(tableName, schema);
 
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
-                    new TableFieldSchema().setName("runtimeSec").setType("FLOAT"),
-                    new TableFieldSchema().setName("eventsPerSec").setType("FLOAT"),
-                    new TableFieldSchema().setName("numResults").setType("INTEGER")));
+      // convert millis to seconds (it's a BigQuery's requirement).
+      Map<String, Object> record =
+          ImmutableMap.<String, Object>builder()
+              .put("timestamp", start.getMillis() / 1000)
+              .put("runtimeSec", entry.getValue().runtimeSec)
+              .put("eventsPerSec", entry.getValue().eventsPerSec)
+              .put("numResults", entry.getValue().numResults)
+              .build();
 
-    String queryName = "{query}";
-    if (options.getQueryLanguage() != null) {
-      queryName = queryName + "_" + options.getQueryLanguage();
+      bigQueryClient.insertRow(record, tableName);
     }
-    final String tableSpec = NexmarkUtils.tableSpec(options, queryName, 0L, null);
-    SerializableFunction<
-            ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
-        tableFunction =
-            input ->
-                new TableDestination(
-                    tableSpec.replace("{query}", input.getValue().getKey().query.getNumberOrName()),
-                    "perfkit queries");
-    SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
-        input -> {
-          NexmarkPerf nexmarkPerf = input.getValue();
-          TableRow row =
-              new TableRow()
-                  .set("timestamp", start.getMillis() / 1000)
-                  .set("runtimeSec", nexmarkPerf.runtimeSec)
-                  .set("eventsPerSec", nexmarkPerf.eventsPerSec)
-                  .set("numResults", nexmarkPerf.numResults);
-          return row;
-        };
-    BigQueryIO.Write io =
-        BigQueryIO.<KV<NexmarkConfiguration, NexmarkPerf>>write()
-            .to(tableFunction)
-            .withSchema(tableSchema)
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-            .withFormatFunction(rowFunction);
-    if (testBigQueryServices != null) {
-      io = io.withTestServices(testBigQueryServices);
-    }
-    perfsPCollection.apply("savePerfsToBigQuery", io);
-    pipeline.run();
   }
 
   /** Append the pair of {@code configuration} and {@code perf} to perf file. */
