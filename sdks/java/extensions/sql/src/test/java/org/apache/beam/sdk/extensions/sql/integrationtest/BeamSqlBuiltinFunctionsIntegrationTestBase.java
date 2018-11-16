@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.junit.Assert.assertTrue;
 
@@ -53,7 +54,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
@@ -118,7 +118,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     try {
       return TestBoundedTable.of(ROW_TYPE)
           .addRows(
-              parseTimestamp("1986-02-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -140,7 +140,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   protected PCollection<Row> getFloorCeilingTestPCollection() {
     try {
       return TestBoundedTable.of(ROW_TYPE_THREE)
-          .addRows(parseTimestamp("1986-02-15 11:35:26"), 1.4)
+          .addRows(parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"), 1.4)
           .buildIOReader(pipeline.begin())
           .setRowSchema(ROW_TYPE_THREE);
     } catch (Exception e) {
@@ -152,7 +152,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     try {
       return TestBoundedTable.of(ROW_TYPE_TWO)
           .addRows(
-              parseTimestamp("1986-02-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -163,7 +163,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               7.0,
               BigDecimal.valueOf(1.0))
           .addRows(
-              parseTimestamp("1986-03-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-03-15 11:35:26"),
               (byte) 2,
               (short) 2,
               2,
@@ -174,7 +174,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               8.0,
               BigDecimal.valueOf(2.0))
           .addRows(
-              parseTimestamp("1986-04-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-04-15 11:35:26"),
               (byte) 3,
               (short) 3,
               3,
@@ -189,23 +189,6 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .setRowSchema(ROW_TYPE_TWO);
     } catch (Exception e) {
       throw new RuntimeException(e);
-    }
-  }
-
-  protected static DateTime parseTimestamp(String str) {
-    return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
-  }
-
-  protected static DateTime parseDate(String str) {
-    return DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC().parseDateTime(str);
-  }
-
-  protected static DateTime parseTime(String str) {
-    // DateTimeFormat does not parse "08:10:10" for pattern "HH:mm:ss.SSS". In this case, '.' must appear.
-    if (str.indexOf('.') == -1) {
-      return DateTimeFormat.forPattern("HH:mm:ss").withZoneUTC().parseDateTime(str);
-    } else {
-      return DateTimeFormat.forPattern("HH:mm:ss.SSS").withZoneUTC().parseDateTime(str);
     }
   }
 
