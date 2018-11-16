@@ -28,7 +28,10 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,28 +58,36 @@ public class MetricsReaderTest {
   }
 
   @Test
-  public void testStartTimeIsTheMinimumOfTheDistribution() {
+  public void testStartTimeIsTheMinimumFromAllCollectedDistributions() {
     List<Integer> sampleInputData = Arrays.asList(1, 2, 3, 4, 5);
 
-    createTestPipeline(sampleInputData, new MonitorWithTimeDistribution());
+    createTestPipelineWithBranches(sampleInputData);
+
     PipelineResult result = testPipeline.run();
-
     MetricsReader reader = new MetricsReader(result, NAMESPACE);
-
     assertEquals(1, reader.getStartTimeMetric(0, "timeDist"));
   }
 
+
   @Test
-  public void testEndTimeIsTheMaximumOfTheDistribution() {
+  public void testEndTimeIsTheMaximumOfAllCollectedDistributions() {
     List<Integer> sampleInputData = Arrays.asList(1, 2, 3, 4, 5);
 
-    createTestPipeline(sampleInputData, new MonitorWithTimeDistribution());
+    createTestPipelineWithBranches(sampleInputData);
 
     PipelineResult result = testPipeline.run();
-
     MetricsReader reader = new MetricsReader(result, NAMESPACE);
+    assertEquals(10, reader.getEndTimeMetric(0, "timeDist"));
+  }
 
-    assertEquals(5, reader.getEndTimeMetric(0, "timeDist"));
+  /** Branching pipelines ensure that multiple metric results of the same name are created.
+   * Thanks to that it is possible to test if MetricsReader can collect metrics in such case. */
+  private void createTestPipelineWithBranches(List<Integer> sampleInputData) {
+    PCollection<Integer> inputData = testPipeline.apply(Create.of(sampleInputData));
+    inputData.apply("Monitor #1", ParDo.of(new MonitorWithTimeDistribution()));
+
+    inputData.apply("Multiply input", MapElements.via(new MultiplyElements()))
+        .apply("Monitor #2", ParDo.of(new MonitorWithTimeDistribution()));
   }
 
   @Test
@@ -120,6 +131,13 @@ public class MetricsReaderTest {
     @ProcessElement
     public void processElement(ProcessContext c) {
       timeDistribution.update(c.element().longValue());
+    }
+  }
+
+  private static class MultiplyElements extends SimpleFunction<Integer, Integer> {
+    @Override
+    public Integer apply(Integer input) {
+      return input * 2;
     }
   }
 }

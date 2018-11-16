@@ -19,6 +19,7 @@ package org.apache.beam.sdk.testutils.metrics;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -33,11 +34,6 @@ import org.slf4j.LoggerFactory;
 public class MetricsReader {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(MetricsReader.class);
-
-  private enum DistributionType {
-    MIN,
-    MAX
-  }
 
   private final PipelineResult result;
 
@@ -78,7 +74,22 @@ public class MetricsReader {
    * distribution metric.
    */
   public long getStartTimeMetric(long now, String name) {
-    return this.getTimestampMetric(now, this.getDistributionMetric(name, DistributionType.MIN, -1));
+    Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
+    return this.getTimestampMetric(now, getLowestMin(timeDistributions.iterator()));
+  }
+
+  private Long getLowestMin(Iterator<MetricResult<DistributionResult>> distributions) {
+    Long lowestMin = null;
+
+    while (distributions.hasNext()) {
+      long min = distributions.next().getAttempted().getMin();
+      
+      if (lowestMin == null || min < lowestMin) {
+        lowestMin = min;
+      }
+    }
+
+    return lowestMin;
   }
 
   /**
@@ -86,14 +97,25 @@ public class MetricsReader {
    * distribution metric.
    */
   public long getEndTimeMetric(long now, String name) {
-    return this.getTimestampMetric(now, this.getDistributionMetric(name, DistributionType.MAX, -1));
+    Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
+    return this.getTimestampMetric(now, getGreatestMax(timeDistributions.iterator()));
   }
 
-  /**
-   * Return the current value for a long counter, or a default value if can't be retrieved. Note
-   * this uses only attempted metrics because some runners don't support committed metrics.
-   */
-  private long getDistributionMetric(String name, DistributionType distType, long defaultValue) {
+  private Long getGreatestMax(Iterator<MetricResult<DistributionResult>> distributions) {
+    Long greatestMax = null;
+
+    while (distributions.hasNext()) {
+      long max = distributions.next().getAttempted().getMax();
+
+      if (greatestMax == null || max > greatestMax) {
+        greatestMax = max;
+      }
+    }
+
+    return greatestMax;
+  }
+
+  private Iterable<MetricResult<DistributionResult>> getDistributions(String name) {
     MetricQueryResults metrics =
         result
             .metrics()
@@ -101,24 +123,7 @@ public class MetricsReader {
                 MetricsFilter.builder()
                     .addNameFilter(MetricNameFilter.named(namespace, name))
                     .build());
-    Iterable<MetricResult<DistributionResult>> distributions = metrics.getDistributions();
-
-    checkIfMetricResultIsUnique(name, distributions);
-
-    try {
-      MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
-      switch (distType) {
-        case MIN:
-          return distributionResult.getAttempted().getMin();
-        case MAX:
-          return distributionResult.getAttempted().getMax();
-        default:
-          return defaultValue;
-      }
-    } catch (NoSuchElementException e) {
-      LOG.error("Failed to get distribution metric {} for namespace {}", name, namespace);
-    }
-    return defaultValue;
+    return metrics.getDistributions();
   }
 
   private <T> void checkIfMetricResultIsUnique(String name, Iterable<MetricResult<T>> metricResult)
