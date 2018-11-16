@@ -18,7 +18,6 @@
 package databaseio
 
 import (
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	"time"
@@ -35,38 +34,48 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 	}
 
 	mapper, err := newQueryMapper([]string{"id", "name", "random", "date_of_birth"}, nil, reflect.TypeOf(User{}))
-	if !assert.Nil(t, err) {
-		return
+	if err != nil {
+		t.Fatalf("Expected nil, but got: %#v", err)
 	}
 
 	aUser := &User{}
 	record, err := mapper(reflect.ValueOf(aUser))
-	if !assert.Nil(t, err) {
-		return
+	if err != nil {
+		t.Fatalf("Expected nil, but got: %#v", err)
 	}
 	id, ok := record[0].(*int)
-	assert.True(t, ok)
+	if !ok {
+		t.Errorf("record[0].(*int) failed, it's a %T", record[0])
+	}
 	*id = 10
 
 	name, ok := record[1].(*string)
-	assert.True(t, ok)
+	if !ok {
+		t.Errorf("record[1].(*string) failed, it's a %T", record[1])
+	}
 	*name = "test"
 
 	random, ok := record[2].(*float64)
-	assert.True(t, ok)
+	if !ok {
+		t.Errorf("record[2].(*float64) failed, it's a %T", record[2])
+	}
 	*random = 1.2
 
 	dob, ok := record[3].(*time.Time)
-	assert.True(t, ok)
+	if !ok {
+		t.Errorf("record[3].(*time.Time) failed, it's a %T", record[3])
+	}
 	now := time.Now()
 	*dob = now
 
-	assert.EqualValues(t, &User{
+	if want := (&User{
 		ID:          *id,
 		DateOfBirth: *dob,
 		NameTest:    *name,
 		Random:      *random,
-	}, aUser)
+	}); !reflect.DeepEqual(aUser, want) {
+		t.Errorf("got %v, want %v", aUser, want)
+	}
 }
 
 func Test_writerRecordMapperProvider(t *testing.T) {
@@ -79,8 +88,8 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 	}
 
 	mapper, err := newWriterRowMapper([]string{"id", "name", "random", "date_of_birth"}, reflect.TypeOf(User{}))
-	if !assert.Nil(t, err) {
-		return
+	if err != nil {
+		t.Fatalf("Expected nil, but got: %#v", err)
 	}
 	aUser := &User{
 		ID:          2,
@@ -89,12 +98,19 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 		DateOfBirth: time.Now(),
 	}
 	record, err := mapper(reflect.ValueOf(aUser))
-	if !assert.Nil(t, err) {
-		return
+	if err != nil {
+		t.Fatalf("Expected nil, but got: %#v", err)
 	}
-	assert.EqualValues(t, 2, record[0])
-	assert.EqualValues(t, "abc", record[1])
-	assert.EqualValues(t, 1.6, record[2])
-	assert.EqualValues(t, aUser.DateOfBirth, record[3])
-
+	if record[0] != aUser.ID {
+		t.Errorf("got %v, want %v", record[0], aUser.ID)
+	}
+	if record[1] != aUser.NameTest {
+		t.Errorf("got %v, want %v", record[1], aUser.NameTest)
+	}
+	if record[2] != aUser.Random {
+		t.Errorf("got %v, want %v", record[2], aUser.Random)
+	}
+	if record[3] != aUser.DateOfBirth {
+		t.Errorf("got %v, want %v", record[3], aUser.DateOfBirth)
+	}
 }
