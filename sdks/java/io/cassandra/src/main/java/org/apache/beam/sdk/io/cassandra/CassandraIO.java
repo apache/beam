@@ -95,6 +95,13 @@ public class CassandraIO {
         .build();
   }
 
+  /** Provide a {@link Delete} {@link PTransform} to delete data to a Cassandra database. */
+  public static <T> Delete<T> delete() {
+    return new AutoValue_CassandraIO_Delete.Builder<T>()
+        .setCassandraService(new CassandraServiceImpl<>())
+        .build();
+  }
+
   /**
    * A {@link PTransform} to read data from Apache Cassandra. See {@link CassandraIO} for more
    * information on usage and configuration.
@@ -497,6 +504,193 @@ public class CassandraIO {
     public void teardown() throws Exception {
       writer.close();
       writer = null;
+    }
+  }
+
+  /**
+   * A {@link PTransform} to delete into Apache Cassandra. See {@link CassandraIO} for details on
+   * usage and configuration.
+   */
+  @AutoValue
+  public abstract static class Delete<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
+    abstract List<String> hosts();
+
+    @Nullable
+    abstract Integer port();
+
+    @Nullable
+    abstract String keyspace();
+
+    @Nullable
+    abstract Class<T> entity();
+
+    @Nullable
+    abstract String username();
+
+    @Nullable
+    abstract String password();
+
+    @Nullable
+    abstract String localDc();
+
+    @Nullable
+    abstract String consistencyLevel();
+
+    @Nullable
+    abstract CassandraService<T> cassandraService();
+
+    abstract Builder<T> builder();
+
+    /** Specify the Cassandra instance hosts where to delete data. */
+    public Delete<T> withHosts(List<String> hosts) {
+      checkArgument(hosts != null, "CassandraIO.delete().withHosts(hosts) called with null hosts");
+      checkArgument(
+          !hosts.isEmpty(),
+          "CassandraIO.delete().withHosts(hosts) called with empty " + "hosts list");
+      return builder().setHosts(hosts).build();
+    }
+
+    /** Specify the Cassandra instance port number where to delete data. */
+    public Delete<T> withPort(int port) {
+      checkArgument(
+          port > 0,
+          "CassandraIO.delete().withPort(port) called with invalid port " + "number (%s)",
+          port);
+      return builder().setPort(port).build();
+    }
+
+    /** Specify the Cassandra keyspace where to delete data. */
+    public Delete<T> withKeyspace(String keyspace) {
+      checkArgument(
+          keyspace != null,
+          "CassandraIO.delete().withKeyspace(keyspace) called with " + "null keyspace");
+      return builder().setKeyspace(keyspace).build();
+    }
+
+    /**
+     * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will map
+     * this entity to the Cassandra table thanks to the annotations.
+     */
+    public Delete<T> withEntity(Class<T> entity) {
+      checkArgument(
+          entity != null, "CassandraIO.delete().withEntity(entity) called with null " + "entity");
+      return builder().setEntity(entity).build();
+    }
+
+    /** Specify the username used for authentication. */
+    public Delete<T> withUsername(String username) {
+      checkArgument(
+          username != null,
+          "CassandraIO.delete().withUsername(username) called with " + "null username");
+      return builder().setUsername(username).build();
+    }
+
+    /** Specify the password used for authentication. */
+    public Delete<T> withPassword(String password) {
+      checkArgument(
+          password != null,
+          "CassandraIO.delete().withPassword(password) called with " + "null password");
+      return builder().setPassword(password).build();
+    }
+
+    /** Specify the local DC used by the load balancing policy. */
+    public Delete<T> withLocalDc(String localDc) {
+      checkArgument(
+          localDc != null,
+          "CassandraIO.delete().withLocalDc(localDc) called with null" + " localDc");
+      return builder().setLocalDc(localDc).build();
+    }
+
+    public Delete<T> withConsistencyLevel(String consistencyLevel) {
+      checkArgument(
+          consistencyLevel != null,
+          "CassandraIO.delete().withConsistencyLevel"
+              + "(consistencyLevel) called with null consistencyLevel");
+      return builder().setConsistencyLevel(consistencyLevel).build();
+    }
+
+    /**
+     * Specify the {@link CassandraService} used to connect and delete into the Cassandra database.
+     */
+    public Delete<T> withCassandraService(CassandraService<T> cassandraService) {
+      checkArgument(
+          cassandraService != null,
+          "CassandraIO.delete().withCassandraService" + "(service) called with null service");
+      return builder().setCassandraService(cassandraService).build();
+    }
+
+    @Override
+    public void validate(PipelineOptions pipelineOptions) {
+      checkState(
+          hosts() != null || cassandraService() != null,
+          "CassandraIO.delete() requires a list of hosts to be set via withHosts(hosts) or a "
+              + "Cassandra service to be set via withCassandraService(service)");
+      checkState(
+          port() != null || cassandraService() != null,
+          "CassandraIO.delete() requires a "
+              + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
+              + "withCassandraService(service)");
+      checkState(
+          keyspace() != null,
+          "CassandraIO.delete() requires a keyspace to be set via " + "withKeyspace(keyspace)");
+      checkState(
+          entity() != null,
+          "CassandraIO.delete() requires an entity to be set via " + "withEntity(entity)");
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      input.apply(ParDo.of(new DeleteFn<>(this)));
+      return PDone.in(input.getPipeline());
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setHosts(List<String> hosts);
+
+      abstract Builder<T> setPort(Integer port);
+
+      abstract Builder<T> setKeyspace(String keyspace);
+
+      abstract Builder<T> setEntity(Class<T> entity);
+
+      abstract Builder<T> setUsername(String username);
+
+      abstract Builder<T> setPassword(String password);
+
+      abstract Builder<T> setLocalDc(String localDc);
+
+      abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+
+      abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
+
+      abstract Delete<T> build();
+    }
+  }
+
+  private static class DeleteFn<T> extends DoFn<T, Void> {
+    private final Delete<T> spec;
+    private CassandraService.Deleter deleter;
+
+    DeleteFn(Delete<T> spec) {
+      this.spec = spec;
+    }
+
+    @Setup
+    public void setup() {
+      deleter = spec.cassandraService().createDeleter(spec);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
+      deleter.delete(c.element());
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      deleter.close();
+      deleter = null;
     }
   }
 }

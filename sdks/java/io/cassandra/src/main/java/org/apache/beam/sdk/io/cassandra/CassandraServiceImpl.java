@@ -471,4 +471,83 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   public Writer createWriter(CassandraIO.Write<T> spec) {
     return new WriterImpl(spec);
   }
+
+  /** Deleter storing an entity into Apache Cassandra database. */
+  protected class DeleterImpl implements Deleter<T> {
+    /**
+     * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
+     * Cassandra community. There is no real gain to expect in tuning this value.
+     */
+    private static final int CONCURRENT_ASYNC_QUERIES = 100;
+
+    private final CassandraIO.Delete<T> spec;
+
+    private final Cluster cluster;
+    private final Session session;
+    private final MappingManager mappingManager;
+    private List<ListenableFuture<Void>> deleteFutures;
+
+    DeleterImpl(CassandraIO.Delete<T> spec) {
+      this.spec = spec;
+      this.cluster =
+          getCluster(
+              spec.hosts(),
+              spec.port(),
+              spec.username(),
+              spec.password(),
+              spec.localDc(),
+              spec.consistencyLevel());
+      this.session = cluster.connect(spec.keyspace());
+      this.mappingManager = new MappingManager(session);
+      this.deleteFutures = new ArrayList<>();
+    }
+
+    /**
+     * Delete the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
+     * MappingManager}. This method uses {@link Mapper#deleteAsync(Object)} method, which is
+     * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
+     * succeeded.
+     */
+    @Override
+    public void delete(T entity) throws ExecutionException, InterruptedException {
+      Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
+      this.deleteFutures.add(mapper.deleteAsync(entity));
+      if (this.deleteFutures.size() == CONCURRENT_ASYNC_QUERIES) {
+        // We reached the max number of allowed in flight queries.
+        // Write methods are synchronous in Beam as stated by the CassandraService interface,
+        // so we wait for each async query to return before exiting.
+        LOG.debug(
+            "Waiting for a batch of {} Cassandra writes to be executed...",
+            CONCURRENT_ASYNC_QUERIES);
+        waitForFuturesToFinish();
+        this.deleteFutures = new ArrayList<>();
+      }
+    }
+
+    @Override
+    public void close() throws ExecutionException, InterruptedException {
+      if (this.deleteFutures.size() > 0) {
+        // Waiting for the last in flight async queries to return before finishing the bundle.
+        waitForFuturesToFinish();
+      }
+
+      if (session != null) {
+        session.close();
+      }
+      if (cluster != null) {
+        cluster.close();
+      }
+    }
+
+    private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
+      for (ListenableFuture<Void> future : deleteFutures) {
+        future.get();
+      }
+    }
+  }
+
+  @Override
+  public Deleter createDeleter(CassandraIO.Delete<T> spec) {
+    return new DeleterImpl(spec);
+  }
 }

@@ -129,6 +129,32 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
+  @Test
+  public void testDelete() {
+    FakeCassandraService service = new FakeCassandraService();
+    service.load();
+
+    assertEquals(10000, service.getTable().size());
+
+    pipeline
+        .apply(
+            CassandraIO.<Scientist>read()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withTable("scientist")
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class))
+        .apply(
+            CassandraIO.<Scientist>delete()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withEntity(Scientist.class));
+
+    pipeline.run();
+
+    assertEquals(0, service.getTable().size());
+  }
+
   /** A {@link CassandraService} implementation that stores the entity in memory. */
   private static class FakeCassandraService implements CassandraService<Scientist> {
     private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
@@ -243,6 +269,23 @@ public class CassandraIOTest implements Serializable {
     @Override
     public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
       return new FakeCassandraWriter();
+    }
+
+    private static class FakeCassandraDeleter implements Deleter<Scientist> {
+      @Override
+      public void delete(Scientist scientist) {
+        table.remove(scientist.id);
+      }
+
+      @Override
+      public void close() {
+        // nothing to do
+      }
+    }
+
+    @Override
+    public FakeCassandraDeleter createDeleter(CassandraIO.Delete<Scientist> spec) {
+      return new FakeCassandraDeleter();
     }
   }
 
