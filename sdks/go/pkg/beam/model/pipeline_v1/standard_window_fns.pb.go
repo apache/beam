@@ -126,7 +126,6 @@ func (*GlobalWindowsPayload) ProtoMessage()    {}
 func (*GlobalWindowsPayload) Descriptor() ([]byte, []int) {
 	return fileDescriptor_fab9dd76b0d0d680, []int{0}
 }
-
 func (m *GlobalWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GlobalWindowsPayload.Unmarshal(m, b)
 }
@@ -159,7 +158,6 @@ func (*FixedWindowsPayload) ProtoMessage()    {}
 func (*FixedWindowsPayload) Descriptor() ([]byte, []int) {
 	return fileDescriptor_fab9dd76b0d0d680, []int{1}
 }
-
 func (m *FixedWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FixedWindowsPayload.Unmarshal(m, b)
 }
@@ -207,7 +205,6 @@ func (*SlidingWindowsPayload) ProtoMessage()    {}
 func (*SlidingWindowsPayload) Descriptor() ([]byte, []int) {
 	return fileDescriptor_fab9dd76b0d0d680, []int{2}
 }
-
 func (m *SlidingWindowsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SlidingWindowsPayload.Unmarshal(m, b)
 }
@@ -260,7 +257,6 @@ func (*SessionsPayload) ProtoMessage()    {}
 func (*SessionsPayload) Descriptor() ([]byte, []int) {
 	return fileDescriptor_fab9dd76b0d0d680, []int{3}
 }
-
 func (m *SessionsPayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SessionsPayload.Unmarshal(m, b)
 }
@@ -287,14 +283,14 @@ func (m *SessionsPayload) GetGapSize() *duration.Duration {
 }
 
 func init() {
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.GlobalWindowsPayload_Enum", GlobalWindowsPayload_Enum_name, GlobalWindowsPayload_Enum_value)
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.FixedWindowsPayload_Enum", FixedWindowsPayload_Enum_name, FixedWindowsPayload_Enum_value)
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SlidingWindowsPayload_Enum", SlidingWindowsPayload_Enum_name, SlidingWindowsPayload_Enum_value)
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SessionsPayload_Enum", SessionsPayload_Enum_name, SessionsPayload_Enum_value)
 	proto.RegisterType((*GlobalWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.GlobalWindowsPayload")
 	proto.RegisterType((*FixedWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.FixedWindowsPayload")
 	proto.RegisterType((*SlidingWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.SlidingWindowsPayload")
 	proto.RegisterType((*SessionsPayload)(nil), "org.apache.beam.model.pipeline.v1.SessionsPayload")
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.GlobalWindowsPayload_Enum", GlobalWindowsPayload_Enum_name, GlobalWindowsPayload_Enum_value)
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.FixedWindowsPayload_Enum", FixedWindowsPayload_Enum_name, FixedWindowsPayload_Enum_value)
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SlidingWindowsPayload_Enum", SlidingWindowsPayload_Enum_name, SlidingWindowsPayload_Enum_value)
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SessionsPayload_Enum", SessionsPayload_Enum_name, SessionsPayload_Enum_value)
 }
 
 func init() { proto.RegisterFile("standard_window_fns.proto", fileDescriptor_fab9dd76b0d0d680) }
