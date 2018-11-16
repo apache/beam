@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("serial")
 @Experimental
+@Deprecated
 public class OrderOutput_v1
     extends PTransform<
         PCollection<KV<TimeSeriesData.TSKey, TSAccum>>,
