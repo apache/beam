@@ -54,7 +54,7 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 # SDK identifiers for different distributions
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
 
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):
