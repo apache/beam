@@ -21,10 +21,15 @@ package org.apache.beam.sdk.extensions.timeseries.io.tf;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.UnsupportedEncodingException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.TimeSeriesOptions;
+import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.example.SequenceExample;
@@ -32,25 +37,46 @@ import org.tensorflow.example.SequenceExample;
 /** Convert TSAccumSequence to tf Sequence Example. */
 @Experimental
 public class TSAccumSequenceToTFSequencExample
-    extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>, SequenceExample> {
+    extends PTransform<
+        PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>>,
+        PCollection<SequenceExample>> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(TSAccumSequenceToTFSequencExample.class);
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
+  @Override
+  public PCollection<SequenceExample> expand(
+      PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>> input) {
+    return input.apply(ParDo.of(new ConvertTSAccumSequenceToTFSequencExample()));
+  }
 
-    try {
+  public static class ConvertTSAccumSequenceToTFSequencExample
+      extends DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccumSequence>, SequenceExample> {
 
-      c.output(TSAccumSequences.getSequenceExampleFromAccumSequence(c.element().getValue()));
+    TSConfiguration configuration;
 
-    } catch (UnsupportedEncodingException e) {
+    @StartBundle
+    public void startBundle(ProcessContext c) {
+      configuration =
+          TSConfiguration.createConfigurationFromOptions(
+              c.getPipelineOptions().as(TimeSeriesOptions.class));
+    }
 
-      LOG.info("Unable to convert string to UTF-8", e);
+    @ProcessElement
+    public void processElement(ProcessContext c) {
 
-    } catch (InvalidProtocolBufferException e) {
+      try {
 
-      LOG.info("Invalid Protobuf when reading Accum Sequence", e);
+        c.output(TSAccumSequences.getSequenceExampleFromAccumSequence(c.element().getValue()));
+
+      } catch (UnsupportedEncodingException e) {
+
+        LOG.info("Unable to convert string to UTF-8", e);
+
+      } catch (InvalidProtocolBufferException e) {
+
+        LOG.info("Invalid Protobuf when reading Accum Sequence", e);
+      }
     }
   }
 }

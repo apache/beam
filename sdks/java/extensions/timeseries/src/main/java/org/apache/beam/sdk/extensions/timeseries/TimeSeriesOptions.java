@@ -41,8 +41,35 @@ public interface TimeSeriesOptions extends PipelineOptions {
 
   @Description(
       "Once a key is observed we will generate a value during periods when the key has not been observed if the fillOption is set to anything other than NONE.")
-  @Default.Long(60000)
+  @Default.Long(0)
   Long getTimeToLiveMillis();
 
   void setTimeToLiveMillis(Long mills);
+
+  @Description("Discard incomplete sequence from sequenced output.")
+  @Default.Boolean(false)
+  Boolean getDiscardIncompleteSequences();
+
+  void setDiscardIncompleteSequences(Boolean discardIncompleteSequences);
+
+  @Description("Allow forward pad of sequenced output. ")
+  @Default.Boolean(false)
+  Boolean getForwardPadSequencedOutput();
+
+  void setForwardPadSequencedOutput(Boolean forwardPadSequencedOutput);
+
+  /**
+   * This value should not normally be used as it can lead to strange output data sets. If the
+   * sequence output has not seen a key at the start of the lower window boundary, this will
+   * generate 'back' data from the first values seen. This can lead to keys coming into existence
+   * when they did not exist in the original data. It is here as a convenience method when playing
+   * with data at the sink which needs to avoid having to pad.
+   *
+   * @return
+   */
+  @Description("Allow back pad of sequenced output. This should not normally be set to true.")
+  @Default.Boolean(false)
+  Boolean getBackPadSequencedOutput();
+
+  void setBackPadSequencedOutput(Boolean backPadSequencedOutput);
 }

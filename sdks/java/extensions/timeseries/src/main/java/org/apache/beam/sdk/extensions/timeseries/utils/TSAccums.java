@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.timeseries.utils;
 
+import static com.google.protobuf.util.Timestamps.add;
+import static com.google.protobuf.util.Timestamps.compare;
 import static com.google.protobuf.util.Timestamps.toMillis;
 import static java.util.Comparator.comparing;
 
@@ -26,10 +28,13 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData.TSAccum;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -41,6 +46,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,17 +62,17 @@ public class TSAccums {
 
   static final Logger LOG = LoggerFactory.getLogger(TSAccums.class);
 
-  private static String getSumString(TimeSeriesData.TSAccum accum) {
+  private static String getSumString(TSAccum accum) {
 
     return TSDatas.getStringValue(accum.getDataAccum().getSum());
   }
 
-  public static String getMinString(TimeSeriesData.TSAccum accum) {
+  public static String getMinString(TSAccum accum) {
 
     return TSDatas.getStringValue(accum.getDataAccum().getMinValue());
   }
 
-  public static String getMaxString(TimeSeriesData.TSAccum accum) {
+  public static String getMaxString(TSAccum accum) {
 
     return TSDatas.getStringValue(accum.getDataAccum().getMaxValue());
   }
@@ -89,8 +95,7 @@ public class TSAccums {
     return (Timestamps.comparator().compare(a, b) < 0) ? a : b;
   }
 
-  public static TimeSeriesData.TSAccum.Builder merge(
-      TimeSeriesData.TSAccum.Builder accumA, TimeSeriesData.TSAccum accumB) {
+  public static TSAccum.Builder merge(TSAccum.Builder accumA, TSAccum accumB) {
 
     if (!accumA.hasKey()) {
       accumA.setKey(accumB.getKey());
@@ -127,14 +132,12 @@ public class TSAccums {
     return downSampleType.name() + "_PREV";
   }
 
-  public static Example getExampleFromAccum(TimeSeriesData.TSAccum accum)
-      throws UnsupportedEncodingException {
+  public static Example getExampleFromAccum(TSAccum accum) throws UnsupportedEncodingException {
     Example.Builder example = Example.newBuilder();
     return example.setFeatures(getFeaturesFromAccum(accum)).build();
   }
 
-  private static Features getFeaturesFromAccum(TimeSeriesData.TSAccum accum)
-      throws UnsupportedEncodingException {
+  private static Features getFeaturesFromAccum(TSAccum accum) throws UnsupportedEncodingException {
 
     Features.Builder features = Features.newBuilder();
 
@@ -166,75 +169,179 @@ public class TSAccums {
             .setInt64List(Int64List.newBuilder().addValue(toMillis(accum.getUpperWindowBoundary())))
             .build());
 
+    // Convert Count to Double to make Tensor handling easier with other data types.
     features.putFeature(
-        "COUNT", TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getCount()));
+        "COUNT",
+        TSDatas.tfFeatureFromTSDataPoint(
+            TSDatas.createData((double) accum.getDataAccum().getCount().getIntVal())));
 
     features.putFeature(
         TimeSeriesData.DownSampleType.SUM.name(),
-        TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getSum()));
+        TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getSum()));
     features.putFeature(
         TimeSeriesData.DownSampleType.MIN.name(),
-        TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getMinValue()));
+        TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getMinValue()));
     features.putFeature(
         TimeSeriesData.DownSampleType.MAX.name(),
-        TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getMaxValue()));
+        TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getMaxValue()));
     features.putFeature(
         TimeSeriesData.DownSampleType.FIRST.name(),
-        TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getFirst().getData()));
+        TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getFirst().getData()));
     features.putFeature(
         TimeSeriesData.DownSampleType.LAST.name(),
-        TSDatas.getFeatureFromTSDataPoint(accum.getDataAccum().getLast().getData()));
+        TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getLast().getData()));
 
     if (accum.getPreviousWindowValue() != null) {
       features.putFeature(
           postFixPrevWindowKey(TimeSeriesData.DownSampleType.SUM),
-          TSDatas.getFeatureFromTSDataPoint(
-              accum.getPreviousWindowValue().getDataAccum().getSum()));
+          TSDatas.tfFeatureFromTSDataPoint(accum.getPreviousWindowValue().getDataAccum().getSum()));
       features.putFeature(
           postFixPrevWindowKey(TimeSeriesData.DownSampleType.MIN),
-          TSDatas.getFeatureFromTSDataPoint(
+          TSDatas.tfFeatureFromTSDataPoint(
               accum.getPreviousWindowValue().getDataAccum().getMinValue()));
       features.putFeature(
           postFixPrevWindowKey(TimeSeriesData.DownSampleType.MAX),
-          TSDatas.getFeatureFromTSDataPoint(
+          TSDatas.tfFeatureFromTSDataPoint(
               accum.getPreviousWindowValue().getDataAccum().getMaxValue()));
       features.putFeature(
           postFixPrevWindowKey(TimeSeriesData.DownSampleType.FIRST),
-          TSDatas.getFeatureFromTSDataPoint(
+          TSDatas.tfFeatureFromTSDataPoint(
               accum.getPreviousWindowValue().getDataAccum().getFirst().getData()));
       features.putFeature(
           postFixPrevWindowKey(TimeSeriesData.DownSampleType.LAST),
-          TSDatas.getFeatureFromTSDataPoint(
+          TSDatas.tfFeatureFromTSDataPoint(
               accum.getPreviousWindowValue().getDataAccum().getLast().getData()));
     }
 
     return features.build();
   }
 
-  public static List<TimeSeriesData.TSAccum> sortByUpperBoundary(
-      List<TimeSeriesData.TSAccum> accums) {
+  public static List<TSAccum> sortByUpperBoundary(List<TSAccum> accums) {
     accums.sort(comparing(tsAccum -> toMillis(tsAccum.getUpperWindowBoundary())));
     return accums;
   }
 
   /** Push to tf Examples generated from TSAccum's to BigTable. */
+
+  /**
+   * BackFill accum sequence, where key started > lower bound of sequence window. Starting from a
+   * point != to the start of the seq window, back fill using the first value in window.
+   *
+   * <p>The first value in the seq window will not have a previous value set.
+   *
+   * @param accum
+   * @param lowerBoundary
+   * @param configuration
+   * @return
+   */
+  public static List<TSAccum> generateBackFillHeartBeatValues(
+      TSAccum accum, Timestamp lowerBoundary, TSConfiguration configuration) {
+
+    Duration downSample = configuration.downSampleDuration();
+
+    Timestamp upperBoundary = accum.getLowerWindowBoundary();
+
+    List<TSAccum> list = new ArrayList<>();
+
+    TSAccum.Builder first =
+        createHBValue(
+            accum,
+            lowerBoundary,
+            add(lowerBoundary, Durations.fromMillis(downSample.getMillis())),
+            configuration.fillOption());
+
+    // Remove the previous window value from the first item in the seq as the key may not have even
+    // existed in the previous window. This is a compromise.
+
+    first.clearPreviousWindowValue();
+
+    list.add(first.build());
+
+    TSAccum.Builder current = first;
+
+    while (compare(current.getUpperWindowBoundary(), upperBoundary) < 0) {
+
+      current =
+          createHBValue(
+              current.build(),
+              current.getUpperWindowBoundary(),
+              add(current.getUpperWindowBoundary(), Durations.fromMillis(downSample.getMillis())),
+              configuration.fillOption());
+
+      list.add(current.build());
+    }
+
+    return list;
+  }
+
+  /**
+   * BackFill accum sequence, where key started > lower bound of sequence window. Starting from a
+   * point which is != to the end of the seq window, forward fill using the last value
+   *
+   * @param accum
+   * @param upperBoundary
+   * @param configuration
+   * @return
+   */
+  public static List<TSAccum> generateForwardFillHeartBeatValues(
+      TSAccum accum, Timestamp upperBoundary, TSConfiguration configuration) {
+
+    Duration downSample = configuration.downSampleDuration();
+
+    List<TSAccum> list = new ArrayList<>();
+
+    TSAccum.Builder current = accum.toBuilder();
+
+    while (compare(current.getUpperWindowBoundary(), upperBoundary) < 0) {
+
+      current =
+          createHBValue(
+              current.build(),
+              current.getUpperWindowBoundary(),
+              add(current.getUpperWindowBoundary(), Durations.fromMillis(downSample.getMillis())),
+              configuration.fillOption());
+
+      list.add(current.build());
+    }
+
+    return list;
+  }
+
+  private static TSAccum.Builder createHBValue(
+      TSAccum accum, Timestamp lower, Timestamp upper, TSConfiguration.BFillOptions bfOption) {
+
+    TSAccum.Builder builder =
+        accum
+            .toBuilder()
+            .setLowerWindowBoundary(lower)
+            .setUpperWindowBoundary(upper)
+            .putMetadata(TSConfiguration.HEARTBEAT, "")
+            .setPreviousWindowValue(accum.toBuilder().clearPreviousWindowValue());
+
+    if (bfOption != TSConfiguration.BFillOptions.LAST_KNOWN_VALUE) {
+      builder.clearDataAccum().clearFirstTimeStamp().clearLastTimeStamp();
+    }
+
+    return builder;
+  }
+
+  /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutPutToBigTable
-      extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<Mutation>> {
+      extends PTransform<PCollection<TSAccum>, PCollection<Mutation>> {
 
     private static final byte[] TF_ACCUM = Bytes.toBytes("TF_ACCUM");
     private static final byte[] DOWNSAMPLE_SIZE_MS = Bytes.toBytes("DOWNSAMPLE_SIZE_MS");
 
     @Override
-    public PCollection<Mutation> expand(PCollection<TimeSeriesData.TSAccum> input) {
+    public PCollection<Mutation> expand(PCollection<TSAccum> input) {
       return input.apply(ParDo.of(new WriteTFAccumToBigTable()));
     }
 
     /** Write to BigTable. */
-    public static class WriteTFAccumToBigTable extends DoFn<TimeSeriesData.TSAccum, Mutation> {
+    public static class WriteTFAccumToBigTable extends DoFn<TSAccum, Mutation> {
 
       @ProcessElement
-      public void processElement(DoFn<TimeSeriesData.TSAccum, Mutation>.ProcessContext c)
-          throws Exception {
+      public void processElement(DoFn<TSAccum, Mutation>.ProcessContext c) throws Exception {
         c.output(
             new Put(createBigTableKey(c.element()))
                 .addColumn(
@@ -244,7 +351,7 @@ public class TSAccums {
       }
     }
 
-    private static byte[] createBigTableKey(TimeSeriesData.TSAccum accum) {
+    private static byte[] createBigTableKey(TSAccum accum) {
       return Bytes.toBytes(
           String.join(
               "-",
@@ -257,20 +364,18 @@ public class TSAccums {
 
   /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutputAccumWithTimestamp
-      extends PTransform<PCollection<TimeSeriesData.TSAccum>, PCollection<TimeSeriesData.TSAccum>> {
+      extends PTransform<PCollection<TSAccum>, PCollection<TSAccum>> {
 
     @Override
-    public PCollection<TimeSeriesData.TSAccum> expand(PCollection<TimeSeriesData.TSAccum> input) {
+    public PCollection<TSAccum> expand(PCollection<TSAccum> input) {
       return input.apply(ParDo.of(new ExtractTimestamp()));
     }
 
     /** Extract timestamps. */
-    public static class ExtractTimestamp
-        extends DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum> {
+    public static class ExtractTimestamp extends DoFn<TSAccum, TSAccum> {
 
       @ProcessElement
-      public void processElement(
-          DoFn<TimeSeriesData.TSAccum, TimeSeriesData.TSAccum>.ProcessContext c) throws Exception {
+      public void processElement(DoFn<TSAccum, TSAccum>.ProcessContext c) throws Exception {
         c.outputWithTimestamp(
             c.element(), new Instant(toMillis(c.element().getLowerWindowBoundary())));
       }
@@ -279,7 +384,7 @@ public class TSAccums {
 
   /** This utility class stores Raw TSAccum protos into TFRecord container. */
   public static class StoreRawTFAccumInTFRecordContainer
-      extends PTransform<PCollection<TimeSeriesData.TSAccum>, PDone> {
+      extends PTransform<PCollection<TSAccum>, PDone> {
 
     String directoryLocation;
 
@@ -288,12 +393,12 @@ public class TSAccums {
     }
 
     @Override
-    public PDone expand(PCollection<TimeSeriesData.TSAccum> input) {
+    public PDone expand(PCollection<TSAccum> input) {
 
       return input
           .apply(
               ParDo.of(
-                  new DoFn<TimeSeriesData.TSAccum, byte[]>() {
+                  new DoFn<TSAccum, byte[]>() {
 
                     @ProcessElement
                     public void process(ProcessContext c) {
@@ -305,8 +410,7 @@ public class TSAccums {
   }
 
   /** Assign keys. */
-  public static class OutPutTSAccumAsKV
-      extends DoFn<TimeSeriesData.TSAccum, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> {
+  public static class OutPutTSAccumAsKV extends DoFn<TSAccum, KV<TimeSeriesData.TSKey, TSAccum>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
@@ -315,14 +419,13 @@ public class TSAccums {
   }
 
   /** Assign timestamped keys. */
-  public static class OutPutTSAccumAsKVWithTimeBoundary
-      extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
+  public static class OutPutTSAccumAsKVWithTimeBoundary extends DoFn<TSAccum, KV<String, TSAccum>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
 
       TimeSeriesData.TSKey key = c.element().getKey();
-      TimeSeriesData.TSAccum accum = c.element();
+      TSAccum accum = c.element();
 
       c.output(
           KV.of(
@@ -338,25 +441,25 @@ public class TSAccums {
 
   /** Assign keys with pretty printed timestamps. */
   public static class OutPutTSAccumAsKVWithPrettyTimeBoundary
-      extends DoFn<TimeSeriesData.TSAccum, KV<String, TimeSeriesData.TSAccum>> {
+      extends DoFn<TSAccum, KV<String, TSAccum>> {
 
     @ProcessElement
     public void process(ProcessContext c) {
 
-      TimeSeriesData.TSAccum accum = c.element();
+      TSAccum accum = c.element();
 
       c.output(KV.of(getTSAccumKeyWithPrettyTimeBoundary(accum), accum));
     }
   }
 
-  public static String getTSAccumMajorMinorKeyAsString(TimeSeriesData.TSAccum accum) {
+  public static String getTSAccumMajorMinorKeyAsString(TSAccum accum) {
 
     TimeSeriesData.TSKey key = accum.getKey();
 
     return String.join("-", key.getMajorKey(), key.getMinorKeyString());
   }
 
-  public static String getTSAccumKeyMillsTimeBoundary(TimeSeriesData.TSAccum accum) {
+  public static String getTSAccumKeyMillsTimeBoundary(TSAccum accum) {
 
     TimeSeriesData.TSKey key = accum.getKey();
 
@@ -368,7 +471,7 @@ public class TSAccums {
         Long.toString(toMillis(accum.getUpperWindowBoundary())));
   }
 
-  public static String getTSAccumKeyWithPrettyTimeBoundary(TimeSeriesData.TSAccum accum) {
+  public static String getTSAccumKeyWithPrettyTimeBoundary(TSAccum accum) {
 
     TimeSeriesData.TSKey key = accum.getKey();
 
@@ -380,8 +483,7 @@ public class TSAccums {
         Timestamps.toString(accum.getUpperWindowBoundary()));
   }
 
-  public static String debugDetectOutputDiffBetweenTwoAccums(
-      TimeSeriesData.TSAccum accum1, TimeSeriesData.TSAccum accum2) {
+  public static String debugDetectOutputDiffBetweenTwoAccums(TSAccum accum1, TSAccum accum2) {
 
     StringBuilder sb = new StringBuilder();
     if (!accum1.getKey().toByteString().equals(accum2.getKey().toByteString())) {
@@ -452,7 +554,7 @@ public class TSAccums {
 
   /** Create CSV. */
   public static class CreateCsv
-      extends PTransform<PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>, PDone> {
+      extends PTransform<PCollection<KV<TimeSeriesData.TSKey, TSAccum>>, PDone> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CreateCsv.class);
 
@@ -471,19 +573,19 @@ public class TSAccums {
     }
 
     @Override
-    public PDone expand(PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> input) {
+    public PDone expand(PCollection<KV<TimeSeriesData.TSKey, TSAccum>> input) {
       input.apply(
           ParDo.of(
-              new DoFn<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>, String>() {
+              new DoFn<KV<TimeSeriesData.TSKey, TSAccum>, String>() {
 
                 @ProcessElement
                 public void process(ProcessContext c, IntervalWindow w) {
 
-                  TimeSeriesData.TSAccum accum = c.element().getValue();
+                  TSAccum accum = c.element().getValue();
 
                   String key = c.element().getKey().getMajorKey();
 
-                  key += "-" + (c.element().getKey().getMinorKeyString());
+                  key += "-" + c.element().getKey().getMinorKeyString();
 
                   String csvLine =
                       String.join(

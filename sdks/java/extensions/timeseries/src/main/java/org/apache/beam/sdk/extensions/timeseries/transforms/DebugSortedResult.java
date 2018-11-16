@@ -83,9 +83,9 @@ public class DebugSortedResult
                           .append("- Window End ")
                           .append(Timestamps.toString(accum.getUpperWindowBoundary()))
                           .append(
-                              ((heartBeat)
+                              heartBeat
                                   ? "\n Note as this is a HeartBeat first and last Timestamp values will be from last known value and will not match window boundaries.\n"
-                                  : ""))
+                                  : "")
                           .append(" First TS - ")
                           .append(Timestamps.toString(accum.getFirstTimeStamp()))
                           .append(" Last TS - ")

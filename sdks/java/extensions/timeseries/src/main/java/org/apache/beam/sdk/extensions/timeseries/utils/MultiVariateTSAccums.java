@@ -96,7 +96,7 @@ public class MultiVariateTSAccums {
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     // Set HB
-    row.set(HB, (accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT)));
+    row.set(HB, accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT));
 
     // Set Current
     generateTableRowFromTSDataAccum(row, addPrefix(prefix, CURRENT), accum.getDataAccum());

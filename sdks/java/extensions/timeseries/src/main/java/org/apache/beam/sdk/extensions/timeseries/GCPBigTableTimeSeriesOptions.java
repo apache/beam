@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.timeseries.io.tf;
+package org.apache.beam.sdk.extensions.timeseries;
 
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.tensorflow.example.Example;
+import org.apache.beam.sdk.options.Description;
 
-/** Convert TensorFlow Example object to byte[]. */
+/** Pipeline options that allow configuring GCP options. */
 @Experimental
-public class TFExampleToBytes extends DoFn<Example, byte[]> {
+public interface GCPBigTableTimeSeriesOptions extends TimeSeriesOptions, DataflowPipelineOptions {
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
+  @Description("BigTable Instance ID - Used for GCP I/O ")
+  String getBigTableInstanceId();
 
-    c.output(c.element().toByteArray());
-  }
+  void setBigTableInstanceId(String bigTableInstanceId);
+
+  @Description("BigTable Table ID - Used for GCP I/O ")
+  String getBigTableTableId();
+
+  void setBigTableTableId(String projectId);
 }

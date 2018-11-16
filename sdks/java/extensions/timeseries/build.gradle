@@ -64,16 +64,30 @@ dependencies {
   shadow library.java.slf4j_jdk14
   runtime project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
 
 }
 
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+/*
+task timeSeriesIntegrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-/* Define a common precommit task which depends on all the individual precommits. */
-task preCommit() {
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  maxParallelForks 4
+  classpath = project(":beam-sdks-java-extensions-timeseries").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":beam-sdks-java-extensions-timeseries").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
+*/
+
 

@@ -112,7 +112,10 @@ message TSAccum {
 
     Accum dataAccum = 9;
 
-    TSAccum previousWindowValue = 14;
+    TSAccum previousWindowValue = 10;
+
+    // Used for storage of custom values
+    map<string, Data> customData = 11;
 }
 
 // Time Series Accum sequence holder
@@ -127,6 +130,11 @@ message TSAccumSequence {
     google.protobuf.Duration duration = 6;
 }
 
+message GlobalMinMax {
+
+    map<string, double> minMap = 1;
+    map<string, double> maxMap = 2;
+}
 
 // MultiVarient TSAccum holds all the accums as a bag of properties, the key being the minor key from the Univarient
 // timeseries.

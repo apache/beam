@@ -24,7 +24,7 @@ import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.timeseries.GCPTimeSeriesOptions;
+import org.apache.beam.sdk.extensions.timeseries.GCPBigTableTimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -67,8 +68,10 @@ public class TimeSeriesExampleToBigTable {
   public static void main(String[] args) {
 
     // Create pipeline
-    GCPTimeSeriesOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(GCPTimeSeriesOptions.class);
+    GCPBigTableTimeSeriesOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(GCPBigTableTimeSeriesOptions.class);
     /*
         TSConfiguration configuration =
             TSConfiguration.builder()
@@ -113,26 +116,26 @@ public class TimeSeriesExampleToBigTable {
 
     // tf.Example output
     weHaveOrder
-        .apply(ParDo.of(new GetValueFromKV<>()))
+        .apply(Values.create())
         .apply(new TSAccums.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     // Create 3 different window lengths for the TFSequenceExample
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq("Sequence of 1 Min", Duration.standardMinutes(1)))
-        .apply(ParDo.of(new GetValueFromKV<>()))
+        .apply(Values.create())
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq("Sequence of 5 Min", Duration.standardMinutes(5)))
-        .apply(ParDo.of(new GetValueFromKV<>()))
+        .apply(Values.create())
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq("Sequence of 15 Min", Duration.standardMinutes(15)))
-        .apply(ParDo.of(new GetValueFromKV<>()))
+        .apply(Values.create())
         .apply(new TSAccumSequences.OutPutToBigTable())
         .apply(CloudBigtableIO.writeToTable(config));
 
@@ -158,7 +161,7 @@ public class TimeSeriesExampleToBigTable {
 
         for (int i = 0; i < 20; i++) {
 
-          if (!((i % 10 == 0))) {
+          if (!(i % 10 == 0)) {
 
             Instant dataPointTimeStamp = now.plus(Duration.standardSeconds(i));
 

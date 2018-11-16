@@ -23,38 +23,31 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.timeseries.TestUtils.MatcheResults;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData.TSMultiVariateDataPoint;
 import org.apache.beam.sdk.extensions.timeseries.transforms.ExtractAggregates;
-import org.apache.beam.sdk.extensions.timeseries.transforms.GetValueFromKV;
 import org.apache.beam.sdk.extensions.timeseries.transforms.OrderOutput;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.values.*;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,9 +57,9 @@ import org.slf4j.LoggerFactory;
 
 /** TimeSeries test. */
 @RunWith(JUnit4.class)
-public class TimeseriesTest implements Serializable {
+public class BeamTimeseriesE2ETest implements Serializable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(TimeseriesTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamTimeseriesE2ETest.class);
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -75,11 +68,6 @@ public class TimeseriesTest implements Serializable {
   private static final int ACCUM_COUNT = 6;
   private static final long WINDOW_DURATION_MILLS = 10000;
   private static final int WINDOW_DURATION_SEC = 10;
-  private static final Timestamp[] HEART_BEAT_VALUES =
-      new Timestamp[] {
-        Timestamps.add(
-            Timestamps.fromMillis(NOW.getMillis()), Durations.fromMillis(WINDOW_DURATION_MILLS))
-      };
 
   // Create tuple tags for the value types in each collection.
   private static final TupleTag<TimeSeriesData.TSAccum> tag1 =
@@ -110,7 +98,7 @@ public class TimeseriesTest implements Serializable {
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
             .apply(new ExtractAggregates())
-            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply("V1", Values.create())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()));
@@ -127,9 +115,9 @@ public class TimeseriesTest implements Serializable {
 
     // Get keyed results:
 
-    output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
+    output.apply(new TestUtils.MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply("V2", Values.create());
 
     PAssert.that(results).containsInAnyOrder(manualAccumListCreation());
 
@@ -153,12 +141,14 @@ public class TimeseriesTest implements Serializable {
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
             .apply(new ExtractAggregates())
             .apply(new OrderOutput())
-            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply("V1", Values.create())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
             .apply(
-                "Global-1", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+                "Global-1",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
@@ -168,13 +158,16 @@ public class TimeseriesTest implements Serializable {
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-            .apply("Global-2", Window.into(new GlobalWindows()));
+            .apply(
+                "Global-2",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply("V2", Values.create());
 
     PAssert.that(results).containsInAnyOrder(loadPreviousValues(manualAccumListCreation()));
 
@@ -192,22 +185,31 @@ public class TimeseriesTest implements Serializable {
     TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
 
     options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
-    options.setTimeToLiveMillis(10000L);
+    options.setTimeToLiveMillis(0L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
+
+    Timestamp missing1 =
+        Timestamps.add(
+            Timestamps.fromMillis(NOW.getMillis()), Durations.fromMillis(WINDOW_DURATION_MILLS));
+
+    Timestamp[] heartBeatValues = new Timestamp[] {missing1};
 
     PCollection<KV<String, TimeSeriesData.TSAccum>> output =
         p.apply(
                 "Get Test Data",
-                Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
+                Create.of(SampleTimeseriesDataWithGaps.generateData(false, heartBeatValues)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
             .apply(new ExtractAggregates())
             .apply(new OrderOutput())
-            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply("V1", Values.create())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-            .apply("Global-1", Window.into(new GlobalWindows()));
+            .apply(
+                "Global-1",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
@@ -218,26 +220,134 @@ public class TimeseriesTest implements Serializable {
                     removeTickRangesForHBTests(
                         loadPreviousValues(manualAccumListCreation()),
                         TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
-                        HEART_BEAT_VALUES)))
+                        heartBeatValues)))
             .apply(new TSAccums.OutputAccumWithTimestamp())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
             .apply(
-                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+                "Global-2",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results = output.apply(ParDo.of(new GetValueFromKV<>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply("V2", Values.create());
 
     PAssert.that(results)
         .containsInAnyOrder(
             removeTickRangesForHBTests(
                 loadPreviousValues(manualAccumListCreation()),
                 TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
-                HEART_BEAT_VALUES));
+                heartBeatValues));
+
+    p.run();
+  }
+
+  @Ignore
+  /*
+   * This test will use data that has missing sequences of ticks.
+   * The result should still be a perfect rectangle of data for all of the key space.
+   * TSAccum[1] Should be heartbeat values
+   * TSAccum[1] Should have the values from TSAccum[0,3] inserted.
+   */
+  public void checkEndToEndWithHeartBeatStream() {
+    TimeSeriesOptions options = p.getOptions().as(TimeSeriesOptions.class);
+
+    options.setDownSampleDurationMillis(WINDOW_DURATION_MILLS);
+    options.setTimeToLiveMillis(10000L);
+    options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
+
+    Timestamp missing1 =
+        Timestamps.add(
+            Timestamps.fromMillis(NOW.getMillis()), Durations.fromMillis(WINDOW_DURATION_MILLS));
+
+    Timestamp[] heartBeatValues = new Timestamp[] {missing1};
+
+    List<TimestampedValue<TSMultiVariateDataPoint>> dataPoints =
+        TestUtils.convertTSMultiVariateDataPointToTimeStampedElement(
+            SampleTimeseriesDataWithGaps.generateData(false, heartBeatValues));
+
+    // Load first window of values
+
+    TestStream.Builder<TSMultiVariateDataPoint> stream =
+        TestStream.create(ProtoCoder.of(TSMultiVariateDataPoint.class));
+
+    for (TimestampedValue<TSMultiVariateDataPoint> data : dataPoints.subList(0, 9)) {
+      stream.addElements(data);
+    }
+    stream.advanceWatermarkTo(NOW.plus(Duration.millis(10000)));
+    // Missing values expected from time 10 to 20 , so two watermark movements required.
+    stream.advanceWatermarkTo(NOW.plus(Duration.millis(10000)));
+
+    for (TimestampedValue<TSMultiVariateDataPoint> data : dataPoints.subList(10, 19)) {
+      stream.addElements(data);
+    }
+    stream.advanceWatermarkTo(NOW.plus(Duration.millis(10000)));
+
+    /*
+        for ( TimestampedValue<TSMultiVariateDataPoint> data : dataPoints.subList(20,29)){
+          stream.addElements(data);
+        }
+        stream    .advanceWatermarkTo(NOW.plus(Duration.millis(10000)));
+
+
+        for ( TimestampedValue<TSMultiVariateDataPoint> data : dataPoints.subList(30,49)){
+          stream.addElements(data);
+        }
+        stream    .advanceWatermarkTo(NOW.plus(Duration.millis(10000)));
+    */
+
+    PCollection<KV<String, TimeSeriesData.TSAccum>> output =
+        p.apply(stream.advanceWatermarkToInfinity())
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
+            .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
+            .apply(new ExtractAggregates())
+            .apply(new OrderOutput())
+            .apply("V1", Values.create())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-1",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes());
+
+    // Output any differences here as difficult to debug with just Assert output on error
+
+    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums =
+        p.apply(
+                "Get Check Data",
+                Create.of(
+                    removeTickRangesForHBTests(
+                        loadPreviousValues(manualAccumListCreation()),
+                        TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                        heartBeatValues)))
+            .apply(new TSAccums.OutputAccumWithTimestamp())
+            .apply(
+                "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
+                ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
+            .apply(
+                "Global-2",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes());
+
+    // Get keyed results:
+
+    output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
+
+    PCollection<TimeSeriesData.TSAccum> results = output.apply("V2", Values.create());
+
+    PAssert.that(results)
+        .containsInAnyOrder(
+            removeTickRangesForHBTests(
+                loadPreviousValues(manualAccumListCreation()),
+                TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
+                heartBeatValues));
 
     p.run();
   }
@@ -268,16 +378,19 @@ public class TimeseriesTest implements Serializable {
     PCollection<KV<String, TimeSeriesData.TSAccum>> output =
         p.apply(
                 "Get Test Data",
-                Create.of(SampleTimeseriesDataWithGaps.generateData(false, HEART_BEAT_VALUES)))
+                Create.of(SampleTimeseriesDataWithGaps.generateData(false, heartBeatValues)))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ExtractTimeStamp()))
             .apply(ParDo.of(new TSMultiVariateDataPoints.ConvertMultiToUniDataPoint()))
             .apply(new ExtractAggregates())
             .apply(new OrderOutput())
-            .apply("GetValueFromKV", ParDo.of(new GetValueFromKV<>()))
+            .apply("V1", Values.create())
             .apply(
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_1",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
-            .apply("Global-1", Window.into(new GlobalWindows()));
+            .apply(
+                "Global-1",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Output any differences here as difficult to debug with just Assert output on error
 
@@ -294,21 +407,22 @@ public class TimeseriesTest implements Serializable {
                 "OutPutTSAccumAsKVWithPrettyTimeBoundary_2",
                 ParDo.of(new TSAccums.OutPutTSAccumAsKVWithPrettyTimeBoundary()))
             .apply(
-                "Global-2", Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows()));
+                "Global-2",
+                Window.<KV<String, TimeSeriesData.TSAccum>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of()));
 
     // Get keyed results:
 
     output.apply(new MatcheResults(tag1, tag2, manualCreatedAccums));
 
-    PCollection<TimeSeriesData.TSAccum> results =
-        output.apply(ParDo.of(new GetValueFromKV<String, TimeSeriesData.TSAccum>()));
+    PCollection<TimeSeriesData.TSAccum> results = output.apply("V2", Values.create());
 
     PAssert.that(results)
         .containsInAnyOrder(
             removeTickRangesForHBTests(
                 loadPreviousValues(manualAccumListCreation()),
                 TSConfiguration.BFillOptions.LAST_KNOWN_VALUE,
-                HEART_BEAT_VALUES));
+                heartBeatValues));
 
     p.run();
   }
@@ -317,7 +431,7 @@ public class TimeseriesTest implements Serializable {
   private static class SampleTimeseriesDataWithGaps {
 
     /*
-    Generate 3 major keys {Test-0,Test-1,Test-2}.
+    Generate MAJOR_KEY_COUNT major keys {Test-0,Test-1,Test-2}.
     Each key will have int value x, y values for Double and Float.
     Time will inc by 1 second at each tick for up to 60 ticks.
 
@@ -351,6 +465,7 @@ public class TimeseriesTest implements Serializable {
         }
       }
 
+      // Remove values from the continuous list to enable gap filling
       if (!withOutDeletion) {
         List<TimeSeriesData.TSMultiVariateDataPoint> output = new ArrayList<>();
         for (TimeSeriesData.TSMultiVariateDataPoint dataPoint : dataPoints) {
@@ -366,6 +481,10 @@ public class TimeseriesTest implements Serializable {
           }
           if (!delete) {
             output.add(dataPoint);
+          } else {
+            LOG.info(
+                "Deleting Accum from input list going into Pipeline : "
+                    + (dataPoint.getTimestamp()));
           }
         }
         return output;
@@ -494,12 +613,18 @@ public class TimeseriesTest implements Serializable {
     return allValues;
   }
 
+  /**
+   * Given a genearetd list of Accum, add the previous window value
+   *
+   * @param accums
+   * @return
+   */
   private static List<TimeSeriesData.TSAccum> loadPreviousValues(
       List<TimeSeriesData.TSAccum> accums) {
 
     List<TimeSeriesData.TSAccum> output = new ArrayList<>();
 
-    Map<String, List<TimeSeriesData.TSAccum>> keyMap = generateKeyMap(accums);
+    Map<String, List<TimeSeriesData.TSAccum>> keyMap = TestUtils.generateKeyMap(accums);
 
     for (List<TimeSeriesData.TSAccum> list : keyMap.values()) {
       // Sort List
@@ -553,6 +678,7 @@ public class TimeseriesTest implements Serializable {
     return accum.build();
   }
 
+  // Given a dummy dataset with gaps , fill with heartbeat values.
   private static List<TimeSeriesData.TSAccum> removeTickRangesForHBTests(
       List<TimeSeriesData.TSAccum> accums,
       TSConfiguration.BFillOptions fillOptions,
@@ -560,6 +686,7 @@ public class TimeseriesTest implements Serializable {
 
     List<TimeSeriesData.TSAccum> output = new ArrayList<>();
 
+    // Remove every value which has a timestamp match in hbTimestamps
     for (Timestamp t : hbTimestamps) {
 
       output.clear();
@@ -573,11 +700,15 @@ public class TimeseriesTest implements Serializable {
       accums.addAll(output);
     }
 
-    Map<String, List<TimeSeriesData.TSAccum>> map = generateKeyMap(output);
+    Map<String, List<TimeSeriesData.TSAccum>> map = TestUtils.generateKeyMap(output);
 
     output.clear();
 
+    // Sort through the list and fill any gaps found with HB values based on options.
     for (List<TimeSeriesData.TSAccum> keyLists : map.values()) {
+
+      List<TimeSeriesData.TSAccum> keyTSAccumOuput = new ArrayList<>();
+      List<TimeSeriesData.TSAccum> finalOutPut = new ArrayList<>();
 
       // Sort list and then detect gaps and fill with heartbeat values
       TSAccums.sortByUpperBoundary(keyLists);
@@ -586,7 +717,7 @@ public class TimeseriesTest implements Serializable {
 
       TimeSeriesData.TSAccum lastAccum = accumIterator.next();
 
-      output.add(lastAccum);
+      keyTSAccumOuput.add(lastAccum);
 
       while (accumIterator.hasNext()) {
 
@@ -596,157 +727,67 @@ public class TimeseriesTest implements Serializable {
                 .compare(next.getLowerWindowBoundary(), lastAccum.getUpperWindowBoundary())
             > 0) {
 
-          TimeSeriesData.TSAccum.Builder outputPartial;
+          TimeSeriesData.TSAccum.Builder generatedHeartbeatValue;
 
+          // If LAST KNOWN VALUE is set then propagate the last value into the new.
           if (fillOptions == TSConfiguration.BFillOptions.LAST_KNOWN_VALUE) {
 
-            outputPartial = lastAccum.toBuilder();
+            generatedHeartbeatValue = lastAccum.toBuilder();
 
           } else {
 
-            outputPartial =
+            generatedHeartbeatValue =
                 lastAccum.toBuilder().clearDataAccum().clearFirstTimeStamp().clearLastTimeStamp();
           }
 
           // Set the previous value but only to depth n=1
-          outputPartial.setPreviousWindowValue(lastAccum.toBuilder().clearPreviousWindowValue());
+          generatedHeartbeatValue.setPreviousWindowValue(
+              lastAccum.toBuilder().clearPreviousWindowValue());
 
-          outputPartial.putMetadata(TSConfiguration.HEARTBEAT, "");
+          generatedHeartbeatValue.putMetadata(TSConfiguration.HEARTBEAT, "");
 
-          outputPartial.setLowerWindowBoundary(lastAccum.getUpperWindowBoundary());
+          generatedHeartbeatValue.setLowerWindowBoundary(lastAccum.getUpperWindowBoundary());
 
-          outputPartial.setUpperWindowBoundary(
+          generatedHeartbeatValue.setUpperWindowBoundary(
               Timestamps.add(
                   lastAccum.getUpperWindowBoundary(), Durations.fromMillis(WINDOW_DURATION_MILLS)));
 
-          output.add(outputPartial.build());
+          keyTSAccumOuput.add(generatedHeartbeatValue.build());
 
-          lastAccum = outputPartial.build();
+          LOG.info(
+              String.format(
+                  "Gap found in manual data between %s and %s added a value with lower time %s",
+                  lastAccum.getUpperWindowBoundary(),
+                  next.getLowerWindowBoundary(),
+                  generatedHeartbeatValue.getLowerWindowBoundary()));
+
+          lastAccum = generatedHeartbeatValue.build();
         }
 
-        // Switch out previous window and assign
-        if (lastAccum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT)) {
-          TimeSeriesData.TSAccum changePreviousWindow =
-              next.toBuilder()
-                  .setPreviousWindowValue(lastAccum.toBuilder().clearPreviousWindowValue())
-                  .build();
-          lastAccum = changePreviousWindow;
-          output.add(changePreviousWindow);
-        } else {
-          lastAccum = next;
-          output.add(next);
-        }
+        lastAccum = next;
+        keyTSAccumOuput.add(next);
       }
+
+      // As we have now changed values in the list we will reset the previousWindowValues;
+
+      TSAccums.sortByUpperBoundary(keyTSAccumOuput);
+
+      TimeSeriesData.TSAccum lastAccumValue = null;
+      for (TimeSeriesData.TSAccum accum : keyTSAccumOuput) {
+        if (lastAccumValue != null) {
+          finalOutPut.add(
+              accum
+                  .toBuilder()
+                  .setPreviousWindowValue(lastAccumValue.toBuilder().clearPreviousWindowValue())
+                  .build());
+        } else {
+          finalOutPut.add(accum);
+        }
+        lastAccumValue = accum;
+      }
+      output.addAll(finalOutPut);
     }
 
     return output;
-  }
-
-  private static class MatcheResults
-      extends PTransform<PCollection<KV<String, TimeSeriesData.TSAccum>>, PDone> {
-
-    TupleTag<TimeSeriesData.TSAccum> tag1;
-
-    TupleTag<TimeSeriesData.TSAccum> tag2;
-
-    PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums;
-
-    public MatcheResults(
-        TupleTag<TimeSeriesData.TSAccum> tag1,
-        TupleTag<TimeSeriesData.TSAccum> tag2,
-        PCollection<KV<String, TimeSeriesData.TSAccum>> manualCreatedAccums) {
-      this.tag1 = tag1;
-      this.tag2 = tag2;
-      this.manualCreatedAccums = manualCreatedAccums;
-    }
-
-    @Override
-    public PDone expand(PCollection<KV<String, TimeSeriesData.TSAccum>> input) {
-
-      // Merge collection values into a CoGbkResult collection.
-      PCollection<KV<String, CoGbkResult>> coGbkResultCollection =
-          KeyedPCollectionTuple.of(tag1, input)
-              .and(tag2, manualCreatedAccums)
-              .apply(CoGroupByKey.<String>create());
-
-      coGbkResultCollection.apply(ParDo.of(new Match(tag1, tag2)));
-
-      return PDone.in(input.getPipeline());
-    }
-
-    /** Use join to isolate missing items from Manual Test set and pipeline output. */
-    private static class Match extends DoFn<KV<String, CoGbkResult>, String> {
-
-      TupleTag<TimeSeriesData.TSAccum> pipelineOutput;
-
-      TupleTag<TimeSeriesData.TSAccum> manualDataset;
-
-      public Match(TupleTag<TimeSeriesData.TSAccum> tag1, TupleTag<TimeSeriesData.TSAccum> tag2) {
-        this.pipelineOutput = tag1;
-        this.manualDataset = tag2;
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w) {
-
-        KV<String, CoGbkResult> e = c.element();
-
-        for (TimeSeriesData.TSAccum accum : e.getValue().getAll(manualDataset)) {
-
-          Iterator<TimeSeriesData.TSAccum> pt2Val = e.getValue().getAll(pipelineOutput).iterator();
-
-          if (pt2Val.hasNext()) {
-            LOG.info(String.format(" Match found for Manual Dataset Item: %s ", e.getKey()));
-            // Deep compare
-            TimeSeriesData.TSAccum tsAccum2 = pt2Val.next();
-            if (!accum.toByteString().equals(tsAccum2.toByteString())) {
-
-              LOG.info(
-                  String.format(
-                      " Deep check failed with key %s manual value as accum 1 and pipeline value as accum  \n %s ",
-                      e.getKey(), TSAccums.debugDetectOutputDiffBetweenTwoAccums(accum, tsAccum2)));
-            }
-
-            // If match found then no need to check for pipeline object
-            return;
-
-          } else {
-            LOG.info(
-                String.format(
-                    " No match found for Manual Dataset Item: %s  window %s Accum %s",
-                    e.getKey(), w, accum.toString()));
-          }
-        }
-        // We will only be hear if there was no Manual pipeline option
-        for (TimeSeriesData.TSAccum accum : e.getValue().getAll(pipelineOutput)) {
-          LOG.info(
-              String.format(
-                  " No match found for Pipline Item: %s window %s Accum %s",
-                  e.getKey(), w, accum.toString()));
-        }
-      }
-    }
-  }
-
-  private static Map<String, List<TimeSeriesData.TSAccum>> generateKeyMap(
-      List<TimeSeriesData.TSAccum> accums) {
-
-    Map<String, List<TimeSeriesData.TSAccum>> keyMap = new HashMap<>();
-
-    // Seperate all keys
-    for (TimeSeriesData.TSAccum accum : accums) {
-      String key = TSAccums.getTSAccumMajorMinorKeyAsString(accum);
-
-      if (keyMap.containsKey(key)) {
-
-        keyMap.get(key).add(accum);
-
-      } else {
-        keyMap.put(key, new ArrayList<>());
-        keyMap.get(key).add(accum);
-      }
-    }
-
-    return keyMap;
   }
 }

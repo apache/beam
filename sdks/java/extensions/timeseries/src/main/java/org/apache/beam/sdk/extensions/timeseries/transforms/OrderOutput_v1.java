@@ -38,25 +38,11 @@ import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData.TSAccum;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.ReadableState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -72,12 +58,12 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("serial")
 @Experimental
-public class OrderOutput
+public class OrderOutput_v1
     extends PTransform<
         PCollection<KV<TimeSeriesData.TSKey, TSAccum>>,
         PCollection<KV<TimeSeriesData.TSKey, TSAccum>>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(OrderOutput.class);
+  private static final Logger LOG = LoggerFactory.getLogger(OrderOutput_v1.class);
 
   @Override
   public PCollection<KV<TimeSeriesData.TSKey, TSAccum>> expand(
@@ -109,10 +95,12 @@ public class OrderOutput
   }
 
   /**
-   * When a new key is seen (state == null) for the first time, we will create a timer that loops
-   * until the TTL set in configuration has passed. In-between timers firing, we will add all new
-   * elements to a List. lets have 3 elements coming in at various time and then there is NULL for
-   * forth time slice [t1,t2,t3, NULL] t1 arrives and we set timer to fire at t1.
+   * When a new key is seen (state == null) for the first time, we will create a timer to fire in
+   * the next window boundary. If this is not the first time the key is seen we check the ttl to see
+   * if a new timer is required. In-between timers firing, we will add all new elements to a List.
+   * lets have 3 elements coming in at various time and then there is NULL for forth time slice
+   * [t1,t2,t3, NULL] t1 arrives and we set timer to fire at t1.plus(downsample duration + fixed
+   * offset).
    *
    * <p>Then we have state.set(t1). t2 arrives and we add t1 to t2 as the previous value and we
    * output the value state.set(t2)
@@ -121,6 +109,10 @@ public class OrderOutput
    *
    * <p>at time 4 we have no entry, here we use the last known state which is t3 and we change the
    * time values.
+   *
+   * <p>NOTE: Need to see if this is really needed In case there is more than one element arriving
+   * before the timer fires, we will also hold a List of elements If the list of elements is greater
+   * than 0 then we loop through the core logic until the list is exhausted.
    */
   @Experimental
   public static class GetPreviousData
@@ -142,7 +134,6 @@ public class OrderOutput
     private final StateSpec<BagState<TSAccum>> newElementsBag =
         StateSpecs.bag(ProtoCoder.of(TSAccum.class));
     /*
-        Not supported in all runners
         @StateId("processedTimeSeriesMap")
         private final StateSpec<MapState<Long,TSAccum>> processedTimeSeriesMap =
             StateSpecs.map(BigEndianLongCoder.of(), ProtoCoder.of(TSAccum.class));
@@ -164,8 +155,7 @@ public class OrderOutput
 
     /**
      * This is the simple path... A new element is here so we add it to the list of elements and set
-     * a timer. As order is not guaranteed in a global window, we will need to ensure that we do not
-     * rest the timer if the elements timestamp is > the current timer.
+     * a timer
      */
     @ProcessElement
     public void processElement(
@@ -197,17 +187,24 @@ public class OrderOutput
     /**
      * This one is a little more complex...
      *
-     * <p>There are two activities that happen in the OnTimer event
+     * <p>In terms of timers, first we need to see if there are no new Accums, If not we check the
+     * last heartbeat accum value and see if the current time minus time of last Accum is greater
+     * than the max TTL We also now set the previous values into the current value.
      *
-     * <p>- Processing All current TSAccums in the BagState are read, ordered and added to the
-     * processedTimeseriesList. The first item in the list is added to the the lastKnownValue. As
-     * long as we have not exceeded the TTL for heartbeats we will set a timer one
-     * downsample.duration away from timer.timestamp()
+     * <pre>On first timer firing:
+     *     - new elements will not be empty, will contain at least one element
+     *     -that we saved there in processElement(); - last known value will be null;
      *
-     * <p>- Output We check to see if a processed TSAccum with
-     * lowerWindowBoundary==timer.timestamp() exists. If it does exist we will set the previous
-     * value to be lastKnownValue and then emit the TSAccum. The lastKnownValue is set to the
-     * current value. If no TSAccum exists then we will emit a heartbeat value.
+     * On any subsequent timer firing:
+     *     - new elements can be empty (if no elements have been
+     *       received since last timer firing), or not empty if there were elements received since
+     *       last timer firing;
+     *     - last known value will not be null because we have seen (and saved) at least one element
+     *       during first timer firing;</pre>
+     *
+     * Processed Accum's are transferred to a processed map where the key is the upper boundary of
+     * the accum. On each Timer firing the value stored for the window is released to the next
+     * stage.
      */
     @OnTimer("alarm")
     public void onTimer(
@@ -220,23 +217,56 @@ public class OrderOutput
         @TimerId("alarm") Timer timer,
         @StateId("lastKnownValue") ValueState<TSAccum> lastKnownValue) {
 
+      TSAccum lastAccum = lastKnownValue.read();
+
       // Check if we have more than one value in our list.
       List<TSAccum> newElements = Lists.newArrayList(newElementsBag.read());
 
-      // Sort the list and then add to processedTimeSeriesList
+      // If there is no items in the list then output the last value with incremented timestamp
+      // Read last value, change timestamp to now(), send output
+      //
+      // On first timer firing there will always be new elements that we saved in the state
+      // in processElement()
       if (!newElements.isEmpty()) {
 
-        LOG.debug(
-            "Timer firing at {} with fresh elements starting {} ending {}, Size of newElements list {} ",
-            c.timestamp(),
-            TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
-            TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(newElements.size() - 1)),
-            newElements.size());
+        if (LOG.isDebugEnabled()) {
+          sortByUpperBoundary(newElements);
+          LOG.info(
+              "Timer firing at {} with fresh elements starting {} ending {}",
+              c.timestamp(),
+              TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
+              TSAccums.getTSAccumKeyWithPrettyTimeBoundary(
+                  newElements.get(newElements.size() - 1)));
+        }
+        // If there are items in the list sort them and then process and output each element up to
+        // the boundary of the timer's upper window.
+        // This can be either first or any subsequent timer firing.
+        // Work through all new elements since last timer firing
+
+        LOG.debug("Size of newElements list {} ", newElements.size());
 
         for (TSAccum next : sortByUpperBoundary(newElements)) {
-          addElementToOrderedProcessQueue(processedTimeSeriesList, next);
+
+          //TODO remove gap fill as no longer needed
+          // If there are gaps in the data points then we will fill with heartbeat values.
+          while (lastAccum != null && hasGap(next, lastAccum)) {
+            LOG.debug(
+                "GAP FOUND! upper {} lower {} ",
+                next.getLowerWindowBoundary(),
+                lastAccum.getUpperWindowBoundary());
+
+            TSAccum heartBeat = heartBeat(lastAccum, options);
+            setPreviousWindowValueAndAddToProcessedList(
+                processedTimeSeriesList, heartBeat, lastAccum, c);
+            lastAccum = heartBeat;
+          }
+
+          setPreviousWindowValueAndAddToProcessedList(processedTimeSeriesList, next, lastAccum, c);
+          lastAccum = next;
         }
       }
+
+      lastKnownValue.write(lastAccum);
 
       newElementsBag.clear();
 
@@ -245,6 +275,9 @@ public class OrderOutput
 
       // Check if this timer has already passed the time to live duration since the last call.
       if (withinTtl(lastTimestampLowerBoundary.read(), c.timestamp(), options)) {
+        LOG.debug(
+            "Setting timer in OnTimer Code {} Found Accums Outside time boundary {} ",
+            c.timestamp());
         resetTimer(timer, currentTimerValue, options.downSampleDuration());
       } else {
         currentTimerValue.clear();
@@ -252,70 +285,6 @@ public class OrderOutput
     }
   }
 
-  /**
-   * Not all runners support MapState yet, we will use a ValueState as interim method. Replace once
-   * MapState becomes available.
-   *
-   * @param processedTimeSeriesList
-   * @param options
-   * @param lastAccumState
-   * @param context
-   */
-  //TODO This does not follow best practice patterns as it does a
-  //read-modify-write with what could be a large list
-  private static void emitTSFromProcessedList(
-      ValueState<List<TSAccum>> processedTimeSeriesList,
-      TSConfiguration options,
-      ValueState<TSAccum> lastAccumState,
-      DoFn.OnTimerContext context) {
-
-    TSAccum lastValue = lastAccumState.read();
-    List<TSAccum> processedTSAccums = processedTimeSeriesList.read();
-
-    // If the lastAccum is Null this is the first time the Key has fired a timer.
-    // There will always be a value in the list for this situation
-    if (lastValue == null) {
-      TSAccum output = processedTSAccums.get(0);
-      outputAccum(output, context, lastAccumState);
-      removeFirstValueFromList(processedTSAccums, processedTimeSeriesList);
-      return;
-    }
-
-    // If the list is empty then we emit a heartbeat timestamp
-    if (processedTSAccums == null) {
-      TSAccum heartBeat = heartBeat(lastValue, options);
-      outputAccum(heartBeat, context, lastAccumState);
-      return;
-    }
-
-    TSAccum output = processedTSAccums.get(0);
-
-    if (toMillis(output.getLowerWindowBoundary()) < context.timestamp().getMillis()) {
-      throw new IllegalStateException(
-          String.format(
-              "The first value in the list %s is smaller than our Timer. %s",
-              toMillis(output.getLowerWindowBoundary()), context.timestamp().getMillis()));
-    }
-
-    // If the list is not empty and the first value timestamp is > current timestamp then emit HB
-
-    if (toMillis(output.getLowerWindowBoundary()) > context.timestamp().getMillis()) {
-      TSAccum heartBeat = heartBeat(lastValue, options);
-      outputAccum(heartBeat, context, lastAccumState);
-      return;
-    }
-
-    // As the timestamp of the value in the Que matches our timestamp emit with previous value attached.
-    // When saving back to lastAccum, use the original object
-
-    TSAccum outputWithPrevious = setPreviousWindowValue(output, lastValue, context);
-
-    context.outputWithTimestamp(
-        KV.of(outputWithPrevious.getKey(), outputWithPrevious), context.timestamp());
-    lastAccumState.write(output);
-
-    removeFirstValueFromList(processedTSAccums, processedTimeSeriesList);
-  }
   // reset the timer
   private static void resetTimer(
       Timer timer, ValueState<Long> currentTimerValue, Duration duration) {
@@ -348,7 +317,7 @@ public class OrderOutput
 
   // Set the value for the highest observed timestamp , this will be used to check the TTL on the timer
   public static void setHighestTimestamp(
-      ValueState<Long> lastTimestampLowerBoundary, com.google.protobuf.Timestamp timestamp) {
+      ValueState<Long> lastTimestampLowerBoundary, Timestamp timestamp) {
 
     Long obeservedTimestamp = Timestamps.toMillis(timestamp);
 
@@ -394,7 +363,6 @@ public class OrderOutput
       heartBeat = accum.toBuilder().clearDataAccum().clearFirstTimeStamp().clearLastTimeStamp();
     }
 
-    heartBeat.setPreviousWindowValue(accum);
     heartBeat.putMetadata(TSConfiguration.HEARTBEAT, "");
     heartBeat.setLowerWindowBoundary(accum.getUpperWindowBoundary());
     heartBeat.setUpperWindowBoundary(
@@ -438,8 +406,16 @@ public class OrderOutput
     return new Instant(toMillis(timestamp));
   }
 
-  private static void addElementToOrderedProcessQueue(
-      ValueState<List<TSAccum>> processedTimeSeriesList, TSAccum current) {
+  private static void setPreviousWindowValueAndAddToProcessedList(
+      ValueState<List<TSAccum>> processedTimeSeriesList,
+      TSAccum current,
+      @Nullable TSAccum prev,
+      DoFn.OnTimerContext context) {
+
+    TSAccum output =
+        (prev == null) ? current : current.toBuilder().setPreviousWindowValue(prev).build();
+
+    checkAccumState(output, context.timestamp());
 
     List<TSAccum> accumList = processedTimeSeriesList.read();
 
@@ -447,46 +423,11 @@ public class OrderOutput
       accumList = new ArrayList<>();
     }
 
-    accumList.add(current);
+    accumList.add(output);
 
     processedTimeSeriesList.write(accumList);
   }
 
-  private static TSAccum setPreviousWindowValue(
-      TSAccum current, @Nullable TSAccum prev, DoFn.OnTimerContext context) {
-
-    TSAccum output =
-        (prev == null) ? current : current.toBuilder().setPreviousWindowValue(prev).build();
-
-    checkAccumState(output, context.timestamp());
-
-    return output;
-  }
-
-  private static void outputAccum(
-      TSAccum accum, DoFn.OnTimerContext context, ValueState<TSAccum> lastAccum) {
-
-    context.outputWithTimestamp(KV.of(accum.getKey(), accum), context.timestamp());
-    if (accum.hasPreviousWindowValue()) {
-      lastAccum.write(accum.toBuilder().clearPreviousWindowValue().build());
-    } else {
-      lastAccum.write(accum);
-    }
-  }
-
-  private static void removeFirstValueFromList(
-      List<TSAccum> list, ValueState<List<TSAccum>> state) {
-
-    list.remove(0);
-
-    if (list.isEmpty()) {
-      list.clear();
-    } else {
-      state.write(list);
-    }
-  }
-
-  // ------- StateMap note available in all runners yet
   private static void setPreviousWindowValueAndAddToProcessedMap(
       MapState<Long, TSAccum> processedTimeSeriesMap,
       TSAccum current,
@@ -499,6 +440,52 @@ public class OrderOutput
     checkAccumState(output, context.timestamp());
 
     processedTimeSeriesMap.put(Timestamps.toMillis(output.getLowerWindowBoundary()), output);
+  }
+
+  /**
+   * Not all runners support MapState yet, we will use a BagState as interim method. TODO This does
+   * not follow best practice patterns as it does a read-modify-write with TODO what could be a
+   * large list. Replace once MapState becomes available.
+   *
+   * @param processedTimeSeriesList
+   * @param options
+   * @param lastAccum
+   * @param context
+   */
+  private static void emitTSFromProcessedList(
+      ValueState<List<TSAccum>> processedTimeSeriesList,
+      TSConfiguration options,
+      ValueState<TSAccum> lastAccum,
+      DoFn.OnTimerContext context) {
+
+    List<TSAccum> processedTSAccums = processedTimeSeriesList.read();
+
+    // If the list is empty then we emit a heartbeat timestamp
+    if (processedTSAccums == null) {
+      TSAccum heartBeat = heartBeat(lastAccum.read(), options);
+      context.outputWithTimestamp(KV.of(heartBeat.getKey(), heartBeat), context.timestamp());
+      lastAccum.write(heartBeat);
+      return;
+    }
+
+    // As the que is not empty the first value we ready from it should match out Timers time
+
+    TSAccum output = processedTSAccums.get(0);
+
+    if (toMillis(output.getLowerWindowBoundary()) != context.timestamp().getMillis()) {
+      throw new IllegalStateException(
+          "The first value in the state list does not match our Timer.");
+    }
+
+    context.outputWithTimestamp(KV.of(output.getKey(), output), context.timestamp());
+
+    processedTSAccums.remove(0);
+
+    if (processedTSAccums.isEmpty()) {
+      processedTimeSeriesList.clear();
+    } else {
+      processedTimeSeriesList.write(processedTSAccums);
+    }
   }
 
   /**

@@ -53,6 +53,12 @@ public abstract class TSConfiguration implements Serializable {
   // fillOption is set to anything other than NONE.
   public abstract Duration timeToLive();
 
+  public abstract Boolean backPadSequencedOutput();
+
+  public abstract Boolean discardIncompleteSequences();
+
+  public abstract Boolean forwardPadSequencedOutput();
+
   abstract Builder toBuilder();
 
   public static TSConfiguration.Builder builder() {
@@ -68,6 +74,12 @@ public abstract class TSConfiguration implements Serializable {
     public abstract Builder downSampleDuration(Duration downSampleDuration);
 
     public abstract Builder timeToLive(Duration timeToLive);
+
+    public abstract Builder discardIncompleteSequences(Boolean discardIncompleteSequences);
+
+    public abstract Builder backPadSequencedOutput(Boolean backPadSequencedOutput);
+
+    public abstract Builder forwardPadSequencedOutput(Boolean forwardPadSequencedOutput);
 
     public abstract TSConfiguration build();
   }
@@ -94,6 +106,12 @@ public abstract class TSConfiguration implements Serializable {
             Optional.ofNullable(timeSeriesOptions.getFillOption()).orElse("NONE")));
 
     configuration.timeToLive(Duration.millis(timeSeriesOptions.getTimeToLiveMillis()));
+
+    configuration.backPadSequencedOutput(timeSeriesOptions.getBackPadSequencedOutput());
+
+    configuration.forwardPadSequencedOutput(timeSeriesOptions.getForwardPadSequencedOutput());
+
+    configuration.discardIncompleteSequences(timeSeriesOptions.getDiscardIncompleteSequences());
 
     return configuration.build();
   }

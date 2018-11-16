@@ -176,10 +176,6 @@ include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
-<<<<<<< HEAD
-include "beam-sdks-java-extensions-timeseries"
-project(":beam-sdks-java-extensions-timeseries").dir = file("sdks/java/extensions/timeseries")
-=======
 include "beam-website"
 project(":beam-website").dir = file("website")
 include "beam-runners-google-cloud-dataflow-java-legacy-worker"
@@ -188,4 +184,5 @@ include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
 project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
 include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
->>>>>>> fc738ab9ac7fdbc8ac561e580b1a557b919437d0
+include "beam-sdks-java-extensions-timeseries"
+project(":beam-sdks-java-extensions-timeseries").dir = file("sdks/java/extensions/timeseries")

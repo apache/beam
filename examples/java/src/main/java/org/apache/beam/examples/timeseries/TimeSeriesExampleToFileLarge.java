@@ -26,10 +26,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.timeseries.FileSinkTimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
-import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData.TSAccum;
 import org.apache.beam.sdk.extensions.timeseries.transforms.*;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
-import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSDatas;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSMultiVariateDataPoints;
 import org.apache.beam.sdk.io.Compression;
@@ -44,22 +42,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * This example pipeline is used to illustrate an advanced use of Keyed state and timers. The
- * pipeline extracts interesting information from timeseries data. One of the key elements, is the
- * transfer of data between fixed windows for a given key, as well as backfill when a key does not
- * have any new data within a time boundary. This sample should not be used in production.
- *
- * <p>The generated data is 5 identical waves with keys {Sin-1...Sin-5}, each data point has two
- * values {x,y}. x increments by 1 starting from 0 with a missed value in the series. { 0 .. 19 } -
- * {10} y is a simple f(x). The timestamp of the elements starts at 2018-01-01T00:00Z and increments
- * one sec for each x.
- *
- * <p>The output of this pipeline is to a File path, Using the format defined in
- * FeatureDirectoryFileNaming. Even though the aggregations for the x values are are of little value
- * as output, it is processed as part of this demo as it is useful when eyeballing the results.
- */
-public class TimeSeriesExampleToFile {
+/** This pipeline is a functional copy of TimeSeriesExampleToFile, with larger data output size. */
+public class TimeSeriesExampleToFileLarge {
 
   public static void main(String[] args) {
 
@@ -67,11 +51,9 @@ public class TimeSeriesExampleToFile {
     FileSinkTimeSeriesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(FileSinkTimeSeriesOptions.class);
 
-    options.setDownSampleDurationMillis(1000L);
-    options.setTimeToLiveMillis(60000L);
+    options.setDownSampleDurationMillis(5000L);
+    options.setTimeToLiveMillis(0L);
     options.setFillOption(TSConfiguration.BFillOptions.LAST_KNOWN_VALUE.name());
-    options.setForwardPadSequencedOutput(true);
-    options.setBackPadSequencedOutput(true);
 
     Pipeline p = Pipeline.create(options);
 
@@ -89,23 +71,10 @@ public class TimeSeriesExampleToFile {
         readL1Data.apply(new ExtractAggregates());
 
     PCollection<KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>> weHaveOrder =
+        //downSampled.apply(new OrderOutput());
         downSampled.apply(new OrderOutput());
 
-    // ------------ OutPut Data as Logs in TFRecord format --------
-
-    // This transform is purely to allow logged debug output, it will fail with OOM if a large dataset is used.
-    weHaveOrder.apply(new DebugSortedResult());
-
-    // Output raw values
-    weHaveOrder.apply(
-        FileIO.<String, KV<TimeSeriesData.TSKey, TimeSeriesData.TSAccum>>writeDynamic()
-            .by(x -> TSAccums.getTSAccumKeyMillsTimeBoundary(x.getValue()))
-            .withDestinationCoder(StringUtf8Coder.of())
-            .withNaming(FeatureDirectoryFileNaming::new)
-            .via(
-                Contextful.fn(new TimeSeriesExampleToFile.TSAccumToExampleByteFn()),
-                TFRecordIO.sink())
-            .to(options.getFileSinkDirectory() + "/tf/raw/tfExamplerecords"));
+    // ------------ OutPut Data as Logs and TFRecords--------
 
     weHaveOrder
         .apply(new TSAccumToFixedWindowSeq(Duration.standardMinutes(1)))
@@ -116,7 +85,8 @@ public class TimeSeriesExampleToFile {
                 .withDestinationCoder(StringUtf8Coder.of())
                 .withNaming(FeatureDirectoryFileNaming::new)
                 .via(
-                    Contextful.fn(new TimeSeriesExampleToFile.TSAccumSequenceToExampleByteFn()),
+                    Contextful.fn(
+                        new TimeSeriesExampleToFileLarge.TSAccumSequenceToExampleByteFn()),
                     TFRecordIO.sink())
                 .to(options.getFileSinkDirectory() + "/tf/1min/tfSequence"));
 
@@ -138,43 +108,25 @@ public class TimeSeriesExampleToFile {
 
         Instant now = Instant.parse("2018-01-01T00:00Z");
 
-        for (int i = 0; i < 120; i++) {
+        for (int i = 0; i < 3600; i++) {
 
-          if (!(i % 10 == 0)) {
+          Instant dataPointTimeStamp = now.plus(Duration.standardSeconds(i));
 
-            Instant dataPointTimeStamp = now.plus(Duration.standardSeconds(i));
+          y = (yBase - Math.sin(Math.toRadians(i)) * scale);
 
-            y = (yBase - Math.sin(Math.toRadians(i)) * scale);
+          TimeSeriesData.TSMultiVariateDataPoint mvts =
+              TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
+                  .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
+                  .putData("x", TSDatas.createData(i))
+                  .putData("y", TSDatas.createData(y))
+                  .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
+                  .build();
 
-            TimeSeriesData.TSMultiVariateDataPoint mvts =
-                TimeSeriesData.TSMultiVariateDataPoint.newBuilder()
-                    .setKey(TimeSeriesData.TSKey.newBuilder().setMajorKey("Sin-" + k).build())
-                    .putData("x", TSDatas.createData(i))
-                    .putData("y", TSDatas.createData(y))
-                    .setTimestamp(Timestamps.fromMillis(dataPointTimeStamp.getMillis()))
-                    .build();
-
-            dataPoints.add(mvts);
-          }
+          dataPoints.add(mvts);
         }
       }
 
       return dataPoints;
-    }
-  }
-
-  static class TSAccumToExampleByteFn
-      implements SerializableFunction<KV<TimeSeriesData.TSKey, TSAccum>, byte[]> {
-
-    @Override
-    public byte[] apply(KV<TimeSeriesData.TSKey, TSAccum> element) {
-      byte[] returnVal;
-      try {
-        returnVal = TSAccums.getExampleFromAccum(element.getValue()).toByteArray();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-      return returnVal;
     }
   }
 

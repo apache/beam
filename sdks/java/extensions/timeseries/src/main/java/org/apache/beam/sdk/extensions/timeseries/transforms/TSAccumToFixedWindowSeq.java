@@ -22,12 +22,13 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
-import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.timeseries.TimeSeriesOptions;
 import org.apache.beam.sdk.extensions.timeseries.configuration.TSConfiguration;
 import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData;
+import org.apache.beam.sdk.extensions.timeseries.protos.TimeSeriesData.TSAccum;
+import org.apache.beam.sdk.extensions.timeseries.utils.TSAccumSequences;
 import org.apache.beam.sdk.extensions.timeseries.utils.TSAccums;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -42,7 +43,24 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Converts a series of TSAccum into a TSAccumSequence. */
+/**
+ * Converts a series of TSAccum into a TSAccumSequence. It is possible for the number of TSAccums to
+ * be smaller than expected for a Fixed length window. This can happen in two situations: 1 - The
+ * first time this key was seen was past the lower window boundary 2 - The time to live value was
+ * set lower than the difference between the last value seen and the upper window boundary. Based on
+ * various options this can either be ignored or corrected.
+ *
+ * <p>DiscardIncompleteSequences
+ *
+ * <p>ForwardPadSequenceOutput
+ *
+ * <p>BackPadSequenceOutput.
+ *
+ * <p>In the current version the sequence length % the downsample size must == 0
+ *
+ * <p>When doing backfill, it is important to note that the first value in the seq will not have the
+ * value of previous window set.
+ */
 @Experimental
 public class TSAccumToFixedWindowSeq
     extends PTransform<
@@ -51,7 +69,6 @@ public class TSAccumToFixedWindowSeq
 
   private static final Logger LOG = LoggerFactory.getLogger(TSAccumToFixedWindowSeq.class);
 
-  TSConfiguration configuration;
   private Duration fixedWindowDuration;
 
   public TSAccumToFixedWindowSeq(Duration fixedWindowDuration) {
@@ -83,74 +100,61 @@ public class TSAccumToFixedWindowSeq
                     options =
                         TSConfiguration.createConfigurationFromOptions(
                             c.getPipelineOptions().as(TimeSeriesOptions.class));
+                    if (fixedWindowDuration.getMillis() % options.downSampleDuration().getMillis()
+                        != 0) {
+                      throw new IllegalStateException(
+                          String.format(
+                              "FixedWindowDuration %s must be cleanly divisible by DownSampleDuration %s.",
+                              fixedWindowDuration, options.downSampleDuration()));
+                    }
                   }
 
                   @ProcessElement
                   public void processElement(ProcessContext c, IntervalWindow w) {
 
-                    com.google.protobuf.Timestamp lowerBoundary = null;
-                    com.google.protobuf.Timestamp upperBoundary =
-                        com.google.protobuf.Timestamp.newBuilder().build();
+                    // Check valid windows have been set
 
-                    // TODO switch to buffered sorter
+                    long windowStart = w.start().getMillis();
+                    long windowEnd = w.end().getMillis();
+
+                    com.google.protobuf.Timestamp lowerFixedWindowBoundary =
+                        Timestamps.fromMillis(windowStart);
+                    com.google.protobuf.Timestamp upperFixedWindowBoundary =
+                        Timestamps.fromMillis(windowEnd);
 
                     List<TimeSeriesData.TSAccum> list =
                         Lists.newArrayList(c.element().getValue().iterator());
-                    TSAccums.sortByUpperBoundary(list);
+
+                    TSAccumSequences.applySequenceOuputRules(
+                        options,
+                        fixedWindowDuration,
+                        list,
+                        lowerFixedWindowBoundary,
+                        upperFixedWindowBoundary);
 
                     TimeSeriesData.TSAccumSequence.Builder seq =
                         TimeSeriesData.TSAccumSequence.newBuilder();
 
                     seq.setKey(c.element().getKey());
 
-                    TimeSeriesData.TSAccum testPrev = null;
-
-                    for (TimeSeriesData.TSAccum accum : list) {
-
-                      if (lowerBoundary == null) {
-                        lowerBoundary = accum.getLowerWindowBoundary();
-                      } else {
-                        lowerBoundary =
-                            (Timestamps.comparator()
-                                        .compare(lowerBoundary, accum.getLowerWindowBoundary())
-                                    < 0
-                                ? lowerBoundary
-                                : accum.getLowerWindowBoundary());
-                      }
-
-                      upperBoundary =
-                          (Timestamps.comparator()
-                                      .compare(upperBoundary, accum.getUpperWindowBoundary())
-                                  > 0
-                              ? upperBoundary
-                              : accum.getUpperWindowBoundary());
-
-                      if (options.fillOption() != TSConfiguration.BFillOptions.NONE) {
-                        Optional.ofNullable(testPrev)
-                            .ifPresent(
-                                x -> {
-                                  if (Durations.toMillis(
-                                          Timestamps.between(
-                                              x.getUpperWindowBoundary(),
-                                              accum.getLowerWindowBoundary()))
-                                      != 0) {
-
-                                    LOG.warn(
-                                        "Gap detected in sequence but Back Fill Option is not set to NONE");
-                                  }
-                                });
-                      }
-
-                      seq.addAccums(accum);
-                    }
-
-                    if (lowerBoundary == null) {
-                      lowerBoundary = com.google.protobuf.Timestamp.newBuilder().build();
-                    }
-
-                    seq.setLowerWindowBoundary(lowerBoundary);
-                    seq.setUpperWindowBoundary(upperBoundary);
+                    seq.setLowerWindowBoundary(lowerFixedWindowBoundary);
+                    seq.setUpperWindowBoundary(upperFixedWindowBoundary);
                     seq.setDuration(Durations.fromMillis(fixedWindowDuration.getMillis()));
+
+                    seq.addAllAccums(list);
+
+                    if (LOG.isDebugEnabled()) {
+
+                      LOG.info(
+                          "Created Sequence for time lower {} upper {} size {}",
+                          Timestamps.toString(lowerFixedWindowBoundary),
+                          Timestamps.toString(upperFixedWindowBoundary),
+                          seq.getAccumsCount());
+
+                      for (TSAccum a : seq.getAccumsList()) {
+                        LOG.info(TSAccums.getTSAccumKeyWithPrettyTimeBoundary(a));
+                      }
+                    }
 
                     c.output(KV.of(c.element().getKey(), seq.build()));
                   }

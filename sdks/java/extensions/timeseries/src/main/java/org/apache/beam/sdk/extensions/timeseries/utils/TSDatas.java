@@ -183,7 +183,7 @@ public class TSDatas {
     }
   }
 
-  public static Feature getFeatureFromTSDataPoint(TimeSeriesData.Data data) {
+  public static Feature tfFeatureFromTSDataPoint(TimeSeriesData.Data data) {
     Feature.Builder feature = Feature.newBuilder();
 
     switch (data.getDataPointCase()) {
