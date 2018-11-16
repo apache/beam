@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -71,7 +72,9 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     Schema resultType = Schema.builder().addDateTimeField("jodatime").build();
 
     Row row1 =
-        Row.withSchema(resultType).addValues(FORMAT.parseDateTime("2017-01-01 02:04:03")).build();
+        Row.withSchema(resultType)
+            .addValues(parseTimestampWithoutTimeZone("2017-01-01 02:04:03"))
+            .build();
 
     String sql1 = "SELECT MAX_JODA(f_timestamp) as jodatime FROM PCOLLECTION";
     PCollection<Row> result1 =
@@ -80,7 +83,9 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PAssert.that(result1).containsInAnyOrder(row1);
 
     Row row2 =
-        Row.withSchema(resultType).addValues(FORMAT.parseDateTime("2016-12-31 01:01:03")).build();
+        Row.withSchema(resultType)
+            .addValues(parseTimestampWithoutTimeZone("2016-12-31 01:01:03"))
+            .build();
 
     String sql2 = "SELECT PRE_DAY(f_timestamp) as jodatime FROM PCOLLECTION WHERE f_int=1";
     PCollection<Row> result2 =
