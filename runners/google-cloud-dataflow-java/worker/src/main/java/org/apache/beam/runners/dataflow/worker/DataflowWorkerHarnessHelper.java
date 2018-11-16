@@ -59,9 +59,15 @@ public final class DataflowWorkerHarnessHelper {
 
     if (!ec.isEnabled(Experiment.DisableConscryptSecurityProvider)) {
       /* Enable fast SSL provider. */
+      LOG.info(
+          "Dataflow runner uses conscrypt by default for SSL. To disable this feature, "
+              + "pass pipeline option --experiment=disable_conscrypt_security_provider");
       Security.insertProviderAt(new OpenSSLProvider(), 1);
+    } else {
+      LOG.info(
+          "Experiment disable_conscrypt_security_provider specified, disabling conscrypt "
+              + "SSL. Note this is the default Java behavior, but may have reduced performance.");
     }
-
     return pipelineOptions;
   }
 
