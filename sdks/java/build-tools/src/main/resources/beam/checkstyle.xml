@@ -310,6 +310,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
       <property name="checkFormat" value="$1"/>
     </module>
+
+    <module name="ArrayTypeStyle"/>
   </module>
 </module>
 
