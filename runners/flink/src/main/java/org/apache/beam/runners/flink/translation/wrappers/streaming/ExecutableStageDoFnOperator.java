@@ -281,8 +281,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void setCurrentKey(Object key) {
-    // We don't need to set anything, the key is set manually on the state backend
-    // This will be called by HeapInternalTimerService before a timer is fired
+    // We don't need to set anything, the key is set manually on the state backend in
+    // the case of state access. For timers, the key will be extracted from the timer
+    // element, i.e. in HeapInternalTimerService
     if (!usesTimers) {
       throw new UnsupportedOperationException(
           "Current key for state backend can only be set by state requests from SDK workers or when processing timers.");
@@ -292,7 +293,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public Object getCurrentKey() {
     // This is the key retrieved by HeapInternalTimerService when setting a Flink timer
-    return sdkHarnessRunner.getTimerKeyForRegistration();
+    return sdkHarnessRunner.getCurrentTimerKey();
   }
 
   @Override
@@ -310,7 +311,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           e);
     }
     // Prepare the SdkHarnessRunner with the key for the timer
-    sdkHarnessRunner.setTimerKeyForFire(decodedKey);
+    sdkHarnessRunner.setCurrentTimerKey(decodedKey);
     super.fireTimer(timer);
   }
 
@@ -428,11 +429,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
     private Runnable bundleFinishedCallback;
-    // Timer key set before calling Flink's internal timer service. Used to
-    // avoid synchronizing on the state backend.
-    private Object keyForTimerToBeSet;
-    // Set before calling onTimer
-    private Object keyForTimerToBeFired;
+    // Timer key set before calling Flink's internal timer service to register
+    // a timer. The timer service will retrieve this with a call to {@code getCurrentKey}.
+    // Before firing a timer, this will be initialized with the current key
+    // from the timer element.
+    private Object currentTimerKey;
 
     public SdkHarnessDoFnRunner(
         String mainInput,
@@ -505,7 +506,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public void onTimer(
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       Preconditions.checkNotNull(
-          keyForTimerToBeFired, "Key for timer needs to be set before calling onTimer");
+          currentTimerKey, "Key for timer needs to be set before calling onTimer");
       LOG.debug("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
       FnDataReceiver<WindowedValue<?>> timerReceiver =
           Preconditions.checkNotNull(
@@ -514,7 +515,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               timerId);
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
-              KV.of(keyForTimerToBeFired, Timer.of(timestamp, new byte[0])),
+              KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
               timestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
@@ -524,7 +525,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         throw new RuntimeException(
             String.format(Locale.ENGLISH, "Failed to process timer %s", timerReceiver), e);
       } finally {
-        keyForTimerToBeFired = null;
+        currentTimerKey = null;
       }
     }
 
@@ -547,13 +548,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     /** Key for timer which has not been registered yet. */
-    Object getTimerKeyForRegistration() {
-      return keyForTimerToBeSet;
+    Object getCurrentTimerKey() {
+      return currentTimerKey;
     }
 
     /** Key for timer which is about to be fired. */
-    void setTimerKeyForFire(Object key) {
-      this.keyForTimerToBeFired = key;
+    void setCurrentTimerKey(Object key) {
+      this.currentTimerKey = key;
     }
 
     boolean isBundleInProgress() {
@@ -605,12 +606,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     private void setTimer(WindowedValue timerElement, TimerInternals.TimerData timerData) {
       try {
-        keyForTimerToBeSet = keySelector.getKey(timerElement);
+        currentTimerKey = keySelector.getKey(timerElement);
         timerInternals.setTimer(timerData);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't set timer", e);
       } finally {
-        keyForTimerToBeSet = null;
+        currentTimerKey = null;
       }
     }
 
