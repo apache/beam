@@ -26,9 +26,9 @@ public class MetricsPublisher {
   public static void toConsole(PipelineResult result, String namespace) {
     MetricsReader resultMetrics = new MetricsReader(result, namespace);
 
-    long totalBytes = resultMetrics.getCounterMetric("totalBytes.count", -1);
-    long startTime = resultMetrics.getStartTimeMetric(System.currentTimeMillis(), "runtime");
-    long endTime = resultMetrics.getEndTimeMetric(System.currentTimeMillis(), "runtime");
+    long totalBytes = resultMetrics.getCounterMetric("totalBytes.count");
+    long startTime = resultMetrics.getStartTimeMetric("runtime");
+    long endTime = resultMetrics.getEndTimeMetric("runtime");
 
     System.out.println(String.format("Total bytes: %s", totalBytes));
     System.out.println(String.format("Total time (millis): %s", endTime - startTime));

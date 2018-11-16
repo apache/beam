@@ -35,20 +35,29 @@ public class MetricsReader {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(MetricsReader.class);
 
+  private static final int ERRONEOUS_METRIC_VALUE = -1;
+
   private final PipelineResult result;
 
   private final String namespace;
 
-  public MetricsReader(PipelineResult result, String namespace) {
+  private final long now;
+
+  MetricsReader(PipelineResult result, String namespace, long now) {
     this.result = result;
     this.namespace = namespace;
+    this.now = now;
+  }
+
+  public MetricsReader(PipelineResult result, String namespace) {
+    this(result, namespace, System.currentTimeMillis());
   }
 
   /**
-   * Return the current value for a long counter, or a default value if can't be retrieved. Note
-   * this uses only attempted metrics because some runners don't support committed metrics.
+   * Return the current value for a long counter, or -1 if can't be retrieved. Note this uses only
+   * attempted metrics because some runners don't support committed metrics.
    */
-  public long getCounterMetric(String name, long defaultValue) {
+  public long getCounterMetric(String name) {
     MetricQueryResults metrics =
         result
             .metrics()
@@ -66,16 +75,16 @@ public class MetricsReader {
     } catch (NoSuchElementException e) {
       LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
     }
-    return defaultValue;
+    return ERRONEOUS_METRIC_VALUE;
   }
 
   /**
    * Return start time metric by counting the difference between "now" and min value from a
    * distribution metric.
    */
-  public long getStartTimeMetric(long now, String name) {
+  public long getStartTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
-    return this.getTimestampMetric(now, getLowestMin(timeDistributions.iterator()));
+    return checkCredibility(getLowestMin(timeDistributions.iterator()));
   }
 
   private Long getLowestMin(Iterator<MetricResult<DistributionResult>> distributions) {
@@ -83,7 +92,7 @@ public class MetricsReader {
 
     while (distributions.hasNext()) {
       long min = distributions.next().getAttempted().getMin();
-      
+
       if (lowestMin == null || min < lowestMin) {
         lowestMin = min;
       }
@@ -96,9 +105,9 @@ public class MetricsReader {
    * Return end time metric by counting the difference between "now" and MAX value from a
    * distribution metric.
    */
-  public long getEndTimeMetric(long now, String name) {
+  public long getEndTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
-    return this.getTimestampMetric(now, getGreatestMax(timeDistributions.iterator()));
+    return checkCredibility(getGreatestMax(timeDistributions.iterator()));
   }
 
   private Long getGreatestMax(Iterator<MetricResult<DistributionResult>> distributions) {
@@ -139,12 +148,11 @@ public class MetricsReader {
   }
 
   /** Return the current value for a time counter, or -1 if can't be retrieved. */
-  private long getTimestampMetric(long now, long value) {
+  private long checkCredibility(long value) {
     // timestamp metrics are used to monitor time of execution of transforms.
     // If result timestamp metric is too far from now, consider that metric is erroneous
-
     if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
-      return -1;
+      return ERRONEOUS_METRIC_VALUE;
     }
     return value;
   }

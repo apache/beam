@@ -54,7 +54,7 @@ public class MetricsReaderTest {
 
     MetricsReader reader = new MetricsReader(result, NAMESPACE);
 
-    assertEquals(5, reader.getCounterMetric("counter", -1));
+    assertEquals(5, reader.getCounterMetric("counter"));
   }
 
   @Test
@@ -64,10 +64,9 @@ public class MetricsReaderTest {
     createTestPipelineWithBranches(sampleInputData);
 
     PipelineResult result = testPipeline.run();
-    MetricsReader reader = new MetricsReader(result, NAMESPACE);
-    assertEquals(1, reader.getStartTimeMetric(0, "timeDist"));
+    MetricsReader reader = new MetricsReader(result, NAMESPACE, 0);
+    assertEquals(1, reader.getStartTimeMetric("timeDist"));
   }
-
 
   @Test
   public void testEndTimeIsTheMaximumOfAllCollectedDistributions() {
@@ -76,17 +75,20 @@ public class MetricsReaderTest {
     createTestPipelineWithBranches(sampleInputData);
 
     PipelineResult result = testPipeline.run();
-    MetricsReader reader = new MetricsReader(result, NAMESPACE);
-    assertEquals(10, reader.getEndTimeMetric(0, "timeDist"));
+    MetricsReader reader = new MetricsReader(result, NAMESPACE, 0);
+    assertEquals(10, reader.getEndTimeMetric("timeDist"));
   }
 
-  /** Branching pipelines ensure that multiple metric results of the same name are created.
-   * Thanks to that it is possible to test if MetricsReader can collect metrics in such case. */
+  /**
+   * Branching pipelines ensure that multiple metric results of the same name are created. Thanks to
+   * that it is possible to test if MetricsReader can collect metrics in such case.
+   */
   private void createTestPipelineWithBranches(List<Integer> sampleInputData) {
     PCollection<Integer> inputData = testPipeline.apply(Create.of(sampleInputData));
     inputData.apply("Monitor #1", ParDo.of(new MonitorWithTimeDistribution()));
 
-    inputData.apply("Multiply input", MapElements.via(new MultiplyElements()))
+    inputData
+        .apply("Multiply input", MapElements.via(new MultiplyElements()))
         .apply("Monitor #2", ParDo.of(new MonitorWithTimeDistribution()));
   }
 
@@ -94,7 +96,7 @@ public class MetricsReaderTest {
   public void doesntThrowIllegalStateExceptionWhenThereIsNoMetricFound() {
     PipelineResult result = testPipeline.run();
     MetricsReader reader = new MetricsReader(result, NAMESPACE);
-    reader.getCounterMetric("nonexistent", -1);
+    reader.getCounterMetric("nonexistent");
   }
 
   @Test
@@ -104,10 +106,10 @@ public class MetricsReaderTest {
     createTestPipeline(sampleInputData, new MonitorWithTimeDistribution());
     PipelineResult result = testPipeline.run();
 
-    MetricsReader reader = new MetricsReader(result, NAMESPACE);
+    MetricsReader reader = new MetricsReader(result, NAMESPACE, 900000000001L);
 
-    assertEquals(-1, reader.getStartTimeMetric(900000000001L, "timeDist"));
-    assertEquals(-1, reader.getEndTimeMetric(900000000001L, "timeDist"));
+    assertEquals(-1, reader.getStartTimeMetric("timeDist"));
+    assertEquals(-1, reader.getEndTimeMetric("timeDist"));
   }
 
   private void createTestPipeline(List<Integer> sampleInputData, DoFn<Integer, Integer> monitor) {
