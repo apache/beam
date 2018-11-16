@@ -22,7 +22,7 @@ description = "Apache Beam :: Vendored Dependencies :: Java :: gRPC :: v1"
 ext.summary = "Add support to Apache Beam for Vendored gRPC V1."
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure(project))
+applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure())
 
 // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
 // because we would like to have the freedom to choose which versions of dependencies we
@@ -31,6 +31,6 @@ configurations.all { config ->
   config.resolutionStrategy { forcedModules = []}
 }
 
-dependencies GrpcVendoring.dependenciesClosure(project)
+dependencies GrpcVendoring.dependenciesClosure()
 
 // TODO(BEAM-4544): Integrate intellij support into this.
