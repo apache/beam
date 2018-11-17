@@ -55,7 +55,7 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
 # TODO(BEAM-5393): End duplicated constants (see above).
 
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):
