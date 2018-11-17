@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
@@ -45,9 +46,6 @@ public final class DataflowWorkerHarnessHelper {
 
   public static DataflowWorkerHarnessOptions initializeGlobalStateAndPipelineOptions(
       Class<?> workerHarnessClass) throws Exception {
-    /* Enable fast SSL provider. */
-    Security.insertProviderAt(new OpenSSLProvider(), 1);
-
     /* Extract pipeline options. */
     DataflowWorkerHarnessOptions pipelineOptions =
         WorkerPipelineOptionsFactory.createFromSystemProperties();
@@ -57,6 +55,19 @@ public final class DataflowWorkerHarnessHelper {
     DataflowWorkerLoggingMDC.setJobId(pipelineOptions.getJobId());
     DataflowWorkerLoggingMDC.setWorkerId(pipelineOptions.getWorkerId());
 
+    ExperimentContext ec = ExperimentContext.parseFrom(pipelineOptions);
+
+    if (!ec.isEnabled(Experiment.DisableConscryptSecurityProvider)) {
+      /* Enable fast SSL provider. */
+      LOG.info(
+          "Dataflow runner uses conscrypt by default for SSL. To disable this feature, "
+              + "pass pipeline option --experiment=disable_conscrypt_security_provider");
+      Security.insertProviderAt(new OpenSSLProvider(), 1);
+    } else {
+      LOG.info(
+          "Experiment disable_conscrypt_security_provider specified, disabling conscrypt "
+              + "SSL. Note this is the default Java behavior, but may have reduced performance.");
+    }
     return pipelineOptions;
   }
 
