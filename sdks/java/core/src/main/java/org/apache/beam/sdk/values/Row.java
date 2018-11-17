@@ -346,13 +346,126 @@ public abstract class Row implements Serializable {
       return false;
     }
     Row other = (Row) o;
-    return Objects.equals(getSchema(), other.getSchema())
-        && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
+
+    if (!Objects.equals(getSchema(), other.getSchema())) {
+      return false;
+    }
+
+    for (int i = 0; i < getFieldCount(); i++) {
+      if (!Equals.deepEquals(getValue(i), other.getValue(i), getSchema().getField(i).getType())) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode() {
-    return Arrays.deepHashCode(new Object[] {getSchema(), getValues().toArray()});
+    int h = 1;
+    for (int i = 0; i < getFieldCount(); i++) {
+      h = 31 * h + Equals.deepHashCode(getValue(i), getSchema().getField(i).getType());
+    }
+
+    return h;
+  }
+
+  static class Equals {
+    static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
+      if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
+        return Arrays.equals((byte[]) a, (byte[]) b);
+      } else if (fieldType.getTypeName() == Schema.TypeName.ARRAY) {
+        return deepEqualsForList(
+            (List<Object>) a, (List<Object>) b, fieldType.getCollectionElementType());
+      } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
+        return deepEqualsForMap(
+            (Map<Object, Object>) a, (Map<Object, Object>) b, fieldType.getMapValueType());
+      } else {
+        return Objects.equals(a, b);
+      }
+    }
+
+    static int deepHashCode(Object a, Schema.FieldType fieldType) {
+      if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
+        return Arrays.hashCode((byte[]) a);
+      } else if (fieldType.getTypeName() == Schema.TypeName.ARRAY) {
+        return deepHashCodeForList((List<Object>) a, fieldType.getCollectionElementType());
+      } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
+        return deepHashCodeForMap(
+            (Map<Object, Object>) a, fieldType.getMapKeyType(), fieldType.getMapValueType());
+      } else {
+        return Objects.hashCode(a);
+      }
+    }
+
+    static <K, V> boolean deepEqualsForMap(Map<K, V> a, Map<K, V> b, Schema.FieldType valueType) {
+      if (a == b) {
+        return true;
+      }
+
+      if (a.size() != b.size()) {
+        return false;
+      }
+
+      for (Map.Entry<K, V> e : a.entrySet()) {
+        K key = e.getKey();
+        V value = e.getValue();
+        V otherValue = b.get(key);
+
+        if (value == null) {
+          if (otherValue != null || !b.containsKey(key)) {
+            return false;
+          }
+        } else {
+          if (!deepEquals(value, otherValue, valueType)) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    }
+
+    static int deepHashCodeForMap(
+        Map<Object, Object> a, Schema.FieldType keyType, Schema.FieldType valueType) {
+      int h = 0;
+
+      for (Map.Entry<Object, Object> e : a.entrySet()) {
+        Object key = e.getKey();
+        Object value = e.getValue();
+
+        h += deepHashCode(key, keyType) ^ deepHashCode(value, valueType);
+      }
+
+      return h;
+    }
+
+    static boolean deepEqualsForList(List<Object> a, List<Object> b, Schema.FieldType elementType) {
+      if (a == b) {
+        return true;
+      }
+
+      if (a.size() != b.size()) {
+        return false;
+      }
+
+      for (int i = 0; i < a.size(); i++) {
+        if (!deepEquals(a.get(i), b.get(i), elementType)) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    static int deepHashCodeForList(List<Object> a, Schema.FieldType elementType) {
+      int h = 1;
+      for (int i = 0; i < a.size(); i++) {
+        h = 31 * h + deepHashCode(a.get(i), elementType);
+      }
+
+      return h;
+    }
   }
 
   @Override
