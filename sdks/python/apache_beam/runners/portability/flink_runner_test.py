@@ -65,6 +65,11 @@ if __name__ == '__main__':
     _use_grpc = True
     _use_subprocesses = True
 
+    def tearDown(self):
+      print('###teardDown')
+      #if platform.system() != 'Windows':
+      #  signal.alarm(0)
+
     @classmethod
     def _subprocess_command(cls, port):
       tmp_dir = tempfile.mkdtemp(prefix='flinktest')
