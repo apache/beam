@@ -227,6 +227,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerConfig
     // Number of parallel test runs.
     Integer parallelism = 1
+    // Extra options to pass to TestPipeline
+    String[] pipelineOpts = []
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -1475,11 +1477,9 @@ artifactId=${project.name}
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
-        "--environmentCacheMillis=10000",
-        // TODO Create two tasks to run for both batch and streaming:
-        // https://issues.apache.org/jira/browse/BEAM-6009
-        // "--streaming"
+        "--environmentCacheMillis=10000"
       ]
+      beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
