@@ -179,7 +179,7 @@ Run query **N**:
 
     --query=N
 
-Run query called **PASSTROUGH**:
+Run query called **PASSTHROUGH**:
 
     --query=PASSTHROUGH
 
