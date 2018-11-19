@@ -103,3 +103,4 @@ As pipelines grow and evolve, it is useful to structure your pipeline into modul
 
 ## Summary
 Although it's tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.
+.
