@@ -503,7 +503,8 @@ public class DoFnOperatorTest {
             WindowedValue.of(
                 KV.of("key2", 7 + offset), new Instant(3), window1, PaneInfo.NO_FIRING)));
 
-    assertEquals(2, testHarness.numKeyedStateEntries());
+    // 2 entries for the elements and 2 for the pending timers
+    assertEquals(4, testHarness.numKeyedStateEntries());
 
     testHarness.getOutput().clear();
 
@@ -527,7 +528,7 @@ public class DoFnOperatorTest {
             WindowedValue.of(
                 KV.of("key2", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING)));
 
-    // ensure the state was garbage collected
+    // ensure the state was garbage collected and the pending timers have been removed
     assertEquals(0, testHarness.numKeyedStateEntries());
 
     testHarness.close();
@@ -567,7 +568,7 @@ public class DoFnOperatorTest {
             outputTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-            WindowingStrategy.globalDefault(),
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -774,7 +775,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -870,7 +871,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -908,7 +909,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),

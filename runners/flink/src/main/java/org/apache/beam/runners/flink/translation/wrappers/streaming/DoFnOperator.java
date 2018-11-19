@@ -82,6 +82,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -711,6 +714,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
+    timerInternals.cleanupPendingTimer(timerData);
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
   }
@@ -918,6 +922,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   class FlinkTimerInternals implements TimerInternals {
 
+    /**
+     * Pending Timers (=not been fired yet) by context id. The id is generated from the state
+     * namespace of the timer and the timer's id. Necessary for supporting removal of existing
+     * timers. In Flink removal of timers can only be done by providing id and time of the timer.
+     */
+    private final MapState<String, TimerData> pendingTimersById;
+
+    private FlinkTimerInternals() {
+      MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
+          new MapStateDescriptor<>(
+              "pending-timers", new StringSerializer(), new CoderTypeSerializer<>(timerCoder));
+      this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
+    }
+
     @Override
     public void setTimer(
         StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
@@ -927,20 +945,55 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
     @Deprecated
     @Override
-    public void setTimer(TimerData timerKey) {
-      long time = timerKey.getTimestamp().getMillis();
-      switch (timerKey.getDomain()) {
+    public void setTimer(TimerData timer) {
+      try {
+        getKeyedStateBackend().setCurrentKey(getCurrentKey());
+        String contextTimerId = getContextTimerId(timer);
+        // Only one timer can exist at a time for a given timer id and context.
+        // If a timer gets set twice in the same context, the second must
+        // override the first. Thus, we must cancel any pending timers
+        // before we set the new one.
+        cancelPendingTimerById(contextTimerId);
+        registerTimer(timer, contextTimerId);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to set timer", e);
+      }
+    }
+
+    private void registerTimer(TimerData timer, String contextTimerId) throws Exception {
+      long time = timer.getTimestamp().getMillis();
+      switch (timer.getDomain()) {
         case EVENT_TIME:
-          timerService.registerEventTimeTimer(timerKey, time);
+          timerService.registerEventTimeTimer(timer, time);
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.registerProcessingTimeTimer(timerKey, time);
+          timerService.registerProcessingTimeTimer(timer, time);
           break;
         default:
-          throw new UnsupportedOperationException(
-              "Unsupported time domain: " + timerKey.getDomain());
+          throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
       }
+      pendingTimersById.put(contextTimerId, timer);
+    }
+
+    private void cancelPendingTimerById(String contextTimerId) throws Exception {
+      TimerData oldTimer = pendingTimersById.get(contextTimerId);
+      if (oldTimer != null) {
+        deleteTimer(oldTimer);
+      }
+    }
+
+    void cleanupPendingTimer(TimerData timer) {
+      try {
+        pendingTimersById.remove(getContextTimerId(timer));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to cleanup state with pending timers", e);
+      }
+    }
+
+    /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
+    private String getContextTimerId(TimerData timer) {
+      return timer.getTimerId() + timer.getNamespace().stringKey();
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
@@ -959,6 +1012,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Deprecated
     @Override
     public void deleteTimer(TimerData timerKey) {
+      cleanupPendingTimer(timerKey);
       long time = timerKey.getTimestamp().getMillis();
       switch (timerKey.getDomain()) {
         case EVENT_TIME:

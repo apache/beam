@@ -107,10 +107,6 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_pardo_timers(self):
-      # TODO Enable once BEAM-5999 is fixed.
-      raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
-
     def test_assert_that(self):
       # We still want to make sure asserts fail, even if the message
       # isn't right (BEAM-6019).
