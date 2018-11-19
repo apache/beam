@@ -22,7 +22,8 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
+import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -86,28 +87,30 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
 
   @Override
   void loadTest() throws IOException {
+    TimeMonitor<byte[], byte[]> runtimeMonitor = new TimeMonitor<>(METRICS_NAMESPACE, "runtime");
+
     SyntheticSourceOptions coSourceOptions =
         fromJsonString(options.getCoSourceOptions(), SyntheticSourceOptions.class);
 
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     PCollection<KV<byte[], byte[]>> input =
-        applyStepIfPresent(
-            pipeline.apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions)),
-            "Synthetic step for input",
-            syntheticStep);
+        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions));
+    input = input.apply("Collect start time metrics (input)", ParDo.of(runtimeMonitor));
+    applyStepIfPresent(input, "Synthetic step for input", syntheticStep);
 
     PCollection<KV<byte[], byte[]>> coInput =
-        applyStepIfPresent(
-            pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(coSourceOptions)),
-            "Synthetic step for co-input",
-            syntheticStep);
+        pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(coSourceOptions));
+    coInput = coInput.apply("Collect start time metrics (co-input)", ParDo.of(runtimeMonitor));
+    applyStepIfPresent(coInput, "Synthetic step for co-input", syntheticStep);
 
     KeyedPCollectionTuple.of(INPUT_TAG, input)
         .and(CO_INPUT_TAG, coInput)
         .apply("CoGroupByKey", CoGroupByKey.create())
         .apply("Ungroup and reiterate", ParDo.of(new UngroupAndReiterate(options.getIterations())))
-        .apply("Collect metrics", ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)));
+        .apply(
+            "Collect total bytes", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")))
+        .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 
   private static class UngroupAndReiterate

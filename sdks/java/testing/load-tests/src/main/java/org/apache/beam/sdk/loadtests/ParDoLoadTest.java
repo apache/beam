@@ -20,7 +20,8 @@ package org.apache.beam.sdk.loadtests;
 import java.io.IOException;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
+import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -72,14 +73,19 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
 
   @Override
   protected void loadTest() {
+    TimeMonitor<byte[], byte[]> runtimeMonitor = new TimeMonitor<>(METRICS_NAMESPACE, "runtime");
+
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions));
+        pipeline
+            .apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions))
+            .apply(ParDo.of(runtimeMonitor))
+            .apply(ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int i = 0; i < options.getNumberOfCounterOperations(); i++) {
       input = input.apply(String.format("Step: %d", i), ParDo.of(new SyntheticStep(stepOptions)));
     }
 
-    input.apply("Collect metrics", ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)));
+    input.apply(ParDo.of(runtimeMonitor));
   }
 
   public static void main(String[] args) throws IOException {
