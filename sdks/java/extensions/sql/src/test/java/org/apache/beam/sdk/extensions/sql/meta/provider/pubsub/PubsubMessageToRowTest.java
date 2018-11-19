@@ -181,8 +181,8 @@ public class PubsubMessageToRowTest implements Serializable {
         new PubsubMessage(payload.getBytes(UTF_8), attributes), ts(timestamp));
   }
 
-  private Instant ts(long timestamp) {
-    return new DateTime(timestamp).toInstant();
+  private Instant ts(long epochMills) {
+    return new DateTime(epochMills).toInstant();
   }
 
   private static <V> Set<V> convertToSet(
