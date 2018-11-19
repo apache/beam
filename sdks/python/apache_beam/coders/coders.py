@@ -190,7 +190,7 @@ class Coder(object):
     # refined in user-defined Coders.
     return []
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     """For internal use only; no backwards-compatibility guarantees.
 
     Returns Google Cloud Dataflow API description of this coder."""
@@ -201,12 +201,17 @@ class Coder(object):
         # We pass coders in the form "<coder_name>$<pickled_data>" to make the
         # job description JSON more readable.  Data before the $ is ignored by
         # the worker.
-        '@type': serialize_coder(self),
-        'component_encodings': list(
-            component.as_cloud_object()
-            for component in self._get_component_coders()
-        ),
+        '@type':
+            serialize_coder(self),
+        'component_encodings':
+            list(
+                component.as_cloud_object(coders_context)
+                for component in self._get_component_coders()),
     }
+
+    if coders_context:
+      value['pipeline_proto_coder_id'] = coders_context.get_id(self)
+
     return value
 
   def __repr__(self):
@@ -370,7 +375,7 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
         '@type': 'kind:bytes',
     }
@@ -394,7 +399,7 @@ class VarIntCoder(FastCoder):
   def is_deterministic(self):
     return True
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
         '@type': 'kind:varint',
     }
@@ -516,8 +521,8 @@ class _PickleCoderBase(FastCoder):
     # GroupByKey operations.
     return False
 
-  def as_cloud_object(self, is_pair_like=True):
-    value = super(_PickleCoderBase, self).as_cloud_object()
+  def as_cloud_object(self, coders_context=None, is_pair_like=True):
+    value = super(_PickleCoderBase, self).as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -525,8 +530,8 @@ class _PickleCoderBase(FastCoder):
     if is_pair_like:
       value['is_pair_like'] = True
       value['component_encodings'] = [
-          self.as_cloud_object(is_pair_like=False),
-          self.as_cloud_object(is_pair_like=False)
+          self.as_cloud_object(coders_context, is_pair_like=False),
+          self.as_cloud_object(coders_context, is_pair_like=False)
       ]
 
     return value
@@ -615,8 +620,8 @@ class FastPrimitivesCoder(FastCoder):
     else:
       return DeterministicFastPrimitivesCoder(self, step_label)
 
-  def as_cloud_object(self, is_pair_like=True):
-    value = super(FastCoder, self).as_cloud_object()
+  def as_cloud_object(self, coders_context=None, is_pair_like=True):
+    value = super(FastCoder, self).as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -624,8 +629,8 @@ class FastPrimitivesCoder(FastCoder):
     if is_pair_like:
       value['is_pair_like'] = True
       value['component_encodings'] = [
-          self.as_cloud_object(is_pair_like=False),
-          self.as_cloud_object(is_pair_like=False)
+          self.as_cloud_object(coders_context, is_pair_like=False),
+          self.as_cloud_object(coders_context, is_pair_like=False)
       ]
 
     return value
@@ -744,18 +749,20 @@ class TupleCoder(FastCoder):
   def from_type_hint(typehint, registry):
     return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     if self.is_kv_coder():
       return {
-          '@type': 'kind:pair',
-          'is_pair_like': True,
-          'component_encodings': list(
-              component.as_cloud_object()
-              for component in self._get_component_coders()
-          ),
+          '@type':
+              'kind:pair',
+          'is_pair_like':
+              True,
+          'component_encodings':
+              list(
+                  component.as_cloud_object(coders_context)
+                  for component in self._get_component_coders()),
       }
 
-    return super(TupleCoder, self).as_cloud_object()
+    return super(TupleCoder, self).as_cloud_object(coders_context)
 
   def _get_component_coders(self):
     return self.coders()
@@ -853,11 +860,15 @@ class IterableCoder(FastCoder):
       return IterableCoder(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
-        '@type': 'kind:stream',
-        'is_stream_like': True,
-        'component_encodings': [self._elem_coder.as_cloud_object()],
+        '@type':
+            'kind:stream',
+        'is_stream_like':
+            True,
+        'component_encodings': [
+            self._elem_coder.as_cloud_object(coders_context)
+        ],
     }
 
   def value_coder(self):
@@ -891,7 +902,7 @@ class GlobalWindowCoder(SingletonCoder):
     from apache_beam.transforms import window
     super(GlobalWindowCoder, self).__init__(window.GlobalWindow())
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
         '@type': 'kind:global_window',
     }
@@ -910,7 +921,7 @@ class IntervalWindowCoder(FastCoder):
   def is_deterministic(self):
     return True
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
         '@type': 'kind:interval_window',
     }
@@ -947,13 +958,16 @@ class WindowedValueCoder(FastCoder):
                                               self.timestamp_coder,
                                               self.window_coder])
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
-        '@type': 'kind:windowed_value',
-        'is_wrapper': True,
+        '@type':
+            'kind:windowed_value',
+        'is_wrapper':
+            True,
         'component_encodings': [
-            component.as_cloud_object()
-            for component in self._get_component_coders()],
+            component.as_cloud_object(coders_context)
+            for component in self._get_component_coders()
+        ],
     }
 
   def _get_component_coders(self):
@@ -1007,10 +1021,13 @@ class LengthPrefixCoder(FastCoder):
   def value_coder(self):
     return self._value_coder
 
-  def as_cloud_object(self):
+  def as_cloud_object(self, coders_context=None):
     return {
-        '@type': 'kind:length_prefix',
-        'component_encodings': [self._value_coder.as_cloud_object()],
+        '@type':
+            'kind:length_prefix',
+        'component_encodings': [
+            self._value_coder.as_cloud_object(coders_context)
+        ],
     }
 
   def _get_component_coders(self):
