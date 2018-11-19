@@ -329,25 +329,25 @@ a bid on an auction.</li>
 <p>The queries exercise many aspects of Beam model:</p>
 
 <ul>
-  <li><strong>Query1</strong>: What are the bid values in Euro’s?
+  <li><strong>Query1</strong> or <strong>CURRENCY_CONVERSION</strong>: What are the bid values in Euro’s?
 Illustrates a simple map.</li>
-  <li><strong>Query2</strong>: What are the auctions with particular auction numbers?
+  <li><strong>Query2</strong> or <strong>SELECTION</strong>: What are the auctions with particular auction numbers?
 Illustrates a simple filter.</li>
-  <li><strong>Query3</strong>: Who is selling in particular US states?
+  <li><strong>Query3</strong> or <strong>LOCAL_ITEM_SUGGESTION</strong>: Who is selling in particular US states?
 Illustrates an incremental join (using per-key state and timer) and filter.</li>
-  <li><strong>Query4</strong>: What is the average selling price for each auction
+  <li><strong>Query4</strong> or <strong>AVERAGE_PRICE_FOR_CATEGORY</strong>: What is the average selling price for each auction
 category?
 Illustrates complex join (using custom window functions) and
 aggregation.</li>
-  <li><strong>Query5</strong>: Which auctions have seen the most bids in the last period?
+  <li><strong>Query5</strong> or <strong>HOT_ITEMS</strong>: Which auctions have seen the most bids in the last period?
 Illustrates sliding windows and combiners.</li>
-  <li><strong>Query6</strong>: What is the average selling price per seller for their
+  <li><strong>Query6</strong> or <strong>AVERAGE_SELLING_PRICE_BY_SELLER</strong>: What is the average selling price per seller for their
 last 10 closed auctions.
 Shares the same ‘winning bids’ core as for <strong>Query4</strong>, and
 illustrates a specialized combiner.</li>
-  <li><strong>Query7</strong>: What are the highest bids per period?
+  <li><strong>Query7</strong> or <strong>HIGHEST_BID</strong>: What are the highest bids per period?
 Deliberately implemented using a side input to illustrate fanout.</li>
-  <li><strong>Query8</strong>: Who has entered the system and created an auction in
+  <li><strong>Query8</strong> or <strong>MONITOR_NEW_USERS</strong>: Who has entered the system and created an auction in
 the last period?
 Illustrates a simple join.</li>
 </ul>
@@ -355,20 +355,21 @@ Illustrates a simple join.</li>
 <p>We have augmented the original queries with five more:</p>
 
 <ul>
-  <li><strong>Query0</strong>: Pass-through.
+  <li><strong>Query0</strong> or <strong>PASSTHROUGH</strong>: Pass-through.
 Allows us to measure the monitoring overhead.</li>
-  <li><strong>Query9</strong>: Winning-bids.
+  <li><strong>Query9</strong> or <strong>WINNING_BIDS</strong>: Winning-bids.
 A common sub-query shared by <strong>Query4</strong> and <strong>Query6</strong>.</li>
-  <li><strong>Query10</strong>: Log all events to GCS files.
+  <li><strong>Query10</strong> or <strong>LOG_TO_SHARDED_FILES</strong>: Log all events to GCS files.
 Illustrates windows with large side effects on firing.</li>
-  <li><strong>Query11</strong>: How many bids did a user make in each session they
+  <li><strong>Query11</strong> or <strong>USER_SESSIONS</strong>: How many bids did a user make in each session they
 were active?
 Illustrates session windows.</li>
-  <li><strong>Query12</strong>: How many bids does a user make within a fixed
+  <li><strong>Query12</strong> or <strong>PROCESSING_TIME_WINDOWS</strong>: How many bids does a user make within a fixed
 processing time limit?
 Illustrates working in processing time in the Global window, as
 compared with event time in non-Global windows for all the other
 queries.</li>
+  <li><strong>BOUNDED_SIDE_INPUT_JOIN</strong>: Joins a stream to a bounded side input, modeling basic stream enrichment.</li>
 </ul>
 
 <h2 id="benchmark-workload-configuration">Benchmark workload configuration</h2>
@@ -482,9 +483,17 @@ or may be published to Pub/Sub or Kafka.</p>
 </code></pre>
 </div>
 
-<p>Run query N:</p>
+<p>Queries can be run by their name or by their number (number is still there for backward compatibility, only the queries 0 to 12 have a number)</p>
+
+<p>Run query <strong>N</strong>:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>--query=N
+</code></pre>
+</div>
+
+<p>Run query called <strong>PASSTROUGH</strong>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--query=PASSTHROUGH
 </code></pre>
 </div>
 
@@ -497,8 +506,11 @@ or may be published to Pub/Sub or Kafka.</p>
 
 <p>Available suites are:</p>
 <ul>
-  <li>DEFAULT: Test default configuration with query 0.</li>
-  <li>SMOKE: Run the 12 default configurations.</li>
+  <li>DEFAULT: Test default configuration with query 0.
+    <ul>
+      <li>SMOKE: Run all the queries with the default configuration.</li>
+    </ul>
+  </li>
   <li>STRESS: Like smoke but for 1m events.</li>
   <li>FULL_THROTTLE: Like SMOKE but 100m events.</li>
 </ul>
@@ -682,6 +694,13 @@ or may be published to Pub/Sub or Kafka.</p>
       <td>ok</td>
       <td>ok</td>
     </tr>
+    <tr>
+      <td>BOUNDED_SIDE_INPUT_JOIN</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
 </table>
 
 <h3 id="streaming--synthetic--local">Streaming / Synthetic / Local</h3>
@@ -785,6 +804,13 @@ or may be published to Pub/Sub or Kafka.</p>
       <td>ok</td>
       <td>ok</td>
     </tr>
+        <tr>
+          <td>BOUNDED_SIDE_INPUT_JOIN</td>
+          <td>ok</td>
+          <td><a href="https://issues.apache.org/jira/browse/BEAM-2112">BEAM-2112</a></td>
+          <td>ok</td>
+          <td>ok</td>
+        </tr>
 </table>
 
 <h3 id="batch--synthetic--cluster">Batch / Synthetic / Cluster</h3>
@@ -1048,7 +1074,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
 <ul>
   <li>graphs in batch mode</li>
   <li>graphs in streaming mode</li>
-  <li>graphs for the 13 queries.</li>
+  <li>graphs for all the queries.</li>
 </ul>
 
 <h3 id="performance-dashboards-links">Performance dashboards links</h3>
