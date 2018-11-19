@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 
 import java.math.BigDecimal;
 import java.text.ParseException;
@@ -35,8 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -48,8 +47,6 @@ import org.junit.rules.ExpectedException;
  * <p>Note that, any change in these records would impact tests in this package.
  */
 public class BeamSqlDslBase {
-  public static final DateTimeFormatter FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptions = ExpectedException.none();
 
@@ -100,7 +97,7 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
-                FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
                 0,
                 new BigDecimal(1))
             .addRows(
@@ -111,7 +108,7 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
-                FORMAT.parseDateTime("2017-01-01 01:02:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:02:03"),
                 0,
                 new BigDecimal(2))
             .addRows(
@@ -122,7 +119,7 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
-                FORMAT.parseDateTime("2017-01-01 01:06:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:06:03"),
                 0,
                 new BigDecimal(3))
             .addRows(
@@ -133,7 +130,7 @@ public class BeamSqlDslBase {
                 4.0f,
                 4.0d,
                 "第四行",
-                FORMAT.parseDateTime("2017-01-01 02:04:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 0,
                 new BigDecimal(4))
             .getRows();

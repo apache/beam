@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -36,8 +37,6 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlCli}. */
@@ -273,7 +272,6 @@ public class BeamSqlCliTest {
     // test TIME field
     assertEquals("15:23:59.000", row.getDateTime("f_time").toString("HH:mm:ss.SSS"));
     // test TIMESTAMP field
-    assertEquals(
-        new DateTime(2018, 7, 1, 21, 26, 7, 123, DateTimeZone.UTC), row.getDateTime("f_ts"));
+    assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
   }
 }
