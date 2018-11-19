@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testutils.publishing;
 import static java.lang.String.format;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQuery.TableOption;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.InsertAllRequest;
@@ -39,6 +40,11 @@ import java.util.stream.Collectors;
  * Wraps {@link BigQuery} to provide high level useful methods for working with big query database.
  */
 public class BigQueryClient {
+
+  // Fetching all fields (default way) may result in NullPointerException from the client library:
+  // https://issues.apache.org/jira/browse/BEAM-6076.
+  // Specifying only TYPE field enforces getting only the required fields (not null).
+  private static final TableOption FIELD_OPTIONS = TableOption.fields(BigQuery.TableField.TYPE);
 
   private BigQuery client;
 
@@ -71,7 +77,7 @@ public class BigQueryClient {
   public void createTableIfNotExists(String tableName, Map<String, String> schema) {
     TableId tableId = TableId.of(projectId, dataset, tableName);
 
-    if (client.getTable(tableId) == null) {
+    if (client.getTable(tableId, FIELD_OPTIONS) == null) {
       List<Field> schemaFields =
           schema
               .entrySet()
@@ -89,7 +95,7 @@ public class BigQueryClient {
             .setFriendlyName(tableId.getTable())
             .build();
 
-    client.create(tableInfo);
+    client.create(tableInfo, FIELD_OPTIONS);
   }
 
   /**
