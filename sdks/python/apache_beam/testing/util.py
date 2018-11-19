@@ -115,15 +115,27 @@ def equal_to(expected):
 
   def _equal(actual):
     expected_list = list(expected)
-    for element in actual:
-      try:
-        expected_list.remove(element)
-      except ValueError:
+
+    # Try to compare actual and expected by sorting. This fails with a
+    # TypeError in Python 3 if different types are present in the same
+    # collection.
+    try:
+      sorted_expected = sorted(expected)
+      sorted_actual = sorted(actual)
+      if sorted_expected != sorted_actual:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    # Fall back to slower method which works for different types on Python 3.
+    except TypeError:
+      for element in actual:
+        try:
+          expected_list.remove(element)
+        except ValueError:
+          raise BeamAssertException(
+              'Failed assert: %r == %r' % (expected, actual))
+      if expected_list:
         raise BeamAssertException(
             'Failed assert: %r == %r' % (expected, actual))
-    if expected_list:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (expected, actual))
 
   return _equal
 
