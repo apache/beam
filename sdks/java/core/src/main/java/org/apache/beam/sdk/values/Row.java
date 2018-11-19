@@ -36,7 +36,8 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
+import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -486,7 +487,7 @@ public abstract class Row implements Serializable {
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
     private boolean attached = false;
-    @Nullable private FieldValueGetterFactory fieldValueGetterFactory;
+    @Nullable private Factory<List<FieldValueGetter>> fieldValueGetterFactory;
     @Nullable private Object getterTarget;
     private Schema schema;
 
@@ -525,7 +526,7 @@ public abstract class Row implements Serializable {
     }
 
     public Builder withFieldValueGetters(
-        FieldValueGetterFactory fieldValueGetterFactory, Object getterTarget) {
+        Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
       this.fieldValueGetterFactory = fieldValueGetterFactory;
       this.getterTarget = getterTarget;
       return this;

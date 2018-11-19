@@ -15,17 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.schemas;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
-
-/** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
-public class JavaBeanGetterFactory implements FieldValueGetterFactory {
+/** A factory for {@link SchemaUserTypeCreator} objects. */
+public interface UserTypeCreatorFactory extends Factory<SchemaUserTypeCreator> {
   @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema);
-  }
+  SchemaUserTypeCreator create(Class<?> clazz, Schema schema);
 }
