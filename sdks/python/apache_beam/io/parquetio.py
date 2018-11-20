@@ -16,7 +16,7 @@
 #
 """``PTransforms`` for reading from and writing to Parquet files.
 
-Provides two read ``PTransform`` s, ``ReadFromParquet`` and
+Provides two read ``PTransform``\s, ``ReadFromParquet`` and
 ``ReadAllFromParquet``, that produces a ``PCollection`` of records.
 Each record of this ``PCollection`` will contain a single record read from
 a Parquet file. Records that are of simple types will be mapped into
@@ -78,14 +78,13 @@ class ReadFromParquet(PTransform):
       IOError: No files found based on the file pattern
 
     Each element of this :class:`~apache_beam.pvalue.PCollection` will contain
-    a single record read from a source. The element is a Python dictionary that
-    keys of each dictionary will contain the corresponding column names and will
-    be of type :class:`str` while the values of the dictionary will be of the
-    type defined in the corresponding Parquet schema. Records that are of simple
-    types will be mapped into corresponding Python types. Records that are of
-    complex types like list and struct will be mapped to Python list and
-    dictionary respectively. For more information on supported types and schema,
-    please see the pyarrow document.
+    a Python dictionary representing a single record. The keys will be of type
+    :class:`str` and named after their corresponding column names. The values
+    will be of the type defined in the corresponding Parquet schema. Records
+    that are of simple types will be mapped into corresponding Python types.
+    Records that are of complex types like list and struct will be mapped to
+    Python list and dictionary respectively. For more information on supported
+    types and schema, please see the pyarrow document.
 
 
     Args:
@@ -294,6 +293,8 @@ class WriteToParquet(PTransform):
 
     .. testoutput::
       :hide:
+
+      <BLANKLINE>
 
     For more information on supported types and schema, please see the pyarrow
     document.
