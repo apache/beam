@@ -146,8 +146,8 @@ class ReadAllFromParquet(PTransform):
         columns=columns
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
-        True, CompressionTypes.UNCOMPRESSED, desired_bundle_size, min_bundle_size,
-        source_from_file)
+        True, CompressionTypes.UNCOMPRESSED, desired_bundle_size,
+        min_bundle_size, source_from_file)
 
     self.label = label
 

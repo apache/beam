@@ -39,7 +39,7 @@ from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms.combiners import Count
-from apache_beam.transforms.combiners import Mean
+from apache_beam.transforms import CombineGlobally
 
 
 class TestParquetIT(unittest.TestCase):
@@ -75,11 +75,11 @@ class TestParquetIT(unittest.TestCase):
     result.wait_until_finish()
 
   @staticmethod
-  def _mean_verifier(data_size, x):
-    expected = sum(range(data_size)) / data_size
+  def _sum_verifier(init_size, data_size, x):
+    expected = sum(range(data_size)) * init_size
     if x != expected:
       raise BeamAssertException(
-          "incorrect mean: expected(%f) actual(%f)" % (expected, x)
+          "incorrect sum: expected(%d) actual(%d)" % (expected, x)
       )
     return []
 
@@ -102,9 +102,9 @@ class TestParquetIT(unittest.TestCase):
     read = pcol | 'read' >> ReadAllFromParquet()
     v1 = (read
           | 'get_number' >> Map(lambda x: x['number'])
-          | 'mean_globally' >> Mean.Globally()
+          | 'sum_globally' >> CombineGlobally(sum)
           | 'validate_number' >> FlatMap(
-              lambda x: TestParquetIT._mean_verifier(data_size, x)
+              lambda x: TestParquetIT._sum_verifier(init_size, data_size, x)
           )
          )
     v2 = (read
