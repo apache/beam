@@ -905,13 +905,16 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
   private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+    RetryHttpRequestInitializer httpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404));
+    httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     return new Bigquery.Builder(
             Transport.getTransport(),
             Transport.getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
                 // Do not log 404. It clutters the output and is possibly even required by the caller.
-                new RetryHttpRequestInitializer(ImmutableList.of(404))))
+                httpRequestInitializer))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
