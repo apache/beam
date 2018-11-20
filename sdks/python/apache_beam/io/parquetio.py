@@ -65,7 +65,7 @@ class ReadFromParquet(PTransform):
     .. testcode::
 
       with beam.Pipeline() as p:
-        records = p | 'Read' >> ReadFromParquet('/mypath/myavrofiles*')
+        records = p | 'Read' >> ReadFromParquet('/mypath/myparquetfiles*')
 
     .. NOTE: We're not actually interested in this error; but if we get here,
        it means that the way of calling this transform hasn't changed.
