@@ -21,7 +21,7 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink',
-  'Run Java Flink PortableValidatesRunner', 'Java Flink PortableValidatesRunner Tests', this) {
+  'Run Java Flink PortableValidatesRunner Batch', 'Java Flink PortableValidatesRunner Batch Tests', this) {
   description('Runs the Java PortableValidatesRunner suite on the Flink runner.')
 
   // Set common parameters.
@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-flink_2.11-job-server:validatesPortableRunner')
+      tasks(':beam-runners-flink_2.11-job-server:validatesPortableRunnerBatch')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
