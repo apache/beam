@@ -187,6 +187,25 @@ public class RedisIOTest {
   }
 
   @Test
+  public void testWriteUsingHLLMethod() throws Exception {
+    String key = "key";
+    String values[] = {"1", "2"};
+
+    Jedis jedis =
+        RedisConnectionConfiguration.create(REDIS_HOST, embeddedRedis.getPort()).connect();
+    jedis.pfadd(key, values[0]);
+
+    PCollection<KV<String, String>> write = writePipeline.apply(Create.of(KV.of(key, values[1])));
+    write.apply(
+        RedisIO.write().withEndpoint(REDIS_HOST, embeddedRedis.getPort()).withMethod(Method.PFADD));
+
+    writePipeline.run();
+
+    long count = jedis.pfcount(key);
+    Assert.assertTrue(0.9 * values.length <= count && count <= values.length);
+  }
+
+  @Test
   public void testReadBuildsCorrectly() {
     RedisIO.Read read = RedisIO.read().withEndpoint("test", 111).withAuth("pass").withTimeout(5);
     Assert.assertEquals("test", read.connectionConfiguration().host());
