@@ -99,6 +99,18 @@ public class BigQueryClient {
   }
 
   /**
+   * Inserts one row to BigQuery table. Creates table using the given schema if the table does not
+   * exist.
+   *
+   * @see #insertRow(Map, String)
+   * @see #createTableIfNotExists(String, Map) for more details.
+   */
+  public void insertRow(Map<String, ?> row, Map<String, String> schema, String table) {
+    createTableIfNotExists(table, schema);
+    insertRow(row, table);
+  }
+
+  /**
    * Inserts one row to BigQuery table.
    *
    * @see #insertAll(Collection, String) for more details

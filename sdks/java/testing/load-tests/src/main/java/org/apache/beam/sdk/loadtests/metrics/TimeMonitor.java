@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.KV;
  *
  * <p>To use: apply a monitor directly after each source and sink transform. This will capture a
  * distribution of element processing timestamps, which can be collected and written out using
- * {@link MetricsPublisher}.
+ * {@link ResultPublisher}.
  */
 public class TimeMonitor<K, V> extends DoFn<KV<K, V>, KV<K, V>> {
 

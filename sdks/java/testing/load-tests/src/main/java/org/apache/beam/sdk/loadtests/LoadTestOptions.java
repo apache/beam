@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.loadtests;
 
 import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -36,6 +37,22 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   String getStepOptions();
 
   void setStepOptions(String stepOptions);
+
+  @Description("Whether the results should be published to BigQuery database")
+  @Default.Boolean(false)
+  Boolean getPublishToBigQuery();
+
+  void setPublishToBigQuery(Boolean publishToBigQuery);
+
+  @Description("BigQuery dataset name")
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(String dataset);
+
+  @Description("BigQuery table name")
+  String getBigQueryTable();
+
+  void setBigQueryTable(String tableName);
 
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);

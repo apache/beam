@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.loadtests;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
+import org.apache.beam.sdk.loadtests.metrics.ResultPublisher;
 import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -69,9 +70,26 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    MetricsPublisher.toConsole(result, metricsNamespace);
+    ResultPublisher resultPublisher = new ResultPublisher(result, metricsNamespace);
 
+    resultPublisher.toConsole();
+
+    if (options.getPublishToBigQuery()) {
+      String dataset = options.getBigQueryDataset();
+      String table = options.getBigQueryTable();
+      checkBigQueryOptions(dataset, table);
+      resultPublisher.toBigQuery(dataset, table);
+    }
     return result;
+  }
+
+  private static void checkBigQueryOptions(String dataset, String table) {
+    Preconditions.checkArgument(
+        dataset != null,
+        "Please specify --bigQueryDataset option if you want to publish to BigQuery");
+
+    Preconditions.checkArgument(
+        table != null, "Please specify --bigQueryTable option if you want to publish to BigQuery");
   }
 
   <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type) throws IOException {
