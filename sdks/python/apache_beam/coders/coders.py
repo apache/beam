@@ -203,10 +203,10 @@ class Coder(object):
         # the worker.
         '@type':
             serialize_coder(self),
-        'component_encodings':
-            list(
-                component.as_cloud_object(coders_context)
-                for component in self._get_component_coders()),
+        'component_encodings': [
+            component.as_cloud_object(coders_context)
+            for component in self._get_component_coders()
+        ],
     }
 
     if coders_context:
@@ -756,10 +756,10 @@ class TupleCoder(FastCoder):
               'kind:pair',
           'is_pair_like':
               True,
-          'component_encodings':
-              list(
-                  component.as_cloud_object(coders_context)
-                  for component in self._get_component_coders()),
+          'component_encodings': [
+              component.as_cloud_object(coders_context)
+              for component in self._get_component_coders()
+          ],
       }
 
     return super(TupleCoder, self).as_cloud_object(coders_context)
