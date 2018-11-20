@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -87,8 +86,6 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
 
   @Override
   void loadTest() throws IOException {
-    TimeMonitor<byte[], byte[]> runtimeMonitor = new TimeMonitor<>(METRICS_NAMESPACE, "runtime");
-
     SyntheticSourceOptions coSourceOptions =
         fromJsonString(options.getCoSourceOptions(), SyntheticSourceOptions.class);
 

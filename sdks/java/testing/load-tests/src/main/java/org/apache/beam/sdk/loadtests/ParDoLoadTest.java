@@ -21,7 +21,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -73,8 +72,6 @@ public class ParDoLoadTest extends LoadTest<ParDoLoadTest.Options> {
 
   @Override
   protected void loadTest() {
-    TimeMonitor<byte[], byte[]> runtimeMonitor = new TimeMonitor<>(METRICS_NAMESPACE, "runtime");
-
     PCollection<KV<byte[], byte[]>> input =
         pipeline
             .apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions))

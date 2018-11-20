@@ -24,7 +24,6 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -82,8 +81,6 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
 
   @Override
   void loadTest() throws IOException {
-    TimeMonitor<byte[], byte[]> runtimeMonitor = new TimeMonitor<>(METRICS_NAMESPACE, "runtime");
-
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     PCollection<KV<byte[], byte[]>> input =
