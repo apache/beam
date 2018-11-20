@@ -27,10 +27,10 @@ import unittest
 import hamcrest as hc
 import pyarrow as pa
 import pyarrow.parquet as pq
-from pyarrow.lib import ArrowInvalid
 
 from parameterized import param
 from parameterized import parameterized
+from pyarrow.lib import ArrowInvalid
 
 from apache_beam import Create
 from apache_beam import Map

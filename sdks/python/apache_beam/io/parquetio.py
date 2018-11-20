@@ -65,7 +65,7 @@ class ReadFromParquet(PTransform):
     .. testcode::
 
       with beam.Pipeline() as p:
-        records = p | 'Read' >> ReadFromParquet('/mypath/myparquetfiles*')
+        records = p | 'Read' >> beam.io.ReadFromParquet('/mypath/mypqfiles*')
 
     .. NOTE: We're not actually interested in this error; but if we get here,
        it means that the way of calling this transform hasn't changed.
@@ -274,17 +274,22 @@ class WriteToParquet(PTransform):
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
     records. Each record is a dictionary with keys of a string type that
-    represent column names. Schema must be specified like the example below. ::
+    represent column names. Schema must be specified like the example below.
+
+    .. testcode::
 
       with beam.Pipeline() as p:
-        records = p | 'Read' >> Create(
+        records = p | 'Read' >> beam.Create(
             [{'name': 'foo', 'age': 10}, {'name': 'bar', 'age': 20}]
         )
-        records | 'Write' >> WriteToParquet('myoutput',
+        _ = records | 'Write' >> beam.io.WriteToParquet('myoutput',
             pyarrow.schema(
                 [('name', pyarrow.binary()), ('age', pyarrow.int64())]
             )
         )
+
+    .. testoutput::
+      :hide:
 
     For more information on supported types and schema, please see the pyarrow
     document.

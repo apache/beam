@@ -38,8 +38,9 @@ from apache_beam.io.parquetio import ReadAllFromParquet
 from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
-from apache_beam.transforms.combiners import Count
 from apache_beam.transforms import CombineGlobally
+from apache_beam.transforms.combiners import Count
+
 
 
 class TestParquetIT(unittest.TestCase):
