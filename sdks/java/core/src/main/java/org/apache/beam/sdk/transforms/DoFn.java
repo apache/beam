@@ -876,9 +876,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /**
      * The provided function will be called after the runner successfully commits the output of a
      * successful bundle. Throwing during finalization represents that bundle finalization may have
-     * failed and the runner may choose to attempt finalization again. The provided duration
-     * controls how long the finalization is valid for before it is garbage collected and no longer
-     * able to be invoked.
+     * failed and the runner may choose to attempt finalization again. The provided {@code
+     * callbackExpiry} controls how long the finalization is valid for before it is garbage
+     * collected and no longer able to be invoked.
      *
      * <p>Note that finalization is best effort and it is expected that the external system will
      * self recover state if finalization never happens or consistently fails. For example, a queue
@@ -887,8 +887,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API:
      * How to Finalize Bundles</a> for further details.
+     *
+     * @param callbackExpiry When the finalization callback expires. If the runner cannot commit
+     *     results and execute the callback within this duration, the callback will not be invoked.
+     * @param callback The finalization callback method for the runner to invoke after processing
+     *     results have been successfully committed.
      */
-    void afterBundleCommit(Duration finalizationDelayLimit, Callback callback);
+    void afterBundleCommit(Instant callbackExpiry, Callback callback);
 
     /**
      * An instance of a function that will be invoked after bundle finalization.
@@ -897,6 +902,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * be able to perform bundle finalization and should not rely on mutable state stored within a
      * DoFn instance.
      */
+    @FunctionalInterface
     interface Callback {
       void onBundleSuccess() throws Exception;
     }
