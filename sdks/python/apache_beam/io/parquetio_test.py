@@ -29,6 +29,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from pyarrow.lib import ArrowInvalid
 
+from parameterized import param
+from parameterized import parameterized
+
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
@@ -278,7 +281,14 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
-  def test_sink_transform_snappy(self):
+  @parameterized.expand([
+      param(compression_type='snappy'),
+      param(compression_type='gzip'),
+      param(compression_type='brotli'),
+      param(compression_type='lz4'),
+      param(compression_type='zstd')
+  ])
+  def test_sink_transform_compressed(self, compression_type):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
@@ -286,7 +296,7 @@ class TestParquet(unittest.TestCase):
         p \
         | Create(self.RECORDS) \
         | WriteToParquet(
-            path, self.SCHEMA, codec='snappy',
+            path, self.SCHEMA, codec=compression_type,
             num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
@@ -294,78 +304,6 @@ class TestParquet(unittest.TestCase):
             p \
             | ReadFromParquet(path + '*') \
             | Map(json.dumps)
-        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
-
-  def test_sink_transform_gzip(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
-        | Create(self.RECORDS) \
-        | WriteToParquet(
-            path, self.SCHEMA, codec='gzip',
-            num_shards=1, shard_name_template='')
-      with TestPipeline() as p:
-        # json used for stable sortability
-        readback = \
-          p \
-          | ReadFromParquet(path + '*') \
-          | Map(json.dumps)
-        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
-
-  def test_sink_transform_brotli(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
-        | Create(self.RECORDS) \
-        | WriteToParquet(
-            path, self.SCHEMA, codec='brotli',
-            num_shards=1, shard_name_template='')
-      with TestPipeline() as p:
-        # json used for stable sortability
-        readback = \
-          p \
-          | ReadFromParquet(path + '*') \
-          | Map(json.dumps)
-        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
-
-  def test_sink_transform_lz4(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
-        | Create(self.RECORDS) \
-        | WriteToParquet(
-            path, self.SCHEMA, codec='lz4',
-            num_shards=1, shard_name_template='')
-      with TestPipeline() as p:
-        # json used for stable sortability
-        readback = \
-          p \
-          | ReadFromParquet(path + '*') \
-          | Map(json.dumps)
-        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
-
-  def test_sink_transform_zstd(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
-        | Create(self.RECORDS) \
-        | WriteToParquet(
-            path, self.SCHEMA, codec='zstd',
-            num_shards=1, shard_name_template='')
-      with TestPipeline() as p:
-        # json used for stable sortability
-        readback = \
-          p \
-          | ReadFromParquet(path + '*') \
-          | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
   def test_read_reentrant(self):
