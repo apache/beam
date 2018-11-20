@@ -22,10 +22,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.WeakHashMap;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
@@ -49,6 +52,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMu
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /**
@@ -60,6 +65,17 @@ import scala.Tuple2;
  */
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MultiDoFnFunction.class);
+
+  /** JVM wide side input cache. */
+  private static final Map<String, CachedSideInputReader> sideInputReaders =
+      Collections.synchronizedMap(new WeakHashMap<>());
+
+  /**
+   * Id that is consistent among executors. We can not use stepName because of possible collisions.
+   */
+  private final String uniqueId = UUID.randomUUID().toString();
 
   private final Accumulator<MetricsContainerStepMap> metricsAccum;
   private final String stepName;
@@ -150,11 +166,19 @@ public class MultiDoFnFunction<InputT, OutputT>
       context = new SparkProcessContext.NoOpStepContext();
     }
 
+    final SideInputReader sideInputReader =
+        sideInputReaders.computeIfAbsent(
+            uniqueId,
+            key -> {
+              LOG.info("Creating a new side input reader for [{}] with id [{}].", stepName, key);
+              return CachedSideInputReader.of(new SparkSideInputReader(sideInputs));
+            });
+
     final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
+            sideInputReader,
             outputManager,
             mainOutputTag,
             additionalOutputTags,

@@ -24,9 +24,14 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.spark.util.SizeEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** {@link SideInputReader} that caches materialized views. */
 public class CachedSideInputReader implements SideInputReader {
+
+  private static final Logger LOG = LoggerFactory.getLogger(CachedSideInputReader.class);
 
   /**
    * Create a new cached {@link SideInputReader}.
@@ -88,7 +93,14 @@ public class CachedSideInputReader implements SideInputReader {
     @SuppressWarnings("unchecked")
     final Map<Key<T>, T> materializedCasted = (Map) materialized;
     return materializedCasted.computeIfAbsent(
-        new Key<>(view, window), key -> delegate.get(view, window));
+        new Key<>(view, window),
+        key -> {
+          final T result = delegate.get(view, window);
+          LOG.info(
+              "Caching de-serialized side input of size [{}B] in memory.",
+              SizeEstimator.estimate(result));
+          return result;
+        });
   }
 
   @Override
