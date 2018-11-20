@@ -87,7 +87,7 @@ A typical Beam driver program works as follows:
 * **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without modifying the input
-  collection*. A typical pipeline applies subsequent transforms to the each new
+  collection*. A typical pipeline applies subsequent transforms to each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
   one after another: think of `PCollection`s as variables and `PTransform`s as
@@ -129,6 +129,11 @@ Pipeline p = Pipeline.create(options);
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
 ```
+```go
+// In order to start creating the pipeline for execution, a Pipeline object is needed.
+p := beam.NewPipeline()
+s := p.Root()
+```
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
@@ -158,6 +163,10 @@ PipelineOptions options =
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
+```
+```go
+// If beamx or Go flags are used, flags must be parsed first.
+flag.Parse()
 ```
 
 This interprets command-line arguments that follow the format:
@@ -192,6 +201,12 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
 %}
 ```
+```go
+var (
+  input = flag.String("input", "", "")
+  output = flag.String("output", "", "")
+)
+```
 
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
@@ -210,6 +225,13 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
 %}
 ```
+```go
+var (
+  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
+  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+)
+```
+
 
 {:.language-java}
 It's recommended that you register your interface with `PipelineOptionsFactory`
@@ -287,6 +309,9 @@ public static void main(String[] args) {
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_reading
 %}
+```
+```go
+lines := textio.Read(s, "protocol://path/file*.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -590,6 +615,12 @@ words = ...
 %}
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_apply
 %}```
+```go
+func computeWordLengthFn(word string) int {
+      return len(word)
+}
+wordLengths := beam.ParDo(s, computeWordLengthFn, words)
+```
 
 In the example, our input `PCollection` contains `String` values. We apply a
 `ParDo` transform that specifies a function (`ComputeWordLengthFn`) to compute
@@ -704,7 +735,6 @@ PCollection<Integer> wordLengths = words.apply(
       }
     }));
 ```
-
 ```py
 # The input PCollection of strings.
 words = ...
@@ -713,6 +743,11 @@ words = ...
 # Save the result as the PCollection word_lengths.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_using_flatmap
 %}```
+```go
+lengths := beam.ParDo(s, func (word string) int {
+      return len(word)
+}, words)
+```
 
 If your `ParDo` performs a one-to-one mapping of input elements to output
 elements--that is, for each input element, it applies a function that produces
@@ -734,7 +769,6 @@ PCollection<Integer> wordLengths = words.apply(
   MapElements.into(TypeDescriptors.integers())
              .via((String word) -> word.length()));
 ```
-
 ```py
 # The input PCollection of string.
 words = ...
