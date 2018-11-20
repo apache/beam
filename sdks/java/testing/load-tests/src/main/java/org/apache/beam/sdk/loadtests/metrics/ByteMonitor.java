@@ -26,8 +26,7 @@ import org.apache.beam.sdk.values.KV;
  * Monitor that records the number of bytes flowing through a PCollection.
  *
  * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
- * flew through this DoFn which then can be collected and written out using {@link
- * MetricsPublisher}.
+ * flew through this DoFn which then can be collected and written out using {@link ResultPublisher}.
  */
 public class ByteMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
