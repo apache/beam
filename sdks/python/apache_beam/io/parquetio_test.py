@@ -258,8 +258,7 @@ class TestParquet(unittest.TestCase):
       path = dst.name
       with self.assertRaises(ArrowInvalid):
         with TestPipeline() as p:
-          # pylint: disable=expression-not-assigned
-          p \
+          _ = p \
           | Create(self.RECORDS) \
           | WriteToParquet(
               path, self.SCHEMA96, num_shards=1, shard_name_template='')
@@ -268,8 +267,7 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
+        _ = p \
         | Create(self.RECORDS) \
         | WriteToParquet(
             path, self.SCHEMA, num_shards=1, shard_name_template='')
@@ -292,8 +290,7 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p \
+        _ = p \
         | Create(self.RECORDS) \
         | WriteToParquet(
             path, self.SCHEMA, codec=compression_type,
@@ -350,15 +347,24 @@ class TestParquet(unittest.TestCase):
     ]
     self.assertNotEquals(len(splits), 1)
 
-  def test_failing_type_conversion(self):
+  def _convert_to_timestamped_record(self, record):
+    import pandas
+    timestamped_record = record.copy()
+    timestamped_record['favorite_number'] =\
+      pandas.Timestamp(timestamped_record['favorite_number'])
+    return timestamped_record
+
+  def test_type_conversion(self):
     file_name = self._write_data(
         count=120, row_group_size=20, schema=self.SCHEMA96)
-    source = _create_parquet_source(file_name)
     try:
-      # pylint: disable=unused-variable
-      import pandas
+      expected_result = [
+          self._convert_to_timestamped_record(x) for x in self.RECORDS
+      ] * 20
+      self._run_parquet_test(file_name, None, None, False, expected_result)
     except ImportError:
       with self.assertRaises(ValueError):
+        source = _create_parquet_source(file_name)
         source_test_utils.read_from_source(source)
 
   def test_split_points(self):
@@ -400,8 +406,7 @@ class TestParquet(unittest.TestCase):
       path = dst.name
       with TestPipeline() as p:
         # writing 623200 bytes of data
-        # pylint: disable=expression-not-assigned
-        p \
+        _ = p \
         | Create(self.RECORDS * 4000) \
         | WriteToParquet(
             path, self.SCHEMA, num_shards=1, codec='none',
