@@ -179,7 +179,6 @@ public class Main {
               .put("eventsPerSec", "float")
               .put("numResults", "integer")
               .build();
-      bigQueryClient.createTableIfNotExists(tableName, schema);
 
       // convert millis to seconds (it's a BigQuery's requirement).
       Map<String, Object> record =
@@ -190,7 +189,7 @@ public class Main {
               .put("numResults", entry.getValue().numResults)
               .build();
 
-      bigQueryClient.insertRow(record, tableName);
+      bigQueryClient.insertRow(record, schema, tableName);
     }
   }
 
