@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
@@ -120,21 +120,84 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   @Override
   public List<RelNode> getPCollectionInputs() {
-    if (isSideInputJoin()) {
-      return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
+    if (isSideInputLookupJoin()) {
+      return ImmutableList.of(
+          BeamSqlRelUtils.getBeamRelInput(getInputs().get(nonSeekableInputIndex().get())));
+    } else {
+      return BeamRelNode.super.getPCollectionInputs();
     }
-    return BeamRelNode.super.getPCollectionInputs();
   }
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-    return new Transform();
+    if (isSideInputLookupJoin()) {
+      return new SideInputLookupJoin();
+    } else {
+      return new Transform();
+    }
   }
 
-  private boolean isSideInputJoin() {
+  private boolean isSideInputLookupJoin() {
+    return seekableInputIndex().isPresent() && nonSeekableInputIndex().isPresent();
+  }
+
+  private Optional<Integer> seekableInputIndex() {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
     BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
-    return !seekable(leftRelNode) && seekable(rightRelNode);
+    return seekable(leftRelNode)
+        ? Optional.of(0)
+        : seekable(rightRelNode) ? Optional.of(1) : Optional.absent();
+  }
+
+  private Optional<Integer> nonSeekableInputIndex() {
+    BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
+    BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+    return !seekable(leftRelNode)
+        ? Optional.of(0)
+        : !seekable(rightRelNode) ? Optional.of(1) : Optional.absent();
+  }
+
+  private class SideInputLookupJoin extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      Schema schema = CalciteUtils.toSchema(getRowType());
+
+      BeamRelNode seekableRel =
+          BeamSqlRelUtils.getBeamRelInput(getInput(seekableInputIndex().get()));
+      BeamRelNode nonSeekableRel =
+          BeamSqlRelUtils.getBeamRelInput(getInput(nonSeekableInputIndex().get()));
+
+      // Offset field references according to which table is on the left
+      int factColOffset =
+          nonSeekableInputIndex().get() == 0
+              ? 0
+              : CalciteUtils.toSchema(seekableRel.getRowType()).getFieldCount();
+      int lkpColOffset =
+          seekableInputIndex().get() == 0
+              ? 0
+              : CalciteUtils.toSchema(nonSeekableRel.getRowType()).getFieldCount();
+
+      // HACK: if the input is an immediate instance of a seekable IO, we can do lookups
+      // so we ignore the PCollection
+      BeamIOSourceRel seekableInput = (BeamIOSourceRel) seekableRel;
+      BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) seekableInput.getBeamSqlTable();
+
+      // getPCollectionInputs() ensures that there is only one and it is the non-seekable input
+      PCollection<Row> nonSeekableInput = pinput.get(0);
+
+      return nonSeekableInput
+          .apply(
+              "join_as_lookup",
+              new BeamJoinTransforms.JoinAsLookup(
+                  condition,
+                  seekableTable,
+                  CalciteUtils.toSchema(seekableInput.getRowType()),
+                  schema,
+                  factColOffset,
+                  lkpColOffset))
+          .setRowSchema(schema);
+    }
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
@@ -142,13 +205,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
       BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-      final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
-
-      if (isSideInputJoin()) {
-        checkArgument(pinput.size() == 1, "More than one input received for side input join");
-        Schema schema = CalciteUtils.toSchema(getRowType());
-        return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0), schema).setRowSchema(schema);
-      }
 
       Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
       Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
@@ -432,24 +488,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     final int rightIndex = rightIndex1 - leftRowColumnCount;
 
     return new Pair<>(leftIndex, rightIndex);
-  }
-
-  private PCollection<Row> joinAsLookup(
-      BeamRelNode leftRelNode,
-      BeamRelNode rightRelNode,
-      PCollection<Row> factStream,
-      Schema outputSchema) {
-    BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
-    BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();
-
-    return factStream.apply(
-        "join_as_lookup",
-        new BeamJoinTransforms.JoinAsLookup(
-            condition,
-            seekableTable,
-            CalciteUtils.toSchema(rightRelNode.getRowType()),
-            outputSchema,
-            CalciteUtils.toSchema(leftRelNode.getRowType()).getFieldCount()));
   }
 
   /** check if {@code BeamRelNode} implements {@code BeamSeekableTable}. */
