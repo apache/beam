@@ -96,6 +96,9 @@ public class UdfImpl extends UdfImplReflectiveFunctionBase
         throw RESOURCE.requireDefaultConstructor(clazz.getName()).ex();
       }
     }
+    if (method.getExceptionTypes().length != 0) {
+      throw new RuntimeException(method.getName() + " must not throw checked exception");
+    }
     CallImplementor implementor = createImplementor(method);
     return new UdfImpl(method, implementor);
   }

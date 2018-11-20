@@ -110,12 +110,16 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.STRING},
     returnType = TypeName.BYTES
   )
-  public byte[] fromHex(String str) throws DecoderException {
+  public byte[] fromHex(String str) {
     if (str == null) {
       return null;
     }
 
-    return Hex.decodeHex(str.toCharArray());
+    try {
+      return Hex.decodeHex(str.toCharArray());
+    } catch (DecoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @UDF(
@@ -123,7 +127,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.BYTES},
     returnType = TypeName.STRING
   )
-  public String toHex(byte[] bytes) throws DecoderException {
+  public String toHex(byte[] bytes) {
     if (bytes == null) {
       return null;
     }
