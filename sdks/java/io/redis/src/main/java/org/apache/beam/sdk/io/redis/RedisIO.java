@@ -444,7 +444,10 @@ public class RedisIO {
        * exist, it is created as empty list before performing the push operations. When key holds a
        * value that is not a list, an error is returned.
        */
-      RPUSH
+      RPUSH,
+
+      /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
+      PFADD
     }
 
     @Nullable
@@ -567,6 +570,8 @@ public class RedisIO {
           writeUsingSetCommand(record, expireTime);
         } else if (Method.LPUSH == method || Method.RPUSH == method) {
           writeUsingListCommand(record, method, expireTime);
+        } else if (Method.PFADD == method) {
+          writeUsingHLLCommand(record, method, expireTime);
         }
       }
 
@@ -603,6 +608,13 @@ public class RedisIO {
         }
 
         setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void writeUsingHLLCommand(KV<String, String> record, Method method, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.pfadd(key, value);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
