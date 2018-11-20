@@ -91,3 +91,21 @@ When you implement a fix for a post-commit test failure, add a new pre-commit
 test that will detect similar failures in the future. For example, you can
 implement a new unit test that covers a problematic code branch.
 
+## Inform the community if Beam breaks downstream projects {#inform_community}
+
+There are multiple projects depend on Beam, and contain tests that are
+outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams. 
+
+When a depending project encounters an issue caused by (a PR) in beam, 
+and in consequence, one requests for a change in the Beam repository 
+accordingly, the first thing is to create a JIRA entry that addresses 
+the following three questions:
+
+1. Descriptions on what the issue is.
+2. Does a revert fix it? (Or it is supposed to be fixed differently)
+3. Is a revert the best way to fix it?
+
+It is encouraged to bring the discussion to the dev mailing list as well. 
+Ideally, after the incident, we prefer to have discussions regarding
+whether we should extend tests in Beam repository, with the goal of
+catching the similar issue early in the future.
