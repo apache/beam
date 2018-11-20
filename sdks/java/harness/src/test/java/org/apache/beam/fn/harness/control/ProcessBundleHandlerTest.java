@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.control;
 
 import static org.hamcrest.Matchers.contains;
@@ -56,7 +55,7 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Message;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

@@ -23,6 +23,7 @@ import argparse
 import logging
 from builtins import list
 from builtins import object
+from collections import OrderedDict
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -219,10 +220,25 @@ class PipelineOptions(HasDisplayData):
     # at a later point in time, i.e. by the actual Runner.
     if unknown_args and unknown_args[0] != '':
       logging.info("Parsing unknown args: %s", unknown_args)
-      for arg in unknown_args:
-        # https://issues.apache.org/jira/browse/BEAM-5442
-        if arg.startswith('--') and not arg.startswith('--beam_plugins'):
-          parser.add_argument(arg.split('=', 1)[0], nargs='?')
+
+      def enumerate_args(args):
+        cleaned_args = OrderedDict()
+        for arg in args:
+          if arg.startswith('--'):
+            # split argument name if it's in arg_name=value syntax
+            arg_name = arg.split('=', 1)[0]
+            # count identical arg names
+            if arg_name not in cleaned_args:
+              cleaned_args[arg_name] = 1
+            else:
+              cleaned_args[arg_name] += 1
+        return cleaned_args
+
+      for arg_name, num_times in enumerate_args(unknown_args).items():
+        parser.add_argument(arg_name,
+                            nargs='?',
+                            action='append' if num_times > 1 else 'store')
+
       # repeat parsing with unknown options added
       known_args, unknown_args = parser.parse_known_args(self._flags)
       if unknown_args:
@@ -335,6 +351,12 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_repeat',
+        type=int,
+        default=0,
+        help='replay every bundle this many extra times, for profiling'
+        'and debugging')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -389,13 +411,20 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
-    parser.add_argument(
-        '--label', '--labels',
-        dest='labels',
-        action='append',
-        default=None,
-        help='Labels that will be applied to this Dataflow job. Labels are key '
-        'value pairs separated by = (e.g. --label key=value).')
+    parser.add_argument('--label', '--labels',
+                        dest='labels',
+                        action='append',
+                        default=None,
+                        help='Labels to be applied to this Dataflow job. '
+                        'Labels are key value pairs separated by = '
+                        '(e.g. --label key=value).')
+    parser.add_argument('--update',
+                        default=False,
+                        action='store_true',
+                        help='Update an existing streaming Cloud Dataflow job. '
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'updating-a-pipeline')
 
   def validate(self, validator):
     errors = []
@@ -534,6 +563,14 @@ class WorkerOptions(PipelineOptions):
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.'
     )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar file. If specified, the jar file is staged '
+             'in GCS, then gets loaded by workers. End users usually '
+             'should not use this feature.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -573,7 +610,12 @@ class ProfilingOptions(PipelineOptions):
                         help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
-                        help='GCS path for saving profiler data.')
+                        help='path for saving profiler data.')
+    parser.add_argument('--profile_sample_rate',
+                        type=float,
+                        default=1.0,
+                        help='A number between 0 and 1 indicating the ratio '
+                        'of bundles that should be profiled.')
 
 
 class SetupOptions(PipelineOptions):

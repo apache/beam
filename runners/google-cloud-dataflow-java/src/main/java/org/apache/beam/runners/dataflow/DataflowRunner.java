@@ -153,6 +153,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.DateTimeUtils;
@@ -196,6 +197,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.pb";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -741,6 +743,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+      List<String> experiments =
+          dataflowOptions.getExperiments() == null
+              ? new ArrayList<>()
+              : new ArrayList<>(dataflowOptions.getExperiments());
+      experiments.add("use_staged_dataflow_worker_jar");
+      dataflowOptions.setExperiments(experiments);
+    }
+
     Job newJob = jobSpecification.getJob();
     try {
       newJob
@@ -791,6 +802,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             minCpuFlags.get(0));
       }
     }
+
     newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
@@ -853,6 +865,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
     }
+
+    // Upload the job to GCS and remove the graph object from the API call.  The graph
+    // will be downloaded from GCS by the service.
+    if (hasExperiment(options, "upload_graph")) {
+      DataflowPackage stagedGraph =
+          options
+              .getStager()
+              .stageToFile(
+                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
+                  DATAFLOW_GRAPH_FILE_NAME);
+      newJob.getSteps().clear();
+      newJob.setStepsLocation(stagedGraph.getLocation());
+    }
+
     Job jobResult;
     try {
       jobResult = dataflowClient.createJob(newJob);
@@ -862,9 +888,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
-                  + "exceeds the allowable limit. "
-                  + "For more information, please check the FAQ link below:\n"
-                  + "https://cloud.google.com/dataflow/faq";
+                  + "exceeds the allowable limit for the API. Use experiment "
+                  + "'upload_graph' (--experiments=upload_graph) to direct the runner to "
+                  + "upload the JSON to your GCS staging bucket instead of embedding in the API request.";
         } else {
           errorMessages = e.getDetails().getMessage();
         }
@@ -1487,7 +1513,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
-          .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
+          .apply(
+              WithKeys.of(
+                      (ValueWithRecordId<T> value) ->
+                          Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS)
+                  .withKeyType(TypeDescriptors.integers()))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.of())

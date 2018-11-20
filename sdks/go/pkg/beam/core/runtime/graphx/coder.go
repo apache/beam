@@ -213,7 +213,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		if elm.GetSpec().GetSpec().GetUrn() != urnCustomCoder {
+		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
+		// the portable pipeline model directly (BEAM-2885)
+		if elm.GetSpec().GetSpec().GetUrn() != "" && elm.GetSpec().GetSpec().GetUrn() != urnCustomCoder {
 			// TODO(herohde) 11/17/2017: revisit this restriction
 			return nil, fmt.Errorf("expected length prefix of custom coder only: %v", elm)
 		}

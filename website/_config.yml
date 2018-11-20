@@ -28,12 +28,8 @@ description: > # this means to ignore newlines until "baseurl:"
   (a cloud service). Beam also brings DSL in different languages, allowing
   users to easily implement their data integration processes.
 
-# the subpath of your site, e.g. /blog
-baseurl: ""
-
-# input and output directory
+# input directory
 source: src
-destination: generated-content
 
 # the base hostname & protocol for your site
 url: "https://beam.apache.org"
@@ -60,7 +56,7 @@ kramdown:
   toc_levels:     2..6
 
 # The most recent release of Beam.
-release_latest: 2.7.0
+release_latest: 2.8.0
 
 # Plugins are configured in the Gemfile.
 

@@ -245,8 +245,8 @@ class DataflowMetrics extends MetricResults {
      * @return true if update is tentative, false otherwise
      */
     private boolean isMetricTentative(MetricUpdate metricUpdate) {
-      return (metricUpdate.getName().getContext().containsKey("tentative")
-          && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true"));
+      return metricUpdate.getName().getContext().containsKey("tentative")
+          && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true");
     }
 
     /**

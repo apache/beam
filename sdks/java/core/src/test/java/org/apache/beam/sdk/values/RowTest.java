@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.values;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
@@ -27,7 +26,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -57,7 +59,10 @@ public class RowTest {
                 Schema.Field.of("f_double", FieldType.DOUBLE).withNullable(true),
                 Schema.Field.of("f_string", FieldType.STRING).withNullable(true),
                 Schema.Field.of("f_datetime", FieldType.DATETIME).withNullable(true),
-                Schema.Field.of("f_boolean", FieldType.BOOLEAN).withNullable(true))
+                Schema.Field.of("f_boolean", FieldType.BOOLEAN).withNullable(true),
+                Schema.Field.of("f_array", FieldType.array(FieldType.DATETIME)).withNullable(true),
+                Schema.Field.of("f_map", FieldType.map(FieldType.INT32, FieldType.DOUBLE))
+                    .withNullable(true))
             .collect(toSchema());
 
     Row row = Row.nullRow(type);
@@ -82,6 +87,10 @@ public class RowTest {
     assertNull(row.getDateTime(8));
     assertNull(row.getBoolean("f_boolean"));
     assertNull(row.getBoolean(9));
+    assertNull(row.getBoolean("f_array"));
+    assertNull(row.getBoolean(10));
+    assertNull(row.getBoolean("f_map"));
+    assertNull(row.getBoolean(11));
   }
 
   @Test
@@ -164,6 +173,16 @@ public class RowTest {
   }
 
   @Test
+  public void testCreatesArrayWithNullElement() {
+    List<Integer> data = Lists.newArrayList(2, null, 5, null);
+    Schema type =
+        Stream.of(Schema.Field.of("array", Schema.FieldType.array(Schema.FieldType.INT32, true)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addArray(data).build();
+    assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
   public void testCreatesRowArray() {
     Schema nestedType = Stream.of(Schema.Field.of("f1_str", FieldType.STRING)).collect(toSchema());
     List<Row> data =
@@ -184,6 +203,19 @@ public class RowTest {
     List<List<Integer>> data = Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, 2, 3, 4));
     Schema type =
         Stream.of(Schema.Field.of("array", FieldType.array(FieldType.array(FieldType.INT32))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addArray(data).build();
+    assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreatesArrayArrayWithNullElement() {
+    List<List<Integer>> data =
+        Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, null, 3, null), null);
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "array", FieldType.array(FieldType.array(FieldType.INT32, true), true)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -222,6 +254,20 @@ public class RowTest {
   }
 
   @Test
+  public void testCreateMapWithNullValue() {
+    Map<Integer, String> data = new HashMap();
+    data.put(1, "value1");
+    data.put(2, "value2");
+    data.put(3, null);
+    data.put(4, null);
+    Schema type =
+        Stream.of(Schema.Field.of("map", FieldType.map(FieldType.INT32, FieldType.STRING, true)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
   public void testCreateMapWithArrayValue() {
     Map<Integer, List<String>> data =
         ImmutableMap.<Integer, List<String>>builder()
@@ -250,6 +296,30 @@ public class RowTest {
                     "map",
                     FieldType.map(
                         FieldType.INT32, FieldType.map(FieldType.INT32, FieldType.STRING))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateMapWithMapValueWithNull() {
+    Map<Integer, Map<Integer, String>> data = new HashMap();
+    Map<Integer, String> innerData = new HashMap();
+    innerData.put(11, null);
+    innerData.put(12, "value3");
+    data.put(1, ImmutableMap.of(1, "value1"));
+    data.put(2, ImmutableMap.of(2, "value2"));
+    data.put(3, null);
+    data.put(4, innerData);
+
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "map",
+                    FieldType.map(
+                        FieldType.INT32,
+                        FieldType.map(FieldType.INT32, FieldType.STRING, true),
+                        true)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
@@ -297,5 +367,31 @@ public class RowTest {
 
     thrown.expect(IllegalArgumentException.class);
     Row.withSchema(type).addValues(1, "2").build();
+  }
+
+  @Test
+  public void testByteArrayEquality() {
+    byte[] a0 = new byte[] {1, 2, 3, 4};
+    byte[] b0 = new byte[] {1, 2, 3, 4};
+
+    Schema schema = Schema.of(Schema.Field.of("bytes", Schema.FieldType.BYTES));
+
+    Row a = Row.withSchema(schema).addValue(a0).build();
+    Row b = Row.withSchema(schema).addValue(b0).build();
+
+    Assert.assertEquals(a, b);
+  }
+
+  @Test
+  public void testByteBufferEquality() {
+    byte[] a0 = new byte[] {1, 2, 3, 4};
+    byte[] b0 = new byte[] {1, 2, 3, 4};
+
+    Schema schema = Schema.of(Schema.Field.of("bytes", Schema.FieldType.BYTES));
+
+    Row a = Row.withSchema(schema).addValue(ByteBuffer.wrap(a0)).build();
+    Row b = Row.withSchema(schema).addValue(ByteBuffer.wrap(b0)).build();
+
+    Assert.assertEquals(a, b);
   }
 }

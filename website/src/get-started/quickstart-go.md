@@ -22,6 +22,8 @@ limitations under the License.
 
 This Quickstart will walk you through executing your first Beam pipeline to run [WordCount]({{ site.baseurl }}/get-started/wordcount-example), written using Beam's [Go SDK]({{ site.baseurl }}/documentation/sdks/go), on a [runner]({{ site.baseurl }}/documentation#runners) of your choice.
 
+If you're interested in contributing to the Apache Beam Go codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+
 * TOC
 {:toc}
 

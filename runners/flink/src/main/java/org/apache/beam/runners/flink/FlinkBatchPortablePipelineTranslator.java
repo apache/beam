@@ -18,6 +18,9 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.createOutputMap;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -53,7 +57,6 @@ import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFun
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
-import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
@@ -75,7 +78,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -86,6 +89,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 
 /**
  * A translator that translates bounded portable pipelines into executable Flink pipelines.
@@ -140,13 +144,6 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
-    translatorMap.put(
-        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
-        // https://issues.apache.org/jira/browse/BEAM-5649
-        // Need to support this via a NOOP until the primitive is removed
-        (PTransformNode transform,
-            RunnerApi.Pipeline pipeline,
-            BatchTranslationContext context) -> {});
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
 
@@ -303,16 +300,13 @@ public class FlinkBatchPortablePipelineTranslator
 
   private static <InputT> void translateExecutableStage(
       PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
-    // TODO: Fail on stateful DoFns for now.
-    // TODO: Support stateful DoFns by inserting group-by-keys where necessary.
     // TODO: Fail on splittable DoFns.
     // TODO: Special-case single outputs to avoid multiplexing PCollections.
 
     RunnerApi.Components components = pipeline.getComponents();
     Map<String, String> outputs = transform.getTransform().getOutputsMap();
     // Mapping from PCollection id to coder tag id.
-    BiMap<String, Integer> outputMap =
-        FlinkPipelineTranslatorUtils.createOutputMap(outputs.values());
+    BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
     // Collect all output Coders and create a UnionCoder for our tagged outputs.
     List<Coder<?>> unionCoders = Lists.newArrayList();
     // Enforce tuple tag sorting by union tag index.
@@ -340,19 +334,47 @@ public class FlinkBatchPortablePipelineTranslator
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    FlinkExecutableStageFunction<InputT> function =
+
+    String inputPCollectionId = stagePayload.getInput();
+    Coder<WindowedValue<InputT>> windowedInputCoder =
+        instantiateCoder(inputPCollectionId, components);
+
+    DataSet<WindowedValue<InputT>> inputDataSet = context.getDataSetOrThrow(inputPCollectionId);
+
+    final FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
             stagePayload,
             context.getJobInfo(),
             outputMap,
-            FlinkExecutableStageContext.factory(context.getPipelineOptions()));
+            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
+            getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder());
 
-    DataSet<WindowedValue<InputT>> inputDataSet =
-        context.getDataSetOrThrow(stagePayload.getInput());
+    final SingleInputUdfOperator taggedDataset;
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
 
-    MapPartitionOperator<WindowedValue<InputT>, RawUnionValue> taggedDataset =
-        new MapPartitionOperator<>(
-            inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+      Coder valueCoder =
+          ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
+      // Stateful stages are only allowed of KV input to be able to group on the key
+      if (!(valueCoder instanceof KvCoder)) {
+        throw new IllegalStateException(
+            String.format(
+                Locale.ENGLISH,
+                "The element coder for stateful DoFn '%s' must be KvCoder but is: %s",
+                inputPCollectionId,
+                valueCoder.getClass().getSimpleName()));
+      }
+      Coder keyCoder = ((KvCoder) valueCoder).getKeyCoder();
+
+      Grouping<WindowedValue<InputT>> groupedInput =
+          inputDataSet.groupBy(new KvKeySelector<>(keyCoder));
+      taggedDataset =
+          new GroupReduceOperator<>(
+              groupedInput, typeInformation, function, transform.getTransform().getUniqueName());
+    } else {
+      taggedDataset =
+          new MapPartitionOperator<>(
+              inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+    }
 
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
       String collectionId =
@@ -379,7 +401,7 @@ public class FlinkBatchPortablePipelineTranslator
       // no-op sink to each to make sure they are materialized by Flink. However, some SDK-executed
       // stages have no runner-visible output after fusion. We handle this case by adding a sink
       // here.
-      taggedDataset.output(new DiscardingOutputFormat());
+      taggedDataset.output(new DiscardingOutputFormat<>());
     }
   }
 

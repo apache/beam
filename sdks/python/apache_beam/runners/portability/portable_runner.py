@@ -24,9 +24,7 @@ import threading
 
 import grpc
 
-from apache_beam import coders
 from apache_beam import metrics
-from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
@@ -40,6 +38,15 @@ from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
 
 __all__ = ['PortableRunner']
+
+MESSAGE_LOG_LEVELS = {
+    beam_job_api_pb2.JobMessage.MESSAGE_IMPORTANCE_UNSPECIFIED: logging.INFO,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG: logging.DEBUG,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DETAILED: logging.DEBUG,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_BASIC: logging.INFO,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_WARNING: logging.WARNING,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR: logging.ERROR,
+}
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
@@ -58,10 +65,6 @@ class PortableRunner(runner.PipelineRunner):
     This runner schedules the job on a job service. The responsibility of
     running and managing the job lies with the job service used.
   """
-
-  def __init__(self, is_embedded_fnapi_runner=False):
-    self.is_embedded_fnapi_runner = is_embedded_fnapi_runner
-
   @staticmethod
   def default_docker_image():
     if 'USER' in os.environ:
@@ -119,19 +122,6 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
-
-    if not self.is_embedded_fnapi_runner:
-      # Java has different expectations about coders
-      # (windowed in Fn API, but *un*windowed in runner API), whereas the
-      # embedded FnApiRunner treats them consistently, so we must guard this
-      # for now, until FnApiRunner is fixed.
-      # See also BEAM-2717.
-      for pcoll in proto_pipeline.components.pcollections.values():
-        if pcoll.coder_id not in proto_context.coders:
-          # This is not really a coder id, but a pickled coder.
-          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-          pcoll.coder_id = proto_context.coders.get_id(coder)
-      proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
@@ -227,11 +217,32 @@ class PipelineResult(runner.PipelineResult):
   def metrics(self):
     return PortableMetrics()
 
+  def _last_error_message(self):
+    # Python sort is stable.
+    ordered_messages = sorted(
+        [m.message_response for m in self._messages
+         if m.HasField('message_response')],
+        key=lambda m: m.importance)
+    if ordered_messages:
+      return ordered_messages[-1].message_text
+    else:
+      return 'unknown error'
+
   def wait_until_finish(self):
 
     def read_messages():
       for message in self._job_service.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(job_id=self._job_id)):
+        if message.HasField('message_response'):
+          logging.log(
+              MESSAGE_LOG_LEVELS[message.message_response.importance],
+              "%s",
+              message.message_response.message_text)
+        else:
+          logging.info(
+              "Job state changed to %s",
+              self._runner_api_state_to_pipeline_state(
+                  message.state_response.state))
         self._messages.append(message)
 
     t = threading.Thread(target=read_messages, name='wait_until_finish_read')
@@ -243,8 +254,11 @@ class PipelineResult(runner.PipelineResult):
       self._state = self._runner_api_state_to_pipeline_state(
           state_response.state)
       if state_response.state in TERMINAL_STATES:
+        # Wait for any last messages.
+        t.join(10)
         break
     if self._state != runner.PipelineState.DONE:
       raise RuntimeError(
-          'Pipeline %s failed in state %s.' % (self._job_id, self._state))
+          'Pipeline %s failed in state %s: %s' % (
+              self._job_id, self._state, self._last_error_message()))
     return self._state

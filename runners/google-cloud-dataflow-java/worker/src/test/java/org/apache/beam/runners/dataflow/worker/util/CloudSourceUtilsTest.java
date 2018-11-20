@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
@@ -63,7 +62,7 @@ public class CloudSourceUtilsTest {
     source.getBaseSpecs().add(grandparent);
     source.getBaseSpecs().add(parent);
     source.setSpec(child);
-    source.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of()));
+    source.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
 
     Source flat = CloudSourceUtils.flattenBaseSpecs(source);
     assertNull(flat.getBaseSpecs());

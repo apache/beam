@@ -28,6 +28,8 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.LogRecord;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.Description;
@@ -70,6 +72,29 @@ public class ExpectedLogsTest {
     String expected = generateRandomString();
     LOG.error(expected, new IOException("Fake Exception"));
     expectedLogs.verifyError(expected);
+  }
+
+  @Test
+  public void testVerifyLogRecords() throws Throwable {
+    String expected = generateRandomString();
+    LOG.error(expected);
+    LOG.error(expected);
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> item) {
+            int count = 0;
+            for (LogRecord record : item) {
+              if (record.getMessage().contains(expected)) {
+                count += 1;
+              }
+            }
+            return count == 2;
+          }
+
+          @Override
+          public void describeTo(org.hamcrest.Description description) {}
+        });
   }
 
   @Test(expected = AssertionError.class)

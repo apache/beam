@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -365,8 +364,6 @@ public class GreedyPipelineFuser {
             .stream()
             .map(PCollectionNode::getId)
             .collect(Collectors.toSet()));
-    possibleInputs.addAll(
-        stage.getTimers().stream().map(t -> t.collection().getId()).collect(Collectors.toSet()));
     possibleInputs.addAll(
         stage
             .getSideInputs()

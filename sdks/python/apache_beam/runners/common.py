@@ -62,6 +62,7 @@ class NameContext(object):
     return self.step_name == other.step_name
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
@@ -104,6 +105,7 @@ class DataflowNameContext(NameContext):
             self.system_name == other.system_name)
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
@@ -150,8 +152,13 @@ class MethodWrapper(object):
                        'a \'RestrictionProvider\'. Received %r instead.'
                        % obj_to_invoke)
 
-    args, _, _, defaults = core.get_function_arguments(
+    fullargspec = core.get_function_arguments(
         obj_to_invoke, method_name)
+
+    # TODO(BEAM-5878) support kwonlyargs on Python 3.
+    args = fullargspec[0]
+    defaults = fullargspec[3]
+
     defaults = defaults if defaults else []
     method_value = getattr(obj_to_invoke, method_name)
     self.method_value = method_value

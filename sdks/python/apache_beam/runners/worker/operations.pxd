@@ -20,7 +20,7 @@ cimport cython
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
-
+#from libcpp.string cimport string
 
 cdef WindowedValue _globally_windowed_value
 cdef type _global_window_type
@@ -49,6 +49,8 @@ cdef class Operation(object):
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
   cdef readonly bint debug_logging_enabled
+  # For legacy workers.
+  cdef bint setup_done
 
   cdef public step_name  # initialized lazily
 
@@ -62,7 +64,10 @@ cdef class Operation(object):
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
-  cpdef progress_metrics(self)
+  cpdef execution_time_monitoring_infos(self, transform_id)
+  cpdef user_monitoring_infos(self, transform_id)
+  cpdef element_count_monitoring_infos(self, transform_id)
+  cpdef monitoring_infos(self, transform_id)
 
 
 cdef class ReadOperation(Operation):

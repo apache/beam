@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.common.base.Predicates.notNull;
@@ -87,7 +86,7 @@ public abstract class ExecutionStateRegistry {
         ExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);
     return createdStates.computeIfAbsent(
         stateKey,
-        (unused) ->
+        unused ->
             createState(
                 nameContext, stateName, requestingStepName, inputIndex, container, profileScope));
   }
@@ -109,7 +108,7 @@ public abstract class ExecutionStateRegistry {
 
   public Iterable<CounterUpdate> extractUpdates(boolean isFinalUpdate) {
     return FluentIterable.from(createdStates.values())
-        .transform((state) -> state.extractUpdate(isFinalUpdate))
+        .transform(state -> state.extractUpdate(isFinalUpdate))
         .filter(notNull());
   }
 }

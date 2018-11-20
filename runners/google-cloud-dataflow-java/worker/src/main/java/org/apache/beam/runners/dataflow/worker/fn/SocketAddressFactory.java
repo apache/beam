@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -25,7 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.unix.DomainSocketAddress;
 
 /**
  * Creates a {@link SocketAddress} based upon a supplied string.

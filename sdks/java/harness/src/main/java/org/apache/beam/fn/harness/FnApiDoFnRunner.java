@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collection;
@@ -209,7 +210,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
             context.beamFnStateClient,
             context.keyCoder,
             (Coder<BoundedWindow>) context.windowCoder,
-            () -> currentElement,
+            () -> MoreObjects.firstNonNull(currentElement, currentTimer),
             () -> currentWindow);
 
     doFnInvoker.invokeStartBundle(startBundleContext);

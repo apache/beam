@@ -36,8 +36,9 @@ task copyDockerfileDependencies(type: Copy) {
   from configurations.sdkHarnessLauncher
   from file("../base_image_requirements.txt")
   into "build/target"
-  configurations.sdkSourceTarball.stopExecutionIfEmpty()
-  configurations.sdkHarnessLauncher.stopExecutionIfEmpty()
+  if(configurations.sdkSourceTarball.isEmpty() || configurations.sdkHarnessLauncher.isEmpty()) {
+    throw new StopExecutionException();
+  }
 }
 
 docker {

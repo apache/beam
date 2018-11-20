@@ -223,7 +223,7 @@ class _BatchSizeEstimator(object):
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
       raise ValueError("target_batch_duration_secs (%s) must be positive" % (
           target_batch_duration_secs))
-    if max(0, target_batch_overhead, target_batch_duration_secs) == 0:
+    if not (target_batch_overhead or target_batch_duration_secs):
       raise ValueError("At least one of target_batch_overhead or "
                        "target_batch_duration_secs must be positive.")
     self._min_batch_size = min_batch_size
@@ -315,8 +315,8 @@ class _BatchSizeEstimator(object):
 
       # Re-compute the regression, excluding those points with Cook's distance
       # greater than 0.5, and weighting by the inverse of x to give a more
-      # stable y-intercept (as small batches have relatively information
-      # about the fixed ovehead).
+      # stable y-intercept (as small batches have relatively more information
+      # about the fixed overhead).
       weight = (cook_ds <= 0.5) / xs
       b, a = np.polyfit(xs, ys, 1, w=weight)
       return a, b

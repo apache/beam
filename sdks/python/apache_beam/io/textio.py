@@ -383,7 +383,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     if self._header is not None:
       file_handle.write(self._header)
       if self._append_trailing_newlines:
-        file_handle.write('\n')
+        file_handle.write(b'\n')
     return file_handle
 
   def display_data(self):
@@ -397,7 +397,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
     if self._append_trailing_newlines:
-      file_handle.write('\n')
+      file_handle.write(b'\n')
 
 
 def _create_text_source(

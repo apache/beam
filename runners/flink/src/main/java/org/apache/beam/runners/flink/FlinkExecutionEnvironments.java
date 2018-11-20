@@ -77,6 +77,9 @@ public class FlinkExecutionEnvironments {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     }
 
+    // Set the execution more for data exchange.
+    flinkBatchEnv.getConfig().setExecutionMode(options.getExecutionModeForBatch());
+
     // set the correct parallelism.
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
@@ -203,9 +206,17 @@ public class FlinkExecutionEnvironments {
             .getCheckpointConfig()
             .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
       }
+    } else {
+      // https://issues.apache.org/jira/browse/FLINK-2491
+      // Checkpointing is disabled, we can allow shutting down sources when they're done
+      options.setShutdownSourcesOnFinalWatermark(true);
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
+    }
 
     // State backend
     final StateBackend stateBackend = options.getStateBackend();

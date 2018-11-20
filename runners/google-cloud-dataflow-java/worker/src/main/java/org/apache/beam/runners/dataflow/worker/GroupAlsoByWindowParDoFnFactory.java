@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -60,7 +59,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -300,7 +299,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
     @Override
     public AccumT extractOutput(List<AccumT> accumulator) {
-      if (accumulator.size() == 0) {
+      if (accumulator.isEmpty()) {
         return combineFn.createAccumulator();
       } else {
         return combineFn.mergeAccumulators(accumulator);
@@ -361,7 +360,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
     @Override
     public AccumT extractOutput(List<AccumT> accumulator, Context c) {
-      if (accumulator.size() == 0) {
+      if (accumulator.isEmpty()) {
         return combineFnWithContext.createAccumulator(c);
       } else {
         return combineFnWithContext.mergeAccumulators(accumulator, c);

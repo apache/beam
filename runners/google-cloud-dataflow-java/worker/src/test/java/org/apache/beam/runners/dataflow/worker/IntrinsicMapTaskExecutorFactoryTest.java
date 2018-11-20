@@ -4,18 +4,17 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
@@ -121,7 +120,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
           .andThen(new MapTaskToNetworkFunction());
 
   private static final CloudObject windowedStringCoder =
-      CloudObjects.asCloudObject(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
+      CloudObjects.asCloudObject(
+          WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
 
   private IntrinsicMapTaskExecutorFactory mapTaskExecutorFactory;
   private PipelineOptions options;
@@ -561,13 +561,15 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         CloudObjects.asCloudObject(
             FullWindowedValueCoder.of(
                 KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()),
-                IntervalWindowCoder.of())));
+                IntervalWindowCoder.of()),
+            /*sdkComponents=*/ null));
 
     InstructionOutput output = new InstructionOutput();
     output.setName("pgbk_output_name");
     output.setCodec(
         CloudObjects.asCloudObject(
-            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of()))));
+            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+            /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -692,7 +694,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     InstructionOutput output = new InstructionOutput();
     output.setName("flatten_output_name");
-    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of()));
+    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 

@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.harness.test;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 
 /** Utility methods which enable testing of {@link StreamObserver}s. */
 public class TestStreams {

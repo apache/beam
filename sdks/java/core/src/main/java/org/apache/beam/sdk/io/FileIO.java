@@ -412,7 +412,7 @@ public class FileIO {
           getMetadata().isReadSeekEfficient(),
           "The file %s is not seekable",
           metadata.resourceId());
-      return ((SeekableByteChannel) open());
+      return (SeekableByteChannel) open();
     }
 
     /** Returns the full contents of the file as bytes. */

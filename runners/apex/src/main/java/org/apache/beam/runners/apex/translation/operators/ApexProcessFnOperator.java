@@ -138,7 +138,7 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
         Collection<W> windows =
             (windowFn)
                 .assignWindows(
-                    (windowFn).new AssignContext() {
+                    windowFn.new AssignContext() {
                       @Override
                       public T element() {
                         return input.getValue();

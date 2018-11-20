@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -85,6 +84,10 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),
         Coder.class.getSimpleName());
+  }
+
+  public static boolean isKnownCoder(Coder<?> coder) {
+    return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
   }
 
   @Override

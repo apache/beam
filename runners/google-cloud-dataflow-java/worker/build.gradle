@@ -16,31 +16,12 @@
  * limitations under the License.
  */
 
-/******************************************************************************/
-// Apply BeamModulePlugin
-
-// Reuse project_root/buildSrc in this build.gradle file to reduce the
-// maintenance burden and simpily this file. See BeamModulePlugin for
-// documentation on default build tasks and properties that are enabled in
-// addition to natures that will be applied to worker.
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-
-group = "org.apache.beam.runners.dataflow"
-
-/******************************************************************************/
-// Apply Java nature with customized configurations
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
-
-// To build FnAPI or legacy worker.
-// Use -PisLegacyWorker in Gradle command if build legacy worker, otherwise,
-// FnAPI worker is considered as default.
-def is_legacy_worker = {
-  return project.name.contains("dataflow-java-legacy-worker")
-}
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
@@ -55,10 +36,6 @@ def getWorkerRelocatedPath = { String suffix ->
 // Following listed dependencies will be shaded only in fnapi worker, not legacy
 // worker
 def sdk_provided_dependencies = [
-  "org.apache.beam:beam-runners-google-cloud-dataflow-java:$version",
-  "org.apache.beam:beam-sdks-java-core:$version",
-  "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version",
-  "org.apache.beam:beam-sdks-java-io-google-cloud-platform:$version",
   google_api_services_dataflow,
   library.java.avro,
   library.java.google_api_client,
@@ -70,33 +47,17 @@ def sdk_provided_dependencies = [
   library.java.joda_time,
 ]
 
-// Exclude unneeded dependencies when building jar
-def excluded_dependencies = [
-  "com.google.auto.service:auto-service",      // Provided scope added from applyJavaNature
-  "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
-  "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
-  "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
-  "org.tukaani:xz",                            // Transitive dependency introduced from Beam
-  library.java.commons_compress,               // Transitive dependency introduced from Beam
-  library.java.error_prone_annotations,        // Provided scope added in worker
-  library.java.hamcrest_core,                  // Test only
-  library.java.hamcrest_library,               // Test only
-  library.java.junit,                          // Test only
+def sdk_provided_project_dependencies = [
+  ":beam-runners-google-cloud-dataflow-java",
+  ":beam-sdks-java-core",
+  ":beam-sdks-java-extensions-google-cloud-platform-core",
+  ":beam-sdks-java-io-google-cloud-platform",
 ]
 
-applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */, validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow"))
     include(dependency(".*:.*"))
-
-    if (is_legacy_worker()) {
-      sdk_provided_dependencies.each {
-        exclude(dependency(it))
-      }
-      excluded_dependencies.each {
-        exclude(dependency(it))
-      }
-    }
   }
 
   // Include original source files extracted under
@@ -105,45 +66,6 @@ applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE 
 
   exclude "META-INF/LICENSE.txt"
   exclude "about.html"
-  exclude "google/protobuf/*.proto"
-  exclude "windmill*.proto"
-
-  if (is_legacy_worker()) {
-    relocate("com.", getWorkerRelocatedPath("com.")) {
-      exclude "com.fasterxml.jackson.**"
-      exclude "com.google.api.client.**"
-      exclude "com.google.api.services.bigquery.**"
-      exclude "com.google.api.services.clouddebugger.**"
-      exclude "com.google.api.services.dataflow.**"
-      exclude "com.google.api.services.datastore.**"
-      exclude "com.google.api.services.pubsub.**"
-      exclude "com.google.api.services.storage.**"
-      exclude "com.google.auth.**"
-      exclude "com.google.cloud.dataflow.**"
-      exclude "com.sun.management*"
-      exclude "com.sun.management.**"
-    }
-    relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
-    relocate("io.", getWorkerRelocatedPath("io."))
-    relocate("okio.", getWorkerRelocatedPath("okio."))
-    relocate("org.", getWorkerRelocatedPath("org.")) {
-      // Exclude netty-tcnative from shading since gRPC relies on Netty to be able
-      // to load org.apache.tomcat.jni.SSL to provide an SSL context.
-      exclude "org.apache.avro.**"
-      exclude "org.apache.beam.**"
-      exclude "org.apache.tomcat.jni.**"
-      exclude "org.conscrypt.**"
-      exclude "org.eclipse.jetty.alpn.**"
-      exclude "org.eclipse.jetty.npn.**"
-      exclude "org.hamcrest.**"
-      exclude "org.joda.time.**"
-      exclude "org.junit.**"
-      exclude "org.slf4j.**"
-      exclude "org.w3c.dom.**"
-    }
-    relocate("org.apache.beam.runners.core.construction.",
-             getWorkerRelocatedPath("org."))
-  }
 })
 
 /******************************************************************************/
@@ -159,26 +81,34 @@ configurations {
   }
 }
 
+def common_compile_project_dependencies = [
+    ":beam-model-fn-execution",
+    ":beam-model-pipeline",
+    ":beam-runners-core-construction-java",
+    ":beam-runners-core-java",
+    ":beam-runners-java-fn-execution",
+    ":beam-sdks-java-fn-execution",
+    ":beam-runners-google-cloud-dataflow-java-windmill",
+    ":beam-vendor-grpc-v1_13_1",
+]
+
+def common_test_compile_project_dependencies = [
+    ":beam-runners-core-java",
+    ":beam-sdks-java-core",
+    ":beam-sdks-java-extensions-google-cloud-platform-core",
+]
+
 dependencies {
-  // Set dependencies to shadow scope by default, but in a property so they can
-  // be downgraded when building a legacy (non-FnAPI) worker.
-  if (is_legacy_worker()) {
-    sdk_provided_dependencies.each {
-      provided(it)
-    }
-  } else {
     sdk_provided_dependencies.each {
       shadow(it)
     }
-  }
+    sdk_provided_project_dependencies.each {
+      shadow project(path: it, configuration: "shadow")
+    }
 
-  compile "org.apache.beam:beam-model-fn-execution:$version"
-  compile "org.apache.beam:beam-model-pipeline:$version"
-  compile "org.apache.beam:beam-runners-core-construction-java:$version"
-  compile "org.apache.beam:beam-runners-core-java:$version"
-  compile "org.apache.beam:beam-runners-java-fn-execution:$version"
-  compile "org.apache.beam:beam-sdks-java-fn-execution:$version"
-  compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
+  common_compile_project_dependencies.each {
+    compile project(path: it, configuration: "shadow")
+  }
 
   compile library.java.guava
   compile library.java.slf4j_api
@@ -191,10 +121,11 @@ dependencies {
 
   runtime library.java.slf4j_jdk14
 
-  testCompile "org.apache.beam:beam-runners-core-java:$version:tests"
-  testCompile "org.apache.beam:beam-runners-direct-java:$version"
-  testCompile "org.apache.beam:beam-sdks-java-core:$version:tests"
-  testCompile "org.apache.beam:beam-sdks-java-extensions-google-cloud-platform-core:$version:tests"
+  common_test_compile_project_dependencies.each {
+    testCompile project(path: it, configuration: "shadowTest")
+  }
+
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
 
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
@@ -206,7 +137,5 @@ dependencies {
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5658): fingbugs task should be enabled in the future.
-findbugsMain.enabled = false
 //TODO(BEAM-5659): javadoc task should be enabled in the future.
 javadoc.enabled = false

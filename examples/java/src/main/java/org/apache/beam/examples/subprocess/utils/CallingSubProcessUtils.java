@@ -41,7 +41,7 @@ public class CallingSubProcessUtils {
   private static final Set<String> downloadedFiles = Sets.<String>newConcurrentHashSet();
 
   // Limit the number of threads able to do work
-  private static Map<String, Semaphore> semaphores = new ConcurrentHashMap<String, Semaphore>();
+  private static Map<String, Semaphore> semaphores = new ConcurrentHashMap<>();
 
   public static void setUp(SubProcessConfiguration configuration, String binaryName)
       throws Exception {

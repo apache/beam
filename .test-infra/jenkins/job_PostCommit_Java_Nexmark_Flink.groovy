@@ -18,7 +18,9 @@
 
 import CommonJobProperties as commonJobProperties
 import NexmarkBigqueryProperties
+import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
+import PhraseTriggeringPostCommitBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
@@ -97,4 +99,20 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--flinkMaster=local"'].join(' '))
     }
   }
+}
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
+        'Run Flink Runner Nexmark Tests', 'Flink Runner Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Flink runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite'        : 'SMOKE',
+          'streamTimeout': 60,
+          'flinkMaster'  : 'local'
+  ]
+
+  Nexmark.standardJob(delegate, Nexmark.Runner.FLINK, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
 }

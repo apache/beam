@@ -54,7 +54,8 @@ class PipelineAnalyzer(object):
         options=options)
     # context returned from to_runner_api is more informative than that returned
     # from from_runner_api.
-    _, self._context = self._pipeline.to_runner_api(return_context=True)
+    _, self._context = self._pipeline.to_runner_api(
+        return_context=True, use_fake_coders=True)
     self._pipeline_info = PipelineInfo(self._pipeline_proto.components)
 
     # Result of the analysis that can be queried by the user.
@@ -431,6 +432,10 @@ class PipelineInfo(object):
         # pylint: disable=protected-access
         return (self._inputs == other._inputs and
                 self._transform_info == other._transform_info)
+
+    def __ne__(self, other):
+      # TODO(BEAM-5949): Needed for Python 2 compatibility.
+      return not self == other
 
     def __hash__(self):
       if self._hash is None:

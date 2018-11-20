@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -26,21 +28,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -54,6 +62,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +104,8 @@ public class UnboundedSourceWrapperTest {
     @Test(timeout = 30_000)
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
-      PipelineOptions options = PipelineOptionsFactory.create();
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setShutdownSourcesOnFinalWatermark(true);
 
       final long[] numElementsReceived = {0L};
       final int[] numWatermarksReceived = {0};
@@ -554,6 +564,54 @@ public class UnboundedSourceWrapperTest {
           new UnboundedSourceWrapper<>("stepName", options, source, parallelism);
 
       InstantiationUtil.serializeObject(flinkWrapper);
+    }
+
+    @Test(timeout = 10_000)
+    public void testSourceWithNoReaderDoesNotShutdown() throws Exception {
+      final int parallelism = 2;
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setShutdownSourcesOnFinalWatermark(true);
+
+      TestCountingSource source = new TestCountingSource(20).withoutSplitting();
+
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> sourceWrapper =
+          new UnboundedSourceWrapper<>("noReader", options, source, parallelism);
+
+      StreamingRuntimeContext mock = Mockito.mock(StreamingRuntimeContext.class);
+      // Set up the RuntimeContext such that this instance won't receive any readers
+      Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(parallelism - 1);
+      Mockito.when(mock.getNumberOfParallelSubtasks()).thenReturn(parallelism);
+      sourceWrapper.setRuntimeContext(mock);
+      sourceWrapper.open(new Configuration());
+
+      SourceFunction.SourceContext sourceContext = Mockito.mock(SourceFunction.SourceContext.class);
+      Object checkpointLock = new Object();
+      Mockito.when(sourceContext.getCheckpointLock()).thenReturn(checkpointLock);
+
+      Thread thread =
+          new Thread(
+              () -> {
+                try {
+                  sourceWrapper.run(sourceContext);
+                } catch (Exception e) {
+                  LOG.error("Error while running UnboundedSourceWrapper", e);
+                }
+              });
+
+      try {
+        thread.start();
+        List<UnboundedSource.UnboundedReader<KV<Integer, Integer>>> localReaders =
+            sourceWrapper.getLocalReaders();
+        while (localReaders != null && !localReaders.isEmpty()) {
+          Thread.sleep(200);
+          // should stay alive
+          assertThat(thread.isAlive(), is(true));
+        }
+        sourceWrapper.cancel();
+      } finally {
+        thread.interrupt();
+        thread.join();
+      }
     }
   }
 

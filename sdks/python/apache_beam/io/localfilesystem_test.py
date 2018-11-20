@@ -161,17 +161,25 @@ class LocalFileSystemTest(unittest.TestCase):
 
   @parameterized.expand([
       param('*',
-            files=['a', 'b', 'c/x'],
+            files=['a', 'b', os.path.join('c', 'x')],
             expected=['a', 'b']),
       param('**',
-            files=['a', 'b/x', 'c/x'],
-            expected=['a', 'b/x', 'c/x']),
-      param('*/*',
-            files=['a', 'b/x', 'c/x', 'd/x/y'],
-            expected=['b/x', 'c/x']),
-      param('**/*',
-            files=['a', 'b/x', 'c/x', 'd/x/y'],
-            expected=['b/x', 'c/x', 'd/x/y']),
+            files=['a', os.path.join('b', 'x'), os.path.join('c', 'x')],
+            expected=['a', os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('*', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('**', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'),
+                      os.path.join('c', 'x'),
+                      os.path.join('d', 'x', 'y')]),
   ])
   def test_match_glob(self, pattern, files, expected):
     for filename in files:
@@ -205,7 +213,7 @@ class LocalFileSystemTest(unittest.TestCase):
     open(path1, 'a').close()
     open(path2, 'a').close()
 
-    result = self.fs.match([self.tmpdir + '/'])[0]
+    result = self.fs.match([os.path.join(self.tmpdir, '*')])[0]
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
 
@@ -399,7 +407,7 @@ class LocalFileSystemTest(unittest.TestCase):
 
     self.fs.delete([
         os.path.join(dir, 'path*'),
-        os.path.join(dir, 'aaa/b*')
+        os.path.join(dir, 'aaa', 'b*')
     ])
 
     # One empty nested directory is left
@@ -433,8 +441,8 @@ class LocalFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*'),
-          os.path.join(dir, 'aaa/b*'),
-          os.path.join(dir, 'aaa/d*')  # doesn't match anything, will raise
+          os.path.join(dir, 'aaa', 'b*'),
+          os.path.join(dir, 'aaa', 'd*')  # doesn't match anything, will raise
       ])
 
     self.check_tree(
@@ -454,7 +462,7 @@ class LocalFileSystemTest(unittest.TestCase):
             .exception_details
             .keys()
         ),
-        [os.path.join(dir, 'aaa/d*')]
+        [os.path.join(dir, 'aaa', 'd*')]
     )
 
     with self.assertRaisesRegexp(BeamIOError,

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Throwables.getStackTraceAsString;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -67,6 +68,7 @@ public class FlinkJobInvocation implements JobInvocation {
   private final List<String> filesToStage;
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
+  private List<Consumer<JobMessage>> messageObservers;
 
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
@@ -86,6 +88,7 @@ public class FlinkJobInvocation implements JobInvocation {
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
     this.stateObservers = new ArrayList<>();
+    this.messageObservers = new ArrayList<>();
   }
 
   private PipelineResult runPipeline() throws Exception {
@@ -155,6 +158,16 @@ public class FlinkJobInvocation implements JobInvocation {
           public void onFailure(Throwable throwable) {
             String message = String.format("Error during job invocation %s.", getId());
             LOG.error(message, throwable);
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(getStackTraceAsString(throwable))
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_DEBUG)
+                    .build());
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(throwable.toString())
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
+                    .build());
             setState(JobState.Enum.FAILED);
           }
         },
@@ -205,13 +218,19 @@ public class FlinkJobInvocation implements JobInvocation {
 
   @Override
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
-    LOG.warn("addMessageObserver() not yet implemented.");
+    messageObservers.add(messageStreamObserver);
   }
 
   private synchronized void setState(JobState.Enum state) {
     this.jobState = state;
     for (Consumer<JobState.Enum> observer : stateObservers) {
       observer.accept(state);
+    }
+  }
+
+  private synchronized void sendMessage(JobMessage message) {
+    for (Consumer<JobMessage> observer : messageObservers) {
+      observer.accept(message);
     }
   }
 

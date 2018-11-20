@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
@@ -30,6 +29,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
@@ -131,6 +132,82 @@ public class RemoteGrpcPortWriteOperationTest {
     verifyNoMoreInteractions(beamFnDataService);
   }
 
+  @Test
+  public void testBufferRateLimiting() throws Exception {
+    AtomicInteger processedElements = new AtomicInteger();
+    AtomicInteger currentTimeMillis = new AtomicInteger(10000);
+
+    final int START_BUFFER_SIZE = 3;
+    final int STEADY_BUFFER_SIZE = 10;
+    final int FIRST_ELEMENT_DURATION =
+        (int) RemoteGrpcPortWriteOperation.MAX_BUFFER_MILLIS / START_BUFFER_SIZE + 1;
+    final int STEADY_ELEMENT_DURATION =
+        (int) RemoteGrpcPortWriteOperation.MAX_BUFFER_MILLIS / STEADY_BUFFER_SIZE + 1;
+
+    operation =
+        new RemoteGrpcPortWriteOperation<>(
+            beamFnDataService,
+            TARGET,
+            bundleIdSupplier,
+            CODER,
+            operationContext,
+            () -> (long) currentTimeMillis.get());
+
+    RecordingConsumer<WindowedValue<String>> recordingConsumer = new RecordingConsumer<>();
+    when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
+        .thenReturn(recordingConsumer);
+    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+
+    Consumer<Integer> processedElementConsumer = operation.processedElementsConsumer();
+
+    operation.start();
+
+    // Never wait before sending the first element.
+    assertFalse(operation.shouldWait());
+    operation.process(valueInGlobalWindow("first"));
+
+    // After sending the first element, wait until it's processed before sending another.
+    assertTrue(operation.shouldWait());
+
+    // Once we've processed the element, we can send the second.
+    currentTimeMillis.getAndAdd(FIRST_ELEMENT_DURATION);
+    processedElementConsumer.accept(1);
+    assertFalse(operation.shouldWait());
+    operation.process(valueInGlobalWindow("second"));
+
+    // Send elements until the buffer is full.
+    for (int i = 2; i < START_BUFFER_SIZE + 1; i++) {
+      assertFalse(operation.shouldWait());
+      operation.process(valueInGlobalWindow("element" + i));
+    }
+
+    // The buffer is full.
+    assertTrue(operation.shouldWait());
+
+    // Now finish processing the second element.
+    currentTimeMillis.getAndAdd(STEADY_ELEMENT_DURATION);
+    processedElementConsumer.accept(2);
+
+    // That was faster, so our buffer quota is larger.
+    for (int i = START_BUFFER_SIZE + 1; i < STEADY_BUFFER_SIZE + 2; i++) {
+      assertFalse(operation.shouldWait());
+      operation.process(valueInGlobalWindow("element" + i));
+    }
+
+    // The buffer is full again.
+    assertTrue(operation.shouldWait());
+
+    // As elements are consumed, we can keep adding more.
+    for (int i = START_BUFFER_SIZE + STEADY_BUFFER_SIZE + 2; i < 100; i++) {
+      currentTimeMillis.getAndAdd(STEADY_ELEMENT_DURATION);
+      processedElementConsumer.accept(i);
+      assertFalse(operation.shouldWait());
+      operation.process(valueInGlobalWindow("element" + i));
+    }
+
+    operation.finish();
+  }
+
   private static class RecordingConsumer<T> extends ArrayList<T>
       implements CloseableFnDataReceiver<T> {
     private boolean closed;
@@ -141,7 +218,10 @@ public class RemoteGrpcPortWriteOperationTest {
     }
 
     @Override
-    public void accept(T t) throws Exception {
+    public void flush() throws Exception {}
+
+    @Override
+    public synchronized void accept(T t) throws Exception {
       if (closed) {
         throw new IllegalStateException("Consumer is closed but attempting to consume " + t);
       }

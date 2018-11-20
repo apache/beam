@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -37,6 +36,7 @@ public class ExperimentContext {
 
   /** Enumeration of all known experiments. */
   public enum Experiment {
+    DisableConscryptSecurityProvider("disable_conscrypt_security_provider"),
     IntertransformIO("intertransform_io"), // Intertransform metrics for Shuffle IO (insights)
     SideInputIOMetrics("sideinput_io_metrics"); // Intertransform metrics for Side Input IO
 

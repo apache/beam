@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -98,9 +97,17 @@ public class BeamFnDataReadRunner<OutputT> {
               .setPrimitiveTransformReference(pTransformId)
               .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
               .build();
-      RunnerApi.Coder coderSpec =
-          coders.get(
-              pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
+      RunnerApi.Coder coderSpec;
+      if (RemoteGrpcPortRead.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
+        LOG.error(
+            "Missing required coder_id on grpc_port for %s; using deprecated fallback.",
+            pTransformId);
+        coderSpec =
+            coders.get(
+                pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
+      } else {
+        coderSpec = null;
+      }
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
           (Collection)
               pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));

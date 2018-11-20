@@ -31,6 +31,7 @@ from builtins import zip
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
@@ -142,19 +143,30 @@ class Operation(object):
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
+    # Legacy workers cannot call setup() until after setting additional state
+    # on the operation.
+    self.setup_done = False
+
+  def setup(self):
+    with self.scoped_start_state:
+      self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+          logging.DEBUG)
+      # Everything except WorkerSideInputSource, which is not a
+      # top-level operation, should have output_coders
+      #TODO(pabloem): Define better what step name is used here.
+      if getattr(self.spec, 'output_coders', None):
+        self.receivers = [ConsumerSet(self.counter_factory,
+                                      self.name_context.logging_name(),
+                                      i,
+                                      self.consumers[i], coder)
+                          for i, coder in enumerate(self.spec.output_coders)]
+    self.setup_done = True
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
-    # Everything except WorkerSideInputSource, which is not a
-    # top-level operation, should have output_coders
-    #TODO(pabloem): Define better what step name is used here.
-    if getattr(self.spec, 'output_coders', None):
-      self.receivers = [ConsumerSet(self.counter_factory,
-                                    self.name_context.logging_name(),
-                                    i,
-                                    self.consumers[i], coder)
-                        for i, coder in enumerate(self.spec.output_coders)]
+    if not self.setup_done:
+      # For legacy workers.
+      self.setup()
 
   def process(self, o):
     """Process element in operation."""
@@ -163,6 +175,9 @@ class Operation(object):
   def finish(self):
     """Finish operation."""
     pass
+
+  def reset(self):
+    self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
@@ -189,6 +204,62 @@ class Operation(object):
                     if len(self.receivers) == 1
                     else None))),
         user=self.metrics_container.to_runner_api())
+
+  def monitoring_infos(self, transform_id):
+    """Returns the list of MonitoringInfos collected by this operation."""
+    all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
+    all_monitoring_infos.update(
+        self.element_count_monitoring_infos(transform_id))
+    all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
+    return all_monitoring_infos
+
+  def element_count_monitoring_infos(self, transform_id):
+    """Returns the element count MonitoringInfo collected by this operation."""
+    if len(self.receivers) == 1:
+      # If there is exactly one output, we can unambiguously
+      # fix its name later, which we do.
+      # TODO(robertwb): Plumb the actual name here.
+      mi = monitoring_infos.int64_counter(
+          monitoring_infos.ELEMENT_COUNT_URN,
+          self.receivers[0].opcounter.element_counter.value(),
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {monitoring_infos.to_key(mi) : mi}
+    return {}
+
+  def user_monitoring_infos(self, transform_id):
+    """Returns the user MonitoringInfos collected by this operation."""
+    return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
+
+  def execution_time_monitoring_infos(self, transform_id):
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int()
+        + self.scoped_process_state.sampled_msecs_int()
+        + self.scoped_finish_state.sampled_msecs_int())
+    mis = [
+        monitoring_infos.int64_counter(
+            monitoring_infos.START_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+            self.scoped_process_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+            self.scoped_finish_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.TOTAL_MSECS_URN,
+            total_time_spent_msecs,
+            ptransform=transform_id
+        ),
+    ]
+    return {monitoring_infos.to_key(mi) : mi for mi in mis}
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -365,9 +436,9 @@ class DoOperation(Operation):
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
-  def start(self):
+  def setup(self):
     with self.scoped_start_state:
-      super(DoOperation, self).start()
+      super(DoOperation, self).setup()
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -417,6 +488,9 @@ class DoOperation(Operation):
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
 
+  def start(self):
+    with self.scoped_start_state:
+      super(DoOperation, self).start()
       self.dofn_runner.start()
 
   def process(self, o):
@@ -433,6 +507,13 @@ class DoOperation(Operation):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
 
+  def reset(self):
+    super(DoOperation, self).reset()
+    for side_input_map in self.side_input_maps:
+      side_input_map.reset()
+    if self.user_state_context:
+      self.user_state_context.reset()
+
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
     if self.tagged_receivers:
@@ -441,6 +522,19 @@ class DoOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    if self.tagged_receivers:
+      for tag, receiver in self.tagged_receivers.items():
+        mi = monitoring_infos.int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(mi)] = mi
+    return infos
 
 
 class DoFnRunnerReceiver(Receiver):

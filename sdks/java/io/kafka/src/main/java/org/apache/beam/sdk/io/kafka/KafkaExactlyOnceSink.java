@@ -681,7 +681,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
   private static Consumer<?, ?> openConsumer(Write<?, ?> spec) {
     return spec.getConsumerFactoryFn()
         .apply(
-            (ImmutableMap.of(
+            ImmutableMap.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 spec.getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
                 ConsumerConfig.GROUP_ID_CONFIG,
@@ -689,7 +689,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class)));
+                ByteArrayDeserializer.class));
   }
 
   private static <K, V> Producer<K, V> initializeExactlyOnceProducer(
@@ -709,7 +709,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     Producer<K, V> producer =
         spec.getProducerFactoryFn() != null
-            ? spec.getProducerFactoryFn().apply((producerConfig))
+            ? spec.getProducerFactoryFn().apply(producerConfig)
             : new KafkaProducer<>(producerConfig);
 
     ProducerSpEL.initTransactions(producer);

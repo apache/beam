@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,7 +64,7 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   public DistributionData getAndReset() {
-    return value.getAndUpdate((unused) -> DistributionData.EMPTY);
+    return value.getAndUpdate(unused -> DistributionData.EMPTY);
   }
 
   @Override

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.control;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -45,9 +44,8 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
@@ -66,8 +64,8 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Message;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -237,19 +235,19 @@ public class ProcessBundleHandler {
                 beamFnStateGrpcClientCache.forApiServiceDescriptor(
                     bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
-      Multimap<String, Application> allPrimaries = ArrayListMultimap.create();
-      Multimap<String, DelayedApplication> allResiduals = ArrayListMultimap.create();
+      Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
+      Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
       BundleSplitListener splitListener =
-          (List<Application> primaries, List<DelayedApplication> residuals) -> {
+          (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
             // Reset primaries and accumulate residuals.
-            Multimap<String, Application> newPrimaries = ArrayListMultimap.create();
-            for (Application primary : primaries) {
+            Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
+            for (BundleApplication primary : primaries) {
               newPrimaries.put(primary.getPtransformId(), primary);
             }
             allPrimaries.clear();
             allPrimaries.putAll(newPrimaries);
 
-            for (DelayedApplication residual : residuals) {
+            for (DelayedBundleApplication residual : residuals) {
               allResiduals.put(residual.getApplication().getPtransformId(), residual);
             }
           };
@@ -291,12 +289,8 @@ public class ProcessBundleHandler {
         LOG.debug("Finishing function {}", finishFunction);
         finishFunction.run();
       }
-      if (!allPrimaries.isEmpty()) {
-        response.setSplit(
-            BundleSplit.newBuilder()
-                .addAllPrimaryRoots(allPrimaries.values())
-                .addAllResidualRoots(allResiduals.values())
-                .build());
+      if (!allResiduals.isEmpty()) {
+        response.addAllResidualRoots(allResiduals.values());
       }
     }
 

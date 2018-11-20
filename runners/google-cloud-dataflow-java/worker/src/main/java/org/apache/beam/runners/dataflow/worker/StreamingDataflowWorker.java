@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -23,9 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
@@ -40,6 +36,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -51,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -115,7 +114,6 @@ import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.util.FluentBackoff;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
@@ -128,10 +126,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWo
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -691,7 +693,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.getQueue().size() == 0;
+    return workUnitExecutor.getQueue().isEmpty();
   }
 
   public void start() {
@@ -1095,7 +1097,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), (s) -> new StageInfo(s, mapTask.getSystemName()));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName()));
 
     ExecutionState executionState = null;
 
@@ -1312,9 +1314,9 @@ public class StreamingDataflowWorker {
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
-      long processingTimeMicros =
-          TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - processingStartTimeNanos);
-      stageInfo.totalProcessingMsecs.addValue(processingTimeMicros);
+      long processingTimeMsecs =
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
+      stageInfo.totalProcessingMsecs.addValue(processingTimeMsecs);
 
       // Attribute all the processing to timers if the work item contains any timers.
       // Tests show that work items rarely contain both timers and message bundles. It should
@@ -1322,7 +1324,7 @@ public class StreamingDataflowWorker {
       // Another option: Derive time split between messages and timers based on recent totals.
       // either here or in DFE.
       if (work.getWorkItem().hasTimers()) {
-        stageInfo.timerProcessingMsecs.addValue(processingTimeMicros);
+        stageInfo.timerProcessingMsecs.addValue(processingTimeMsecs);
       }
 
       DataflowWorkerLoggingMDC.setWorkId(null);
@@ -1519,7 +1521,7 @@ public class StreamingDataflowWorker {
       if (config.getWindmillServicePort() != null && config.getWindmillServicePort() != 0) {
         port = config.getWindmillServicePort().intValue();
       }
-      HashSet<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      HashSet<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(config.getWindmillServiceEndpoint())) {
         endpoints.add(HostAndPort.fromString(endpoint).withDefaultPort(port));
       }
@@ -1704,18 +1706,73 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Returns key for a counter update. It is a String in case of legacy counter and
+   * CounterStructuredName in the case of a structured counter.
+   */
+  private Object getCounterUpdateKey(CounterUpdate counterUpdate) {
+    Object key = null;
+    if (counterUpdate.getNameAndKind() != null) {
+      key = counterUpdate.getNameAndKind().getName();
+    } else if (counterUpdate.getStructuredNameAndMetadata() != null) {
+      key = counterUpdate.getStructuredNameAndMetadata().getName();
+    }
+    checkArgument(key != null, "Could not find name for CounterUpdate: %s", counterUpdate);
+    return key;
+  }
+
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
 
-    List<CounterUpdate> counterUpdates = new ArrayList<>();
-    if (publishCounters) {
-      stageInfoMap.values().forEach((s) -> counterUpdates.addAll(s.extractCounterUpdates()));
+    List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
+    if (publishCounters) {
+      stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+    }
+
+    // Handle duplicate counters from different stages. Store all the counters in a multi-map and
+    // send the counters that appear multiple times in separate RPCs. Same logical counter could
+    // appear in multiple stages if a step runs in multiple stages (as with flatten-unzipped stages)
+    // especially if the counter definition does not set execution_step_name.
+    ListMultimap<Object, CounterUpdate> counterMultimap =
+        MultimapBuilder.hashKeys(counterUpdates.size()).linkedListValues().build();
+    boolean hasDuplicates = false;
+
+    for (CounterUpdate c : counterUpdates) {
+      Object key = getCounterUpdateKey(c);
+      if (counterMultimap.containsKey(key)) {
+        hasDuplicates = true;
+      }
+      counterMultimap.put(key, c);
+    }
+
+    // Clears counterUpdates and enqueues unique counters from counterMultimap. If a counter
+    // appears more than once, one of them is extracted leaving the remaining in the map.
+    Runnable extractUniqueCounters =
+        () -> {
+          counterUpdates.clear();
+          for (Iterator<Object> iter = counterMultimap.keySet().iterator(); iter.hasNext(); ) {
+            List<CounterUpdate> counters = counterMultimap.get(iter.next());
+            counterUpdates.add(counters.get(0));
+            if (counters.size() == 1) {
+              // There is single value. Remove the entry through the iterator.
+              iter.remove();
+            } else {
+              // Otherwise remove the first value.
+              counters.remove(0);
+            }
+          }
+        };
+
+    if (hasDuplicates) {
+      extractUniqueCounters.run();
+    } else { // Common case: no duplicates. We can just send counterUpdates, empty the multimap.
+      counterMultimap.clear();
     }
 
     List<Status> errors;
@@ -1735,10 +1792,16 @@ public class StreamingDataflowWorker {
             .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
             .setErrors(errors)
             .setCounterUpdates(counterUpdates);
-    // We can't populate per-workitem fields like TotalThrottlerWaitTimeSeconds in WorkItemStatus.
-    // This work item does not represent any specific stage on DFE.
-
     workUnitClient.reportWorkItemStatus(workItemStatus);
+
+    // Send any counters appearing more than once in subsequent RPCs:
+    while (!counterMultimap.isEmpty()) {
+      extractUniqueCounters.run();
+      workUnitClient.reportWorkItemStatus(
+          new WorkItemStatus()
+              .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
+              .setCounterUpdates(counterUpdates));
+    }
   }
 
   /**

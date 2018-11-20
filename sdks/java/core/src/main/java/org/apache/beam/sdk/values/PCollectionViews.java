@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -433,7 +432,7 @@ public class PCollectionViews {
 
     @Override
     public int hashCode() {
-      return Objects.hash(tag);
+      return tag.hashCode();
     }
 
     @Override

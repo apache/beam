@@ -47,7 +47,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
 /**
@@ -222,7 +222,7 @@ class WindmillStateReader {
   private <ElemT, FutureT> Future<FutureT> stateFuture(
       StateTag stateTag, @Nullable Coder<ElemT> coder) {
     CoderAndFuture<ElemT, FutureT> coderAndFuture =
-        new CoderAndFuture<ElemT, FutureT>(coder, SettableFuture.<FutureT>create());
+        new CoderAndFuture<>(coder, SettableFuture.<FutureT>create());
     CoderAndFuture<?, ?> existingCoderAndFutureWildcard =
         waiting.putIfAbsent(stateTag, coderAndFuture);
     if (existingCoderAndFutureWildcard == null) {

@@ -60,7 +60,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
       Throwable current = t;
       for (; current.getCause() != null; current = current.getCause()) {
         if (current instanceof UserCodeException) {
-          innermostUserCodeException = ((UserCodeException) current);
+          innermostUserCodeException = (UserCodeException) current;
         }
       }
       if (innermostUserCodeException != null) {

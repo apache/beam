@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -62,7 +61,7 @@ public class MetricsAccumulator {
           Accumulator<MetricsContainerStepMap> accumulator =
               jsc.sc()
                   .accumulator(
-                      new MetricsContainerStepMap(),
+                      new SparkMetricsContainerStepMap(),
                       ACCUMULATOR_NAME,
                       new MetricsAccumulatorParam());
           if (maybeCheckpointDir.isPresent()) {

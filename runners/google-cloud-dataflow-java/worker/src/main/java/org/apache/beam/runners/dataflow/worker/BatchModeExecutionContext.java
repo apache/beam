@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -473,12 +472,12 @@ public class BatchModeExecutionContext
               return Iterables.concat(
                   FluentIterable.from(updates.counterUpdates())
                       .transform(
-                          (update) ->
+                          update ->
                               MetricsToCounterUpdateConverter.fromCounter(
                                   update.getKey(), true, update.getUpdate())),
                   FluentIterable.from(updates.distributionUpdates())
                       .transform(
-                          (update) ->
+                          update ->
                               MetricsToCounterUpdateConverter.fromDistribution(
                                   update.getKey(), true, update.getUpdate())));
             });
@@ -509,7 +508,7 @@ public class BatchModeExecutionContext
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {
-        totalThrottleTime += TimeUnit.MICROSECONDS.toSeconds(throttlingMsecs.getCumulative());
+        totalThrottleTime += TimeUnit.MILLISECONDS.toSeconds(throttlingMsecs.getCumulative());
       }
     }
     return totalThrottleTime;

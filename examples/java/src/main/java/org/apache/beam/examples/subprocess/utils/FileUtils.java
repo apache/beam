@@ -20,7 +20,6 @@ package org.apache.beam.examples.subprocess.utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -47,7 +46,7 @@ public class FileUtils {
   }
 
   public static String toStringParams(ProcessBuilder builder) {
-    return (String.join(",", builder.command()));
+    return String.join(",", builder.command());
   }
 
   public static String copyFileFromWorkerToGCS(
@@ -157,8 +156,6 @@ public class FileUtils {
 
     try (BufferedReader br = Files.newBufferedReader(Paths.get(path.toString()), UTF_8)) {
       return br.readLine();
-    } catch (FileNotFoundException e) {
-      LOG.error("Error reading the first line of file", e);
     } catch (IOException e) {
       LOG.error("Error reading the first line of file", e);
     }

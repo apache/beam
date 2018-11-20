@@ -113,7 +113,7 @@ public class ReferenceRunnerJobServer {
       ServerFactory serverFactory,
       ReferenceRunnerJobService service)
       throws IOException {
-    if (configuration.port < 0) {
+    if (configuration.port <= 0) {
       return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     }
     return GrpcFnServer.create(
@@ -126,8 +126,8 @@ public class ReferenceRunnerJobServer {
     @Option(
       name = "-p",
       aliases = {"--port"},
-      usage = "The local port to expose the server on"
+      usage = "The local port to expose the server on. 0 to use a dynamic port. (Default: 8099)"
     )
-    private int port = -1;
+    private int port = 8099;
   }
 }

@@ -64,7 +64,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
           .in(p)
           .apply(Create
                     .of(row)
-                    .withCoder(appSchema.getRowCoder()));
+                    .withCoder(RowCoder.of(appSchema)));
     ```
   - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format:
     ```java

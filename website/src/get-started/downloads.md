@@ -61,6 +61,17 @@ at scale.
 You can download the source code package for a release from the links in the
 [Releases](#releases) section.
 
+### Release integrity
+
+You *must* [verify](https://www.apache.org/info/verification.html) the integrity
+of downloaded files. We provide OpenPGP signatures for every release file. This
+signature should be matched against the
+[KEYS](https://www.apache.org/dist/beam/KEYS) file which contains the OpenPGP
+keys of Apache Beam's Release Managers. We also provide SHA-512 checksums for
+every release file (or SHA-1 and MD5 checksums for older releases). After you
+download the file, you should calculate a checksum for your download, and make
+sure it is the same as ours.
+
 
 ## API stability
 
@@ -79,49 +90,72 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.7.0 (2018-10-02)
-Official [source code download](https://dist.apache.org/repos/dist/release/beam/2.7.0/apache-beam-2.7.0-source-release.zip)
-[SHA-512](https://dist.apache.org/repos/dist/release/beam/2.7.0/apache-beam-2.7.0-source-release.zip.sha512)
-[signature](https://dist.apache.org/repos/dist/release/beam/2.7.0/apache-beam-2.7.0-source-release.zip.asc).
+### 2.8.0 (2018-10-26)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.8.0/apache-beam-2.8.0-source-release.zip).
+[SHA-512](https://www.apache.org/dist/beam/2.8.0/apache-beam-2.8.0-source-release.zip.sha512).
+[signature](https://www.apache.org/dist/beam/2.8.0/apache-beam-2.8.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343985).
+
+### 2.7.0 LTS (2018-10-02)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.7.0/apache-beam-2.7.0-source-release.zip).
+[SHA-512](https://www.apache.org/dist/beam/2.7.0/apache-beam-2.7.0-source-release.zip.sha512).
+[signature](https://www.apache.org/dist/beam/2.7.0/apache-beam-2.7.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343654).
 
+2.7.0 branch is [designated](https://lists.apache.org/thread.html/896cbc9fef2e60f19b466d6b1e12ce1aeda49ce5065a0b1156233f01@%3Cdev.beam.apache.org%3E) by the Beam community as a [long term support (LTS)](https://beam.apache.org/community/policies/) release branch. This branch will be supported for a window of 6 months starting from the day it is marked as an LTS branch ending at 2019-05-16. Beam community will decide on which issues will be backported and when patch releases on the branch will be made on a case by case basis.
+
 ### 2.6.0 (2018-08-08)
-Official [source code download](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip)
-[SHA-512](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip.sha512)
+Official [source code download](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip.sha512).
 [signature](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343392).
 
 ### 2.5.0 (2018-06-06)
-Official [source code download](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip)
-[SHA-512](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip.sha512)
+Official [source code download](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip.sha512).
 [signature](https://archive.apache.org/dist/beam/2.5.0/apache-beam-2.5.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12342847).
 
 ### 2.4.0 (2018-03-20)
-Official [source code download](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip)
+Official [source code download](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.4.0/apache-beam-2.4.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12342682).
 
 ### 2.3.0 (2018-01-30)
 Official [source code download](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip).
+[SHA-1](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip.sha1).
+[MD5](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip.md5).
+[signature](https://archive.apache.org/dist/beam/2.3.0/apache-beam-2.3.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12341608).
 
 ### 2.2.0 (2017-12-02)
 Official [source code download](https://archive.apache.org/dist/beam/2.2.0/apache-beam-2.2.0-source-release.zip).
+[SHA-1](https://archive.apache.org/dist/beam/2.2.0/apache-beam-2.2.0-source-release.zip.sha1).
+[MD5](https://archive.apache.org/dist/beam/2.2.0/apache-beam-2.2.0-source-release.zip.md5).
+[signature](https://archive.apache.org/dist/beam/2.2.0/apache-beam-2.2.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12341044).
 
 ### 2.1.0 (2017-08-23)
 Official [source code download](https://archive.apache.org/dist/beam/2.1.0/apache-beam-2.1.0-source-release.zip).
+[SHA-1](https://archive.apache.org/dist/beam/2.1.0/apache-beam-2.1.0-source-release.zip.sha1).
+[MD5](https://archive.apache.org/dist/beam/2.1.0/apache-beam-2.1.0-source-release.zip.md5).
+[signature](https://archive.apache.org/dist/beam/2.1.0/apache-beam-2.1.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12340528).
 
 ### 2.0.0 (2017-05-17)
 Official [source code download](https://archive.apache.org/dist/beam/2.0.0/apache-beam-2.0.0-source-release.zip).
+[SHA-1](https://archive.apache.org/dist/beam/2.0.0/apache-beam-2.0.0-source-release.zip.sha1).
+[MD5](https://archive.apache.org/dist/beam/2.0.0/apache-beam-2.0.0-source-release.zip.md5).
+[signature](https://archive.apache.org/dist/beam/2.0.0/apache-beam-2.0.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12339746).
 

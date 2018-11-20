@@ -149,3 +149,23 @@ $ go test ./...
 If you don’t have a GOPATH set, create a new directory in your home directory, and use that.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
+
+### Dependency management
+Until [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
+Beam locks versions of packages with the gogradle plugin. If new dependencies
+are added in a PR then the lock file needs to be updated. 
+From the `$GOPATH/src/github.com/apache/beam` directory run
+
+```
+$ ./gradlew :beam-sdks-go:lock
+`./gradlew :goPostcommit`
+```
+
+ to update the lock file, and test your code under the locked versions. gogradle
+will add vendor directories with the locked versions of the code.
+
+You can sanity check a PR on Jenkins by commenting `Run Go PostCommit` to trigger 
+the integration tests. This is important so that the Beam testing done on the
+jenkins cluster can produce consistent results, and have the packages available.
+
+

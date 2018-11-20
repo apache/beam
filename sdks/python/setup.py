@@ -117,7 +117,7 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<5',
+    'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     'pydot>=1.2.0,<1.3',
@@ -137,13 +137,14 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-    # oauth2client >=4 only works with google-apitools>=0.5.18.
-    'google-apitools>=0.5.18,<=0.5.20',
+    # google-apitools 0.5.23 and above has important Python 3 supports.
+    'google-apitools>=0.5.23,<=0.5.24',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1; python_version < "3.0"',
+    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
     'google-cloud-pubsub==0.35.4',
+    'google-cloud-storage==1.13.0',
     # GCP packages required by tests
-    'google-cloud-bigquery==0.25.0',
+    'google-cloud-bigquery>=1.6.0,<1.7.0',
 ]
 
 if sys.version_info[0] == 2:

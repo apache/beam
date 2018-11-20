@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
@@ -191,7 +190,7 @@ public class GroupingShuffleEntryIteratorTest {
 
     assertEquals(expectedEntry, values1Copy2.next());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 15L);
 
     // Verify that each executing step used when reading from the GroupingShuffleReader

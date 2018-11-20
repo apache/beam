@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -107,7 +106,8 @@ public final class BeamTableUtils {
         return rawObj;
       }
     } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
+      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
     } else if (type.isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {

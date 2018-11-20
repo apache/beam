@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -70,8 +69,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -337,6 +336,15 @@ public class RegisterAndProcessBundleOperation extends Operation {
         .thenApply(response -> response.getMetrics());
   }
 
+  public boolean hasFailed() throws ExecutionException, InterruptedException {
+    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
+      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
+    } else {
+      // At the very least, we don't know that this has failed yet.
+      return false;
+    }
+  }
+
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
   double getInputElementsConsumed(BeamFnApi.Metrics metrics) {
     return metrics
@@ -474,7 +482,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     BagState<ByteString> state =
         userStateData.computeIfAbsent(
             stateRequest.getStateKey(),
-            (unused) ->
+            unused ->
                 userStepContext
                     .stateInternals()
                     .state(

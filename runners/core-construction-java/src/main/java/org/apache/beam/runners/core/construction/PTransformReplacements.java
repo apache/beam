@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -69,6 +68,6 @@ public class PTransformReplacements {
 
   public static <T> PCollection<T> getSingletonMainOutput(
       AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
-    return ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()));
+    return (PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values());
   }
 }

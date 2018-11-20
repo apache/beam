@@ -210,4 +210,10 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetry();
   }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
+  }
 }
